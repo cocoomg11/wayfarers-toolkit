@@ -285,7 +285,7 @@ function renderTracker() {
   hud.hidden = !list.length;
   const collapsed = !!S("trackerCollapsed");
   const item = j => {
-    const q = data(j); const left = q.objectives.filter(o => !o.hidden && !o.done);
+    const q = data(j); const left = q.objectives.filter(o => !o.hidden && !o.done).sort((a, b) => a.optional - b.optional);
     const lines = left.map(o => `<li class="${o.optional ? "opt" : ""}">${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</li>`);
     if (allDone(q) && !left.some(o => !o.optional)) lines.unshift(`<li class="ready">All objectives complete</li>`);
     return `<li data-quest-id="${j.id}"><a data-action="open" class="ttl">${esc(j.name)}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
@@ -314,6 +314,9 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     const quests = all().filter(j => canSee(j)).map(j => ({ j, q: data(j) })).sort((a, b) => a.q.sort - b.q.sort || a.j.name.localeCompare(b.j.name));
     const tabs = Object.keys(TABS).filter(t => gm || t !== "available");
     if (!tabs.includes(this.tab)) this.tab = "active";
+    // When the selected quest moves (given, completed, failed), follow it to its tab.
+    const cur = quests.find(x => x.j.id === this.selected);
+    if (cur && !inTab(cur.q, this.tab)) this.tab = tabs.find(t => inTab(cur.q, t)) ?? this.tab;
     const here = quests.filter(x => inTab(x.q, this.tab));
     let sel = here.find(x => x.j.id === this.selected) ?? here[0] ?? null;
     this.selected = sel?.j.id ?? null;
