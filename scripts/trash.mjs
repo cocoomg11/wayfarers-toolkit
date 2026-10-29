@@ -48,15 +48,19 @@ export const coinFor = cr => Math.round(Math.pow(wowLevel(cr), 1.8) * 0.4 * (0.5
 const rand = a => a[Math.floor(Math.random() * a.length)];
 const chance = p => Math.random() < p;
 
-/** The trash pool: every grey item in the configured compendiums, indexed once per session. */
+/** The trash pool: every grey item in the configured compendiums, indexed once per session on first use (a promise, so calls made
+ * while the index is loading share one scan). */
 let POOL = null;
 export function packIds() {
   const set = String(game.settings.get(ID, "trashPacks") || "").split(/[,\s]+/).filter(Boolean);
   if (set.length) return set;
   return game.packs.get(`${WOW}.items`) ? [`${WOW}.items`] : [];
 }
-export async function pool() {
-  if (POOL) return POOL;
+export function pool() {
+  POOL ??= buildPool().catch(e => { POOL = null; throw e; });
+  return POOL;
+}
+async function buildPool() {
   const items = [];
   for (const pid of packIds()) {
     const pack = game.packs.get(pid); if (!pack || pack.documentName !== "Item") continue;
@@ -73,8 +77,7 @@ export async function pool() {
       items.push({ uuid: e.uuid, name: e.name, img: e.img, type: e.type, ilvl, kind, copper: vp ?? null, price: e.system?.price ?? null });
     }
   }
-  POOL = items;
-  return POOL;
+  return items;
 }
 export function resetPool() { POOL = null; }
 
@@ -159,6 +162,12 @@ async function trashItemData(uuid, value, cpVal) {
 }
 
 const tokenDoc = t => t?.document ?? t;
+/** Flags tokens as looted: one update per scene instead of one per token. */
+async function markLooted(docs) {
+  const byScene = new Map();
+  for (const d of docs) { if (!d.parent) continue; if (!byScene.has(d.parent)) byScene.set(d.parent, []); byScene.get(d.parent).push({ _id: d.id, [`flags.${ID}.looted`]: true }); }
+  for (const [scene, updates] of byScene) await scene.updateEmbeddedDocuments("Token", updates);
+}
 const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor.type);
 
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
@@ -176,11 +185,10 @@ export async function vendorTrash(api, tokens = null) {
 /** The original flow: a GM loot card with a Give to Party button. */
 async function lootCard(docs, api) {
   const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = [];
-  for (const doc of docs) {
-    if (!lootable(doc)) continue;
-    if (doc.getFlag(ID, "looted")) { skipped.push(doc.name); continue; }
+  const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
+  await markLooted(todo);
+  for (const doc of todo) {
     const d = await rollDrop(doc.actor);
-    await doc.setFlag(ID, "looted", true);
     const parts = d.items.map(i => { const v = valueOf(i, api); total += v; drops.push({ uuid: i.uuid, value: v }); return `@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`; });
     if (d.copper) { const v = d.copper * (Object.fromEntries(api.coins()).cp ?? 1); coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
@@ -198,12 +206,11 @@ async function lootCard(docs, api) {
 async function lootPiles(docs, api) {
   const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0;
-  for (const doc of docs) {
-    if (!lootable(doc)) continue;
-    if (doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) { skipped.push(doc.name); continue; }
+  const todo = docs.filter(lootable).filter(doc => !((doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) && skipped.push(doc.name)));
+  await markLooted(todo);
+  for (const doc of todo) {
     const actor = doc.actor;
     const d = await rollDrop(actor);
-    await doc.setFlag(ID, "looted", true);
     const own = actor.items.map(i => i.id);
     const create = []; const parts = [];
     for (const i of d.items) {
@@ -216,7 +223,7 @@ async function lootPiles(docs, api) {
     if (!create.length && !d.copper) { empty.push(doc.name); continue; }
     if (create.length) await actor.createEmbeddedDocuments("Item", create);
     if (d.copper) {
-      const c = { ...actor.system.currency }; c.cp = (c.cp || 0) + d.copper; await actor.update({ "system.currency": c }); await api.consolidate(actor);
+      await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
       const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
     }
     const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
@@ -234,14 +241,17 @@ export async function giveTrash(message, api) {
   const data = message.getFlag(ID, "trash"); if (!data || data.given || !data.drops) return ui.notifications.info("Already given.");
   const party = api.partyActor(); if (!party) return ui.notifications.warn(`No group actor named ${api.PARTY}.`);
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
-  const docs = [];
-  for (const d of data.drops) {
+  // Repeats of one item stack: existing stacks go up in one update, new items are created in one go.
+  const counts = new Map(); for (const d of data.drops) { const e = counts.get(d.uuid); if (e) e.n++; else counts.set(d.uuid, { d, n: 1 }); }
+  const updates = []; const docs = [];
+  for (const { d, n } of counts.values()) {
     const existing = party.items.find(i => i.getFlag(ID, "trash") && i.getFlag(ID, "source") === d.uuid);
-    if (existing) { await existing.update({ "system.quantity": (existing.system.quantity || 1) + 1 }); continue; }
-    const o = await trashItemData(d.uuid, d.value, cpVal); if (o) docs.push(o);
+    if (existing) { updates.push({ _id: existing.id, "system.quantity": (existing.system.quantity || 1) + n }); continue; }
+    const o = await trashItemData(d.uuid, d.value, cpVal); if (o) { o.system.quantity = n; docs.push(o); }
   }
+  if (updates.length) await party.updateEmbeddedDocuments("Item", updates);
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
-  if (data.coin) { const c = { ...party.system.currency }; c.cp = (c.cp || 0) + Math.round(data.coin / cpVal); await party.update({ "system.currency": c }); await api.consolidate(party); }
+  if (data.coin) await api.addMoney(party, Math.round(data.coin / cpVal) * cpVal, { consolidate: true });
   await message.setFlag(ID, "trash", { ...data, given: true });
   ui.notifications.info(`Vendor Trash: gave ${data.drops.length} item${data.drops.length === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
 }
@@ -279,7 +289,7 @@ export async function sellTrash(api, actor = null) {
   const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
   if (!ok) return;
   await actor.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
-  const c = { ...actor.system.currency }; c.cp = (c.cp || 0) + Math.round(total / cpVal); await actor.update({ "system.currency": c }); await api.consolidate(actor);
+  await api.addMoney(actor, Math.round(total / cpVal) * cpVal, { consolidate: true });
   await api.say(`<p>${actor === party ? "The party sells its" : `${esc(actor.name)} sells their`} vendor trash for ${api.fmtMoney(total)}.</p>`, "Vendor");
   return total;
 }

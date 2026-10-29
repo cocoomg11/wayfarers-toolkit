@@ -213,10 +213,10 @@ export async function unslotItem(item) {
   await item.update({ "system.equipped": false, [flagPath]: null });
 }
 
-/** The best slot for an item: a free one it fits, else the first it fits (replacing what's there). Null when the user should choose. */
-export function autoSlot(actor, item) {
+/** The best slot for an item: a free one it fits, else the first it fits (replacing what's there). Null when the user should choose.
+ * `cur` is the slot map to plan against (defaults to the actor's current slots). */
+export function autoSlot(actor, item, cur = slotted(actor)) {
   const f = fits(item); if (!f || f.ask) return null;
-  const cur = slotted(actor);
   const blocked = s => s === "offhand" && cur.mainhand && cur.mainhand !== item && isTwo(cur.mainhand);
   const ok = (f.prefer ?? f.slots).filter(s => !blocked(s));
   const mine = Object.keys(cur).find(s => cur[s] === item && f.slots.includes(s)); if (mine) return mine;
@@ -399,14 +399,16 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const s = autoSlot(this.actor, item);
     if (s) return slotItem(this.actor, item, s);
     const f = fits(item); if (!f) return;
-    this._showPop(el ?? this.element.querySelector(".wct-portrait"), `<h4>Where does ${esc(item.name)} go?</h4><ul>${f.slots.map(sl => `<li data-pick-slot="${sl}"><i class="fa-solid ${SLOTS[sl].icon}"></i> ${esc(SLOTS[sl].label)}${slotted(this.actor)[sl] ? ` <small>(replaces ${esc(slotted(this.actor)[sl].name)})</small>` : ""}</li>`).join("")}</ul>`,
+    const cur = slotted(this.actor);
+    this._showPop(el ?? this.element.querySelector(".wct-portrait"), `<h4>Where does ${esc(item.name)} go?</h4><ul>${f.slots.map(sl => `<li data-pick-slot="${sl}"><i class="fa-solid ${SLOTS[sl].icon}"></i> ${esc(SLOTS[sl].label)}${cur[sl] ? ` <small>(replaces ${esc(cur[sl].name)})</small>` : ""}</li>`).join("")}</ul>`,
       li => slotItem(this.actor, item, li.dataset.pickSlot));
   }
 
   _slotMenu(el) {
     const slot = el.dataset.slot; const cur = slotted(this.actor); const inSlot = el.classList.contains("filled") ? cur[slot] : null;
     if (el.classList.contains("ghost")) return ui.notifications.info(`${cur.mainhand.name} is two-handed: the off hand is taken.`);
-    const choices = this.actor.items.filter(i => i !== inSlot && canSlot(i, slot) && !i.system.container).sort((a, b) => (fits(b).slots[0] === slot) - (fits(a).slots[0] === slot) || a.name.localeCompare(b.name));
+    const first = new Map(); const firstIs = i => { if (!first.has(i)) first.set(i, fits(i).slots[0] === slot); return first.get(i); };
+    const choices = this.actor.items.filter(i => i !== inSlot && canSlot(i, slot) && !i.system.container).sort((a, b) => firstIs(b) - firstIs(a) || a.name.localeCompare(b.name));
     const where = i => { const s = Object.entries(cur).find(([, x]) => x === i)?.[0]; return s ? ` <small>(${esc(SLOTS[s].label)})</small>` : ""; };
     const rows = choices.map(i => `<li data-pick-item="${i.id}" style="--q:${qualityColor(i)}"><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
     this._showPop(el, `<h4>${esc(SLOTS[slot].label)}</h4>${inSlot ? `<p class="cur" style="--q:${qualityColor(inSlot)}"><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take off</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
@@ -444,13 +446,15 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
 
   /** Puts every equipped item that isn't in a slot into its best free slot. Items with no clear slot are left alone. */
   async slotEquipped() {
-    const left = [];
-    for (const i of unslottedItems(this.actor, slotted(this.actor)).filter(i => i.system.equipped)) {
-      const cur = slotted(this.actor); const s = autoSlot(this.actor, i);
+    // Plans every slot against a local copy of the slot map, then writes them all in one update.
+    const left = []; const cur = slotted(this.actor); const updates = [];
+    for (const i of unslottedItems(this.actor, cur).filter(i => i.system.equipped)) {
+      const s = autoSlot(this.actor, i, cur);
       if (!s || cur[s]) { left.push(i.name); continue; }
       if (s === "offhand" && cur.mainhand && isTwo(cur.mainhand)) { left.push(i.name); continue; }
-      await this.actor.updateEmbeddedDocuments("Item", [{ _id: i.id, [flagPath]: s }]);
+      cur[s] = i; updates.push({ _id: i.id, [flagPath]: s });
     }
+    if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
     if (left.length) ui.notifications.info(`No free slot found for: ${left.join(", ")}. Click a slot to choose.`);
   }
 }
@@ -477,11 +481,13 @@ export function patchArmorClass() {
   const AF = globalThis.dnd5e?.dataModels?.actor?.AttributesFields;
   if (!AF?.prepareArmorClass || AF.prepareArmorClass._wct) return;
   const orig = AF.prepareArmorClass;
+  // Runs on every actor data preparation, so it stays cheap: no settings read (it's only installed when the pane is on, and that
+  // setting reloads Foundry) and a straight call through when nothing needs hiding.
   const patched = function (...args) {
-    let hidden = [];
-    try {
-      if (game.settings.get(ID, "characterPane")) hidden = (this.parent?.itemTypes?.equipment ?? []).filter(i => i.system.equipped && isBodyArmor(i) && !isSuit(i));
-    } catch (e) { hidden = []; }
+    const eq = this.parent?.itemTypes?.equipment;
+    let hidden = null;
+    if (eq?.length) { try { hidden = eq.filter(i => i.system.equipped && isBodyArmor(i) && !isSuit(i)); } catch (e) { hidden = null; } }
+    if (!hidden?.length) return orig.apply(this, args);
     for (const i of hidden) i.system.equipped = false;
     try { return orig.apply(this, args); }
     finally { for (const i of hidden) i.system.equipped = true; }
@@ -499,7 +505,7 @@ export function registerHooks() {
   });
   const add = (app, controls) => {
     const actor = app.document ?? app.actor;
-    if (!actor || !["character", "npc"].includes(actor.type) || !actor.isOwner || !game.settings.get(ID, "characterPane")) return;
+    if (!actor || !["character", "npc"].includes(actor.type) || !actor.isOwner) return;
     if (controls.some(c => c.action === "wctCharacterPane")) return;
     controls.unshift({ icon: "fa-solid fa-shirt", label: "Character Pane", action: "wctCharacterPane", visible: true, onClick: () => characterPane(actor) });
   };
@@ -508,7 +514,7 @@ export function registerHooks() {
   Hooks.on("renderBaseActorSheet", (app, element) => {
     const actor = app.document ?? app.actor; const html = app.element ?? element;
     const header = html?.querySelector?.(".window-header"); if (!header) return;
-    if (!actor || !["character", "npc"].includes(actor.type) || !actor.isOwner || !game.settings.get(ID, "characterPane")) return header.querySelector(".wct-pane-btn")?.remove();
+    if (!actor || !["character", "npc"].includes(actor.type) || !actor.isOwner) return header.querySelector(".wct-pane-btn")?.remove();
     if (header.querySelector(".wct-pane-btn")) return;
     const btn = document.createElement("button");
     btn.type = "button"; btn.className = "header-control icon fa-solid fa-shirt wct-pane-btn";
