@@ -40,13 +40,42 @@ const SOCKET = `module.${ID}`;
 const freeSlot = (bar = {}, pref = null) => (pref && !bar[pref]) ? pref : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !bar[i]) ?? null;
 
 // ---------------------------------------------------------------- coins
-/** Three-coin economy: copper, silver and gold only, 100 copper to the silver and 100 silver to the gold. Applied at init, before any sheet renders. */
+/**
+ * Three-coin economy: copper, silver and gold only, 100 copper to the silver and 100 silver to the gold. Applied at init, before any sheet renders.
+ * The object is changed in place, never replaced: dnd5e's currency data fields hold a reference to it and build every actor's and container's
+ * `system.currency` from its keys, in its order. So sheets, the currency manager and award dialogs all show copper, silver, gold and nothing else.
+ */
 function applyCoinSystem() {
   if (setting("coinSystem") !== "threeCoin") return;
   const C = CONFIG.DND5E?.currencies; if (!C?.gp || !C?.sp || !C?.cp) return console.warn(`${ID} | dnd5e currencies not found; three-coin economy not applied`);
   C.gp.conversion = 1; C.sp.conversion = 100; C.cp.conversion = 10000;
   C.gp.abbreviation = "g"; C.sp.abbreviation = "s"; C.cp.abbreviation = "c";
-  delete C.pp; delete C.ep;
+  const keep = ["cp", "sp", "gp"].map(k => [k, C[k]]);
+  for (const k of Object.keys(C)) delete C[k];
+  for (const [k, c] of keep) C[k] = c;
+}
+/** Platinum and electrum a document still stores (hidden in three-coin mode), from its source data. */
+const oldCoins = doc => { const c = doc?._source?.system?.currency; return c && (c.pp > 0 || c.ep > 0) ? c : null; };
+/** Update turning stored pp/ep into gold and silver: 1 pp = 10 g, 1 ep = 50 s (half a gold piece, as in standard 5e). */
+const oldCoinUpdate = c => ({ "system.currency.gp": (c.gp || 0) + 10 * (c.pp || 0), "system.currency.sp": (c.sp || 0) + 50 * (c.ep || 0), "system.currency.pp": 0, "system.currency.ep": 0 });
+/** Three-coin mode, active GM only: converts any platinum and electrum left on actors, containers and unlinked tokens. Returns the names changed. */
+async function convertOldCoins() {
+  if (setting("coinSystem") !== "threeCoin" || !game.users.activeGM?.isSelf) return [];
+  const names = [];
+  const items = coll => coll.filter(oldCoins).map(i => { names.push(i.name); return { _id: i.id, ...oldCoinUpdate(oldCoins(i)) }; });
+  try {
+    const actorUpdates = game.actors.filter(oldCoins).map(a => { names.push(a.name); return { _id: a.id, ...oldCoinUpdate(oldCoins(a)) }; });
+    if (actorUpdates.length) await Actor.updateDocuments(actorUpdates);
+    for (const a of game.actors) { const u = items(a.items); if (u.length) await a.updateEmbeddedDocuments("Item", u); }
+    const worldItems = items(game.items); if (worldItems.length) await Item.updateDocuments(worldItems);
+    for (const scene of game.scenes) for (const t of scene.tokens) {
+      if (t.actorLink || !t.actor) continue;
+      const c = oldCoins(t.actor); if (c) { names.push(t.name); await t.actor.update(oldCoinUpdate(c)); }
+      const u = items(t.actor.items); if (u.length) await t.actor.updateEmbeddedDocuments("Item", u);
+    }
+  } catch (e) { console.warn(`${ID} | couldn't convert platinum and electrum`, e); }
+  if (names.length) await WCT.gmWhisper(`<p><strong>Three-coin economy:</strong> converted platinum (1 pp = 10g) and electrum (1 ep = 50s) on: ${[...new Set(names)].map(esc).join(", ")}.</p>`);
+  return names;
 }
 /** Coins in use, most valuable first: [key, value in the smallest coin]. */
 function coins() {
@@ -71,11 +100,11 @@ function fmtMoney(amount) {
   return parts.join(" ") || `0${tight ? "" : " "}${C[coins().at(-1)[0]].abbreviation}`;
 }
 
-/** Item Piles' currency list for the three-coin economy: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
+/** Item Piles' currency list for the three-coin economy, copper first: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
 const IP_COINS = [
-  ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"],
+  ["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"],
   ["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"],
-  ["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"]
+  ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"]
 ].map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
 /** Keeps Item Piles' currencies in step with the three-coin economy (GM side, only once Item Piles is set up for the system). */
 async function syncItemPilesCoins() {
@@ -83,9 +112,9 @@ async function syncItemPilesCoins() {
   const IP = game.modules.get("item-piles")?.active ? game.itempiles?.API : null;
   if (!IP?.setCurrencies || !IP.ITEM_QUANTITY_ATTRIBUTE) return;
   const cur = IP.CURRENCIES ?? [];
-  const same = cur.length === IP_COINS.length && IP_COINS.every(w => cur.some(c => c.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary));
+  const same = cur.length === IP_COINS.length && IP_COINS.every((w, i) => { const c = cur[i]; return c?.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary; });
   if (same) return;
-  try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to gold, silver and copper at 100 to 1.</p>"); }
+  try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to copper, silver and gold at 100 to 1.</p>"); }
   catch (e) { console.warn(`${ID} | couldn't set Item Piles currencies`, e); }
 }
 
@@ -217,6 +246,7 @@ export const WCT = {
       made.push(`feat "${setting("riderFeat") || "Trained Rider"}"`);
     }
     if (F.on("flightMaster") && setting("playerFlights")) made.push(...await this.shareFlightMacro());
+    const converted = await convertOldCoins(); if (converted.length) made.push(`gold and silver from old platinum/electrum (${converted.length})`);
     return made;
   },
   /** Lets players see the Flight Master macro and puts it on their hotbars (slot 3, or the first free slot). */
@@ -458,10 +488,7 @@ Hooks.once("ready", () => {
     WCT.syncFlightCache();
   }
   if (F.on("questLog")) Quests.ready();
-  if (game.user.isGM && setting("coinSystem") === "threeCoin") {
-    const stray = game.actors.filter(a => a.system.currency && (a.system.currency.pp || a.system.currency.ep)).map(a => a.name);
-    if (stray.length) WCT.gmWhisper(`<p><strong>Three-coin economy:</strong> these actors still hold platinum or electrum, which no longer counts: ${stray.map(esc).join(", ")}. Switch back to Standard, convert or clear those coins, then switch again.</p>`);
-  }
+  convertOldCoins();
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 
