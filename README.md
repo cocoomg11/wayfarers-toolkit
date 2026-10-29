@@ -34,7 +34,7 @@ The tracker journal's **Flight Routes** page holds two tables: flight points (na
 
 **Players and Flight Master.** With *Players can use Flight Master* on (the default), players get a feather button in the token controls and, after setup, the Flight Master macro on their hotbar. A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be logged in. Players see a copy of the flight points and routes, never the GM journal itself.
 
-**Flight sound.** Pick any audio file in the *Flight sound* setting; it plays for everyone when a flight departs.
+**Flight sound.** A \"Be Good\" clip (`sounds/be-good.ogg`, recorded by a friend of the author) plays for everyone when a flight departs. Pick a different file in the *Flight sound* setting, or clear it for silence.
 
 ## Macros and scripting
 

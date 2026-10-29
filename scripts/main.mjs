@@ -19,7 +19,7 @@ const DEFAULTS = {
   paceNormal: 3,
   paceFast: 4,
   hiddenScenes: "Hex Test|NPC Gallery",
-  flightSound: "",
+  flightSound: "modules/wayfarers-toolkit/sounds/be-good.ogg",
   flightVolume: 0.8,
   playerFlights: true
 };
@@ -39,7 +39,7 @@ function registerSettings() {
   s("paceFast", "Fast pace (mph)", "", Number);
   s("hiddenScenes", "Scenes hidden from Session Start", "Regular expression; matching scene names are left out of the list.", String);
   s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
-  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Leave blank for no sound.", String, { filePicker: "audio" });
+  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Defaults to the bundled \"Be Good\" clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });

@@ -26,7 +26,7 @@ jobs:
           ' module.json > module.tmp && mv module.tmp module.json
 
       - name: Build module.zip
-        run: zip -r module.zip module.json scripts lang README.md LICENSE
+        run: zip -r module.zip module.json scripts lang sounds README.md LICENSE
 
       - name: Upload release assets
         env:
