@@ -4,6 +4,7 @@
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
  */
 import * as Trash from "./trash.mjs";
+import * as Pane from "./pane.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -29,7 +30,8 @@ const DEFAULTS = {
   trashPacks: "",
   trashItemPiles: true,
   itemPilesCoins: true,
-  riderFeat: "Trained Rider"
+  riderFeat: "Trained Rider",
+  characterPane: true
 };
 const SOCKET = `module.${ID}`;
 
@@ -105,6 +107,7 @@ function registerSettings() {
   s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean);
   s("itemPilesCoins", "Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
   s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use WoW Classic Items (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
+  s("characterPane", "Character pane", "A World of Warcraft–style equipment frame for characters, opened from a button on the character sheet header. Slotting an item equips it; taking it out unequips it.", Boolean, { onChange: () => foundry.applications.instances?.forEach(app => { if (app.document?.documentName === "Actor") app.render(); }) });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
@@ -349,6 +352,10 @@ export const WCT = {
   syncItemPilesCoins,
   trash: Trash,
 
+  // ------------------------------------------------------------ character pane
+  characterPane(actor) { return Pane.characterPane(actor); },
+  pane: Pane,
+
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
   parseMoney, fmtMoney, coins,
   totalMoney(a) { const c = a.system.currency ?? {}; return coins().reduce((t, [k, v]) => t + (c[k] || 0) * v, 0); },
@@ -399,7 +406,7 @@ export const WCT = {
   }
 };
 
-Hooks.once("init", () => { registerSettings(); applyCoinSystem(); });
+Hooks.once("init", () => { registerSettings(); applyCoinSystem(); Pane.registerHooks(); Pane.patchArmorClass(); });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
