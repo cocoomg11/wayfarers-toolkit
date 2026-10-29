@@ -11,8 +11,8 @@ The module supplies only the logic. Your own campaign content (encounter tables,
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
-| **Vendor Trash** | Select defeated creatures and roll grey vendor-trash loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. **Sell Vendor Trash** cashes it all in. |
-| **Trained Rider** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
+| **Vendor Trash** | Select defeated creatures and roll grey vendor-trash loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in. |
+| **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
 | **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in an MMO-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
@@ -40,11 +40,11 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 ## Setup
 
-Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Trained Rider feat, macros on empty hotbar slots) and never overwrites existing documents.
+Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, macros on empty hotbar slots) and never overwrites existing documents.
 
 ## Choosing features
 
-Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Trained Rider, Character pane, Quest log and Quest tracker. All are on by default. Saving reloads Foundry.
+Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log and Quest tracker. All are on by default. Saving reloads Foundry.
 
 A tool that's turned off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included), and its settings drop out of the settings list. **Run setup** skips its macros and items. Nothing already in your world is deleted, so turning a tool back on picks up where it left off. Calling a turned-off tool from a macro just shows a warning. The three-coin economy has its own **Coin system** setting.
 
@@ -112,14 +112,28 @@ The creature type comes from the sheet; if it's blank, the name decides (a "Mang
 
 **Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
 
-## Trained Rider and Long Road
+### Dungeon loot
 
-**Run setup** adds a feat called *Trained Rider* to an Items folder named *Wayfarer's Toolkit* (players can see it, so they can drag it onto their sheets):
+Mark a scene as a dungeon to make its creatures richer: open the scene's configuration and tick **Dungeon** on the *Basics* tab (it's stored as the scene flag `flags.wayfarers-toolkit.dungeon`). Creatures looted on that scene then get:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| **Dungeon coin multiplier** | 2 | Coin a creature drops is multiplied by this. |
+| **Dungeon drop bonus (%)** | 25 | Percentage points added to every item-drop chance (a 70% body part becomes 95%), never above 100%. |
+| **Dungeon extra item roll** | on | The creature's item drops are rolled a second time (coin is not). |
+
+The trash pool is grey items only by design, so instead of raising item quality the dungeon bonus gives an extra roll. Whether coin drops at all is unchanged; only the amount goes up. Scenes not marked as dungeons drop exactly as before. The GM's Vendor Trash card shows a small **Dungeon** tag when the bonus applied. The checkbox and settings belong to Vendor Trash and disappear when it's turned off.
+
+## Riding Training and Long Road
+
+**Run setup** adds a feat called *Riding Training* to an Items folder named *Wayfarer's Toolkit* (players can see it, so they can drag it onto their sheets). It's granted on completing riding training with a stablemaster or riding instructor:
 
 > **Swift Mount.** Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.
 > **Long Road.** When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.
 
 Hex Travel enforces Long Road: when the party actor has members, the *Mounted* box starts ticked only if every member has the feat, and the dialog names anyone who doesn't. The GM can still tick or untick it. Rename the feat in the **Riding feat name** setting if you call it something else.
+
+**Upgrading from 1.7 or earlier.** The feat used to be called *Trained Rider*. Hex Travel accepts either name, and a *Riding feat name* setting still holding *Trained Rider* is read as *Riding Training*. Run setup once to rename the module's own *Trained Rider* feats (in the Items directory and on actors) to *Riding Training*; a feat you renamed yourself is left alone.
 
 ## Character pane
 

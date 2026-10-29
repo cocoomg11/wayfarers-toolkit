@@ -33,8 +33,15 @@ const DEFAULTS = {
   trashPacks: "",
   trashItemPiles: true,
   itemPilesCoins: true,
-  riderFeat: "Trained Rider"
+  riderFeat: "Riding Training",
+  dungeonCoinMult: 2,
+  dungeonDropBonus: 25,
+  dungeonExtraRoll: true
 };
+/** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
+const OLD_RIDER = "Trained Rider";
+/** The riding feat's name for this world: the setting, with the old default read as the new one. */
+const riderName = () => { const n = String(setting("riderFeat") || "").trim(); return !n || n === OLD_RIDER ? DEFAULTS.riderFeat : n; };
 const SOCKET = `module.${ID}`;
 /** The preferred hotbar slot if it's free, else the first free slot from 1 to 50. */
 const freeSlot = (bar = {}, pref = null) => (pref && !bar[pref]) ? pref : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !bar[i]) ?? null;
@@ -138,9 +145,14 @@ function registerSettings() {
   s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } }, "flightMaster");
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
   s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
-  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name.", String, {}, "riderFeat");
+  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name (Riding Training by default).", String, {}, "riderFeat");
   s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean, {}, "vendorTrash");
   s("itemPilesCoins", "Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
+  if (F.on("vendorTrash")) {
+    s("dungeonCoinMult", "Dungeon coin multiplier", "Coin dropped by creatures in scenes marked as dungeons (Scene configuration › Basics) is multiplied by this.", Number, { range: { min: 1, max: 5, step: 0.25 } });
+    s("dungeonDropBonus", "Dungeon drop bonus (%)", "Percentage points added to each item-drop chance for creatures in dungeon scenes (a 70% drop becomes 95% at +25). Chances never go above 100%.", Number, { range: { min: 0, max: 100, step: 5 } });
+    s("dungeonExtraRoll", "Dungeon extra item roll", "Creatures in dungeon scenes roll their item drops a second time (coin is not rolled again). The trash pool is grey items only, so this stands in for better-quality loot.", Boolean);
+  }
   s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() }, "vendorTrash");
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
@@ -150,7 +162,7 @@ class SetupApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = { id: `${ID}-setup`, window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
   async _renderHTML() {
     const div = document.createElement("div");
-    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder, with the macros on empty hotbar slots</li>${F.on("riderFeat") ? "<li>the Trained Rider feat</li>" : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
+    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder, with the macros on empty hotbar slots</li>${F.on("riderFeat") ? `<li>the ${esc(riderName())} feat</li>` : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
     div.querySelector("[data-action=run]").addEventListener("click", async () => { const r = await WCT.setup(); ui.notifications.info(`Wayfarer's Toolkit: ${r.length ? "created " + r.join(", ") : "everything already exists"}.`); this.close(); });
     return div;
   }
@@ -174,7 +186,7 @@ const RIDER_FEAT = name => ({
     type: { value: "feat", subtype: "general" },
     requirements: "",
     source: { book: "Wayfarer's Toolkit", custom: "Wayfarer's Toolkit" },
-    description: { value: `<p><em>General Feat</em></p><p>You've learned to ride properly, not just to stay on.</p><p><strong>Swift Mount.</strong> Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.</p><p><strong>Long Road.</strong> When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.</p>` }
+    description: { value: `<p><em>General Feat</em></p><p><em>Granted on completing riding training with a stablemaster or riding instructor.</em></p><p>You've learned to ride properly, not just to stay on.</p><p><strong>Swift Mount.</strong> Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.</p><p><strong>Long Road.</strong> When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.</p>` }
   }
 });
 
@@ -239,15 +251,40 @@ export const WCT = {
       created.forEach((m, i) => { const free = freeSlot(bar, want[i][3]); if (free) { bar[free] = patch[`hotbar.${free}`] = m.id; } made.push(`macro "${m.name}"`); });
       if (Object.keys(patch).length) await game.user.update(patch);
     }
+    if (F.on("riderFeat")) made.push(...await this.renameOldRiderFeat());
     if (F.on("riderFeat") && !game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
       let ifolder = game.folders.find(f => f.type === "Item" && f.name === "Wayfarer's Toolkit");
       ifolder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Item" });
-      await Item.create({ ...RIDER_FEAT(setting("riderFeat") || "Trained Rider"), folder: ifolder.id, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
-      made.push(`feat "${setting("riderFeat") || "Trained Rider"}"`);
+      await Item.create({ ...RIDER_FEAT(riderName()), folder: ifolder.id, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
+      made.push(`feat "${riderName()}"`);
     }
     if (F.on("flightMaster") && setting("playerFlights")) made.push(...await this.shareFlightMacro());
     const converted = await convertOldCoins(); if (converted.length) made.push(`gold and silver from old platinum/electrum (${converted.length})`);
     return made;
+  },
+  /**
+   * v1.8.0 rename: when the world uses the default name, the module's own "Trained Rider" feats (world items and copies on actors)
+   * become "Riding Training" with the new description. Only items the module made are touched: those carrying its feat flag, or
+   * with the exact old name and the module's description text. A stored setting of "Trained Rider" is moved to the new name.
+   */
+  async renameOldRiderFeat() {
+    if (!this.gmOnly() || riderName() !== DEFAULTS.riderFeat) return [];
+    const done = [];
+    if (String(setting("riderFeat") || "").trim() === OLD_RIDER) { await game.settings.set(ID, "riderFeat", DEFAULTS.riderFeat); done.push(`Riding feat name setting (${OLD_RIDER} → ${DEFAULTS.riderFeat})`); }
+    const ours = i => i.type === "feat" && i.name === OLD_RIDER && (i.getFlag(ID, "feat") === "trained-rider" || String(i.system?.description?.value ?? "").includes("You've learned to ride properly, not just to stay on."));
+    const fresh = RIDER_FEAT(DEFAULTS.riderFeat);
+    const patch = i => ({ _id: i.id, name: fresh.name, "system.description.value": fresh.system.description.value, [`flags.${ID}.feat`]: "trained-rider" });
+    try {
+      const wi = game.items.filter(ours); if (wi.length) await Item.updateDocuments(wi.map(patch));
+      let n = wi.length;
+      for (const a of game.actors) { const owned = a.items.filter(ours); if (owned.length) { await a.updateEmbeddedDocuments("Item", owned.map(patch)); n += owned.length; } }
+      for (const scene of game.scenes) for (const t of scene.tokens) {
+        if (t.actorLink || !t.actor) continue;
+        const owned = t.actor.items.filter(ours); if (owned.length) { await t.actor.updateEmbeddedDocuments("Item", owned.map(patch)); n += owned.length; }
+      }
+      if (n) done.push(`${n} "${OLD_RIDER}" feat${n === 1 ? "" : "s"} renamed to "${DEFAULTS.riderFeat}"`);
+    } catch (e) { console.warn(`${ID} | couldn't rename the old riding feat`, e); }
+    return done;
   },
   /** Lets players see the Flight Master macro and puts it on their hotbars (slot 3, or the first free slot). */
   async shareFlightMacro() {
@@ -277,7 +314,7 @@ export const WCT = {
       <div class="form-group"><label>Pace</label><select name="pace">${this.opt("slow", `Slow · ${this.PACE.slow} mph · can travel stealthily`)}${this.opt("normal", `Normal · ${this.PACE.normal} mph`, true)}${this.opt("fast", `Fast · ${this.PACE.fast} mph · −5 passive Perception`)}</select></div>
       <p class="hint">1 hex = 1 mile. Roads are safe; each off-road hex takes ×${this.OFFROAD_MULT} time and rolls 1d${this.ENC_DIE} (1 = encounter). </p>
       <div class="form-group"><label>Mounted (speed ×${this.MOUNT_MULT})</label><input type="checkbox" name="mounted" ${mountedDefault ? "checked" : ""}></div>
-      ${riders.members ? `<p class="hint">${riders.untrained.length ? `Long Road: not trained to ride yet: ${riders.untrained.map(esc).join(", ")}.` : `Long Road: every party member has ${esc(setting("riderFeat"))}.`}</p>` : ""}`;
+      ${riders.members ? `<p class="hint">${riders.untrained.length ? `Long Road: not trained to ride yet: ${riders.untrained.map(esc).join(", ")}.` : `Long Road: every party member has ${esc(riderName())}.`}</p>` : ""}`;
     const f = await this.form("Hex Travel", content, "Travel"); if (!f) return;
     const road = Math.max(0, Math.floor(+f.road || 0)), off = Math.max(0, Math.floor(+f.off || 0));
     if (!road && !off) return ui.notifications.warn("No hexes entered.");
@@ -384,9 +421,11 @@ export const WCT = {
   /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
   riders() {
     if (!F.on("riderFeat")) return { members: 0, untrained: [] };
-    const party = this.partyActor(); const featName = (setting("riderFeat") || "").toLowerCase();
+    const party = this.partyActor();
+    // The feat's flag, the configured name, or either default name (old worlds may still hold "Trained Rider").
+    const names = new Set([riderName(), String(setting("riderFeat") || ""), DEFAULTS.riderFeat, OLD_RIDER].map(n => n.trim().toLowerCase()).filter(Boolean));
     const members = (party?.system.members ?? []).map(m => m.actor ?? m).filter(a => a?.items);
-    const has = a => a.items.some(i => i.type === "feat" && (i.getFlag(ID, "feat") === "trained-rider" || i.name.toLowerCase() === featName));
+    const has = a => a.items.some(i => i.type === "feat" && (i.getFlag(ID, "feat") === "trained-rider" || names.has(i.name.trim().toLowerCase())));
     return { members: members.length, untrained: members.filter(a => !has(a)).map(a => a.name) };
   },
 
@@ -509,6 +548,8 @@ function registerFlightHooks() {
 }
 
 function registerTrashHooks() {
+  // Scene configuration: a "Dungeon" checkbox (flags.wayfarers-toolkit.dungeon) for richer Vendor Trash drops.
+  Hooks.on("renderSceneConfig", (app, html) => Trash.addDungeonField(app, html));
   // Vendor Trash loot cards: the Give to Party button (GM only).
   Hooks.on("renderChatMessageHTML", (message, html) => {
     if (!message.flags?.[ID]?.trash) return;
