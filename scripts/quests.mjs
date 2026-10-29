@@ -115,7 +115,7 @@ async function save(j, q, name = j.name) {
   q = normalize(q);
   await j.update({ name, "ownership.default": ownershipFor(q), [`flags.${ID}.quest`]: q });
   const content = pageHTML(q, name); const page = j.pages.contents[0];
-  if (page) await page.update({ name, "text.content": content });
+  if (page) { if (page.name !== name || page.text?.content !== content) await page.update({ name, "text.content": content }); }
   else await j.createEmbeddedDocuments("JournalEntryPage", [{ name, type: "text", text: { content, format: 1 } }]);
   return j;
 }
@@ -212,11 +212,7 @@ const OPS = {
     if (q.paid) { ui.notifications.info(`${j.name}: rewards already paid.`); return false; }
     const party = WCT.partyActor(); if (!party) { ui.notifications.warn(`Quest log: no group actor named ${WCT.PARTY}.`); return false; }
     const amount = q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0;
-    if (amount > 0) {
-      const c = { ...party.system.currency }; let left = amount;
-      for (const [k, v] of WCT.coins()) { if (k === "ep") continue; const n = Math.floor(left / v); if (n) { c[k] = (c[k] || 0) + n; left -= n * v; } }
-      await party.update({ "system.currency": c });
-    }
+    if (amount > 0) await WCT.addMoney(party, amount);
     const docs = [];
     for (const i of q.rewards.items) {
       const src = await fromUuid(i.uuid).catch(() => null);
@@ -254,16 +250,16 @@ const liveFor = j => isQuest(j) && canSee(j) && data(j).status === "active";
 function autoTrack(j) {
   if (!TRACKER) return;
   const now = liveFor(j); const before = seen.get(j.id) ?? false; seen.set(j.id, now);
-  if (now && !before && !tracked().includes(j.id)) {
-    const live = tracked().filter(id => { const x = find(id); return x && liveFor(x); });
-    if (live.length < MAX_TRACKED) setTracked([...tracked().filter(id => game.journal.has(id)), j.id]);
-  }
+  if (!now || before) return;
+  const list = tracked(); if (list.includes(j.id)) return;
+  const live = list.filter(id => { const x = find(id); return x && liveFor(x); });
+  if (live.length < MAX_TRACKED) setTracked([...list.filter(id => game.journal.has(id)), j.id]);
 }
 
 // ---------------------------------------------------------------- tracker HUD
-let hud = null;
+let hud = null; let hudHTML = "";
 function renderTracker() {
-  if (!TRACKER || !S("questTracker")) { hud?.remove(); hud = null; return; }
+  if (!TRACKER || !S("questTracker")) { hud?.remove(); hud = null; hudHTML = ""; return; }
   const list = tracked().map(find).filter(j => j && canSee(j) && data(j).status === "active");
   if (!hud) {
     hud = document.createElement("section"); hud.id = "wct-quest-tracker"; hud.setAttribute("aria-label", "Tracked quests");
@@ -283,7 +279,9 @@ function renderTracker() {
     return `<li data-quest-id="${j.id}"><a data-action="open" class="ttl">${esc(j.name)}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
   };
   hud.classList.toggle("collapsed", collapsed);
-  hud.innerHTML = `<header><button type="button" data-action="collapse" aria-expanded="${!collapsed}" data-tooltip="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button><span>Quests</span><span class="n">${list.length}</span></header>${collapsed ? "" : `<ol>${list.map(item).join("")}</ol>`}`;
+  // Only touch the DOM when the list actually changed (most journal updates don't change what the tracker shows).
+  const html = `<header><button type="button" data-action="collapse" aria-expanded="${!collapsed}" data-tooltip="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button><span>Quests</span><span class="n">${list.length}</span></header>${collapsed ? "" : `<ol>${list.map(item).join("")}</ol>`}`;
+  if (html !== hudHTML) { hud.innerHTML = html; hudHTML = html; }
 }
 
 // ---------------------------------------------------------------- the quest log window
@@ -623,4 +621,4 @@ export function ready() {
 }
 
 /** Tears down the UI (used when testing the file live). */
-export function teardown() { LOG?.close(); hud?.remove(); hud = null; }
+export function teardown() { LOG?.close(); hud?.remove(); hud = null; hudHTML = ""; }

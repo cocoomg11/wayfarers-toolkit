@@ -36,6 +36,8 @@ const DEFAULTS = {
   riderFeat: "Trained Rider"
 };
 const SOCKET = `module.${ID}`;
+/** The preferred hotbar slot if it's free, else the first free slot from 1 to 50. */
+const freeSlot = (bar = {}, pref = null) => (pref && !bar[pref]) ? pref : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !bar[i]) ?? null;
 
 // ---------------------------------------------------------------- coins
 /** Three-coin economy: copper, silver and gold only, 100 copper to the silver and 100 silver to the gold. Applied at init, before any sheet renders. */
@@ -60,7 +62,7 @@ function parseMoney(text, unit = setting("fareUnit")) {
   if (/^\d+(\.\d+)?$/.test(str)) return Math.round(+str * (val[unit] ?? val.gp ?? 1));
   let total = 0, hit = false;
   for (const [, n, u] of str.matchAll(/(\d+(?:\.\d+)?)\s*([a-z]+)/gi)) { const k = coinKey(u); if (k && val[k]) { total += +n * val[k]; hit = true; } }
-  return hit ? Math.round(total) : (parseFloat(str) || 0) * (val[unit] ?? 1);
+  return Math.round(hit ? total : (parseFloat(str) || 0) * (val[unit] ?? 1));
 }
 /** Amount in the smallest coin → "1g 20s 5c" (three-coin) or "1 gp 2 sp" (standard). Electrum is never used for change. */
 function fmtMoney(amount) {
@@ -199,14 +201,14 @@ export const WCT = {
       await Actor.create({ name: this.PARTY, type: "group", img: "icons/environment/people/group.webp", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
       made.push("party actor");
     }
-    let folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit");
-    for (const [name, fn, img, slot, feature, shared] of MACROS) {
-      if (!F.on(feature) || game.macros.getName(name)) continue;
-      folder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
-      const m = await Macro.create({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");`, ...(shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) });
-      const free = slot && !game.user.hotbar[slot] ? slot : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !game.user.hotbar[i]);
-      if (free) await game.user.assignHotbarMacro(m, free);
-      made.push(`macro "${name}"`);
+    // All missing macros in one create, then one hotbar update.
+    const want = MACROS.filter(([name, , , , feature]) => F.on(feature) && !game.macros.getName(name));
+    if (want.length) {
+      const folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit") ?? await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
+      const created = await Macro.implementation.createDocuments(want.map(([name, fn, img, , , shared]) => ({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");`, ...(shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
+      const bar = { ...game.user.hotbar }; const patch = {};
+      created.forEach((m, i) => { const free = freeSlot(bar, want[i][3]); if (free) { bar[free] = patch[`hotbar.${free}`] = m.id; } made.push(`macro "${m.name}"`); });
+      if (Object.keys(patch).length) await game.user.update(patch);
     }
     if (F.on("riderFeat") && !game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
       let ifolder = game.folders.find(f => f.type === "Item" && f.name === "Wayfarer's Toolkit");
@@ -223,11 +225,13 @@ export const WCT = {
     const m = game.macros.getName("Flight Master"); if (!m) return [];
     const done = []; const OBS = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
     if ((m.ownership.default ?? 0) < OBS) { await m.update({ "ownership.default": OBS }); done.push("Flight Master shared with players"); }
+    const updates = [];
     for (const u of game.users.filter(u => !u.isGM)) {
       if (Object.values(u.hotbar ?? {}).includes(m.id)) continue;
-      const slot = !u.hotbar?.[3] ? 3 : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !u.hotbar?.[i]);
-      if (slot) { await u.update({ [`hotbar.${slot}`]: m.id }); done.push(`Flight Master on ${u.name}'s hotbar`); }
+      const slot = freeSlot(u.hotbar, 3);
+      if (slot) { updates.push({ _id: u.id, [`hotbar.${slot}`]: m.id }); done.push(`Flight Master on ${u.name}'s hotbar`); }
     }
+    if (updates.length) await User.implementation.updateDocuments(updates);
     return done;
   },
 
@@ -395,10 +399,19 @@ export const WCT = {
     await a.update({ "system.currency": c });
   },
   /** Changes an actor's coins up into the largest coins (no electrum), keeping the total. */
-  async consolidate(a) {
-    let amount = this.totalMoney(a); const c = { ...a.system.currency };
-    for (const [k, v] of coins()) { if (k === "ep") { c.ep = 0; continue; } c[k] = Math.floor(amount / v); amount -= c[k] * v; }
-    await a.update({ "system.currency": c });
+  consolidate(a) { return this.addMoney(a, 0, { consolidate: true }); },
+  /**
+   * Adds coin (in the smallest coin) to an actor in a single write, skipped when nothing changes. Plain: the amount goes on top in
+   * the largest coins. consolidate: the whole purse is changed up into the largest coins afterwards (no electrum).
+   */
+  async addMoney(a, amount, { consolidate = false } = {}) {
+    const old = a.system.currency ?? {}; const c = { ...old }; let left = Math.max(0, Math.round(amount));
+    if (consolidate) left += this.totalMoney(a);
+    for (const [k, v] of coins()) {
+      if (k === "ep") { if (consolidate) c.ep = 0; continue; }
+      const n = Math.floor(left / v); c[k] = consolidate ? n : (c[k] || 0) + n; left -= n * v;
+    }
+    if (Object.keys(c).some(k => c[k] !== old[k])) await a.update({ "system.currency": c });
   },
   /** Old name kept for macros written against v1.0–1.2. */
   totalCp(a) { return this.totalMoney(a); },
@@ -471,6 +484,7 @@ function registerFlightHooks() {
 function registerTrashHooks() {
   // Vendor Trash loot cards: the Give to Party button (GM only).
   Hooks.on("renderChatMessageHTML", (message, html) => {
+    if (!message.flags?.[ID]?.trash) return;
     const btn = html.querySelector?.("[data-wct-action=give-trash]"); if (!btn) return;
     if (!game.user.isGM) return btn.remove();
     if (message.getFlag(ID, "trash")?.given) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Given to party'; return; }
