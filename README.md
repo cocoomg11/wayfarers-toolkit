@@ -7,7 +7,7 @@ GM tools for travel and loot, plus an optional three-coin economy, for [Foundry 
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
-| **Vendor Trash** | Select defeated creatures and roll WoW-style grey loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. One click gives it to the party; **Sell Vendor Trash** cashes it all in. |
+| **Vendor Trash** | Select defeated creatures and roll WoW-style grey loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. **Sell Vendor Trash** cashes it all in. |
 | **Trained Rider** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 
 ## Install
@@ -43,11 +43,33 @@ The tracker journal's **Flight Routes** page holds two tables: flight points (na
 Grey "vendor trash" from defeated creatures, the way World of Warcraft drops it.
 
 1. Select (or target) the defeated creatures' tokens.
-2. Run the **Vendor Trash** macro. The GM gets a loot card listing each creature's drop and its vendor value.
-3. Click **Give to Party** on the card. Items go into the party actor's inventory, priced at their vendor value; coin goes into its purse.
-4. At a vendor, run **Sell Vendor Trash** to sell every trash item the party holds.
+2. Run the **Vendor Trash** macro. Each creature's drop is rolled; every item is priced at its vendor value and marked as vendor trash.
+3. The loot goes either onto the bodies or to the party (see below).
+4. At a vendor, run **Sell Vendor Trash**. Pick whose trash to sell (the party actor or a character holding some; a selected token's actor is picked by default) and confirm. The coin goes to the same actor.
 
-Each token is only looted once. What drops depends on the creature:
+Each token is only looted once. Characters and group actors are never looted.
+
+### With Item Piles: loot the bodies
+
+When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is active (and *Vendor Trash uses Item Piles* is on, the default), Vendor Trash puts each creature's drop and coin on that creature and turns its token into an Item Pile. The token keeps its image and name. Players double-click the body (standing next to it) to open it and take the items and coin, which go onto their own character. The GM gets a short summary card. A creature that dropped nothing is left as it is.
+
+- **Only the loot shows.** The creature's own weapons, armor and features stay on it but are hidden from the pile, so players see just the trash and coin.
+- **The world actor isn't touched** for ordinary unlinked tokens: the loot goes onto the token's own copy of the actor. (If an NPC's token is linked to its actor, the loot goes onto that actor.)
+- **Empty bodies** stay on the map unless you turn on Item Piles' *Delete empty piles* setting. To make a body a normal token again, run `game.itempiles.API.revertTokensFromItemPiles(token)` (or turn the pile off in its Item Piles configuration).
+
+#### Setting up Item Piles
+
+1. Install and enable **Item Piles** and its system add-on: for dnd5e that's **Item Piles: D&D 5e** (`itempilesdnd5e`). Item Piles 3 has no system settings of its own; without the add-on it doesn't know item quantities or coins, and Vendor Trash falls back to the Give to Party card with a warning.
+2. Reload. Item Piles applies the dnd5e settings the first time it sees the add-on.
+3. **Three-coin economy:** the dnd5e add-on sets up five coins at 10 to 1. With *Coin system* on *Three coins* and *Set Item Piles coins for three coins* on (the default), this module replaces them each time the world loads with gold (primary), silver (×0.01) and copper (×0.0001), and whispers the GM when it changes them. To do it by hand instead, turn that setting off and in **Item Piles → Module Settings → System → Currencies** keep three attribute currencies: `system.currency.gp` (exchange rate 1, primary), `system.currency.sp` (0.01) and `system.currency.cp` (0.0001), and delete platinum and electrum.
+
+### Without Item Piles: Give to Party
+
+The GM gets a loot card listing each creature's drop and its vendor value. Click **Give to Party** on the card: items go into the party actor's inventory and coin into its purse. This is also what happens when *Vendor Trash uses Item Piles* is off.
+
+### What drops
+
+What drops depends on the creature:
 
 | Creature | Drops |
 | --- | --- |
@@ -92,7 +114,7 @@ To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they 
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `setup`. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `setup`. `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ## License
 

@@ -27,6 +27,8 @@ const DEFAULTS = {
   coinSystem: "standard",
   fareUnit: "gp",
   trashPacks: "",
+  trashItemPiles: true,
+  itemPilesCoins: true,
   riderFeat: "Trained Rider"
 };
 const SOCKET = `module.${ID}`;
@@ -63,6 +65,24 @@ function fmtMoney(amount) {
   return parts.join(" ") || `0${tight ? "" : " "}${C[coins().at(-1)[0]].abbreviation}`;
 }
 
+/** Item Piles' currency list for the three-coin economy: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
+const IP_COINS = [
+  ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"],
+  ["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"],
+  ["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"]
+].map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
+/** Keeps Item Piles' currencies in step with the three-coin economy (GM side, only once Item Piles is set up for the system). */
+async function syncItemPilesCoins() {
+  if (!game.users.activeGM?.isSelf || setting("coinSystem") !== "threeCoin" || !setting("itemPilesCoins")) return;
+  const IP = game.modules.get("item-piles")?.active ? game.itempiles?.API : null;
+  if (!IP?.setCurrencies || !IP.ITEM_QUANTITY_ATTRIBUTE) return;
+  const cur = IP.CURRENCIES ?? [];
+  const same = cur.length === IP_COINS.length && IP_COINS.every(w => cur.some(c => c.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary));
+  if (same) return;
+  try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to gold, silver and copper at 100 to 1.</p>"); }
+  catch (e) { console.warn(`${ID} | couldn't set Item Piles currencies`, e); }
+}
+
 function registerSettings() {
   const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: true, type, default: DEFAULTS[key], ...extra });
   s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
@@ -82,6 +102,8 @@ function registerSettings() {
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, like World of Warcraft. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
   s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
   s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name.", String);
+  s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean);
+  s("itemPilesCoins", "Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
   s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use WoW Classic Items (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
@@ -322,8 +344,9 @@ export const WCT = {
   },
 
   // ------------------------------------------------------------ vendor trash
-  vendorTrash() { return Trash.vendorTrash(this); },
-  sellTrash() { return Trash.sellTrash(this); },
+  vendorTrash(tokens) { return Trash.vendorTrash(this, tokens); },
+  sellTrash(actor) { return Trash.sellTrash(this, actor); },
+  syncItemPilesCoins,
   trash: Trash,
 
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
@@ -393,6 +416,9 @@ Hooks.once("ready", () => {
   }
   console.log(`${ID} | ready (v${mod.version})`);
 });
+
+// Item Piles applies its system defaults shortly after its own ready hook; set the three-coin currencies after that.
+Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000));
 
 // Keep the players' copy of the flight routes current whenever the GM edits the Flight Routes page.
 const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;

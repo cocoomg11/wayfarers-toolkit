@@ -137,43 +137,108 @@ export function valueOf(entry, api) {
   return api.parseMoney(`${p.value} ${p.denomination || "gp"}`);
 }
 
-/** Selected tokens → loot card for the GM, with a Give to Party button. */
-export async function vendorTrash(api) {
+/** Item Piles' API when it's active and set up for the game system (it needs a system integration, such as Item Piles: D&D 5e, to know item quantities and coins). */
+export function itemPiles() {
+  if (!game.modules.get("item-piles")?.active) return null;
+  const IP = game.itempiles?.API;
+  return IP?.turnTokensIntoItemPiles && IP.ITEM_QUANTITY_ATTRIBUTE ? IP : null;
+}
+/** True when Vendor Trash should put loot on the creatures as Item Piles. */
+export function usePiles() {
+  try { return !!game.settings.get(ID, "trashItemPiles") && !!itemPiles(); } catch { return !!itemPiles(); }
+}
+
+/** Item data for one trash drop: copied from the compendium, priced at its vendor value in copper, flagged for Sell Vendor Trash. */
+async function trashItemData(uuid, value, cpVal) {
+  const src = await fromUuid(uuid); if (!src) return null;
+  const o = src.toObject(); delete o._id;
+  o.system.quantity = 1;
+  o.system.price = { value: Math.max(0, Math.round(value / cpVal)), denomination: "cp" };
+  o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { trash: true, source: uuid } });
+  return o;
+}
+
+const tokenDoc = t => t?.document ?? t;
+const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor.type);
+
+/** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
+export async function vendorTrash(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install WoW Classic Items or set Vendor trash compendiums in the module settings.");
-  const tokens = canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
+  tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   if (!tokens.length) return ui.notifications.warn("Vendor Trash: select (or target) the defeated creatures first.");
   if (!(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");
+  let wantPiles = true; try { wantPiles = game.settings.get(ID, "trashItemPiles"); } catch { }
+  if (wantPiles && game.modules.get("item-piles")?.active && !itemPiles()) ui.notifications.warn("Vendor Trash: Item Piles isn't set up for this game system yet (for dnd5e, install and enable Item Piles: D&D 5e). Using the Give to Party card instead.");
+  return usePiles() ? lootPiles(tokens.map(tokenDoc), api) : lootCard(tokens.map(tokenDoc), api);
+}
+
+/** The original flow: a GM loot card with a Give to Party button. */
+async function lootCard(docs, api) {
   const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = [];
-  for (const t of tokens) {
-    if (!t.actor || t.actor.type === "character" || t.actor.type === "group") continue;
-    if (t.document.getFlag(ID, "looted")) { skipped.push(t.name); continue; }
-    const d = await rollDrop(t.actor);
-    await t.document.setFlag(ID, "looted", true);
+  for (const doc of docs) {
+    if (!lootable(doc)) continue;
+    if (doc.getFlag(ID, "looted")) { skipped.push(doc.name); continue; }
+    const d = await rollDrop(doc.actor);
+    await doc.setFlag(ID, "looted", true);
     const parts = d.items.map(i => { const v = valueOf(i, api); total += v; drops.push({ uuid: i.uuid, value: v }); return `@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`; });
     if (d.copper) { const v = d.copper * (Object.fromEntries(api.coins()).cp ?? 1); coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
-    rows.push(`<li><strong>${esc(t.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
+    rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
   }
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
   return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { drops, coin: coinTotal, given: false } } } });
 }
 
+/**
+ * Item Piles flow: the drop goes onto each creature's own actor (for an unlinked token that's the token's synthetic actor, so the
+ * world actor is untouched) and the token becomes a lootable pile that keeps its image. The creature's own gear and features stay
+ * hidden from the pile, so players only see the trash and coin. Creatures that dropped nothing are left alone.
+ */
+async function lootPiles(docs, api) {
+  const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
+  const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0;
+  for (const doc of docs) {
+    if (!lootable(doc)) continue;
+    if (doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) { skipped.push(doc.name); continue; }
+    const actor = doc.actor;
+    const d = await rollDrop(actor);
+    await doc.setFlag(ID, "looted", true);
+    const own = actor.items.map(i => i.id);
+    const create = []; const parts = [];
+    for (const i of d.items) {
+      const v = valueOf(i, api);
+      const same = create.find(o => o.flags[ID].source === i.uuid);
+      if (same) same.system.quantity += 1;
+      else { const o = await trashItemData(i.uuid, v, cpVal); if (!o) continue; create.push(o); }
+      total += v; parts.push(`@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`);
+    }
+    if (!create.length && !d.copper) { empty.push(doc.name); continue; }
+    if (create.length) await actor.createEmbeddedDocuments("Item", create);
+    if (d.copper) {
+      const c = { ...actor.system.currency }; c.cp = (c.cp || 0) + d.copper; await actor.update({ "system.currency": c }); await api.consolidate(actor);
+      const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
+    }
+    const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
+    await IP.turnTokensIntoItemPiles(doc, { pileSettings: { type: "pile", overrideItemFilters: filters } });
+    piles++;
+    rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.join(", ")}</li>`);
+  }
+  if (!rows.length && !empty.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
+  const content = `<h3>Vendor Trash</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
+  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total } } } });
+}
+
 /** Gives a loot card's items and coin to the party actor. Trash items are priced at their vendor value and flagged for Sell Trash. */
 export async function giveTrash(message, api) {
-  const data = message.getFlag(ID, "trash"); if (!data || data.given) return ui.notifications.info("Already given.");
+  const data = message.getFlag(ID, "trash"); if (!data || data.given || !data.drops) return ui.notifications.info("Already given.");
   const party = api.partyActor(); if (!party) return ui.notifications.warn(`No group actor named ${api.PARTY}.`);
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const docs = [];
   for (const d of data.drops) {
-    const src = await fromUuid(d.uuid); if (!src) continue;
-    const o = src.toObject(); delete o._id;
     const existing = party.items.find(i => i.getFlag(ID, "trash") && i.getFlag(ID, "source") === d.uuid);
     if (existing) { await existing.update({ "system.quantity": (existing.system.quantity || 1) + 1 }); continue; }
-    o.system.quantity = 1;
-    o.system.price = { value: Math.max(0, Math.round(d.value / cpVal)), denomination: "cp" };
-    o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { trash: true, source: d.uuid } });
-    docs.push(o);
+    const o = await trashItemData(d.uuid, d.value, cpVal); if (o) docs.push(o);
   }
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
   if (data.coin) { const c = { ...party.system.currency }; c.cp = (c.cp || 0) + Math.round(data.coin / cpVal); await party.update({ "system.currency": c }); await api.consolidate(party); }
@@ -181,19 +246,40 @@ export async function giveTrash(message, api) {
   ui.notifications.info(`Vendor Trash: gave ${data.drops.length} item${data.drops.length === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
 }
 
-/** Sells every trash item the party holds at its vendor price. */
-export async function sellTrash(api) {
+/** Actors holding vendor trash: the party actor and any player characters. */
+export function trashHolders(api) {
+  const party = api.partyActor();
+  return [party, ...game.actors.filter(a => a.type === "character")].filter(a => a?.items?.some(i => i.getFlag(ID, "trash")));
+}
+
+/** Sells every trash item one actor holds at its vendor price; the coin goes to that actor. The GM picks whose trash when several hold some. */
+export async function sellTrash(api, actor = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
-  const party = api.partyActor(); if (!party) return ui.notifications.warn(`No group actor named ${api.PARTY}.`);
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
-  const trash = party.items.filter(i => i.getFlag(ID, "trash"));
-  if (!trash.length) return ui.notifications.info(`${party.name} has no vendor trash to sell.`);
+  const trashOf = a => a.items.filter(i => i.getFlag(ID, "trash"));
+  const worth = a => trashOf(a).reduce((t, i) => t + Math.round((i.system.price?.value || 0) * (i.system.quantity || 1)) * cpVal, 0);
+  const party = api.partyActor();
+  if (!actor) {
+    const holders = trashHolders(api);
+    if (!holders.length) return ui.notifications.info(`Nobody has vendor trash to sell${party ? "" : ` (and there's no group actor named ${api.PARTY})`}.`);
+    actor = holders[0];
+    if (holders.length > 1) {
+      const sel = canvas.tokens?.controlled?.map(t => t.actor).find(a => holders.includes(a));
+      const def = sel ?? (holders.includes(party) ? party : holders[0]);
+      const opts = holders.map(a => api.opt(a.id, `${a.name}: ${trashOf(a).length} item${trashOf(a).length === 1 ? "" : "s"}, ${api.fmtMoney(worth(a))}`, a === def)).join("");
+      const f = await api.form("Sell Vendor Trash", `<div class="form-group"><label>Whose trash</label><select name="actor">${opts}</select></div><p class="hint">The coin goes to the same actor.</p>`, "Next");
+      if (!f) return;
+      actor = game.actors.get(f.actor); if (!actor) return;
+    }
+  }
+  const trash = trashOf(actor);
+  if (!trash.length) return ui.notifications.info(`${actor.name} has no vendor trash to sell.`);
   const each = trash.map(i => ({ i, v: Math.round((i.system.price?.value || 0) * (i.system.quantity || 1)) * cpVal }));
   const total = each.reduce((a, x) => a + x.v, 0);
-  const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Sell Vendor Trash" }, content: `<ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
+  const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
   if (!ok) return;
-  await party.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
-  const c = { ...party.system.currency }; c.cp = (c.cp || 0) + Math.round(total / cpVal); await party.update({ "system.currency": c }); await api.consolidate(party);
-  await api.say(`<p>The party sells its vendor trash for ${api.fmtMoney(total)}.</p>`, "Vendor");
+  await actor.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
+  const c = { ...actor.system.currency }; c.cp = (c.cp || 0) + Math.round(total / cpVal); await actor.update({ "system.currency": c }); await api.consolidate(actor);
+  await api.say(`<p>${actor === party ? "The party sells its" : `${esc(actor.name)} sells their`} vendor trash for ${api.fmtMoney(total)}.</p>`, "Vendor");
   return total;
 }
