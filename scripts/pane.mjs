@@ -252,15 +252,33 @@ async function adopt(actor, item, event) {
 const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
 const OPEN = new Map();
 
+// Window size. The paper doll needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
+const MIN_W = 460, MIN_H = 640, DEF_W = 470, DEF_H = 700;
+const SLOT_MIN = 42, SLOT_MAX = 72;
+const SIZE_KEY = "paneWindow";
+
+/** The size and position this client last left the pane at, if it still fits on screen and isn't below the minimum. */
+function savedPosition() {
+  let p = null;
+  try { p = game.settings.get(ID, SIZE_KEY); } catch { return null; }
+  if (!p || ![p.left, p.top, p.width, p.height].every(Number.isFinite)) return null;
+  if (p.width < MIN_W || p.height < MIN_H) return null;
+  if (p.left < 0 || p.top < 0 || p.left + p.width > window.innerWidth || p.top + p.height > window.innerHeight) return null;
+  return { left: p.left, top: p.top, width: p.width, height: p.height };
+}
+function defaultPosition() {
+  return { width: DEF_W, height: Math.max(MIN_H, Math.min(DEF_H, window.innerHeight - 40)) };
+}
+
 export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
     classes: ["wct-pane"],
-    window: { title: "Character", icon: "fa-solid fa-shirt", resizable: false },
-    position: { width: 470, height: "auto" }
+    window: { title: "Character", icon: "fa-solid fa-shirt", resizable: true },
+    position: { width: DEF_W, height: DEF_H }
   };
 
   constructor(actor, options = {}) {
-    super({ id: `wct-pane-${actor.uuid.replace(/\./g, "-")}`, ...options });
+    super({ id: `wct-pane-${actor.uuid.replace(/\./g, "-")}`, position: savedPosition() ?? defaultPosition(), ...options });
     this.actor = actor;
     this._hooks = [];
     const mine = d => d?.parent === actor || d === actor || (d?.parent?.parent === actor);
@@ -273,6 +291,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   _queueRender() { clearTimeout(this._t); this._t = setTimeout(() => { if (this.rendered) this.render(); }, 50); }
 
   async close(options) {
+    clearTimeout(this._t);
     for (const [h, id] of this._hooks) Hooks.off(h, id);
     this._hooks = [];
     OPEN.delete(this.actor.uuid);
@@ -330,10 +349,53 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     return div;
   }
 
-  _replaceHTML(result, content) { content.replaceChildren(result); }
+  _replaceHTML(result, content) {
+    // Re-renders (slotting an item, an HP change) keep the item list where it was scrolled to.
+    const scroll = content.querySelector(".wct-bag-grid")?.scrollTop ?? 0;
+    content.replaceChildren(result);
+    const grid = content.querySelector(".wct-bag-grid"); if (grid && scroll) grid.scrollTop = scroll;
+  }
+
+  /** Never smaller than the paper doll needs. */
+  _updatePosition(position) {
+    if (Number.isFinite(position.width)) position.width = Math.max(MIN_W, position.width);
+    if (Number.isFinite(position.height)) position.height = Math.max(MIN_H, position.height);
+    return super._updatePosition(position);
+  }
+
+  _onPosition(position) {
+    super._onPosition?.(position);
+    this._fit();
+    // Remember this client's size and position (not while minimised).
+    if (this.minimized) return;
+    clearTimeout(this._saveT);
+    this._saveT = setTimeout(() => {
+      const { left, top, width, height } = this.position;
+      if (this.minimized || ![left, top, width, height].every(Number.isFinite)) return;
+      try { game.settings.set(ID, SIZE_KEY, { left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) }); } catch { /* not registered */ }
+    }, 300);
+  }
+
+  /** Sizes the slots (and with them the portrait) to the window: as big as the width and height both allow. */
+  _fit() {
+    const el = this.element; const frame = el?.querySelector(".wct-frame"); if (!frame || this.minimized) return;
+    const head = frame.querySelector(".wct-head")?.offsetHeight ?? 50;
+    const note = frame.querySelector(".wct-bag h3")?.offsetHeight ?? 30;
+    const cs = getComputedStyle(frame);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 4;
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 4;
+    // Width: the centre column keeps at least 300px beside two slot columns (slot + 4px) and the 12px gaps.
+    const byW = (frame.clientWidth + 4 - padX - 24 - 300) / 2 - 4;
+    // Height: 8 slots + 7 gaps in a column, the weapon row below (slot + 10px), and room for the item list (title + a row of items).
+    const free = frame.clientHeight + 4 - padY - head - 8 - (note + 10 + 2 * SLOT_MIN + 5 + 14);
+    const byH = (free - 7 * 5 - 10 - 6) / 9;
+    const size = Math.round(Math.max(SLOT_MIN, Math.min(SLOT_MAX, byW, byH)));
+    el.style.setProperty("--wct-slot", `${size}px`);
+  }
 
   _onRender(context, options) {
     const root = this.element.querySelector(".wct-frame"); if (!root) return;
+    this._fit();
     const editable = this.actor.isOwner;
     const itemOf = el => this.actor.items.get(el.closest("[data-item-id]")?.dataset.itemId);
 
@@ -420,7 +482,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     pop.innerHTML = html; pop.hidden = false;
     const box = this.element.querySelector(".wct-frame").getBoundingClientRect(); const r = anchor.getBoundingClientRect();
     const left = Math.min(Math.max(4, r.left - box.left + r.width + 4), box.width - 234);
-    pop.style.left = `${left}px`; pop.style.top = `${Math.max(4, r.top - box.top)}px`;
+    pop.style.left = `${left}px`; pop.style.top = `${Math.max(4, Math.min(r.top - box.top, box.height - pop.offsetHeight - 4))}px`;
     pop.querySelectorAll("li[data-pick-item], li[data-pick-slot]").forEach(li => li.addEventListener("click", ev => { ev.stopPropagation(); this._closePop(); onPick(li); }));
   }
   _closePop() { const pop = this.element?.querySelector(".wct-pop"); if (pop) pop.hidden = true; }
@@ -498,6 +560,8 @@ export function patchArmorClass() {
 
 /** Header button on dnd5e character and NPC sheets, and slot bookkeeping. */
 export function registerHooks() {
+  // This client's pane size and position (only registered while the pane is turned on).
+  game.settings.register(ID, SIZE_KEY, { scope: "client", config: false, type: Object, default: {} });
   // Unequipping an item anywhere (the dnd5e sheet, a macro) takes it out of its slot too.
   Hooks.on("preUpdateItem", (item, changes) => {
     if (foundry.utils.getProperty(changes, "system.equipped") === false && item.getFlag(ID, "slot") && !foundry.utils.hasProperty(changes, flagPath))

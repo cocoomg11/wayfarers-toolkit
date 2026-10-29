@@ -11,8 +11,11 @@
   --wct-gold-dim: #c9a227;
   --wct-text: #f2ead8;
   --wct-muted: #a99d86;
-  --wct-slot: #0d0b09;
+  --wct-slot-bg: #0d0b09;
   --wct-slot-edge: #4a3d2c;
+  --wct-slot: 42px; /* slot size; pane.mjs grows it with the window */
+  min-width: 460px;
+  min-height: 640px;
 }
 body.theme-light .application.wct-pane:not(.theme-dark),
 .application.wct-pane.theme-light {
@@ -25,13 +28,18 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 }
 
 .application.wct-pane .window-content {
+  display: flex; flex-direction: column;
   padding: 0;
   overflow: visible;
+  min-height: 0;
   background: var(--wct-wood);
 }
 
 .wct-pane .wct-frame {
   position: relative;
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  min-height: 0;
   margin: 6px;
   padding: 10px 12px 12px;
   color: var(--wct-text);
@@ -46,7 +54,7 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 }
 
 /* Name plate */
-.wct-pane .wct-head { text-align: center; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); }
+.wct-pane .wct-head { flex: 0 0 auto; text-align: center; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); }
 .wct-pane .wct-head h2 {
   margin: 0; border: none; padding: 0;
   font-family: "Modesto Condensed", var(--font-primary, serif);
@@ -59,7 +67,8 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 /* Paper doll grid */
 .wct-pane .wct-doll {
   display: grid;
-  grid-template-columns: 46px 1fr 46px;
+  flex: 0 0 auto;
+  grid-template-columns: calc(var(--wct-slot) + 4px) minmax(300px, 1fr) calc(var(--wct-slot) + 4px);
   grid-template-areas: "left centre right" ". bottom .";
   gap: 6px 12px;
 }
@@ -67,16 +76,16 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 .wct-pane .wct-col.left { grid-area: left; }
 .wct-pane .wct-col.right { grid-area: right; }
 .wct-pane .wct-row.bottom { grid-area: bottom; display: flex; justify-content: center; gap: 10px; padding-top: 4px; }
-.wct-pane .wct-centre { grid-area: centre; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wct-pane .wct-centre { grid-area: centre; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 
 /* Slots */
 .wct-pane .wct-slot,
 .wct-pane .wct-item {
   position: relative;
-  width: 42px; height: 42px; flex: 0 0 42px;
+  width: var(--wct-slot); height: var(--wct-slot); flex: 0 0 var(--wct-slot);
   box-sizing: border-box;
   border-radius: 4px;
-  background: var(--wct-slot);
+  background: var(--wct-slot-bg);
   border: 2px solid var(--wct-slot-edge);
   box-shadow: inset 0 0 8px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
@@ -94,8 +103,8 @@ body.theme-light .application.wct-pane:not(.theme-dark),
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: rgba(214, 196, 160, 0.22);
 }
-.wct-pane .wct-slot.empty i { font-size: 18px; }
-.wct-pane .wct-slot.empty span { font-size: 7.5px; line-height: 1; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+.wct-pane .wct-slot.empty i { font-size: calc(var(--wct-slot) * 0.43); }
+.wct-pane .wct-slot.empty span { font-size: calc(var(--wct-slot) * 0.18); line-height: 1; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
 .wct-pane .wct-slot.empty:hover { color: rgba(255, 209, 0, 0.5); border-color: var(--wct-gold-dim); }
 .wct-pane .wct-slot.over,
 .wct-pane [data-drop].over { outline: 2px solid var(--wct-gold); outline-offset: 1px; }
@@ -103,18 +112,20 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 /* Portrait */
 .wct-pane .wct-portrait {
   position: relative;
-  height: 200px;
+  flex: 1 1 auto;
+  min-height: 160px;
   border: 2px solid var(--wct-wood-hi);
   border-radius: 4px;
   background: #000;
   box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #000;
   overflow: hidden;
 }
-.wct-pane .wct-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top center; border: none; display: block; }
+.wct-pane .wct-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; border: none; display: block; }
 .wct-pane .wct-portrait::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 30px 6px rgba(0, 0, 0, 0.85); pointer-events: none; }
 
 /* Stats */
 .wct-pane .wct-stats {
+  flex: 0 0 auto;
   display: grid; grid-template-columns: 1.25fr 1fr; gap: 0 10px;
   padding: 6px 8px;
   background: var(--wct-panel);
@@ -122,7 +133,7 @@ body.theme-light .application.wct-pane:not(.theme-dark),
   border-radius: 4px;
 }
 .wct-pane .wct-stats ul { list-style: none; margin: 0; padding: 0; }
-.wct-pane .wct-stats li { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: 0.86em; line-height: 1.5; }
+.wct-pane .wct-stats li { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: calc(0.86em + (var(--wct-slot) - 42px) * 0.1); line-height: 1.5; }
 .wct-pane .wct-stats .lbl { color: var(--wct-gold); text-shadow: 0 1px 0 #000; }
 .wct-pane .wct-stats .val { color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 #000; white-space: nowrap; }
 .wct-pane .wct-stats .val small { color: var(--wct-muted); font-size: 0.85em; }
@@ -131,14 +142,19 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 
 /* Bag of equippable items */
 .wct-pane .wct-bag {
+  flex: 1 1 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
   margin-top: 10px; padding: 6px 8px 8px;
   background: var(--wct-panel);
   border: 1px solid rgba(201, 162, 39, 0.4);
   border-radius: 4px;
 }
+.wct-pane .wct-bag h3, .wct-pane .wct-note { flex: 0 0 auto; }
 .wct-pane .wct-bag h3 { margin: 0 0 6px; border: none; padding: 0; font-size: 0.95em; color: var(--wct-gold); font-family: var(--font-primary, "Signika"), sans-serif; }
 .wct-pane .wct-bag h3 small { display: block; color: var(--wct-muted); font-size: 0.8em; font-weight: normal; }
-.wct-pane .wct-bag-grid { display: flex; flex-wrap: wrap; gap: 5px; min-height: 42px; }
+/* The item list takes the rest of the window's height and scrolls inside it. Its icons stay at 42px. */
+.wct-pane .wct-bag-grid { --wct-slot: 42px; flex: 1 1 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; min-height: 42px; overflow-y: auto; padding: 1px 2px 6px 1px; }
 .wct-pane .wct-item.equipped::after { content: "E"; position: absolute; right: 1px; bottom: 0; font-size: 9px; font-weight: bold; color: var(--wct-gold); text-shadow: 0 0 2px #000, 0 0 2px #000; }
 .wct-pane .wct-empty, .wct-pane .wct-note { margin: 0 0 4px; color: var(--wct-muted); font-size: 0.85em; }
 .wct-pane .wct-note button {
