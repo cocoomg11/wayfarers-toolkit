@@ -208,7 +208,7 @@ await q.complete("Trouble at the Old Mill");          // or q.fail(…), q.reset
 q.open("Trouble at the Old Mill");
 ```
 
-Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`. Quests are found by journal id, UUID or name. Called on a player's client, `activate`, `complete`, `fail`, `tickObjective` and `revealObjective` are carried out by the GM's client (a GM must be logged in); everything else is GM only.
+Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`. Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
 
 ## Three-coin economy (copper, silver, gold)
 

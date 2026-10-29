@@ -231,19 +231,11 @@ const OPS = {
     return true;
   }
 };
-/** Ops a player's client (a macro, a tile) may ask the GM to carry out. Creating, editing, deleting and paying stay GM-only. */
-const FORWARD = new Set(["setStatus", "tick", "reveal"]);
-
-/** Runs an op here when this user is a GM, otherwise asks the active GM's client to. */
+/** Runs a write op. Only GMs write quests; players (and anything running on a player's client) only read and track. */
 async function run(op, ...args) {
-  if (game.user.isGM) {
-    try { return await OPS[op](...args); }
-    catch (e) { ui.notifications.error(e.message); console.error(`${ID} |`, e); return null; }
-  }
-  if (!FORWARD.has(op)) { ui.notifications.warn("Only the GM can change quests."); return null; }
-  if (!game.users.activeGM) { ui.notifications.warn("Quest log: a GM needs to be logged in."); return null; }
-  game.socket.emit(SOCKET, { action: "quest", op, args: args.map(a => (a instanceof JournalEntry ? a.id : a)), userId: game.user.id });
-  return null;
+  if (!game.user.isGM) { ui.notifications.warn("Only the GM can change quests."); return null; }
+  try { return await OPS[op](...args); }
+  catch (e) { ui.notifications.error(e.message); console.error(`${ID} |`, e); return null; }
 }
 
 // ---------------------------------------------------------------- tracking (per user, stored in this browser)
@@ -622,14 +614,9 @@ export function init(wct, { tracker = true } = {}) {
   });
 }
 
-/** Called from the module's ready hook: socket, tracker. */
+/** Called from the module's ready hook: socket (objective notifications only; no quest writes travel over it), tracker. */
 export function ready() {
-  game.socket.on(SOCKET, async msg => {
-    if (msg?.action === "questNotify") return ui.notifications.info(msg.text);
-    if (msg?.action !== "quest" || !game.users.activeGM?.isSelf || !FORWARD.has(msg.op)) return;
-    try { await OPS[msg.op](...(msg.args ?? [])); }
-    catch (e) { console.error(`${ID} | quest request failed`, e); ui.notifications.error(`Quest log: a request from ${game.users.get(msg.userId)?.name ?? "a player"} failed (${e.message}).`); }
-  });
+  game.socket.on(SOCKET, msg => { if (msg?.action === "questNotify" && typeof msg.text === "string") ui.notifications.info(msg.text.slice(0, 300)); });
   for (const j of all()) seen.set(j.id, liveFor(j));
   renderTracker();
   ui.controls?.render?.({ reset: true });
