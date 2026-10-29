@@ -3,6 +3,8 @@
  * Hex travel, flight routes and a session-start helper
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
  */
+import * as Trash from "./trash.mjs";
+
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const setting = key => game.settings.get(ID, key);
@@ -23,7 +25,9 @@ const DEFAULTS = {
   flightVolume: 0.8,
   playerFlights: true,
   coinSystem: "standard",
-  fareUnit: "gp"
+  fareUnit: "gp",
+  trashPacks: "",
+  riderFeat: "Trained Rider"
 };
 const SOCKET = `module.${ID}`;
 
@@ -77,6 +81,8 @@ function registerSettings() {
   s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, like World of Warcraft. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
   s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
+  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name.", String);
+  s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use WoW Classic Items (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
@@ -95,8 +101,21 @@ class SetupApp extends foundry.applications.api.ApplicationV2 {
 const MACROS = [
   ["Hex Travel", "hexTravel", "icons/environment/wilderness/terrain-forest-gray.webp", 2],
   ["Flight Master", "flight", "icons/creatures/birds/raptor-hawk-flying.webp", 3],
-  ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5]
+  ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5],
+  ["Vendor Trash", "vendorTrash", "icons/containers/bags/sack-simple-leather-brown.webp", null],
+  ["Sell Vendor Trash", "sellTrash", "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", null]
 ];
+
+const RIDER_FEAT = name => ({
+  name, type: "feat", img: "icons/environment/creatures/horse-brown.webp",
+  flags: { [ID]: { feat: "trained-rider" } },
+  system: {
+    type: { value: "feat", subtype: "general" },
+    requirements: "",
+    source: { book: "Wayfarer's Toolkit", custom: "Wayfarer's Toolkit" },
+    description: { value: `<p><em>General Feat</em></p><p>You've learned to ride properly, not just to stay on.</p><p><strong>Swift Mount.</strong> Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.</p><p><strong>Long Road.</strong> When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.</p>` }
+  }
+});
 
 const TRACKER_PAGES = {
   "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`,
@@ -152,8 +171,15 @@ export const WCT = {
       if (game.macros.getName(name)) continue;
       folder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
       const m = await Macro.create({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");` });
-      if (!game.user.hotbar[slot]) await game.user.assignHotbarMacro(m, slot);
+      const free = slot && !game.user.hotbar[slot] ? slot : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !game.user.hotbar[i]);
+      if (free) await game.user.assignHotbarMacro(m, free);
       made.push(`macro "${name}"`);
+    }
+    if (!game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
+      let ifolder = game.folders.find(f => f.type === "Item" && f.name === "Wayfarer's Toolkit");
+      ifolder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Item" });
+      await Item.create({ ...RIDER_FEAT(setting("riderFeat") || "Trained Rider"), folder: ifolder.id, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
+      made.push(`feat "${setting("riderFeat") || "Trained Rider"}"`);
     }
     if (setting("playerFlights")) made.push(...await this.shareFlightMacro());
     return made;
@@ -176,13 +202,15 @@ export const WCT = {
   async hexTravel() {
     if (!this.gmOnly()) return;
     const s = this.state(); const Z = this.ZONES; const zones = Object.keys(Z);
+    const riders = this.riders(); const mountedDefault = riders.members ? riders.untrained.length === 0 : !!s.mountsUnlocked;
     const sc = canvas.scene?.name ?? ""; const guess = zones.find(z => sc.includes(z.split(" ")[0])) ?? zones[0];
     const content = `<div class="form-group"><label>Zone</label><select name="zone">${[...zones, "Other (no encounter table)"].map(z => this.opt(z, z, z === guess)).join("")}</select></div>
       <div class="form-group"><label>Road hexes</label><input type="number" name="road" value="0" min="0"></div>
       <div class="form-group"><label>Off-road hexes</label><input type="number" name="off" value="0" min="0"></div>
       <div class="form-group"><label>Pace</label><select name="pace">${this.opt("slow", `Slow · ${this.PACE.slow} mph · can travel stealthily`)}${this.opt("normal", `Normal · ${this.PACE.normal} mph`, true)}${this.opt("fast", `Fast · ${this.PACE.fast} mph · −5 passive Perception`)}</select></div>
       <p class="hint">1 hex = 1 mile. Roads are safe; each off-road hex takes ×${this.OFFROAD_MULT} time and rolls 1d${this.ENC_DIE} (1 = encounter). </p>
-      <div class="form-group"><label>Mounted (speed ×${this.MOUNT_MULT})</label><input type="checkbox" name="mounted" ${s.mountsUnlocked ? "checked" : ""}></div>`;
+      <div class="form-group"><label>Mounted (speed ×${this.MOUNT_MULT})</label><input type="checkbox" name="mounted" ${mountedDefault ? "checked" : ""}></div>
+      ${riders.members ? `<p class="hint">${riders.untrained.length ? `Long Road: not trained to ride yet: ${riders.untrained.map(esc).join(", ")}.` : `Long Road: every party member has ${esc(setting("riderFeat"))}.`}</p>` : ""}`;
     const f = await this.form("Hex Travel", content, "Travel"); if (!f) return;
     const road = Math.max(0, Math.floor(+f.road || 0)), off = Math.max(0, Math.floor(+f.off || 0));
     if (!road && !off) return ui.notifications.warn("No hexes entered.");
@@ -285,6 +313,19 @@ export const WCT = {
     if (scene && sc) await sc.activate();
     return r;
   },
+  /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
+  riders() {
+    const party = this.partyActor(); const featName = (setting("riderFeat") || "").toLowerCase();
+    const members = (party?.system.members ?? []).map(m => m.actor ?? m).filter(a => a?.items);
+    const has = a => a.items.some(i => i.type === "feat" && (i.getFlag(ID, "feat") === "trained-rider" || i.name.toLowerCase() === featName));
+    return { members: members.length, untrained: members.filter(a => !has(a)).map(a => a.name) };
+  },
+
+  // ------------------------------------------------------------ vendor trash
+  vendorTrash() { return Trash.vendorTrash(this); },
+  sellTrash() { return Trash.sellTrash(this); },
+  trash: Trash,
+
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
   parseMoney, fmtMoney, coins,
   totalMoney(a) { const c = a.system.currency ?? {}; return coins().reduce((t, [k, v]) => t + (c[k] || 0) * v, 0); },
@@ -302,6 +343,12 @@ export const WCT = {
         }
       }
     }
+    await a.update({ "system.currency": c });
+  },
+  /** Changes an actor's coins up into the largest coins (no electrum), keeping the total. */
+  async consolidate(a) {
+    let amount = this.totalMoney(a); const c = { ...a.system.currency };
+    for (const [k, v] of coins()) { if (k === "ep") { c.ep = 0; continue; } c[k] = Math.floor(amount / v); amount -= c[k] * v; }
     await a.update({ "system.currency": c });
   },
   /** Old name kept for macros written against v1.0–1.2. */
@@ -351,6 +398,14 @@ Hooks.once("ready", () => {
 const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
 Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
 Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+
+// Vendor Trash loot cards: the Give to Party button (GM only).
+Hooks.on("renderChatMessageHTML", (message, html) => {
+  const btn = html.querySelector?.("[data-wct-action=give-trash]"); if (!btn) return;
+  if (!game.user.isGM) return btn.remove();
+  if (message.getFlag(ID, "trash")?.given) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Given to party'; return; }
+  btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; try { await Trash.giveTrash(message, WCT); } catch (e) { btn.disabled = false; ui.notifications.error(`Vendor Trash: ${e.message}`); } });
+});
 
 // Flight Master button in the token controls, for the GM and (when allowed) players.
 Hooks.on("getSceneControlButtons", controls => {
