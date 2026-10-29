@@ -1,5 +1,5 @@
 /**
- * Quest log: narrative quests with free-text objectives the GM ticks off, a WoW-style log window and an on-screen tracker.
+ * Quest log: narrative quests with free-text objectives the GM ticks off, an MMO-style log window and an on-screen tracker.
  * Each quest is a JournalEntry in the Quest folder. Its data lives in flags.wayfarers-toolkit.quest and its single text page is
  * rebuilt from that data on every change, so the journal reads well on its own (and in exports). Players only read; every write
  * happens on a GM's client. Turned off with the "Quest log" setting, nothing here is registered.

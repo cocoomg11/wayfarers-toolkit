@@ -1,14 +1,14 @@
 /**
- * Character pane: a World of Warcraft–style equipment frame for dnd5e actors.
+ * Character pane: a classic-MMO-style equipment frame (paper doll) for dnd5e actors.
  * Slot an item and it's equipped on the sheet; take it out and it's unequipped. The slot lives in flags.wayfarers-toolkit.slot.
- * Items that carry a WoW-style tooltip in their description (like the WoW Classic Items compendium) are placed by their "Slot" line.
+ * Items that carry an MMO-style item tooltip in their description (like those in the optional wow-classic-items module) are placed by their "Slot" line.
  */
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // ---------------------------------------------------------------- slots
-/** WoW Classic's paper-doll slots (no Ammo slot). Two finger and two trinket slots share a group. */
+/** Classic-MMO paper-doll slots (no Ammo slot). Two finger and two trinket slots share a group. */
 export const SLOTS = {
   head: { label: "Head", icon: "fa-helmet-battle" },
   neck: { label: "Neck", icon: "fa-gem" },
@@ -39,7 +39,7 @@ const group = s => s.replace(/\d$/, "");
 /** Slot groups → concrete slots, in order: ["finger"] → ["finger1", "finger2"]. */
 const expand = groups => [...new Set(groups.flatMap(g => Object.keys(SLOTS).filter(s => group(s) === g || s === g)))];
 
-/** The "Slot" line of a WoW tooltip (or a WoW Classic Items folder name) → slot groups. */
+/** The "Slot" line of an MMO-style tooltip (or a wow-classic-items compendium folder name) → slot groups. */
 const WOW_SLOTS = {
   "head": ["head"], "neck": ["neck"], "shoulder": ["shoulder"], "back": ["back"], "chest": ["chest"], "robe": ["chest"],
   "shirt": ["shirt"], "tabard": ["tabard"], "wrist": ["wrist"], "hands": ["hands"], "waist": ["waist"], "legs": ["legs"],
@@ -50,7 +50,7 @@ const WOW_SLOTS = {
 };
 const WOW_LINE = new RegExp(`^(${Object.keys(WOW_SLOTS).join("|")})$`, "i");
 
-/** Name words that suggest where a non-WoW item is worn. Only used to pick a default slot. */
+/** Name words that suggest where an item without a tooltip slot is worn. Only used to pick a default slot. */
 const NAME_HINTS = [
   ["finger", /\b(ring|signet|band of)\b/i],
   ["head", /\b(helm|helmet|hat|hood|cap|circlet|crown|coif|mask|headband|cowl|diadem|tiara|goggles|headdress)\b/i],
@@ -68,12 +68,12 @@ const NAME_HINTS = [
   ["trinket", /\b(trinket|figurine|idol|charm|talisman|stone|orb|totem|token|horn|bead|feather)\b/i]
 ];
 
-/** Quality colours, WoW style. dnd5e rarities map onto them. */
+/** Item quality colours (grey, white, green, blue, purple, orange). dnd5e rarities map onto them. */
 const QUALITY = { poor: "#9d9d9d", common: "#ffffff", uncommon: "#1eff00", rare: "#0070dd", veryRare: "#a335ee", legendary: "#ff8000", artifact: "#e6cc80" };
 
 // ---------------------------------------------------------------- reading items
 const tipCache = new Map();
-/** Reads a WoW-style tooltip from an item's description: { slot, color }. Empty when there's none. */
+/** Reads an MMO-style tooltip from an item's description: { slot, color }. Empty when there's none. */
 function readTooltip(desc) {
   desc = String(desc ?? ""); if (!desc.includes("font-size:1.08em")) return {};
   if (tipCache.has(desc)) return tipCache.get(desc);
@@ -94,7 +94,7 @@ function readTooltip(desc) {
   return out;
 }
 
-/** WoW slot of an item copied from the WoW Classic Items compendium, read from the folder it came from. */
+/** Tooltip slot of an item copied from the wow-classic-items compendium, read from the folder it came from. */
 function wowFolderSlot(item) {
   const src = item._stats?.compendiumSource ?? item.flags?.core?.sourceId ?? "";
   const m = String(src).match(/^Compendium\.([^.]+\.[^.]+)\.Item\.([^.]+)$/); if (!m || !m[1].startsWith(`${WOW}.`)) return null;
@@ -105,13 +105,13 @@ function wowFolderSlot(item) {
   return WOW_SLOTS[n] ? n : null;
 }
 
-/** WoW slot ("head", "two-hand", …) and quality colour of an item, if its data has them. */
+/** Tooltip slot ("head", "two-hand", …) and quality colour of an item, if its data has them. */
 export function wowInfo(item) {
   const tip = readTooltip(item.system?.description?.value);
   return { slot: tip.slot ?? wowFolderSlot(item), color: tip.color ?? null };
 }
 
-/** Border colour for an item: the WoW tooltip's quality colour, else its dnd5e rarity. */
+/** Border colour for an item: the tooltip's quality colour, else its dnd5e rarity. */
 export function qualityColor(item) {
   return wowInfo(item).color ?? QUALITY[item.system?.rarity] ?? QUALITY.common;
 }
@@ -497,7 +497,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     try { body = await TextEditorImpl().enrichHTML(desc, { relativeTo: item, secrets: item.isOwner }); } catch { body = ""; }
     if (this._tipFor !== el || !el.matches(":hover")) return;
     const f = fits(item); const slot = item.getFlag(ID, "slot");
-    const typeLine = [item.system.type?.label, f?.wow ? `WoW: ${f.wow}` : "", item.system.attunement === "required" ? (item.system.attuned ? "Attuned" : "Requires attunement") : ""].filter(Boolean).join(" · ");
+    const typeLine = [item.system.type?.label, f?.wow ? `Slot: ${f.wow}` : "", item.system.attunement === "required" ? (item.system.attuned ? "Attuned" : "Requires attunement") : ""].filter(Boolean).join(" · ");
     const tip = document.createElement("div");
     tip.className = "wct-tip-body";
     tip.innerHTML = wowTip ? `<div class="desc wow">${body}</div>` : `<h4 style="color:${qualityColor(item)}">${esc(item.name)}</h4>${typeLine ? `<p class="type">${esc(typeLine)}</p>` : ""}${body ? `<div class="desc">${body}</div>` : ""}`;
@@ -537,7 +537,7 @@ export function characterPane(actor = null) {
 }
 
 /**
- * Armour-typed pieces worn in a slot other than Chest (WoW helms, shoulders, boots and so on are often typed as light, medium or
+ * Armour-typed pieces worn in a slot other than Chest (MMO-style helms, shoulders, boots and so on are often typed as light, medium or
  * heavy armour with no AC) don't replace the body armour in dnd5e's AC calculation. Only the AC calculation is affected.
  */
 export function patchArmorClass() {
