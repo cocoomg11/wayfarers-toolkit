@@ -1,7 +1,7 @@
 /**
- * Vendor Trash: drops grey "vendor trash" from defeated creatures, the way World of Warcraft does.
+ * Vendor Trash: drops grey "vendor trash" from defeated creatures, in the style of classic MMOs.
  * Beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones and so on.
- * The items come from a compendium (WoW Classic Items by default, if installed); this file holds only rules.
+ * The items come from a compendium (the optional wow-classic-items module by default, if installed); this file holds only rules.
  */
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -17,7 +17,7 @@ const KINDS = {
 };
 // Words in a creature's name that mark it as a beast when its sheet has no creature type.
 const BEAST_NAMES = /\b(wolf|wolves|worg|boar|bear|spider|tarantula|raptor|crocolisk|croc|vulture|buzzard|cat|panther|lion|prowler|stalker|stag|deer|owl|bat|scorpid|scorpion|basilisk|kodo|hyena|crab|turtle|snake|serpent|python|gorilla|ape|hawk|eagle|rat|boar|stag|mare|horse|ox|yeti|condor|wyvern|hydra|thresher|shark|lizard|gator)\b/i;
-const UNDEAD_NAMES = /\b(skeleton|zombie|ghoul|ghost|spirit|wraith|lich|banshee|abomination|mummy|wight|shade|undead|risen|forsaken|scourge|mor'ladim)\b/i;
+const UNDEAD_NAMES = /\b(skeleton|zombie|ghoul|ghost|spirit|wraith|lich|banshee|abomination|mummy|wight|shade|undead|risen|forsaken|scourge)\b/i;
 const ELEMENTAL_NAMES = /\b(elemental|golem|construct|harvester|watcher|shredder|gargoyle|imp|fire|flame|earth|stone|water|air|storm|magma|living)\b/i;
 const WHELP_NAMES = /\b(whelp|drake|dragon|dragonkin|wyrm)\b/i;
 
@@ -35,14 +35,14 @@ export function creatureKind(actor) {
   if (WHELP_NAMES.test(n)) return "dragon";
   if (UNDEAD_NAMES.test(n)) return "undead";
   if (BEAST_NAMES.test(n)) return "beast";
-  if (ELEMENTAL_NAMES.test(n) && !/\b(defias|guard|deputy|mage|priest)\b/i.test(n)) return "elemental";
+  if (ELEMENTAL_NAMES.test(n) && !/\b(bandit|guard|deputy|mage|priest)\b/i.test(n)) return "elemental";
   return "humanoid";
 }
 
-/** WoW-equivalent level for a challenge rating: CR 1 ≈ level 4, CR 5 ≈ level 17, CR 10 ≈ level 34, CR 18 ≈ level 60. */
+/** MMO-style level for a challenge rating: CR 1 ≈ level 4, CR 5 ≈ level 17, CR 10 ≈ level 34, CR 18 ≈ level 60. */
 export const wowLevel = cr => Math.max(1, Math.min(63, Math.round((+cr || 0) * 3.3) + 1));
 
-/** Copper a humanoid carries, roughly like WoW mob drops: level 10 ≈ 25c, 20 ≈ 85c, 40 ≈ 3s, 60 ≈ 6s (±50%). */
+/** Copper a humanoid carries, roughly like classic-MMO mob drops: level 10 ≈ 25c, 20 ≈ 85c, 40 ≈ 3s, 60 ≈ 6s (±50%). */
 export const coinFor = cr => Math.round(Math.pow(wowLevel(cr), 1.8) * 0.4 * (0.5 + Math.random()));
 
 const rand = a => a[Math.floor(Math.random() * a.length)];
@@ -132,7 +132,7 @@ export async function rollDrop(actor) {
   return { items: out, copper, kind };
 }
 
-/** Value of a pool entry in the smallest coin: WoW's sell price if it has one, else the item's own price. */
+/** Value of a pool entry in the smallest coin: its vendor sell price if it has one, else the item's own price. */
 export function valueOf(entry, api) {
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   if (entry.copper != null) return entry.copper * cpVal;
@@ -173,7 +173,7 @@ const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
 export async function vendorTrash(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
-  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install WoW Classic Items or set Vendor trash compendiums in the module settings.");
+  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or set Vendor trash compendiums in the module settings.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   if (!tokens.length) return ui.notifications.warn("Vendor Trash: select (or target) the defeated creatures first.");
   if (!(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");

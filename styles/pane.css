@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit: character pane (a WoW-style paper doll). The frame is an in-world panel, so it keeps its own
+/* Wayfarer's Toolkit: character pane (an MMO-style paper doll). The frame is an in-world panel, so it keeps its own
    dark stone look in both Foundry themes; the light theme gets warmer, lighter wood around it. */
 
 .application.wct-pane {
@@ -188,7 +188,7 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 .wct-pane .wct-pop li.none { cursor: default; color: var(--wct-muted); }
 .wct-pane .wct-pop li.none:hover { background: none; }
 
-/* Item tooltip (Foundry's tooltip element, styled like a WoW tooltip) */
+/* Item tooltip (Foundry's tooltip element, styled like an MMO item tooltip) */
 #tooltip.wct-tip, .locked-tooltip.wct-tip {
   max-width: 340px; padding: 0;
   background: rgba(8, 8, 14, 0.96);

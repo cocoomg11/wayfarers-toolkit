@@ -1,16 +1,34 @@
 # Wayfarer's Toolkit
 
-GM tools for travel and loot, a WoW-style character pane, a narrative quest log, and an optional three-coin economy, for [Foundry VTT](https://foundryvtt.com) and the dnd5e system: overland hex travel, flight routes, and a session-start helper. Your campaign content (encounter tables, routes, recaps) stays in your world; the module supplies the logic.
+A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log and an optional three-coin economy.
+
+The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world under **Choose features**.
+
+## Features
 
 | Tool | What it does |
 | --- | --- |
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
-| **Vendor Trash** | Select defeated creatures and roll WoW-style grey loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. **Sell Vendor Trash** cashes it all in. |
+| **Vendor Trash** | Select defeated creatures and roll grey vendor-trash loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. **Sell Vendor Trash** cashes it all in. |
 | **Trained Rider** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
-| **Character pane** | A World of Warcraft–style character frame: the portrait and stats in the middle, gear slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
-| **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in a WoW-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
+| **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
+| **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in an MMO-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
+| **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
+
+## Compatibility
+
+- **Foundry VTT** v13 and v14 (verified on v14).
+- **dnd5e** system 5.0 or later. The module is built for dnd5e and doesn't run on other systems.
+
+## Optional integrations
+
+None of these are required; the toolkit works on its own.
+
+- **[Item Piles](https://foundryvtt.com/packages/item-piles)** with **Item Piles: D&D 5e** (`itempilesdnd5e`): Vendor Trash turns defeated creatures into lootable piles. See [Setting up Item Piles](#setting-up-item-piles).
+- **Monk's Active Tiles**: tiles can drive quests and the other tools through the module API (`game.modules.get("wayfarers-toolkit").api`). See [Scripting](#scripting).
+- **wow-classic-items**: optionally reads items from the `wow-classic-items` module if installed (grey items for Vendor Trash, tooltip slots and quality colours in the character pane). No items or art from it are bundled.
 
 ## Install
 
@@ -19,6 +37,8 @@ In Foundry's setup screen, go to **Add-on Modules → Install Module** and paste
 ```
 https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.json
 ```
+
+## Setup
 
 Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Trained Rider feat, macros on empty hotbar slots) and never overwrites existing documents.
 
@@ -44,11 +64,11 @@ The tracker journal's **Flight Routes** page holds two tables: flight points (na
 
 **Players and Flight Master.** With *Players can use Flight Master* on (the default), players get a feather button in the token controls and, after setup, the Flight Master macro on their hotbar. A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be logged in. Players see a copy of the flight points and routes, never the GM journal itself.
 
-**Flight sound.** A "Be Good" clip (`sounds/be-good.ogg`, recorded by a friend of the author) plays for everyone when a flight departs. Pick a different file in the *Flight sound* setting, or clear it for silence.
+**Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in the *Flight sound* setting, or clear it for silence.
 
 ## Vendor Trash
 
-Grey "vendor trash" from defeated creatures, the way World of Warcraft drops it.
+Grey "vendor trash" from defeated creatures, in the style of classic MMOs.
 
 1. Select (or target) the defeated creatures' tokens.
 2. Run the **Vendor Trash** macro. Each creature's drop is rolled; every item is priced at its vendor value and marked as vendor trash.
@@ -88,9 +108,9 @@ What drops depends on the creature:
 | Plant, fey | Roots, petals, spores (60%). |
 | Dragon | Scales and claws. |
 
-The creature type comes from the sheet; if it's blank, the name decides (a "Mangy Wolf" is a beast, a "Defias Bandit" a humanoid). A creature's level for gear and coin comes from its CR (CR 1 ≈ WoW level 4, CR 5 ≈ 17, CR 10 ≈ 34, CR 18 ≈ 60).
+The creature type comes from the sheet; if it's blank, the name decides (a "Mangy Wolf" is a beast, a "Bandit Lookout" a humanoid). A creature's level for gear and coin comes from its CR (CR 1 ≈ level 4, CR 5 ≈ 17, CR 10 ≈ 34, CR 18 ≈ 60).
 
-**Where the items come from.** The tool reads an item compendium; it ships no items. With the **WoW Classic Items** module installed, it uses that compendium's grey-quality items and their real WoW sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
+**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
 
 ## Trained Rider and Long Road
 
@@ -103,7 +123,7 @@ Hex Travel enforces Long Road: when the party actor has members, the *Mounted* b
 
 ## Character pane
 
-A paper doll in the style of World of Warcraft's character screen. The character's portrait sits in the middle with their stats underneath (the six ability scores, Armor, Health and attuned items), and the gear slots run around it.
+A paper doll in the style of a classic MMO character screen. The character's portrait sits in the middle with their stats underneath (the six ability scores, Armor, Health and attuned items), and the gear slots run around it.
 
 **Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under **Choose features**.
 
@@ -111,13 +131,13 @@ The window is resizable: the slots and portrait grow with it, the *Equippable it
 
 ### Slots
 
-WoW Classic's layout, without the Ammo slot:
+Classic-MMO equipment slots, without an Ammo slot:
 
 | Left | Right | Bottom |
 | --- | --- | --- |
 | Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist | Hands, Waist, Legs, Feet, Finger ×2, Trinket ×2 | Main Hand, Off Hand, Ranged |
 
-Empty slots show a faint placeholder. Item icons get a border in their quality colour (grey, white, green, blue, purple, orange): an item with a WoW tooltip uses its own colour; otherwise dnd5e rarity decides (common white, uncommon green, rare blue, very rare purple, legendary orange, artifact gold). Hover an item for its tooltip.
+Empty slots show a faint placeholder. Item icons get a border in their quality colour (grey, white, green, blue, purple, orange): an item with an MMO-style tooltip uses its own colour; otherwise dnd5e rarity decides (common white, uncommon green, rare blue, very rare purple, legendary orange, artifact gold). Hover an item for its tooltip.
 
 ### Equipping
 
@@ -146,11 +166,11 @@ Slotting an item marks it **equipped** on the dnd5e sheet; taking it off unequip
 
 One item per slot. The pane warns, but doesn't stop you, when an item needs attunement and the character is already attuned to the maximum (3), when a second suit of armour goes on, or when a second shield does.
 
-### WoW Classic Items bonus
+### Items with MMO-style tooltips
 
-Items whose description holds a WoW-style tooltip, like those in the **WoW Classic Items** compendium, are placed by the tooltip's slot line: Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist, Hands, Waist, Legs, Feet, Finger, Trinket, Main Hand, One-Hand (either hand), Two-Hand, Off Hand / Held In Off-hand, and Ranged / Thrown / Relic in the Ranged slot. Their border uses the tooltip's quality colour, and hovering shows the WoW tooltip. When a description has no slot line, the compendium folder the item came from decides (Head, Two-Hand, Finger, Wands…). Nothing from WoW is bundled; icons come from the items.
+Items whose description holds an MMO-style item tooltip, like those in the optional `wow-classic-items` compendium, are placed by the tooltip's slot line: Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist, Hands, Waist, Legs, Feet, Finger, Trinket, Main Hand, One-Hand (either hand), Two-Hand, Off Hand / Held In Off-hand, and Ranged / Thrown / Relic in the Ranged slot. Their border uses the tooltip's quality colour, and hovering shows that tooltip. When a description has no slot line, the compendium folder the item came from decides (Head, Two-Hand, Finger, Wands…). Nothing from that module is bundled; icons come from the items.
 
-**Armour pieces and AC.** WoW helms, shoulders, gloves, boots and the like are often typed as light, medium or heavy armour with no AC of their own, and dnd5e only counts one piece of armour for AC. So that a helm doesn't replace the chest armour, armour-typed items worn in a slot other than **Chest** are left out of dnd5e's AC calculation while the character pane is on. Armour in the Chest slot, and equipped armour that isn't in any slot, counts as usual.
+**Armour pieces and AC.** MMO-style helms, shoulders, gloves, boots and the like are often typed as light, medium or heavy armour with no AC of their own, and dnd5e only counts one piece of armour for AC. So that a helm doesn't replace the chest armour, armour-typed items worn in a slot other than **Chest** are left out of dnd5e's AC calculation while the character pane is on. Armour in the Chest slot, and equipped armour that isn't in any slot, counts as usual.
 
 ## Quest log
 
@@ -200,7 +220,7 @@ Each quest is a journal entry with one text page in the quest folder. The page i
 
 ```js
 const q = game.modules.get("wayfarers-toolkit").api.quests;
-await q.create({ title: "Trouble at the Old Mill", zone: "Riverbend", summary: "Bandits hold the mill.",
+await q.create({ title: "Trouble at the Old Mill", zone: "Riverside", summary: "Bandits hold the mill.",
   objectives: ["Deal with the bandit camp", { text: "Find out who hired them", hidden: true }],
   rewards: { coin: "1g 20s", items: ["Compendium.dnd5e.items.Item.…"], other: "Goodwill of the miller" } });
 await q.activate("Trouble at the Old Mill");          // give it
@@ -214,13 +234,13 @@ Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payR
 
 ## Three-coin economy (copper, silver, gold)
 
-An optional World of Warcraft–style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC and party sheets show only gold, silver and copper (abbreviated g, s, c), dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
+An optional classic-MMO-style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC and party sheets show only gold, silver and copper (abbreviated g, s, c), dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
 
 ### Setup
 
 1. **Clear out platinum and electrum first.** Those coins stop counting once you switch. Open any sheet that holds pp or ep and convert or remove them while you're still on Standard. (If any are left after switching, the module whispers the GM a list of who still has them.)
 2. Open **Game Settings → Configure Settings → Wayfarer's Toolkit** and set **Coin system** to *Three coins: copper, silver, gold (100 to 1)*. Save; Foundry reloads.
-3. Set **Fare unit** to the coin your Flight Routes table uses for plain numbers. For WoW-like prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
+3. Set **Fare unit** to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
 4. Check a sheet: the currency block should show only g, s and c.
 
 To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they are; they're just read at 5e rates again.
@@ -237,4 +257,13 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 
 ## License
 
-MIT
+[MIT](LICENSE). Free to use, modify and share.
+
+This is an unofficial fan-made module. It is not affiliated with or endorsed by Foundry Gaming LLC, Wizards of the Coast or any game publisher, and it bundles no third-party game content.
+
+## Credits
+
+- Module by **cocoomg11**.
+- Flight sound (`sounds/be-good.ogg`) recorded by a friend of the author, used with permission.
+
+Bug reports and suggestions: [GitHub issues](https://github.com/cocoomg11/wayfarers-toolkit/issues).
