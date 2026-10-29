@@ -10,8 +10,8 @@ export const FEATURES = [
   { id: "hexTravel", label: "Hex Travel", hint: "Overland travel by hexes with off-road encounter rolls; advances time and logs the trip." },
   { id: "flightMaster", label: "Flight Master", hint: "Flight routes with fares from the party purse, the feather button in the token controls and player bookings." },
   { id: "sessionStart", label: "Session Start", hint: "Pick a scene, post a \"Previously…\" recap and unpause." },
-  { id: "vendorTrash", label: "Vendor Trash", hint: "Grey loot from defeated creatures (lootable bodies with Item Piles, or a Give to Party card) and Sell Vendor Trash." },
-  { id: "riderFeat", label: "Trained Rider", hint: "Setup adds the Trained Rider feat; Hex Travel rides mounted by default when every party member has it (Long Road)." },
+  { id: "vendorTrash", label: "Vendor Trash", hint: "Grey loot from defeated creatures (lootable bodies with Item Piles, or a Give to Party card), richer drops in scenes marked as dungeons, and Sell Vendor Trash." },
+  { id: "riderFeat", label: "Riding Training", hint: "Setup adds the Riding Training feat; Hex Travel rides mounted by default when every party member has it (Long Road)." },
   { id: "characterPane", key: "characterPane", label: "Character pane", hint: "A classic-MMO-style equipment frame opened from the character sheet header, and its AC handling for slotted armour pieces." },
   { id: "questLog", label: "Quest log", hint: "Narrative quests with objectives the GM ticks off, kept as journal entries, with a quest log window (key L)." },
   { id: "questTracker", label: "Quest tracker", hint: "An on-screen list of tracked quests and their open objectives. Needs the quest log; each player can still hide it." }

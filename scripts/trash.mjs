@@ -96,41 +96,73 @@ function pickGear(items, cr) {
   return cands.length ? rand(cands) : null;
 }
 
-/** Rolls the drop for one creature: { items: [poolEntry], copper }. */
-export async function rollDrop(actor) {
-  const items = await pool(); const kind = creatureKind(actor); const cr = actor?.system?.details?.cr ?? 0; const name = actor?.name ?? "";
-  const out = []; let copper = 0;
-  const add = x => { if (x) out.push(x); };
+// ---------------------------------------------------------------- dungeons
+/** True when the token stands on a scene marked as a dungeon (scene flag `flags.wayfarers-toolkit.dungeon`). */
+export const isDungeon = doc => !!(doc?.parent?.getFlag?.(ID, "dungeon"));
+/** Dungeon rules from the world settings: coin multiplier, extra item-drop chance (0–1) and whether item drops roll twice. */
+export function dungeonRules() {
+  const get = (k, d) => { try { const v = game.settings.get(ID, k); return v ?? d; } catch { return d; } };
+  const mult = +get("dungeonCoinMult", 2); const bonus = +get("dungeonDropBonus", 25);
+  return { coinMult: Number.isFinite(mult) && mult >= 0 ? mult : 2, dropBonus: Math.max(0, Math.min(100, Number.isFinite(bonus) ? bonus : 25)) / 100, extraRoll: !!get("dungeonExtraRoll", true) };
+}
+/** Scene configuration (ApplicationV2): adds the Dungeon checkbox to the Basics tab. Foundry saves it with the rest of the form. */
+export function addDungeonField(app, html) {
+  const root = html instanceof HTMLElement ? html : html?.[0]; const scene = app?.document; if (!root || !scene) return;
+  if (root.querySelector(`input[name="flags.${ID}.dungeon"]`)) return;
+  const tab = root.querySelector('.tab[data-tab="basics"]') ?? root.querySelector('.tab[data-tab="ambience"]'); if (!tab) return;
+  const group = document.createElement("div"); group.className = "form-group";
+  group.innerHTML = `<label for="${app.id}-wct-dungeon">Dungeon</label><div class="form-fields"><input type="checkbox" id="${app.id}-wct-dungeon" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wayfarer's Toolkit).</p>`;
+  tab.append(group);
+}
+
+/** Item drops for one creature kind. `ic` is the item-drop chance check (raised in dungeons). */
+function rollItems(items, kind, cr, name, ic, add) {
   switch (kind) {
     case "beast":
-      if (chance(0.7)) add(pickJunk(items, ["beast"], name));
-      if (chance(0.15)) add(pickJunk(items, ["beast"], name));
+      if (ic(0.7)) add(pickJunk(items, ["beast"], name));
+      if (ic(0.15)) add(pickJunk(items, ["beast"], name));
       break;
     case "dragon":
       add(pickJunk(items, ["beast"], name.match(/dragon|drake|whelp/i) ? "Dragon Scale" : name));
-      if (chance(0.3)) add(pickJunk(items, ["beast", "elemental"], name));
+      if (ic(0.3)) add(pickJunk(items, ["beast", "elemental"], name));
       break;
     case "humanoid":
-      if (chance(0.75)) copper = coinFor(cr);
-      if (chance(0.5)) add(pickJunk(items, chance(0.7) ? ["trinket"] : ["trinket", "misc"], name));
-      if (chance(0.35)) add(pickGear(items, cr));
+      if (ic(0.5)) add(pickJunk(items, chance(0.7) ? ["trinket"] : ["trinket", "misc"], name));
+      if (ic(0.35)) add(pickGear(items, cr));
       break;
     case "undead":
-      if (chance(0.6)) add(pickJunk(items, ["undead"], name));
-      if (chance(0.2)) add(pickGear(items, cr));
-      if (chance(0.25)) copper = coinFor(cr);
+      if (ic(0.6)) add(pickJunk(items, ["undead"], name));
+      if (ic(0.2)) add(pickGear(items, cr));
       break;
     case "elemental":
-      if (chance(0.6)) add(pickJunk(items, ["elemental"], name));
+      if (ic(0.6)) add(pickJunk(items, ["elemental"], name));
       break;
     case "plant":
-      if (chance(0.6)) add(pickJunk(items, ["plant"], name));
+      if (ic(0.6)) add(pickJunk(items, ["plant"], name));
       break;
     default:
-      if (chance(0.5)) add(pickJunk(items, ["beast", "undead", "elemental", "plant", "misc"], name));
+      if (ic(0.5)) add(pickJunk(items, ["beast", "undead", "elemental", "plant", "misc"], name));
   }
-  return { items: out, copper, kind };
 }
+
+/**
+ * Rolls the drop for one creature: { items: [poolEntry], copper, kind, dungeon }. With `dungeon`, coin is multiplied, every
+ * item-drop chance gets the dungeon bonus (capped at 100%) and, if set, the item drops roll a second time. Off dungeons the odds are unchanged.
+ */
+export async function rollDrop(actor, { dungeon = false } = {}) {
+  const items = await pool(); const kind = creatureKind(actor); const cr = actor?.system?.details?.cr ?? 0; const name = actor?.name ?? "";
+  const rules = dungeon ? dungeonRules() : null;
+  const out = []; let copper = 0;
+  const add = x => { if (x) out.push(x); };
+  const ic = rules ? p => chance(Math.min(1, p + rules.dropBonus)) : chance;
+  if (kind === "humanoid" && chance(0.75)) copper = coinFor(cr);
+  if (kind === "undead" && chance(0.25)) copper = coinFor(cr);
+  rollItems(items, kind, cr, name, ic, add);
+  if (rules?.extraRoll) rollItems(items, kind, cr, name, ic, add);
+  if (rules && copper) copper = Math.round(copper * rules.coinMult);
+  return { items: out, copper, kind, dungeon: !!rules };
+}
+const DUNGEON_TAG = `<span class="wct-dungeon-tag" style="font-size:0.75em;font-weight:normal;padding:0 0.4em;margin-left:0.3em;border:1px solid currentColor;border-radius:3px;vertical-align:middle;" title="Dungeon scene: more coin and items">Dungeon</span>`;
 
 /** Value of a pool entry in the smallest coin: its vendor sell price if it has one, else the item's own price. */
 export function valueOf(entry, api) {
@@ -184,18 +216,18 @@ export async function vendorTrash(api, tokens = null) {
 
 /** The original flow: a GM loot card with a Give to Party button. */
 async function lootCard(docs, api) {
-  const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = [];
+  const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
   await markLooted(todo);
   for (const doc of todo) {
-    const d = await rollDrop(doc.actor);
+    const d = await rollDrop(doc.actor, { dungeon: isDungeon(doc) }); if (d.dungeon) dungeon = true;
     const parts = d.items.map(i => { const v = valueOf(i, api); total += v; drops.push({ uuid: i.uuid, value: v }); return `@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`; });
     if (d.copper) { const v = d.copper * (Object.fromEntries(api.coins()).cp ?? 1); coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
   }
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
-  const content = `<h3>Vendor Trash</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
-  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { drops, coin: coinTotal, given: false } } } });
+  const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
+  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { drops, coin: coinTotal, given: false, dungeon } } } });
 }
 
 /**
@@ -205,12 +237,12 @@ async function lootCard(docs, api) {
  */
 async function lootPiles(docs, api) {
   const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
-  const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0;
+  const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !((doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) && skipped.push(doc.name)));
   await markLooted(todo);
   for (const doc of todo) {
     const actor = doc.actor;
-    const d = await rollDrop(actor);
+    const d = await rollDrop(actor, { dungeon: isDungeon(doc) }); if (d.dungeon) dungeon = true;
     const own = actor.items.map(i => i.id);
     const create = []; const parts = [];
     for (const i of d.items) {
@@ -232,8 +264,8 @@ async function lootPiles(docs, api) {
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.join(", ")}</li>`);
   }
   if (!rows.length && !empty.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
-  const content = `<h3>Vendor Trash</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
-  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total } } } });
+  const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
+  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total, dungeon } } } });
 }
 
 /** Gives a loot card's items and coin to the party actor. Trash items are priced at their vendor value and flagged for Sell Trash. */
