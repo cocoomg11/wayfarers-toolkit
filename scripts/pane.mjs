@@ -253,7 +253,7 @@ const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation
 const OPEN = new Map();
 
 // Window size. The paper doll needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
-const MIN_W = 460, MIN_H = 640, DEF_W = 470, DEF_H = 700;
+const MIN_W = 460, MIN_H = 690, DEF_W = 470, DEF_H = 720;
 const SLOT_MIN = 42, SLOT_MAX = 72;
 const SIZE_KEY = "paneWindow";
 
@@ -358,6 +358,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
 
   /** Never smaller than the paper doll needs. */
   _updatePosition(position) {
+    if (this.minimized) return super._updatePosition(position);
     if (Number.isFinite(position.width)) position.width = Math.max(MIN_W, position.width);
     if (Number.isFinite(position.height)) position.height = Math.max(MIN_H, position.height);
     return super._updatePosition(position);

@@ -15,7 +15,7 @@
   --wct-slot-edge: #4a3d2c;
   --wct-slot: 42px; /* slot size; pane.mjs grows it with the window */
   min-width: 460px;
-  min-height: 640px;
+  min-height: 690px;
 }
 body.theme-light .application.wct-pane:not(.theme-dark),
 .application.wct-pane.theme-light {
@@ -28,6 +28,7 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 }
 
 .application.wct-pane .window-content {
+  flex: 1 1 auto;
   display: flex; flex-direction: column;
   padding: 0;
   overflow: visible;
