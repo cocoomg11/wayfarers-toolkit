@@ -89,7 +89,7 @@ When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is acti
 
 1. Install and enable **Item Piles** and its system add-on: for dnd5e that's **Item Piles: D&D 5e** (`itempilesdnd5e`). Item Piles 3 has no system settings of its own; without the add-on it doesn't know item quantities or coins, and Vendor Trash falls back to the Give to Party card with a warning.
 2. Reload. Item Piles applies the dnd5e settings the first time it sees the add-on.
-3. **Three-coin economy:** the dnd5e add-on sets up five coins at 10 to 1. With *Coin system* on *Three coins* and *Set Item Piles coins for three coins* on (the default), this module replaces them each time the world loads with gold (primary), silver (×0.01) and copper (×0.0001), and whispers the GM when it changes them. To do it by hand instead, turn that setting off and in **Item Piles → Module Settings → System → Currencies** keep three attribute currencies: `system.currency.gp` (exchange rate 1, primary), `system.currency.sp` (0.01) and `system.currency.cp` (0.0001), and delete platinum and electrum.
+3. **Three-coin economy:** the dnd5e add-on sets up five coins at 10 to 1. With *Coin system* on *Three coins* and *Set Item Piles coins for three coins* on (the default), this module replaces them each time the world loads with copper (×0.0001), silver (×0.01) and gold (primary), in that order, and whispers the GM when it changes them. To do it by hand instead, turn that setting off and in **Item Piles → Module Settings → System → Currencies** keep three attribute currencies, in this order: `system.currency.cp` (0.0001), `system.currency.sp` (0.01) and `system.currency.gp` (exchange rate 1, primary), and delete platinum and electrum.
 
 ### Without Item Piles: Give to Party
 
@@ -234,14 +234,14 @@ Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payR
 
 ## Three-coin economy (copper, silver, gold)
 
-An optional classic-MMO-style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC and party sheets show only gold, silver and copper (abbreviated g, s, c), dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
+An optional classic-MMO-style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC, group, vehicle and container sheets, the currency manager and award dialogs show only copper, silver and gold, in that order (abbreviated c, s, g); dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
 
 ### Setup
 
-1. **Clear out platinum and electrum first.** Those coins stop counting once you switch. Open any sheet that holds pp or ep and convert or remove them while you're still on Standard. (If any are left after switching, the module whispers the GM a list of who still has them.)
+1. **Platinum and electrum are converted for you.** Each time the world loads in three-coin mode (and when you **Run setup**), the GM's client turns any pp or ep left on actors, containers and unlinked tokens into the new coins: **1 pp = 10 gold** and **1 ep = 50 silver** (half a gold piece, its standard 5e value), and whispers the GM who was changed. If you'd rather decide yourself, convert or remove them while you're still on Standard.
 2. Open **Game Settings → Configure Settings → Wayfarer's Toolkit** and set **Coin system** to *Three coins: copper, silver, gold (100 to 1)*. Save; Foundry reloads.
 3. Set **Fare unit** to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
-4. Check a sheet: the currency block should show only g, s and c.
+4. Check a sheet: the currency block should show only copper, silver and gold, left to right.
 
 To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they are; they're just read at 5e rates again.
 
