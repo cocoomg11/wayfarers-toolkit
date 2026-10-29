@@ -1,18 +1,19 @@
 {
   "id": "wayfarers-toolkit",
   "title": "Wayfarer's Toolkit",
-  "description": "Three GM tools for dnd5e: overland hex travel with off-road encounter rolls, flight routes with fares paid from a party purse, and a session-start helper that posts a recap and opens the scene. Campaign content stays in your world; the module supplies the logic.",
-  "version": "1.0.0",
+  "description": "Three GM tools for dnd5e: overland hex travel with off-road encounter rolls, flight routes with fares paid from a party purse (players can book flights too, with an optional departure sound), and a session-start helper that posts a recap and opens the scene. Campaign content stays in your world; the module supplies the logic.",
+  "version": "1.1.0",
   "authors": [{ "name": "cocoomg11" }],
   "compatibility": { "minimum": "13", "verified": "14" },
   "relationships": {
     "systems": [{ "id": "dnd5e", "type": "system", "compatibility": { "minimum": "5.0.0" } }]
   },
   "esmodules": ["scripts/main.mjs"],
+  "socket": true,
   "languages": [{ "lang": "en", "name": "English", "path": "lang/en.json" }],
   "url": "https://github.com/cocoomg11/wayfarers-toolkit",
   "manifest": "https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.json",
-  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v1.0.0/module.zip",
+  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v1.1.0/module.zip",
   "bugs": "https://github.com/cocoomg11/wayfarers-toolkit/issues",
   "license": "LICENSE",
   "readme": "README.md"

@@ -18,8 +18,12 @@ const DEFAULTS = {
   paceSlow: 2,
   paceNormal: 3,
   paceFast: 4,
-  hiddenScenes: "Hex Test|NPC Gallery"
+  hiddenScenes: "Hex Test|NPC Gallery",
+  flightSound: "",
+  flightVolume: 0.8,
+  playerFlights: true
 };
+const SOCKET = `module.${ID}`;
 
 function registerSettings() {
   const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: true, type, default: DEFAULTS[key], ...extra });
@@ -34,6 +38,10 @@ function registerSettings() {
   s("paceNormal", "Normal pace (mph)", "", Number);
   s("paceFast", "Fast pace (mph)", "", Number);
   s("hiddenScenes", "Scenes hidden from Session Start", "Regular expression; matching scene names are left out of the list.", String);
+  s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
+  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Leave blank for no sound.", String, { filePicker: "audio" });
+  s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
+  game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
 
@@ -111,7 +119,21 @@ export const WCT = {
       if (!game.user.hotbar[slot]) await game.user.assignHotbarMacro(m, slot);
       made.push(`macro "${name}"`);
     }
+    if (setting("playerFlights")) made.push(...await this.shareFlightMacro());
     return made;
+  },
+  /** Lets players see the Flight Master macro and puts it on their hotbars (slot 3, or the first free slot). */
+  async shareFlightMacro() {
+    if (!this.gmOnly()) return [];
+    const m = game.macros.getName("Flight Master"); if (!m) return [];
+    const done = []; const OBS = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+    if ((m.ownership.default ?? 0) < OBS) { await m.update({ "ownership.default": OBS }); done.push("Flight Master shared with players"); }
+    for (const u of game.users.filter(u => !u.isGM)) {
+      if (Object.values(u.hotbar ?? {}).includes(m.id)) continue;
+      const slot = !u.hotbar?.[3] ? 3 : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !u.hotbar?.[i]);
+      if (slot) { await u.update({ [`hotbar.${slot}`]: m.id }); done.push(`Flight Master on ${u.name}'s hotbar`); }
+    }
+    return done;
   },
 
   // ------------------------------------------------------------ travel
@@ -145,11 +167,19 @@ export const WCT = {
     await this.say(`<p><em>The party travels ${road + off} miles through ${esc(f.zone)} (${hours.toFixed(1)} hours).</em></p>`, "Travel");
     return { hours, enc };
   },
+  /** Flight points and routes. The GM reads the tracker journal; players read a copy the GM keeps in a world setting, since they can't open the GM journal. */
   flightData() {
+    if (!game.user.isGM) return game.settings.get(ID, "flightCache") ?? { pts: [], routes: [] };
     const html = this.page("Flight Routes").text.content;
     const pts = this.parseTable(html, 0).map(([n, sc, u]) => ({ n, sc, u: /^y/i.test(u || "") }));
     const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: +f || 0, h: +h || 0 }));
     return { pts, routes };
+  },
+  async syncFlightCache() {
+    if (!game.users.activeGM?.isSelf) return;
+    let data; try { data = this.flightData(); } catch { return; }
+    const old = game.settings.get(ID, "flightCache");
+    if (JSON.stringify(old) !== JSON.stringify(data)) await game.settings.set(ID, "flightCache", data);
   },
   route(from, to, open, routes) {
     const ok = new Set(open); const dist = { [from]: { f: 0, h: 0, path: [from] } }; const done = new Set();
@@ -162,32 +192,61 @@ export const WCT = {
       }
     }
   },
+  partyActor() { return game.actors.find(a => a.type === "group" && a.name === this.PARTY); },
+  playFlightSound() {
+    const src = setting("flightSound"); if (!src) return;
+    foundry.audio.AudioHelper.play({ src, volume: setting("flightVolume") ?? 0.8, autoplay: true, loop: false }, true);
+  },
+  /** Opens Flight Master. The GM flies the party directly; a player's booking is sent to the GM's client, which carries it out. */
   async flight() {
-    if (!this.gmOnly()) return;
+    const gm = game.user.isGM;
+    if (!gm && !setting("playerFlights")) return ui.notifications.warn("Flight Master is GM only in this world.");
+    if (!gm && !game.users.activeGM) return ui.notifications.warn("The flight master is waiting for a GM: one needs to be logged in to book a flight.");
     const { pts, routes } = this.flightData(); const open = pts.filter(p => p.u).map(p => p.n);
-    if (open.length < 2) return ui.notifications.warn(`Fewer than two flight points are unlocked. Mark them yes in ${this.JOURNAL} › Flight Routes.`);
-    const party = game.actors.find(a => a.type === "group" && a.name === this.PARTY);
+    if (open.length < 2) return ui.notifications.warn(gm ? `Fewer than two flight points are unlocked. Mark them yes in ${this.JOURNAL} › Flight Routes.` : "There are no flight paths open yet.");
+    const party = this.partyActor();
     const members = party?.system.members?.length || 0;
     const here = pts.find(p => p.u && p.sc && p.sc === canvas.scene?.name)?.n ?? open[0];
     const content = `<div class="form-group"><label>From</label><select name="from">${open.map(n => this.opt(n, n, n === here)).join("")}</select></div>
       <div class="form-group"><label>To</label><select name="to">${open.map(n => this.opt(n, n, n !== here && n === open.find(x => x !== here))).join("")}</select></div>
-      <div class="form-group"><label>Passengers</label><input type="number" name="pax" min="1" value="${members || 4}"></div>
-      <div class="form-group"><label>Open destination scene for players</label><input type="checkbox" name="scene" checked></div>
-      <p class="hint">Fares and routes come from ${esc(this.JOURNAL)} › Flight Routes. ${party ? `Party purse: ${this.purse(party)}.` : `No group actor named ${esc(this.PARTY)}; fares won't be deducted.`}</p>`;
+      <div class="form-group"><label>Passengers</label><input type="number" name="pax" min="1" max="20" value="${members || 4}"></div>
+      ${gm ? `<div class="form-group"><label>Open destination scene for players</label><input type="checkbox" name="scene" checked></div>` : ""}
+      <p class="hint">${gm ? `Fares and routes come from ${esc(this.JOURNAL)} › Flight Routes. ` : "Fares are paid from the party purse. "}${party ? `Party purse: ${this.purse(party)}.` : gm ? `No group actor named ${esc(this.PARTY)}; fares won't be deducted.` : ""}</p>`;
     const f = await this.form("Flight Master", content, "Check route"); if (!f) return;
     if (f.from === f.to) return ui.notifications.warn("Pick two different flight points.");
     const r = this.route(f.from, f.to, open, routes);
-    if (!r) return ui.notifications.warn(`No route between ${f.from} and ${f.to} through unlocked flight points.`);
-    const pax = Math.max(1, Math.floor(+f.pax || 1)); const fare = r.f * pax;
+    if (!r) return ui.notifications.warn(`No route between ${f.from} and ${f.to} through open flight points.`);
+    const pax = Math.min(20, Math.max(1, Math.floor(+f.pax || 1))); const fare = r.f * pax;
     const canPay = party ? this.totalCp(party) >= fare * 100 : false;
-    const go = await this.confirm("Flight Master", `<p><strong>${r.path.map(esc).join(" → ")}</strong></p><p>${r.h} hours · ${r.f} gp each × ${pax} = <strong>${fare} gp</strong></p>${party ? (canPay ? `<p>Party purse: ${this.purse(party)}.</p>` : `<p><strong>The party can't afford this</strong> (${this.purse(party)}). Fly anyway without charging?</p>`) : ""}`);
+    const path = `<p><strong>${r.path.map(esc).join(" → ")}</strong></p><p>${r.h} hours · ${r.f} gp each × ${pax} = <strong>${fare} gp</strong></p>`;
+    if (!gm) {
+      if (party && !canPay) return foundry.applications.api.DialogV2.prompt({ window: { title: "Flight Master" }, content: `${path}<p><strong>The party can't afford this flight</strong> (purse: ${this.purse(party)}).</p>`, rejectClose: false });
+      const go = await this.confirm("Flight Master", `${path}${party ? `<p>Paid from the party purse (${this.purse(party)}).</p>` : ""}<p>Book this flight?</p>`);
+      if (!go) return;
+      game.socket.emit(SOCKET, { action: "flight", from: f.from, to: f.to, pax, userId: game.user.id });
+      ui.notifications.info("Flight booked. Mount up!");
+      return r;
+    }
+    const go = await this.confirm("Flight Master", `${path}${party ? (canPay ? `<p>Party purse: ${this.purse(party)}.</p>` : `<p><strong>The party can't afford this</strong> (${this.purse(party)}). Fly anyway without charging?</p>`) : ""}`);
     if (!go) return;
+    return this.doFlight({ from: f.from, to: f.to, pax, scene: !!f.scene });
+  },
+  /** Carries out a flight on the GM's client: fare, sound, time, log, chat, scene. Re-checks the route so a player's request can't set its own price. */
+  async doFlight({ from, to, pax, scene = true, userId = null }) {
+    const { pts, routes } = this.flightData(); const open = pts.filter(p => p.u).map(p => p.n);
+    const by = userId ? game.users.get(userId) : null;
+    const r = (open.includes(from) && open.includes(to) && from !== to) ? this.route(from, to, open, routes) : null;
+    if (!r) { if (by) await this.gmWhisper(`<p>${esc(by.name)} tried to book a flight from ${esc(from)} to ${esc(to)}, but there's no open route.</p>`); return null; }
+    pax = Math.min(20, Math.max(1, Math.floor(+pax || 1))); const fare = r.f * pax;
+    const party = this.partyActor(); const canPay = party ? this.totalCp(party) >= fare * 100 : false;
+    if (by && party && !canPay) { await this.gmWhisper(`<p>${esc(by.name)} tried to book ${esc(from)} → ${esc(to)} (${fare} gp), but the party can't afford it.</p>`); return null; }
     if (party && canPay) await this.pay(party, fare * 100);
+    this.playFlightSound();
     await game.time.advance(Math.round(r.h * 3600));
-    await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fare} gp${party && !canPay ? " (not charged)" : ""}. Arrived ${this.stamp()}.</p>`);
-    await this.say(`<p><em>The party flies from ${esc(f.from)} to ${esc(f.to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fare} gp${party && !canPay ? " (owed)" : ""}.</p>`, "Flight Master");
-    const dest = pts.find(p => p.n === f.to); const scene = dest?.sc ? game.scenes.getName(dest.sc) : null;
-    if (f.scene && scene) await scene.activate();
+    await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fare} gp${party && !canPay ? " (not charged)" : ""}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`);
+    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fare} gp${party && !canPay ? " (owed)" : ""}.</p>`, "Flight Master");
+    const dest = pts.find(p => p.n === to); const sc = dest?.sc ? game.scenes.getName(dest.sc) : null;
+    if (scene && sc) await sc.activate();
     return r;
   },
   totalCp(a) { const c = a.system.currency ?? {}; return (c.pp || 0) * 1000 + (c.gp || 0) * 100 + (c.ep || 0) * 50 + (c.sp || 0) * 10 + (c.cp || 0); },
@@ -229,5 +288,24 @@ Hooks.once("init", () => { registerSettings(); });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
+  game.socket.on(SOCKET, async msg => {
+    if (msg?.action !== "flight" || !game.users.activeGM?.isSelf) return;
+    if (!setting("playerFlights")) return;
+    try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: msg.userId, scene: true }); }
+    catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); }
+  });
+  WCT.syncFlightCache();
   console.log(`${ID} | ready (v${mod.version})`);
+});
+
+// Keep the players' copy of the flight routes current whenever the GM edits the Flight Routes page.
+const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
+Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+
+// Flight Master button in the token controls, for the GM and (when allowed) players.
+Hooks.on("getSceneControlButtons", controls => {
+  const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
+  if (!game.user.isGM && !game.settings.get(ID, "playerFlights")) return;
+  tokens.tools.wctFlight = { name: "wctFlight", title: "Flight Master", icon: "fa-solid fa-feather-pointed", order: 99, button: true, visible: true, onChange: () => WCT.flight() };
 });

@@ -5,7 +5,7 @@ Three GM tools for [Foundry VTT](https://foundryvtt.com) and the dnd5e system: o
 | Tool | What it does |
 | --- | --- |
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
-| **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. |
+| **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
 
 ## Install
@@ -31,6 +31,10 @@ All settings are per world:
 ### Flight routes
 
 The tracker journal's **Flight Routes** page holds two tables: flight points (name, scene to open on arrival, unlocked yes/no) and routes (from, to, fare in gp per passenger, hours). Edit them directly; Flight Master reads the page each time.
+
+**Players and Flight Master.** With *Players can use Flight Master* on (the default), players get a feather button in the token controls and, after setup, the Flight Master macro on their hotbar. A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be logged in. Players see a copy of the flight points and routes, never the GM journal itself.
+
+**Flight sound.** Pick any audio file in the *Flight sound* setting; it plays for everyone when a flight departs.
 
 ## Macros and scripting
 
