@@ -107,6 +107,8 @@ A paper doll in the style of World of Warcraft's character screen. The character
 
 **Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under **Choose features**.
 
+The window is resizable: the slots and portrait grow with it, the *Equippable items* list scrolls inside it, and each player's size and position are remembered on their own computer.
+
 ### Slots
 
 WoW Classic's layout, without the Ammo slot:
