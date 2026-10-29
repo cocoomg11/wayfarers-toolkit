@@ -21,9 +21,43 @@ const DEFAULTS = {
   hiddenScenes: "Hex Test|NPC Gallery",
   flightSound: "modules/wayfarers-toolkit/sounds/be-good.ogg",
   flightVolume: 0.8,
-  playerFlights: true
+  playerFlights: true,
+  coinSystem: "standard",
+  fareUnit: "gp"
 };
 const SOCKET = `module.${ID}`;
+
+// ---------------------------------------------------------------- coins
+/** Three-coin economy: copper, silver and gold only, 100 copper to the silver and 100 silver to the gold. Applied at init, before any sheet renders. */
+function applyCoinSystem() {
+  if (setting("coinSystem") !== "threeCoin") return;
+  const C = CONFIG.DND5E?.currencies; if (!C?.gp || !C?.sp || !C?.cp) return console.warn(`${ID} | dnd5e currencies not found; three-coin economy not applied`);
+  C.gp.conversion = 1; C.sp.conversion = 100; C.cp.conversion = 10000;
+  C.gp.abbreviation = "g"; C.sp.abbreviation = "s"; C.cp.abbreviation = "c";
+  delete C.pp; delete C.ep;
+}
+/** Coins in use, most valuable first: [key, value in the smallest coin]. */
+function coins() {
+  const C = CONFIG.DND5E.currencies; const list = Object.entries(C).filter(([, c]) => c.conversion > 0);
+  const base = Math.max(...list.map(([, c]) => c.conversion));
+  return list.map(([k, c]) => [k, Math.round(base / c.conversion)]).sort((a, b) => b[1] - a[1]);
+}
+const COIN_ALIAS = { g: "gp", gold: "gp", s: "sp", silver: "sp", c: "cp", copper: "cp", p: "pp", platinum: "pp", e: "ep", electrum: "ep" };
+const coinKey = s => { s = String(s).toLowerCase().replace(/\.$/, ""); if (CONFIG.DND5E.currencies[s]) return s; for (const [k, c] of Object.entries(CONFIG.DND5E.currencies)) if (String(c.abbreviation).toLowerCase() === s) return k; return COIN_ALIAS[s] ?? COIN_ALIAS[s.replace(/s$/, "")] ?? null; };
+/** "1g 20s", "2 gp", "50c" or a plain number (read in the Fare unit setting) → amount in the smallest coin. */
+function parseMoney(text, unit = setting("fareUnit")) {
+  const val = Object.fromEntries(coins()); const str = String(text ?? "").trim(); if (!str) return 0;
+  if (/^\d+(\.\d+)?$/.test(str)) return Math.round(+str * (val[unit] ?? val.gp ?? 1));
+  let total = 0, hit = false;
+  for (const [, n, u] of str.matchAll(/(\d+(?:\.\d+)?)\s*([a-z]+)/gi)) { const k = coinKey(u); if (k && val[k]) { total += +n * val[k]; hit = true; } }
+  return hit ? Math.round(total) : (parseFloat(str) || 0) * (val[unit] ?? 1);
+}
+/** Amount in the smallest coin → "1g 20s 5c" (three-coin) or "1 gp 2 sp" (standard). Electrum is never used for change. */
+function fmtMoney(amount) {
+  amount = Math.max(0, Math.round(amount)); const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; const parts = [];
+  for (const [k, v] of coins()) { if (k === "ep") continue; const n = Math.floor(amount / v); if (n) { parts.push(`${n}${tight ? "" : " "}${C[k].abbreviation}`); amount -= n * v; } }
+  return parts.join(" ") || `0${tight ? "" : " "}${C[coins().at(-1)[0]].abbreviation}`;
+}
 
 function registerSettings() {
   const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: true, type, default: DEFAULTS[key], ...extra });
@@ -41,6 +75,8 @@ function registerSettings() {
   s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Defaults to the bundled \"Be Good\" clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
+  s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, like World of Warcraft. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
+  s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
@@ -64,7 +100,7 @@ const MACROS = [
 
 const TRACKER_PAGES = {
   "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`,
-  "Flight Routes": `<h2>Flight Points</h2><p>Only points marked <strong>yes</strong> appear in Flight Master. <em>Scene</em> is opened on arrival (optional).</p><table><thead><tr><th>Flight point</th><th>Scene</th><th>Unlocked</th></tr></thead><tbody><tr><td>Example Town</td><td></td><td>yes</td></tr><tr><td>Example Outpost</td><td></td><td>no</td></tr></tbody></table><h2>Routes</h2><p>Direct flights, both directions. Fare per passenger in gold; hours of flight.</p><table><thead><tr><th>From</th><th>To</th><th>Fare (gp)</th><th>Hours</th></tr></thead><tbody><tr><td>Example Town</td><td>Example Outpost</td><td>2</td><td>1</td></tr></tbody></table>`,
+  "Flight Routes": `<h2>Flight Points</h2><p>Only points marked <strong>yes</strong> appear in Flight Master. <em>Scene</em> is opened on arrival (optional).</p><table><thead><tr><th>Flight point</th><th>Scene</th><th>Unlocked</th></tr></thead><tbody><tr><td>Example Town</td><td></td><td>yes</td></tr><tr><td>Example Outpost</td><td></td><td>no</td></tr></tbody></table><h2>Routes</h2><p>Direct flights, both directions. Fare per passenger, written like <em>2s</em> or <em>1g 20s</em> (a plain number uses the Fare unit setting); hours of flight.</p><table><thead><tr><th>From</th><th>To</th><th>Fare</th><th>Hours</th></tr></thead><tbody><tr><td>Example Town</td><td>Example Outpost</td><td>2</td><td>1</td></tr></tbody></table>`,
   "Session Recap": `<h2>Last Session Recap</h2><p><em>Write a short recap here after each session. The Session Start macro offers it as the opening recap.</em></p>`
 };
 
@@ -172,7 +208,7 @@ export const WCT = {
     if (!game.user.isGM) return game.settings.get(ID, "flightCache") ?? { pts: [], routes: [] };
     const html = this.page("Flight Routes").text.content;
     const pts = this.parseTable(html, 0).map(([n, sc, u]) => ({ n, sc, u: /^y/i.test(u || "") }));
-    const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: +f || 0, h: +h || 0 }));
+    const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: parseMoney(f), h: +h || 0 }));
     return { pts, routes };
   },
   async syncFlightCache() {
@@ -217,8 +253,8 @@ export const WCT = {
     const r = this.route(f.from, f.to, open, routes);
     if (!r) return ui.notifications.warn(`No route between ${f.from} and ${f.to} through open flight points.`);
     const pax = Math.min(20, Math.max(1, Math.floor(+f.pax || 1))); const fare = r.f * pax;
-    const canPay = party ? this.totalCp(party) >= fare * 100 : false;
-    const path = `<p><strong>${r.path.map(esc).join(" → ")}</strong></p><p>${r.h} hours · ${r.f} gp each × ${pax} = <strong>${fare} gp</strong></p>`;
+    const canPay = party ? this.totalMoney(party) >= fare : false;
+    const path = `<p><strong>${r.path.map(esc).join(" → ")}</strong></p><p>${r.h} hours · ${fmtMoney(r.f)} each × ${pax} = <strong>${fmtMoney(fare)}</strong></p>`;
     if (!gm) {
       if (party && !canPay) return foundry.applications.api.DialogV2.prompt({ window: { title: "Flight Master" }, content: `${path}<p><strong>The party can't afford this flight</strong> (purse: ${this.purse(party)}).</p>`, rejectClose: false });
       const go = await this.confirm("Flight Master", `${path}${party ? `<p>Paid from the party purse (${this.purse(party)}).</p>` : ""}<p>Book this flight?</p>`);
@@ -238,29 +274,38 @@ export const WCT = {
     const r = (open.includes(from) && open.includes(to) && from !== to) ? this.route(from, to, open, routes) : null;
     if (!r) { if (by) await this.gmWhisper(`<p>${esc(by.name)} tried to book a flight from ${esc(from)} to ${esc(to)}, but there's no open route.</p>`); return null; }
     pax = Math.min(20, Math.max(1, Math.floor(+pax || 1))); const fare = r.f * pax;
-    const party = this.partyActor(); const canPay = party ? this.totalCp(party) >= fare * 100 : false;
-    if (by && party && !canPay) { await this.gmWhisper(`<p>${esc(by.name)} tried to book ${esc(from)} → ${esc(to)} (${fare} gp), but the party can't afford it.</p>`); return null; }
-    if (party && canPay) await this.pay(party, fare * 100);
+    const party = this.partyActor(); const canPay = party ? this.totalMoney(party) >= fare : false;
+    if (by && party && !canPay) { await this.gmWhisper(`<p>${esc(by.name)} tried to book ${esc(from)} → ${esc(to)} (${fmtMoney(fare)}), but the party can't afford it.</p>`); return null; }
+    if (party && canPay) await this.pay(party, fare);
     this.playFlightSound();
     await game.time.advance(Math.round(r.h * 3600));
-    await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fare} gp${party && !canPay ? " (not charged)" : ""}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`);
-    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fare} gp${party && !canPay ? " (owed)" : ""}.</p>`, "Flight Master");
+    await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fmtMoney(fare)}${party && !canPay ? " (not charged)" : ""}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`);
+    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fmtMoney(fare)}${party && !canPay ? " (owed)" : ""}.</p>`, "Flight Master");
     const dest = pts.find(p => p.n === to); const sc = dest?.sc ? game.scenes.getName(dest.sc) : null;
     if (scene && sc) await sc.activate();
     return r;
   },
-  totalCp(a) { const c = a.system.currency ?? {}; return (c.pp || 0) * 1000 + (c.gp || 0) * 100 + (c.ep || 0) * 50 + (c.sp || 0) * 10 + (c.cp || 0); },
-  purse(a) { const c = a.system.currency ?? {}; return ["pp", "gp", "ep", "sp", "cp"].filter(k => c[k]).map(k => `${c[k]} ${k}`).join(", ") || "empty"; },
-  async pay(a, cp) {
-    const c = { ...a.system.currency }; let need = cp;
-    for (const [k, v] of [["cp", 1], ["sp", 10], ["ep", 50], ["gp", 100], ["pp", 1000]]) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] -= take; need -= take * v; }
+  // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
+  parseMoney, fmtMoney, coins,
+  totalMoney(a) { const c = a.system.currency ?? {}; return coins().reduce((t, [k, v]) => t + (c[k] || 0) * v, 0); },
+  purse(a) { const c = a.system.currency ?? {}; const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; return coins().filter(([k]) => c[k]).map(([k]) => `${c[k]}${tight ? "" : " "}${C[k].abbreviation}`).join(" ") || "empty"; },
+  /** Spends the smallest coins first, then breaks one larger coin and gives change, so the purse keeps its mix. */
+  async pay(a, amount) {
+    const c = { ...a.system.currency }; let need = Math.round(amount); const asc = coins().reverse();
+    for (const [k, v] of asc) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] = (c[k] || 0) - take; need -= take * v; }
     if (need > 0) {
-      for (const [k, v] of [["sp", 10], ["ep", 50], ["gp", 100], ["pp", 1000]]) {
-        if ((c[k] || 0) > 0 && v >= need) { c[k] -= 1; let change = v - need; need = 0; c.gp = (c.gp || 0) + Math.floor(change / 100); change %= 100; c.sp = (c.sp || 0) + Math.floor(change / 10); c.cp = (c.cp || 0) + change % 10; break; }
+      for (const [k, v] of asc) {
+        if ((c[k] || 0) > 0 && v >= need) {
+          c[k] -= 1; let change = v - need; need = 0;
+          for (const [k2, v2] of coins()) { if (v2 >= v || k2 === "ep") continue; const n = Math.floor(change / v2); c[k2] = (c[k2] || 0) + n; change -= n * v2; }
+          break;
+        }
       }
     }
     await a.update({ "system.currency": c });
   },
+  /** Old name kept for macros written against v1.0–1.2. */
+  totalCp(a) { return this.totalMoney(a); },
 
   // ------------------------------------------------------------ session
   async sessionStart() {
@@ -284,7 +329,7 @@ export const WCT = {
   }
 };
 
-Hooks.once("init", () => { registerSettings(); });
+Hooks.once("init", () => { registerSettings(); applyCoinSystem(); });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
@@ -295,6 +340,10 @@ Hooks.once("ready", () => {
     catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); }
   });
   WCT.syncFlightCache();
+  if (game.user.isGM && setting("coinSystem") === "threeCoin") {
+    const stray = game.actors.filter(a => a.system.currency && (a.system.currency.pp || a.system.currency.ep)).map(a => a.name);
+    if (stray.length) WCT.gmWhisper(`<p><strong>Three-coin economy:</strong> these actors still hold platinum or electrum, which no longer counts: ${stray.map(esc).join(", ")}. Switch back to Standard, convert or clear those coins, then switch again.</p>`);
+  }
   console.log(`${ID} | ready (v${mod.version})`);
 });
 
