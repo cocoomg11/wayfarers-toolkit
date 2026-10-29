@@ -1,10 +1,13 @@
 /**
  * Wayfarer's Toolkit
- * Hex travel, flight routes and a session-start helper
+ * Hex travel, flight routes, a session-start helper, vendor trash, a character pane and a quest log.
+ * Each tool is a feature that can be turned off (features.mjs); turned-off tools register nothing.
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
  */
 import * as Trash from "./trash.mjs";
 import * as Pane from "./pane.mjs";
+import * as Quests from "./quests.mjs";
+import * as F from "./features.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -30,8 +33,7 @@ const DEFAULTS = {
   trashPacks: "",
   trashItemPiles: true,
   itemPilesCoins: true,
-  riderFeat: "Trained Rider",
-  characterPane: true
+  riderFeat: "Trained Rider"
 };
 const SOCKET = `module.${ID}`;
 
@@ -86,28 +88,29 @@ async function syncItemPilesCoins() {
 }
 
 function registerSettings() {
-  const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: true, type, default: DEFAULTS[key], ...extra });
+  F.registerSettings();
+  // Settings that belong to a turned-off feature stay registered (so nothing breaks) but are left out of the settings list.
+  const s = (key, name, hint, type, extra = {}, feature = null) => game.settings.register(ID, key, { name, hint, scope: "world", config: feature ? F.on(feature) : true, type, default: DEFAULTS[key], ...extra });
   s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
   s("trackerJournal", "Tracker journal", "Journal holding the Travel Log, Flight Routes and Session Recap pages.", String);
   s("partyActor", "Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
-  s("zones", "Encounter zones", "JSON object mapping zone name to encounter roll table name.", String);
-  s("encounterDie", "Encounter die", "Each off-road hex rolls this die; a 1 is an encounter.", Number);
-  s("offroadMult", "Off-road time multiplier", "Off-road hexes take this many times as long as road hexes.", Number);
-  s("mountMult", "Mounted speed multiplier", "Overland speed multiplier when the party travels mounted.", Number);
-  s("paceSlow", "Slow pace (mph)", "", Number);
-  s("paceNormal", "Normal pace (mph)", "", Number);
-  s("paceFast", "Fast pace (mph)", "", Number);
-  s("hiddenScenes", "Scenes hidden from Session Start", "Regular expression; matching scene names are left out of the list.", String);
-  s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
-  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Defaults to the bundled \"Be Good\" clip; clear it for no sound.", String, { filePicker: "audio" });
-  s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
+  s("zones", "Encounter zones", "JSON object mapping zone name to encounter roll table name.", String, {}, "hexTravel");
+  s("encounterDie", "Encounter die", "Each off-road hex rolls this die; a 1 is an encounter.", Number, {}, "hexTravel");
+  s("offroadMult", "Off-road time multiplier", "Off-road hexes take this many times as long as road hexes.", Number, {}, "hexTravel");
+  s("mountMult", "Mounted speed multiplier", "Overland speed multiplier when the party travels mounted.", Number, {}, "hexTravel");
+  s("paceSlow", "Slow pace (mph)", "", Number, {}, "hexTravel");
+  s("paceNormal", "Normal pace (mph)", "", Number, {}, "hexTravel");
+  s("paceFast", "Fast pace (mph)", "", Number, {}, "hexTravel");
+  s("hiddenScenes", "Scenes hidden from Session Start", "Regular expression; matching scene names are left out of the list.", String, {}, "sessionStart");
+  s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) }, "flightMaster");
+  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Defaults to the bundled \"Be Good\" clip; clear it for no sound.", String, { filePicker: "audio" }, "flightMaster");
+  s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } }, "flightMaster");
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, like World of Warcraft. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
   s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
-  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name.", String);
-  s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean);
+  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name.", String, {}, "riderFeat");
+  s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean, {}, "vendorTrash");
   s("itemPilesCoins", "Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
-  s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use WoW Classic Items (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
-  s("characterPane", "Character pane", "A World of Warcraft–style equipment frame for characters, opened from a button on the character sheet header. Slotting an item equips it; taking it out unequips it.", Boolean, { onChange: () => foundry.applications.instances?.forEach(app => { if (app.document?.documentName === "Actor") app.render(); }) });
+  s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use WoW Classic Items (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() }, "vendorTrash");
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
@@ -116,19 +119,21 @@ class SetupApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = { id: `${ID}-setup`, window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
   async _renderHTML() {
     const div = document.createElement("div");
-    div.innerHTML = `<p>This creates anything that's missing:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder, with the macros on empty hotbar slots</li></ul><p>Nothing existing is overwritten.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
+    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder, with the macros on empty hotbar slots</li>${F.on("riderFeat") ? "<li>the Trained Rider feat</li>" : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
     div.querySelector("[data-action=run]").addEventListener("click", async () => { const r = await WCT.setup(); ui.notifications.info(`Wayfarer's Toolkit: ${r.length ? "created " + r.join(", ") : "everything already exists"}.`); this.close(); });
     return div;
   }
   _replaceHTML(result, content) { content.replaceChildren(result); }
 }
 
+/** [name, API method, icon, preferred hotbar slot, feature, shared with players] */
 const MACROS = [
-  ["Hex Travel", "hexTravel", "icons/environment/wilderness/terrain-forest-gray.webp", 2],
-  ["Flight Master", "flight", "icons/creatures/birds/raptor-hawk-flying.webp", 3],
-  ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5],
-  ["Vendor Trash", "vendorTrash", "icons/containers/bags/sack-simple-leather-brown.webp", null],
-  ["Sell Vendor Trash", "sellTrash", "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", null]
+  ["Hex Travel", "hexTravel", "icons/environment/wilderness/terrain-forest-gray.webp", 2, "hexTravel"],
+  ["Flight Master", "flight", "icons/creatures/birds/raptor-hawk-flying.webp", 3, "flightMaster"],
+  ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5, "sessionStart"],
+  ["Vendor Trash", "vendorTrash", "icons/containers/bags/sack-simple-leather-brown.webp", null, "vendorTrash"],
+  ["Sell Vendor Trash", "sellTrash", "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", null, "vendorTrash"],
+  ["Quest Log", "questLog", "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", null, "questLog", true]
 ];
 
 const RIDER_FEAT = name => ({
@@ -180,33 +185,36 @@ export const WCT = {
   async setup() {
     if (!this.gmOnly()) return [];
     const made = [];
-    if (!game.journal.getName(this.JOURNAL)) {
+    const needJournal = ["hexTravel", "flightMaster", "sessionStart"].some(F.on);
+    const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
+    if (!needJournal) { /* no tool that writes the tracker journal is on */ }
+    else if (!game.journal.getName(this.JOURNAL)) {
       await JournalEntry.create({ name: this.JOURNAL, ownership: { default: 0 }, flags: { world: { trackers: { mountsUnlocked: false, trips: 0 } } }, pages: Object.entries(this.trackerPages()).map(([name, content]) => ({ name, type: "text", text: { content, format: 1 } })) });
       made.push("tracker journal");
     } else {
       const j = game.journal.getName(this.JOURNAL); const tp = this.trackerPages(); const missing = Object.keys(tp).filter(n => !j.pages.getName(n));
       if (missing.length) { await j.createEmbeddedDocuments("JournalEntryPage", missing.map(name => ({ name, type: "text", text: { content: tp[name], format: 1 } }))); made.push(`tracker pages (${missing.join(", ")})`); }
     }
-    if (!game.actors.find(a => a.type === "group" && a.name === this.PARTY)) {
+    if (needParty && !game.actors.find(a => a.type === "group" && a.name === this.PARTY)) {
       await Actor.create({ name: this.PARTY, type: "group", img: "icons/environment/people/group.webp", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
       made.push("party actor");
     }
     let folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit");
-    for (const [name, fn, img, slot] of MACROS) {
-      if (game.macros.getName(name)) continue;
+    for (const [name, fn, img, slot, feature, shared] of MACROS) {
+      if (!F.on(feature) || game.macros.getName(name)) continue;
       folder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
-      const m = await Macro.create({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");` });
+      const m = await Macro.create({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");`, ...(shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) });
       const free = slot && !game.user.hotbar[slot] ? slot : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !game.user.hotbar[i]);
       if (free) await game.user.assignHotbarMacro(m, free);
       made.push(`macro "${name}"`);
     }
-    if (!game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
+    if (F.on("riderFeat") && !game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
       let ifolder = game.folders.find(f => f.type === "Item" && f.name === "Wayfarer's Toolkit");
       ifolder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Item" });
       await Item.create({ ...RIDER_FEAT(setting("riderFeat") || "Trained Rider"), folder: ifolder.id, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
       made.push(`feat "${setting("riderFeat") || "Trained Rider"}"`);
     }
-    if (setting("playerFlights")) made.push(...await this.shareFlightMacro());
+    if (F.on("flightMaster") && setting("playerFlights")) made.push(...await this.shareFlightMacro());
     return made;
   },
   /** Lets players see the Flight Master macro and puts it on their hotbars (slot 3, or the first free slot). */
@@ -225,7 +233,7 @@ export const WCT = {
 
   // ------------------------------------------------------------ travel
   async hexTravel() {
-    if (!this.gmOnly()) return;
+    if (!F.need("hexTravel") || !this.gmOnly()) return;
     const s = this.state(); const Z = this.ZONES; const zones = Object.keys(Z);
     const riders = this.riders(); const mountedDefault = riders.members ? riders.untrained.length === 0 : !!s.mountsUnlocked;
     const sc = canvas.scene?.name ?? ""; const guess = zones.find(z => sc.includes(z.split(" ")[0])) ?? zones[0];
@@ -288,6 +296,7 @@ export const WCT = {
   },
   /** Opens Flight Master. The GM flies the party directly; a player's booking is sent to the GM's client, which carries it out. */
   async flight() {
+    if (!F.need("flightMaster")) return;
     const gm = game.user.isGM;
     if (!gm && !setting("playerFlights")) return ui.notifications.warn("Flight Master is GM only in this world.");
     if (!gm && !game.users.activeGM) return ui.notifications.warn("The flight master is waiting for a GM: one needs to be logged in to book a flight.");
@@ -340,6 +349,7 @@ export const WCT = {
   },
   /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
   riders() {
+    if (!F.on("riderFeat")) return { members: 0, untrained: [] };
     const party = this.partyActor(); const featName = (setting("riderFeat") || "").toLowerCase();
     const members = (party?.system.members ?? []).map(m => m.actor ?? m).filter(a => a?.items);
     const has = a => a.items.some(i => i.type === "feat" && (i.getFlag(ID, "feat") === "trained-rider" || i.name.toLowerCase() === featName));
@@ -347,14 +357,23 @@ export const WCT = {
   },
 
   // ------------------------------------------------------------ vendor trash
-  vendorTrash(tokens) { return Trash.vendorTrash(this, tokens); },
-  sellTrash(actor) { return Trash.sellTrash(this, actor); },
+  vendorTrash(tokens) { return F.need("vendorTrash") ? Trash.vendorTrash(this, tokens) : undefined; },
+  sellTrash(actor) { return F.need("vendorTrash") ? Trash.sellTrash(this, actor) : undefined; },
   syncItemPilesCoins,
   trash: Trash,
 
   // ------------------------------------------------------------ character pane
-  characterPane(actor) { return Pane.characterPane(actor); },
+  characterPane(actor) { return F.need("characterPane") ? Pane.characterPane(actor) : undefined; },
   pane: Pane,
+
+  // ------------------------------------------------------------ quest log
+  /** Opens the quest log, optionally on one quest. */
+  questLog(quest) { return F.need("questLog") ? Quests.open(quest) : undefined; },
+  /** Quest API (create, activate, complete, fail, tickObjective, open…); undefined when the quest log is off. */
+  get quests() { return F.on("questLog") ? Quests.api : undefined; },
+
+  // ------------------------------------------------------------ features
+  features: F,
 
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
   parseMoney, fmtMoney, coins,
@@ -386,7 +405,7 @@ export const WCT = {
 
   // ------------------------------------------------------------ session
   async sessionStart() {
-    if (!this.gmOnly()) return;
+    if (!F.need("sessionStart") || !this.gmOnly()) return;
     const recapPage = this.page("Session Recap");
     const recapText = new DOMParser().parseFromString(recapPage.text.content || "", "text/html").body.textContent.replace(/^\s*Last Session Recap\s*/, "").replace(/Write a short recap here[^.]*\.[^.]*\./, "").trim();
     let hide; try { hide = new RegExp(setting("hiddenScenes") || "(?!)"); } catch { hide = /(?!)/; }
@@ -406,43 +425,55 @@ export const WCT = {
   }
 };
 
-Hooks.once("init", () => { registerSettings(); applyCoinSystem(); Pane.registerHooks(); Pane.patchArmorClass(); });
+Hooks.once("init", () => {
+  registerSettings(); applyCoinSystem();
+  if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
+  if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
+  if (F.on("flightMaster")) registerFlightHooks();
+  if (F.on("vendorTrash")) registerTrashHooks();
+});
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
-  game.socket.on(SOCKET, async msg => {
-    if (msg?.action !== "flight" || !game.users.activeGM?.isSelf) return;
-    if (!setting("playerFlights")) return;
-    try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: msg.userId, scene: true }); }
-    catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); }
-  });
-  WCT.syncFlightCache();
+  if (F.on("flightMaster")) {
+    game.socket.on(SOCKET, async msg => {
+      if (msg?.action !== "flight" || !game.users.activeGM?.isSelf) return;
+      if (!setting("playerFlights")) return;
+      try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: msg.userId, scene: true }); }
+      catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); }
+    });
+    WCT.syncFlightCache();
+  }
+  if (F.on("questLog")) Quests.ready();
   if (game.user.isGM && setting("coinSystem") === "threeCoin") {
     const stray = game.actors.filter(a => a.system.currency && (a.system.currency.pp || a.system.currency.ep)).map(a => a.name);
     if (stray.length) WCT.gmWhisper(`<p><strong>Three-coin economy:</strong> these actors still hold platinum or electrum, which no longer counts: ${stray.map(esc).join(", ")}. Switch back to Standard, convert or clear those coins, then switch again.</p>`);
   }
-  console.log(`${ID} | ready (v${mod.version})`);
+  console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 
 // Item Piles applies its system defaults shortly after its own ready hook; set the three-coin currencies after that.
 Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000));
 
-// Keep the players' copy of the flight routes current whenever the GM edits the Flight Routes page.
-const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
-Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
-Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+function registerFlightHooks() {
+  // Keep the players' copy of the flight routes current whenever the GM edits the Flight Routes page.
+  const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
+  Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+  Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+  // Flight Master button in the token controls, for the GM and (when allowed) players.
+  Hooks.on("getSceneControlButtons", controls => {
+    const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
+    if (!game.user.isGM && !game.settings.get(ID, "playerFlights")) return;
+    tokens.tools.wctFlight = { name: "wctFlight", title: "Flight Master", icon: "fa-solid fa-feather-pointed", order: 99, button: true, visible: true, onChange: () => WCT.flight() };
+  });
+}
 
-// Vendor Trash loot cards: the Give to Party button (GM only).
-Hooks.on("renderChatMessageHTML", (message, html) => {
-  const btn = html.querySelector?.("[data-wct-action=give-trash]"); if (!btn) return;
-  if (!game.user.isGM) return btn.remove();
-  if (message.getFlag(ID, "trash")?.given) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Given to party'; return; }
-  btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; try { await Trash.giveTrash(message, WCT); } catch (e) { btn.disabled = false; ui.notifications.error(`Vendor Trash: ${e.message}`); } });
-});
-
-// Flight Master button in the token controls, for the GM and (when allowed) players.
-Hooks.on("getSceneControlButtons", controls => {
-  const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
-  if (!game.user.isGM && !game.settings.get(ID, "playerFlights")) return;
-  tokens.tools.wctFlight = { name: "wctFlight", title: "Flight Master", icon: "fa-solid fa-feather-pointed", order: 99, button: true, visible: true, onChange: () => WCT.flight() };
-});
+function registerTrashHooks() {
+  // Vendor Trash loot cards: the Give to Party button (GM only).
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    const btn = html.querySelector?.("[data-wct-action=give-trash]"); if (!btn) return;
+    if (!game.user.isGM) return btn.remove();
+    if (message.getFlag(ID, "trash")?.given) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Given to party'; return; }
+    btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; try { await Trash.giveTrash(message, WCT); } catch (e) { btn.disabled = false; ui.notifications.error(`Vendor Trash: ${e.message}`); } });
+  });
+}

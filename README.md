@@ -1,6 +1,6 @@
 # Wayfarer's Toolkit
 
-GM tools for travel and loot, a WoW-style character pane, and an optional three-coin economy, for [Foundry VTT](https://foundryvtt.com) and the dnd5e system: overland hex travel, flight routes, and a session-start helper. Your campaign content (encounter tables, routes, recaps) stays in your world; the module supplies the logic.
+GM tools for travel and loot, a WoW-style character pane, a narrative quest log, and an optional three-coin economy, for [Foundry VTT](https://foundryvtt.com) and the dnd5e system: overland hex travel, flight routes, and a session-start helper. Your campaign content (encounter tables, routes, recaps) stays in your world; the module supplies the logic.
 
 | Tool | What it does |
 | --- | --- |
@@ -10,6 +10,7 @@ GM tools for travel and loot, a WoW-style character pane, and an optional three-
 | **Vendor Trash** | Select defeated creatures and roll WoW-style grey loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. **Sell Vendor Trash** cashes it all in. |
 | **Trained Rider** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A World of Warcraft–style character frame: the portrait and stats in the middle, gear slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
+| **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in a WoW-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
 
 ## Install
 
@@ -20,6 +21,12 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 ```
 
 Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Trained Rider feat, macros on empty hotbar slots) and never overwrites existing documents.
+
+## Choosing features
+
+Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Trained Rider, Character pane, Quest log and Quest tracker. All are on by default. Saving reloads Foundry.
+
+A tool that's turned off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included), and its settings drop out of the settings list. **Run setup** skips its macros and items. Nothing already in your world is deleted, so turning a tool back on picks up where it left off. Calling a turned-off tool from a macro just shows a warning. The three-coin economy has its own **Coin system** setting.
 
 ## Configure
 
@@ -98,7 +105,7 @@ Hex Travel enforces Long Road: when the party actor has members, the *Mounted* b
 
 A paper doll in the style of World of Warcraft's character screen. The character's portrait sits in the middle with their stats underneath (the six ability scores, Armor, Health and attuned items), and the gear slots run around it.
 
-**Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off with the **Character pane** setting.
+**Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under **Choose features**.
 
 ### Slots
 
@@ -143,6 +150,66 @@ Items whose description holds a WoW-style tooltip, like those in the **WoW Class
 
 **Armour pieces and AC.** WoW helms, shoulders, gloves, boots and the like are often typed as light, medium or heavy armour with no AC of their own, and dnd5e only counts one piece of armour for AC. So that a helm doesn't replace the chest armour, armour-typed items worn in a slot other than **Chest** are left out of dnd5e's AC calculation while the character pane is on. Armour in the Chest slot, and equipped armour that isn't in any slot, counts as usual.
 
+## Quest log
+
+Quests stay narrative: each one has a few objectives written as things to do ("Handle the bandit camp", "Find out who hired them"), and the GM ticks them off when the story says so. There are no kill or collect counters.
+
+### Setup
+
+1. Make sure **Quest log** (and, if you want it, **Quest tracker**) is ticked in **Choose features**.
+2. Run setup to add a **Quest Log** macro (shared with players). Everyone can also open the log with the scroll button in the token controls or the **L** key (change it under **Configure Controls**).
+3. Optional settings: **Quest folder** (the journal folder quests live in, default *Quest Log*), **Quest objectives in chat**, and **Quest accepted / complete sound** with a volume (blank by default; pick your own audio files).
+
+### Making quests (GM)
+
+Click **New quest** in the log. A quest has:
+
+- **Title**, **Zone / region** (quests are grouped under zone headers) and an optional **Level / tier** label.
+- **Quest giver**: type a name or drop an actor on the field to link it.
+- **Summary** (a line or two, used in chat) and a rich-text **Description**.
+- **Objectives**: add, remove and reorder rows. Each can be **Hidden** (players don't see it until you reveal it) or **Optional**.
+- **Rewards**: coin written like `1g 20s` or `50c` (a plain number uses the *Fare unit*; works with either coin system), items dropped from the sidebar or a compendium, and free text such as renown.
+- **Status**: *Not given*, *Active*, *Completed* or *Failed*, and **Hidden from players**.
+
+In the log the GM sees every quest, including ones not given yet (*Not given* tab) and hidden ones (marked with a crossed-out eye). Buttons under each quest: **Give quest**, **Complete**, **Fail**, **Reopen**, **Pay rewards**, **Show / Hide from players**, **Edit**, **Journal** and **Delete**. Click an objective's box to tick it; **Reveal** shows a hidden objective.
+
+### What players see
+
+Players only read. They see quests that have been given and aren't hidden, under **Active** and **Completed** (failed quests sit in Completed, struck through), with visible objectives, the description and rewards. The journal entries follow the same rule: players get Observer permission only once a quest is given and not hidden.
+
+**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker sits at the top right of the canvas, left of the sidebar, listing each tracked quest's open objectives. Collapse it with its arrow, or turn it off per player with the **Quest tracker** client setting.
+
+### Moments
+
+- **Give quest** posts a *New quest* card with the summary (and plays the accepted sound).
+- Ticking or revealing an objective posts a short line (or a notification, with *Quest objectives in chat* off).
+- **Complete** posts a *Quest complete* card listing the rewards, with a **Pay rewards** button for the GM: the coin goes into the party actor's purse and the items onto the party actor. Each quest pays once.
+- **Fail** posts a *Quest failed* card.
+
+Hidden quests announce nothing; showing an active quest to players announces it then.
+
+### Journals
+
+Each quest is a journal entry with one text page in the quest folder. The page is rewritten from the quest's data whenever it changes, so it reads well on its own and in exports: status, level, zone, giver, summary, objectives (☑/☐), description and rewards. Hidden objectives go in a secret block that only the GM sees. Edit quests in the quest log rather than on the page, since the page is regenerated. The data is in `flags.wayfarers-toolkit.quest`.
+
+### Scripting
+
+`game.modules.get("wayfarers-toolkit").api.quests` (also usable from Monk's Active Tiles script actions):
+
+```js
+const q = game.modules.get("wayfarers-toolkit").api.quests;
+await q.create({ title: "Trouble at the Old Mill", zone: "Riverbend", summary: "Bandits hold the mill.",
+  objectives: ["Deal with the bandit camp", { text: "Find out who hired them", hidden: true }],
+  rewards: { coin: "1g 20s", items: ["Compendium.dnd5e.items.Item.…"], other: "Goodwill of the miller" } });
+await q.activate("Trouble at the Old Mill");          // give it
+await q.tickObjective("Trouble at the Old Mill", "bandit camp");  // by index, id or (part of) the text
+await q.revealObjective("Trouble at the Old Mill", 1);
+await q.complete("Trouble at the Old Mill");          // or q.fail(…), q.reset(…)
+q.open("Trouble at the Old Mill");
+```
+
+Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`. Quests are found by journal id, UUID or name. Called on a player's client, `activate`, `complete`, `fail`, `tickObjective` and `revealObjective` are carried out by the GM's client (a GM must be logged in); everything else is GM only.
+
 ## Three-coin economy (copper, silver, gold)
 
 An optional World of Warcraft–style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC and party sheets show only gold, silver and copper (abbreviated g, s, c), dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
@@ -164,7 +231,7 @@ To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they 
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `setup`. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ## License
 
