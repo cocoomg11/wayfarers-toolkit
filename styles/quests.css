@@ -1,0 +1,214 @@
+/* Wayfarer's Toolkit: quest log, quest editor, tracker and chat cards. A WoW-inspired look drawn with CSS only:
+   a dark wood-and-stone frame, a parchment page for the quest, gold headings and plain-text "!" / "?" glyphs. */
+
+.application.wct-quests {
+  --wctq-wood: #3a2a18;
+  --wctq-wood-hi: #8a6a3a;
+  --wctq-stone: #17130f;
+  --wctq-stone-2: #241d16;
+  --wctq-gold: #ffd100;
+  --wctq-gold-dim: #c9a227;
+  --wctq-text: #f2ead8;
+  --wctq-muted: #a99d86;
+  --wctq-ink: #2b1d0e;
+  --wctq-ink-soft: #5a4325;
+  --wctq-parch: #e9d7ae;
+  --wctq-parch-2: #d8c08c;
+  --wctq-good: #3d8b2f;
+  --wctq-bad: #b3261e;
+}
+.application.wct-quests .window-content { padding: 0; background: var(--wctq-wood); }
+
+/* The glyph: a bold yellow "!" or "?" with a black outline, as text. */
+.wct-glyph {
+  display: inline-block; min-width: 0.9em; text-align: center;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-weight: 900; font-size: 1.25em; line-height: 1;
+  color: #ffd100;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0, 0, 0, 0.8);
+}
+.wct-glyph.dim { color: #b8b8b8; }
+.wct-glyph.completed { color: #8fd16a; font-size: 1em; }
+.wct-glyph.failed { color: #ff6a5a; font-size: 1em; }
+
+/* ---------------------------------------------------------------- log frame */
+.wct-quests .wctq-frame {
+  display: flex; flex-direction: column; height: 100%;
+  margin: 0; padding: 8px; gap: 8px;
+  color: var(--wctq-text);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg, var(--wctq-stone-2), var(--wctq-stone));
+  border: 2px solid var(--wctq-wood-hi);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0, 0, 0, 0.8);
+  box-sizing: border-box;
+}
+
+.wct-quests .wctq-tabs { display: flex; gap: 4px; align-items: flex-end; border-bottom: 1px solid rgba(201, 162, 39, 0.4); }
+.wct-quests .wctq-tabs button {
+  flex: 0 0 auto; width: auto; margin: 0; padding: 4px 14px; line-height: 1.4;
+  border: 1px solid rgba(201, 162, 39, 0.35); border-bottom: none; border-radius: 5px 5px 0 0;
+  background: rgba(0, 0, 0, 0.35); color: var(--wctq-muted);
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; letter-spacing: 0.03em;
+}
+.wct-quests .wctq-tabs button span { font-size: 0.8em; opacity: 0.75; margin-left: 2px; }
+.wct-quests .wctq-tabs button.on { color: var(--wctq-gold); background: rgba(201, 162, 39, 0.16); text-shadow: 0 1px 0 #000; }
+.wct-quests .wctq-tabs button:hover { color: var(--wctq-gold); box-shadow: none; }
+.wct-quests .wctq-tabs .wctq-new { margin-left: auto; border-radius: 4px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); margin-bottom: 4px; font-family: var(--font-primary, sans-serif); font-size: 0.9em; color: var(--wctq-text); }
+
+.wct-quests .wctq-body { flex: 1; display: grid; grid-template-columns: minmax(200px, 36%) 1fr; gap: 8px; min-height: 0; }
+
+/* List */
+.wct-quests .wctq-list { overflow-y: auto; background: rgba(0, 0, 0, 0.4); border: 1px solid #000; box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.25); border-radius: 3px; padding: 4px 0; }
+.wct-quests .wctq-list ul { list-style: none; margin: 0; padding: 0; }
+.wct-quests .wctq-zone h4 {
+  margin: 6px 8px 2px; padding: 0 0 2px; border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.05em; letter-spacing: 0.04em;
+  color: var(--wctq-gold-dim); text-shadow: 0 1px 0 #000;
+}
+.wct-quests .wctq-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; cursor: pointer; color: #e8dcc0; border-left: 2px solid transparent; }
+.wct-quests .wctq-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wct-quests .wctq-row .lvl { font-size: 0.8em; color: var(--wctq-muted); }
+.wct-quests .wctq-row > i { font-size: 0.75em; color: var(--wctq-muted); }
+.wct-quests .wctq-row:hover, .wct-quests .wctq-row:focus-visible { background: rgba(255, 209, 0, 0.08); outline: none; }
+.wct-quests .wctq-row.sel { background: linear-gradient(90deg, rgba(255, 209, 0, 0.22), rgba(255, 209, 0, 0.04)); border-left-color: var(--wctq-gold); color: #fff; }
+.wct-quests .wctq-row.failed .name { color: #d49a92; text-decoration: line-through; text-decoration-color: rgba(255, 106, 90, 0.6); }
+.wct-quests .wctq-row.available .name { color: var(--wctq-muted); }
+.wct-quests .wctq-none { padding: 12px; color: var(--wctq-muted); font-style: italic; }
+
+/* Detail: the parchment page */
+.wct-quests .wctq-detail {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  color: var(--wctq-ink);
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.35), transparent 55%),
+    radial-gradient(ellipse at 90% 100%, rgba(120, 80, 30, 0.25), transparent 60%),
+    linear-gradient(180deg, var(--wctq-parch), var(--wctq-parch-2));
+  border: 1px solid #000; border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(90, 60, 20, 0.5), inset 0 0 30px rgba(90, 60, 20, 0.35);
+}
+.wct-quests .wctq-page { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.wct-quests .wctq-empty { display: grid; place-items: center; height: 100%; color: var(--wctq-ink-soft); font-style: italic; }
+.wct-quests .wctq-page h2 {
+  margin: 0; padding: 0; border: none;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.7em; line-height: 1.1; color: var(--wctq-ink);
+}
+.wct-quests .wctq-page .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0; font-size: 0.85em; color: var(--wctq-ink-soft); }
+.wct-quests .wctq-page .meta .bad { color: var(--wctq-bad); font-weight: bold; }
+.wct-quests .wctq-page .meta .good { color: var(--wctq-good); font-weight: bold; }
+.wct-quests .wctq-page h3 {
+  margin: 14px 0 4px; padding: 0 0 2px; border: none; border-bottom: 1px solid rgba(90, 60, 20, 0.35);
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.25em; letter-spacing: 0.03em; color: #6b2a0c;
+}
+.wct-quests .wctq-page h3 small { font-size: 0.7em; color: var(--wctq-ink-soft); }
+.wct-quests .wctq-page .giver { margin: 8px 0 0; font-size: 0.9em; }
+.wct-quests .wctq-page a[data-uuid] { color: #6b2a0c; font-weight: bold; cursor: pointer; text-decoration: none; }
+.wct-quests .wctq-page a[data-uuid]:hover { text-decoration: underline; text-shadow: none; }
+.wct-quests .wctq-page .summary { margin: 8px 0 0; font-style: italic; font-size: 1.02em; }
+.wct-quests .wctq-page .faint { color: var(--wctq-ink-soft); font-style: italic; }
+.wct-quests .wctq-page .desc { line-height: 1.45; }
+.wct-quests .wctq-page .desc p:first-child { margin-top: 0; }
+
+.wct-quests .wctq-objs { list-style: none; margin: 0; padding: 0; }
+.wct-quests .wctq-objs li { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
+.wct-quests .wctq-objs .box {
+  flex: 0 0 16px; width: 16px; height: 16px; margin: 1px 0 0; padding: 0; line-height: 14px; text-align: center;
+  border: 1px solid var(--wctq-ink-soft); border-radius: 2px; background: rgba(255, 255, 255, 0.35);
+  font-size: 12px; font-weight: bold; color: var(--wctq-good);
+}
+.wct-quests .wctq-objs button.box { cursor: pointer; }
+.wct-quests .wctq-objs button.box:hover { border-color: var(--wctq-ink); box-shadow: 0 0 3px rgba(107, 42, 12, 0.6); }
+.wct-quests .wctq-objs .txt { flex: 1; }
+.wct-quests .wctq-objs li.done .txt { color: var(--wctq-ink-soft); text-decoration: line-through; text-decoration-color: rgba(43, 29, 14, 0.4); }
+.wct-quests .wctq-objs li.secret .txt { opacity: 0.6; font-style: italic; }
+.wct-quests .wctq-objs .mini { flex: 0 0 auto; width: auto; height: auto; margin: 0; padding: 0 6px; line-height: 1.6; font-size: 0.8em; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.3); border: 1px solid rgba(90, 60, 20, 0.5); }
+.wct-quests .wctq-objs .mini.ghost { opacity: 0; background: none; border-color: transparent; }
+.wct-quests .wctq-objs li:hover .mini.ghost, .wct-quests .wctq-objs .mini.ghost:focus-visible { opacity: 0.7; }
+
+.wct-quests .wctq-rewards { display: flex; flex-direction: column; gap: 6px; }
+.wct-quests .wctq-rewards .coin { font-weight: bold; }
+.wct-quests .wctq-rewards .coin i { color: #9a7413; }
+.wct-quests .wctq-rewards .items { display: flex; flex-wrap: wrap; gap: 6px; }
+.wct-quests .wctq-rewards .item { display: flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border: 1px solid rgba(90, 60, 20, 0.45); border-radius: 3px; background: rgba(255, 255, 255, 0.25); font-weight: normal !important; color: var(--wctq-ink) !important; }
+.wct-quests .wctq-rewards .item img { width: 28px; height: 28px; border: 1px solid #000; border-radius: 2px; }
+
+.wct-quests .wctq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1px solid rgba(90, 60, 20, 0.45); background: rgba(60, 40, 15, 0.18); }
+.wct-quests .wctq-bar button { flex: 0 0 auto; width: auto; margin: 0; padding: 0 8px; line-height: 26px; font-size: 0.85em; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(90, 60, 20, 0.6); }
+.wct-quests .wctq-bar button:hover { background: rgba(255, 255, 255, 0.55); box-shadow: 0 0 4px rgba(107, 42, 12, 0.4); }
+.wct-quests .wctq-bar button.primary { color: #fff3c4; background: linear-gradient(180deg, #8a1c0c, #5a0f05); border-color: #2a0602; text-shadow: 0 1px 0 #000; }
+.wct-quests .wctq-bar button.danger { margin-left: auto; color: var(--wctq-bad); }
+.wct-quests .wctq-bar .track { display: flex; align-items: center; gap: 4px; margin-right: 8px; font-weight: bold; color: var(--wctq-ink); }
+
+/* ---------------------------------------------------------------- editor (uses Foundry's own form styles) */
+.application.wct-quest-edit .window-content { padding: 0; background: var(--wctq-parch); }
+.wct-quest-edit form.wctq-edit { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; color: var(--wctq-ink); min-height: 100%; box-sizing: border-box; }
+.wct-quest-edit form.wctq-edit label, .wct-quest-edit form.wctq-edit legend { color: var(--wctq-ink); }
+.wct-quest-edit form.wctq-edit input[type=text], .wct-quest-edit form.wctq-edit textarea, .wct-quest-edit form.wctq-edit select { color: var(--wctq-ink); background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(90, 60, 20, 0.5); }
+.wct-quest-edit form.wctq-edit .hint, .wct-quest-edit form.wctq-edit small { color: var(--wctq-ink-soft); }
+.wct-quest-edit fieldset { border: 1px solid rgba(90, 60, 20, 0.45); border-radius: 4px; padding: 6px 8px 8px; margin: 0; }
+.wct-quest-edit legend { font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.15em; color: #6b2a0c !important; padding: 0 4px; }
+.wct-quest-edit .wctq-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.wct-quest-edit .wctq-desc { min-height: 160px; }
+.wct-quest-edit .wctq-desc prose-mirror, .wct-quest-edit .wctq-desc textarea { display: block; min-height: 160px; background: rgba(255, 255, 255, 0.45); border: 1px solid rgba(90, 60, 20, 0.5); border-radius: 3px; color: var(--wctq-ink); }
+.wct-quest-edit .wctq-giver { flex: 2; display: flex; align-items: center; gap: 4px; }
+.wct-quest-edit .wctq-giver .linked { display: flex; align-items: center; gap: 2px; color: var(--wctq-good); }
+.wct-quest-edit .wctq-giver .linked.off { display: none; }
+.wct-quest-edit .wctq-giver .linked button { width: 20px; height: 20px; line-height: 18px; padding: 0; margin: 0; font-size: 0.75em; }
+.wct-quest-edit .over { outline: 2px dashed #6b2a0c; outline-offset: 2px; }
+.wct-quest-edit .wctq-olist { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wct-quest-edit .wctq-orow { display: flex; align-items: center; gap: 6px; }
+.wct-quest-edit .wctq-orow .otext { flex: 1; min-width: 120px; }
+.wct-quest-edit .wctq-orow label { display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap; flex: 0 0 auto; }
+.wct-quest-edit .wctq-orow label input { margin: 0; }
+.wct-quest-edit .wctq-orow .omove { display: flex; gap: 2px; }
+.wct-quest-edit .wctq-orow .omove button { width: 22px; height: 22px; line-height: 20px; padding: 0; margin: 0; font-size: 0.75em; }
+.wct-quest-edit .wctq-items { list-style: none; margin: 0; padding: 4px; min-height: 40px; display: flex; flex-wrap: wrap; gap: 4px; border: 1px dashed rgba(90, 60, 20, 0.5); border-radius: 3px; }
+.wct-quest-edit .wctq-items:empty::before { content: "Drag items here"; color: var(--wctq-ink-soft); font-style: italic; align-self: center; padding: 0 4px; }
+.wct-quest-edit .wctq-chip { display: flex; align-items: center; gap: 4px; padding: 2px 2px 2px 2px; border: 1px solid rgba(90, 60, 20, 0.5); border-radius: 3px; background: rgba(255, 255, 255, 0.4); }
+.wct-quest-edit .wctq-chip img { width: 24px; height: 24px; border: none; }
+.wct-quest-edit .wctq-chip button { width: 18px; height: 18px; line-height: 16px; padding: 0; margin: 0; font-size: 0.7em; }
+.wct-quest-edit .coinprev { flex: 0 0 auto; margin-left: 6px; }
+.wct-quest-edit .wctq-bar { position: sticky; bottom: 0; margin: auto -12px 0; padding: 8px 12px; background: var(--wctq-parch-2); border-top: 1px solid rgba(90, 60, 20, 0.45); }
+
+/* ---------------------------------------------------------------- tracker HUD */
+#wct-quest-tracker {
+  position: absolute; top: 72px; right: 12px; z-index: 30;
+  width: 250px; max-height: 45vh; overflow-y: auto;
+  pointer-events: auto;
+  color: #f2ead8; font-size: 0.9em;
+  text-shadow: 0 1px 1px #000, 0 0 3px #000;
+  padding: 4px 8px 6px; border-radius: 4px;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.35) 30%);
+  transition: background 0.2s;
+}
+body > #wct-quest-tracker { position: fixed; right: 320px; }
+#wct-quest-tracker:hover { background: rgba(0, 0, 0, 0.55); }
+#wct-quest-tracker[hidden] { display: none; }
+#wct-quest-tracker header { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; color: #ffd100; letter-spacing: 0.04em; }
+#wct-quest-tracker header .n { font-size: 0.8em; color: #a99d86; }
+#wct-quest-tracker header button { order: 3; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; font-size: 0.7em; color: #ffd100; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(201, 162, 39, 0.5); }
+#wct-quest-tracker ol { list-style: none; margin: 2px 0 0; padding: 0; }
+#wct-quest-tracker ol > li { margin: 6px 0 0; }
+#wct-quest-tracker .ttl { display: block; color: #ffd100; font-weight: bold; cursor: pointer; }
+#wct-quest-tracker .ttl:hover { color: #fff; text-shadow: 0 0 4px #000; }
+#wct-quest-tracker ul { list-style: none; margin: 1px 0 0; padding: 0 0 0 10px; }
+#wct-quest-tracker ul li { position: relative; padding-left: 10px; line-height: 1.3; }
+#wct-quest-tracker ul li::before { content: "-"; position: absolute; left: 0; color: #c9a227; }
+#wct-quest-tracker ul li.opt { color: #c8bfae; }
+#wct-quest-tracker ul li.ready { color: #8fd16a; }
+#wct-quest-tracker ul li.ready::before { content: "✔"; color: #8fd16a; font-size: 0.85em; }
+
+/* ---------------------------------------------------------------- chat cards */
+.wct-quest-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.wct-quest-card header .wct-glyph { font-size: 2em; }
+.wct-quest-card header small { display: block; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary, #7a6a52); }
+.wct-quest-card header h3 { margin: 0; padding: 0; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.4em; line-height: 1.1; }
+.wct-quest-card .meta { margin: 0 0 4px; font-size: 0.85em; color: var(--color-text-secondary, #7a6a52); }
+.wct-quest-card .lbl { margin: 6px 0 2px; font-weight: bold; }
+.wct-quest-card ul.rewards { list-style: none; margin: 0 0 6px; padding: 0; }
+.wct-quest-card ul.rewards li { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+.wct-quest-card ul.rewards img { width: 22px; height: 22px; border: none; }
+.wct-quest-card ul.rewards li.coin::before { content: "\f51e"; font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free"; font-weight: 900; color: #b8860b; }
+.wct-quest-card button { margin-top: 4px; }
+.wct-quest-card.failed h3 { text-decoration: line-through; text-decoration-color: rgba(179, 38, 30, 0.6); }
+.wct-quest-line .wct-glyph { font-size: 1em; }
+.wct-quest-line.done .wct-glyph { color: #8fd16a; }
