@@ -1,0 +1,31 @@
+/* Wayfarer's Toolkit: loot roll cards and the Item Piles row button. Only styles elements the Loot rolls feature creates. */
+
+/* Loot roll button on Item Piles item rows (GM). */
+.item-piles .wct-loot-start {
+  flex: 0 0 26px; width: 26px; height: 26px; margin: 0 4px; padding: 0; line-height: 24px; font-size: 0.85em;
+}
+
+/* Loot roll chat card. */
+.wct-loot-card { --q: #ffffff; border: 1px solid #8a6a3a; border-radius: 4px; background: #17130f; color: #f2ead8; padding: 6px; }
+.wct-loot-card header { display: flex; gap: 8px; align-items: center; }
+.wct-loot-card header img { width: 40px; height: 40px; flex: 0 0 40px; border: 2px solid var(--q); border-radius: 4px; background: #000; }
+.wct-loot-card header small { color: #a99d86; }
+.wct-loot-card h3 { margin: 0; border: 0; color: var(--q); font-size: 1.1em; text-shadow: 1px 1px 0 #000; }
+.wct-loot-card h3 .qty { color: #f2ead8; font-size: 0.85em; }
+.wct-loot-rolls { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.9em; }
+.wct-loot-rolls li { display: flex; gap: 6px; padding: 1px 2px; }
+.wct-loot-rolls .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wct-loot-rolls .what { flex: 0 0 3.5em; color: #a99d86; }
+.wct-loot-rolls .need .what { color: #ffd100; }
+.wct-loot-rolls .greed .what { color: #8fd16a; }
+.wct-loot-rolls .roll { flex: 0 0 auto; text-align: right; font-weight: bold; }
+.wct-loot-rolls li.won { background: rgba(255, 209, 0, 0.15); }
+.wct-loot-buttons { display: flex; gap: 4px; margin-top: 6px; }
+.wct-loot-buttons button { flex: 1; margin: 0; }
+.wct-loot-buttons .need { color: #ffd100; }
+.wct-loot-buttons .greed { color: #8fd16a; }
+.wct-loot-timer { margin: 4px 0 0; font-size: 0.85em; color: #a99d86; }
+.wct-loot-close { margin-top: 4px; font-size: 0.85em; }
+.wct-loot-result { margin: 6px 0 0; }
+.wct-loot-won img { width: 20px; height: 20px; vertical-align: middle; border: 1px solid var(--q, #fff); }
+.wct-loot-won .item { color: var(--q, inherit); font-weight: bold; text-shadow: 0 0 1px #000; }

@@ -14,7 +14,9 @@ export const FEATURES = [
   { id: "riderFeat", label: "Riding Training", hint: "Setup adds the Riding Training feat; Hex Travel rides mounted by default when every party member has it (Long Road)." },
   { id: "characterPane", key: "characterPane", label: "Character pane", hint: "A classic-MMO-style equipment frame opened from the character sheet header, and its AC handling for slotted armour pieces." },
   { id: "questLog", label: "Quest log", hint: "Narrative quests with objectives the GM ticks off, kept as journal entries, with a quest log window (key L)." },
-  { id: "questTracker", label: "Quest tracker", hint: "An on-screen list of tracked quests and their open objectives. Needs the quest log; each player can still hide it." }
+  { id: "questTracker", label: "Quest tracker", hint: "An on-screen list of tracked quests and their open objectives. Needs the quest log; each player can still hide it." },
+  { id: "bossFrames", label: "Boss frames", hint: "Health frames at the top of every screen for tokens the GM marks as bosses (crown button in the token HUD) while they're in combat." },
+  { id: "lootRolls", label: "Loot rolls", hint: "Need / Greed / Pass rolls for an item in an Item Piles pile: a dice button on the item's row starts one; the winner's character gets the item. Needs Item Piles." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 const byId = id => FEATURES.find(f => f.id === id);

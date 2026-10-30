@@ -1,6 +1,6 @@
 # Wayfarer's Toolkit
 
-A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log and an optional three-coin economy.
+A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls and an optional three-coin economy.
 
 The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world under **Choose features**.
 
@@ -15,6 +15,8 @@ The module supplies only the logic. Your own campaign content (encounter tables,
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
 | **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in an MMO-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
+| **Boss frames** | Mark a token as a boss (crown button in the token HUD). While it's in a running combat, everyone sees a classic-MMO-style frame for it at the top of the screen: portrait, name and health bar. Several bosses stack; defeated ones turn grey. |
+| **Loot rolls** | Need / Greed / Pass for an item lying in an Item Piles pile or body. Players roll from a chat card with a countdown; the GM's client makes every roll and moves the item to the winner's character. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Compatibility
@@ -26,7 +28,7 @@ The module supplies only the logic. Your own campaign content (encounter tables,
 
 None of these are required; the toolkit works on its own.
 
-- **[Item Piles](https://foundryvtt.com/packages/item-piles)** with **Item Piles: D&D 5e** (`itempilesdnd5e`): Vendor Trash turns defeated creatures into lootable piles. See [Setting up Item Piles](#setting-up-item-piles).
+- **[Item Piles](https://foundryvtt.com/packages/item-piles)** with **Item Piles: D&D 5e** (`itempilesdnd5e`): Vendor Trash turns defeated creatures into lootable piles, and Loot rolls hand out items from piles. See [Setting up Item Piles](#setting-up-item-piles).
 - **Monk's Active Tiles**: tiles can drive quests and the other tools through the module API (`game.modules.get("wayfarers-toolkit").api`). See [Scripting](#scripting).
 - **wow-classic-items**: optionally reads items from the `wow-classic-items` module if installed (grey items for Vendor Trash, tooltip slots and quality colours in the character pane). No items or art from it are bundled.
 
@@ -44,7 +46,7 @@ Enable the module in your world, then open **Game Settings → Configure Setting
 
 ## Choosing features
 
-Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log and Quest tracker. All are on by default. Saving reloads Foundry.
+Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames and Loot rolls. All are on by default. Saving reloads Foundry.
 
 A tool that's turned off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included), and its settings drop out of the settings list. **Run setup** skips its macros and items. Nothing already in your world is deleted, so turning a tool back on picks up where it left off. Calling a turned-off tool from a macro just shows a warning. The three-coin economy has its own **Coin system** setting.
 
@@ -246,6 +248,25 @@ q.open("Trouble at the Old Mill");
 
 Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`. Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
 
+## Boss frames
+
+Select a token, open its token HUD (right-click) and click the **crown** button to mark it as a boss; click again to unmark it. The mark is on the token, so each copy of a creature can be marked separately. From a macro: `api.bosses.toggle(tokens, true)`.
+
+While a combat is running and a marked boss is one of its combatants, every connected client sees its frame at the top centre of the screen: the token image, its name and a health bar that updates as it takes damage (temporary hit points show as a striped segment). Several bosses stack. The frame goes away when the combat ends, the boss is removed from it or unmarked. A boss at 0 HP or marked defeated stays on screen, greyed out, until the combat ends. Hidden combatants and hidden tokens aren't shown to players.
+
+**Boss frames: what players see** (world setting): *Bar only*, *Bar and percentage* or *Exact HP*. The GM always sees exact hit points.
+
+## Loot rolls
+
+Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without it the feature just adds nothing.
+
+1. Open an Item Piles pile or lootable body as the GM. Each item row has a **dice** button (*Roll for this*), next to *Take*. From a macro: `game.modules.get("wayfarers-toolkit").api.lootRoll.start(itemOrUuid, { seconds })`.
+2. A **Loot roll** chat card shows the item's name, icon and rarity colour, with **Need**, **Greed** and **Pass** buttons and a countdown (**Loot rolls: time to choose**, default 60 seconds). Every logged-in player who has a character can choose once; the GM can **Close the roll now**.
+3. Each choice goes to the GM's client, which rolls a d100 for Need and Greed and writes it on the card, so everyone sees every roll and nobody can set their own.
+4. When everyone has chosen or time runs out: the highest Need wins; if nobody chose Need, the highest Greed. Ties reroll among the tied players. The item (the whole stack) moves from the pile to the winner's assigned character (or the first character they own) through Item Piles, and the result is posted to chat. If everyone passes or nobody answers, the item stays in the pile.
+
+A GM must be logged in for players' choices to count. An open roll survives a GM reload and closes when its time is up.
+
 ## Three-coin economy (copper, silver, gold)
 
 An optional classic-MMO-style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC, group, vehicle and container sheets, the currency manager and award dialogs show only copper, silver and gold, in that order (abbreviated c, s, g); dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
@@ -267,7 +288,7 @@ To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they 
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`. Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`); both are undefined when their feature is off. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ## License
 

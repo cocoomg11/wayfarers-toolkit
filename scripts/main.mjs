@@ -1,6 +1,6 @@
 /**
  * Wayfarer's Toolkit
- * Hex travel, flight routes, a session-start helper, vendor trash, a character pane and a quest log.
+ * Hex travel, flight routes, a session-start helper, vendor trash, a character pane, a quest log, boss frames and loot rolls.
  * Each tool is a feature that can be turned off (features.mjs); turned-off tools register nothing.
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
  */
@@ -8,6 +8,8 @@ import * as Trash from "./trash.mjs";
 import * as Pane from "./pane.mjs";
 import * as Quests from "./quests.mjs";
 import * as F from "./features.mjs";
+import * as Bosses from "./bosses.mjs";
+import * as Loot from "./loot.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -445,6 +447,12 @@ export const WCT = {
   /** Quest API (create, activate, complete, fail, tickObjective, open…); undefined when the quest log is off. */
   get quests() { return F.on("questLog") ? Quests.api : undefined; },
 
+  // ------------------------------------------------------------ boss frames and loot rolls
+  /** Boss frames API (toggle(tokens, on), isBoss(token), refresh()); undefined when the feature is off. */
+  get bosses() { return F.on("bossFrames") ? Bosses.api : undefined; },
+  /** Loot roll API (start(itemOrUuid, { seconds }), close(messageId)); undefined when the feature is off. */
+  get lootRoll() { return F.on("lootRolls") ? Loot.api : undefined; },
+
   // ------------------------------------------------------------ features
   features: F,
 
@@ -513,6 +521,8 @@ Hooks.once("init", () => {
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
   if (F.on("vendorTrash")) registerTrashHooks();
+  if (F.on("bossFrames")) Bosses.init();
+  if (F.on("lootRolls")) Loot.init();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -527,6 +537,7 @@ Hooks.once("ready", () => {
     WCT.syncFlightCache();
   }
   if (F.on("questLog")) Quests.ready();
+  if (F.on("lootRolls")) Loot.ready();
   convertOldCoins();
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });

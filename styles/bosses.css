@@ -1,0 +1,35 @@
+/* Wayfarer's Toolkit: boss frames (top centre) and the token HUD toggle. Only styles elements the Boss frames feature creates. */
+
+#wct-boss-frames {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+  width: min(360px, calc(100vw - 32px));
+}
+.wct-boss { display: flex; align-items: center; gap: 6px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); }
+.wct-boss .portrait {
+  flex: 0 0 56px; height: 56px; border-radius: 50%; overflow: hidden;
+  border: 3px solid #c9a227; background: #17130f; box-shadow: 0 0 0 1px #000, inset 0 0 6px #000;
+}
+.wct-boss .portrait img { width: 100%; height: 100%; object-fit: cover; border: 0; }
+.wct-boss .info {
+  flex: 1; min-width: 0; padding: 3px 6px 5px; border: 2px solid #8a6a3a; border-radius: 4px;
+  background: linear-gradient(#241d16, #17130f);
+}
+.wct-boss .name {
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.15em; font-weight: bold; color: #ffd100;
+  text-shadow: 1px 1px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wct-boss .bar { position: relative; height: 16px; margin-top: 2px; background: #2a0b0b; border: 1px solid #000; overflow: hidden; }
+.wct-boss .bar .fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#3fd04a, #1b8a22); transition: width 0.3s ease; }
+.wct-boss .bar.mid .fill { background: linear-gradient(#e8c33a, #a8870f); }
+.wct-boss .bar.low .fill { background: linear-gradient(#e04a3a, #8e1b12); }
+.wct-boss .bar .temp { position: absolute; inset: 0 0 0 auto; background: repeating-linear-gradient(45deg, rgba(120, 180, 255, 0.55) 0 4px, rgba(70, 120, 220, 0.55) 4px 8px); }
+.wct-boss .bar .txt {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.8em; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+}
+.wct-boss .bar .txt .tmp { color: #9cc8ff; margin-left: 3px; }
+.wct-boss.dead { filter: grayscale(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); opacity: 0.75; }
+.wct-boss.dead .name { color: #9d9d9d; }
+
+#token-hud .control-icon.wct-boss-toggle.active { color: #ffd100; border-color: #ffd100; }
