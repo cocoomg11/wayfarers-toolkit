@@ -11,12 +11,13 @@ export const MACRO_FOLDERS = [
   { id: "wctFolderTravel0", name: "Travel", sort: 100000 },
   { id: "wctFolderSession", name: "Sessions and Quests", sort: 200000 },
   { id: "wctFolderVTrash0", name: "Vendor Trash", sort: 300000 },
-  { id: "wctFolderBossLt0", name: "Boss Loot", sort: 400000 }
+  { id: "wctFolderBossLt0", name: "Boss Loot", sort: 400000 },
+  { id: "wctFolderToolkt0", name: "Toolkit", sort: 500000 }
 ];
 
 /**
  * id: stable 16-character compendium id; fn: API path called; slot: preferred GM hotbar slot in setup;
- * feature: features.mjs id (setup skips it when off); shared: setup lets players see the world copy; folder: compendium folder id.
+ * feature: features.mjs id (setup skips it when off; none = always); shared: setup lets players see the world copy; folder: compendium folder id.
  */
 export const MACROS = [
   { id: "wctHexTravel0000", name: "Hex Travel", fn: "hexTravel", img: "icons/environment/wilderness/terrain-forest-gray.webp", slot: 2, feature: "hexTravel", folder: "wctFolderTravel0" },
@@ -26,7 +27,8 @@ export const MACROS = [
   { id: "wctPreviewTrash0", name: "Preview Vendor Trash", fn: "trash.showPreview", img: "icons/tools/scribal/magnifying-glass.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", slot: null, feature: "questLog", shared: true, folder: "wctFolderSession" },
-  { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", slot: null, feature: "bossLoot", folder: "wctFolderBossLt0" }
+  { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", slot: null, feature: "bossLoot", folder: "wctFolderBossLt0" },
+  { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", slot: null, folder: "wctFolderToolkt0" }
 ];
 
 /** The script body every copy of a macro runs. */

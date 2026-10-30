@@ -11,6 +11,9 @@ import * as F from "./features.mjs";
 import * as Bosses from "./bosses.mjs";
 import * as Loot from "./loot.mjs";
 import * as BossLoot from "./bossloot.mjs";
+import * as Flight from "./flight.mjs";
+import * as Health from "./health.mjs";
+import { isActiveGM, activeGM } from "./gm.mjs";
 import { MACROS, macroData } from "./macros.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -71,9 +74,9 @@ function applyCoinSystem() {
 const oldCoins = doc => { const c = doc?._source?.system?.currency; return c && (c.pp > 0 || c.ep > 0) ? c : null; };
 /** Update turning stored pp/ep into gold and silver: 1 pp = 10 g, 1 ep = 50 s (half a gold piece, as in standard 5e). */
 const oldCoinUpdate = c => ({ "system.currency.gp": (c.gp || 0) + 10 * (c.pp || 0), "system.currency.sp": (c.sp || 0) + 50 * (c.ep || 0), "system.currency.pp": 0, "system.currency.ep": 0 });
-/** Three-coin mode, active GM only: converts any platinum and electrum left on actors, containers and unlinked tokens. Returns the names changed. */
-async function convertOldCoins() {
-  if (setting("coinSystem") !== "threeCoin" || !game.users.activeGM?.isSelf) return [];
+/** Three-coin mode, active GM only (or the GM running setup): converts any platinum and electrum left on actors, containers and unlinked tokens. Returns the names changed. */
+async function convertOldCoins({ manual = false } = {}) {
+  if (setting("coinSystem") !== "threeCoin" || !(manual ? game.user.isGM : isActiveGM())) return [];
   const names = [];
   const items = coll => coll.filter(oldCoins).map(i => { names.push(i.name); return { _id: i.id, ...oldCoinUpdate(oldCoins(i)) }; });
   try {
@@ -119,14 +122,18 @@ const IP_COINS = [
   ["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"],
   ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"]
 ].map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
-/** Keeps Item Piles' currencies in step with the three-coin economy (GM side, only once Item Piles is set up for the system). */
-async function syncItemPilesCoins() {
-  if (!game.users.activeGM?.isSelf || setting("coinSystem") !== "threeCoin" || !setting("itemPilesCoins")) return;
+/** Whether Item Piles' currencies are the three-coin set (null when Item Piles isn't active and set up). */
+function ipCoinsMatch() {
   const IP = game.modules.get("item-piles")?.active ? game.itempiles?.API : null;
-  if (!IP?.setCurrencies || !IP.ITEM_QUANTITY_ATTRIBUTE) return;
+  if (!IP?.setCurrencies || !IP.ITEM_QUANTITY_ATTRIBUTE) return null;
   const cur = IP.CURRENCIES ?? [];
-  const same = cur.length === IP_COINS.length && IP_COINS.every((w, i) => { const c = cur[i]; return c?.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary; });
-  if (same) return;
+  return cur.length === IP_COINS.length && IP_COINS.every((w, i) => { const c = cur[i]; return c?.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary; });
+}
+/** Keeps Item Piles' currencies in step with the three-coin economy (active GM, only once Item Piles is set up for the system). */
+async function syncItemPilesCoins() {
+  if (!isActiveGM() || setting("coinSystem") !== "threeCoin" || !setting("itemPilesCoins")) return;
+  const same = ipCoinsMatch(); if (same !== false) return;
+  const IP = game.itempiles.API;
   try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to copper, silver and gold at 100 to 1.</p>"); }
   catch (e) { console.warn(`${ID} | couldn't set Item Piles currencies`, e); }
 }
@@ -163,6 +170,8 @@ function registerSettings() {
   }
   s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() }, "vendorTrash");
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
+  game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
+  game.settings.registerMenu(ID, "health", { name: "Health check", label: "Health check", hint: "Checks features, dependencies, setup, boss loot links, the Vendor Trash Rules page, dungeon scenes and connected GMs. Changes nothing.", icon: "fas fa-stethoscope", type: Health.HealthApp, restricted: true });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
 }
 
@@ -223,6 +232,26 @@ export const WCT = {
   trackerPages() { return { ...TRACKER_PAGES, ...(F.on("vendorTrash") ? { [Trash.RULES_PAGE]: Trash.RULES_PAGE_HTML } : {}) }; },
 
   // ------------------------------------------------------------ setup
+  /** What Run setup would create for the features turned on, without creating it: [{ key, label, ok, detail }]. */
+  setupPlan() {
+    const out = [];
+    const needJournal = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash"].some(F.on);
+    const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
+    if (needJournal) {
+      const j = game.journal.getName(this.JOURNAL); const tp = this.trackerPages();
+      out.push({ key: "journal", label: `tracker journal "${this.JOURNAL}"`, ok: !!j });
+      if (j) for (const name of Object.keys(tp)) out.push({ key: `page:${name}`, label: name === Trash.RULES_PAGE ? `${name} page` : `tracker page "${name}"`, ok: !!j?.pages.getName(name) });
+    }
+    if (needParty) out.push({ key: "party", label: `party actor "${this.PARTY}"`, ok: !!game.actors.find(a => a.type === "group" && a.name === this.PARTY) });
+    for (const m of MACROS.filter(m => F.on(m.feature))) out.push({ key: `macro:${m.fn}`, label: `macro "${m.name}"`, ok: !!game.macros.getName(m.name) });
+    if (F.on("riderFeat")) out.push({ key: "feat", label: `${riderName()} feat`, ok: !!game.items.find(i => i.getFlag(ID, "feat") === "trained-rider") });
+    return out;
+  },
+  /** GM: checks the world and whispers the report (also the Health check button in the settings and the Toolkit Health Check macro). */
+  health(opts = {}) { if (!this.gmOnly()) return; return Health.post(this, opts); },
+  /** For the health check: coin settings, Item Piles' currencies and the active GM helpers. */
+  internals: { ipCoinsMatch, riderName, activeGM, isActiveGM },
+
   async setup() {
     if (!this.gmOnly()) return [];
     const made = [];
@@ -258,7 +287,7 @@ export const WCT = {
       made.push(`feat "${riderName()}"`);
     }
     if (F.on("flightMaster") && setting("playerFlights")) made.push(...await this.shareFlightMacro());
-    const converted = await convertOldCoins(); if (converted.length) made.push(`gold and silver from old platinum/electrum (${converted.length})`);
+    const converted = await convertOldCoins({ manual: true }); if (converted.length) made.push(`gold and silver from old platinum/electrum (${converted.length})`);
     return made;
   },
   /**
@@ -338,41 +367,37 @@ export const WCT = {
   flightData() {
     if (!game.user.isGM) return game.settings.get(ID, "flightCache") ?? { pts: [], routes: [] };
     const html = this.page("Flight Routes").text.content;
-    const pts = this.parseTable(html, 0).map(([n, sc, u]) => ({ n, sc, u: /^y/i.test(u || "") }));
+    // sm: the point names a scene that doesn't exist (players can't look scenes up themselves, so the GM's copy says).
+    const pts = this.parseTable(html, 0).map(([n, sc, u]) => ({ n, sc, u: /^y/i.test(u || ""), sm: !!sc && !game.scenes.getName(sc) }));
     const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: parseMoney(f), h: +h || 0 }));
     return { pts, routes };
   },
   async syncFlightCache() {
-    if (!game.users.activeGM?.isSelf) return;
+    if (!isActiveGM()) return;
     let data; try { data = this.flightData(); } catch { return; }
     const old = game.settings.get(ID, "flightCache");
     if (JSON.stringify(old) !== JSON.stringify(data)) await game.settings.set(ID, "flightCache", data);
   },
-  route(from, to, open, routes) {
-    const ok = new Set(open); const dist = { [from]: { f: 0, h: 0, path: [from] } }; const done = new Set();
-    while (true) {
-      const cur = Object.keys(dist).filter(k => !done.has(k)).sort((x, y) => dist[x].f - dist[y].f)[0];
-      if (!cur) return null; if (cur === to) return dist[cur]; done.add(cur);
-      for (const r of routes) {
-        const nb = r.a === cur ? r.b : r.b === cur ? r.a : null; if (!nb || !ok.has(nb) || done.has(nb)) continue;
-        const nf = dist[cur].f + r.f; if (!dist[nb] || nf < dist[nb].f) dist[nb] = { f: nf, h: dist[cur].h + r.h, path: [...dist[cur].path, nb] };
-      }
-    }
-  },
+  route(from, to, open, routes) { return Flight.route(from, to, open, routes); },
   partyActor() { return game.actors.find(a => a.type === "group" && a.name === this.PARTY); },
   playFlightSound() {
     const src = setting("flightSound"); if (!src) return;
     foundry.audio.AudioHelper.play({ src, volume: setting("flightVolume") ?? 0.8, autoplay: true, loop: false }, true);
   },
-  /** Opens Flight Master. The GM flies the party directly; a player's booking is sent to the GM's client, which carries it out. */
+  /**
+   * Opens Flight Master. The GM flies the party directly; a player's booking is sent to the active GM's client, which checks it again
+   * and carries it out. Before confirming, both see the route, fare per passenger × passengers = total, the party purse and the hours.
+   * A flight the party can't afford, to a scene that doesn't exist or over an unknown flight point is refused and nothing is charged.
+   */
   async flight() {
     if (!F.need("flightMaster")) return;
     const gm = game.user.isGM;
     if (!gm && !setting("playerFlights")) return ui.notifications.warn("Flight Master is GM only in this world.");
-    if (!gm && !game.users.activeGM) return ui.notifications.warn("The flight master is waiting for a GM: one needs to be logged in to book a flight.");
-    const { pts, routes } = this.flightData(); const open = pts.filter(p => p.u).map(p => p.n);
+    if (!gm && !activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
+    let data; try { data = this.flightData(); } catch (e) { return ui.notifications.error(e.message); }
+    const { pts, routes } = data; const open = pts.filter(p => p.u).map(p => p.n);
     if (open.length < 2) return ui.notifications.warn(gm ? `Fewer than two flight points are unlocked. Mark them yes in ${this.JOURNAL} › Flight Routes.` : "There are no flight paths open yet.");
-    const party = this.partyActor();
+    let party = this.partyActor();
     const members = party?.system.members?.length || 0;
     const here = pts.find(p => p.u && p.sc && p.sc === canvas.scene?.name)?.n ?? open[0];
     const content = `<div class="form-group"><label>From</label><select name="from">${open.map(n => this.opt(n, n, n === here)).join("")}</select></div>
@@ -381,40 +406,62 @@ export const WCT = {
       ${gm ? `<div class="form-group"><label>Open destination scene for players</label><input type="checkbox" name="scene" checked></div>` : ""}
       <p class="hint">${gm ? `Fares and routes come from ${esc(this.JOURNAL)} › Flight Routes. ` : "Fares are paid from the party purse. "}${party ? `Party purse: ${this.purse(party)}.` : gm ? `No group actor named ${esc(this.PARTY)}; fares won't be deducted.` : ""}</p>`;
     const f = await this.form("Flight Master", content, "Check route"); if (!f) return;
-    if (f.from === f.to) return ui.notifications.warn("Pick two different flight points.");
-    const r = this.route(f.from, f.to, open, routes);
-    if (!r) return ui.notifications.warn(`No route between ${f.from} and ${f.to} through open flight points.`);
-    const pax = Math.min(20, Math.max(1, Math.floor(+f.pax || 1))); const fare = r.f * pax;
-    const canPay = party ? this.totalMoney(party) >= fare : false;
-    const path = `<p><strong>${r.path.map(esc).join(" → ")}</strong></p><p>${r.h} hours · ${fmtMoney(r.f)} each × ${pax} = <strong>${fmtMoney(fare)}</strong></p>`;
+    party = this.partyActor(); const pax = Flight.clampPax(f.pax);
+    const c = Flight.check({ pts, routes, from: f.from, to: f.to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney });
+    const path = r => `<p><strong>${r.path.map(esc).join(" → ")}</strong></p>`;
+    if (!c.ok) {
+      if (!c.r) return ui.notifications.warn(c.error);
+      return foundry.applications.api.DialogV2.prompt({ window: { title: "Flight Master" }, content: `${path(c.r)}<p><strong>${esc(c.error)}</strong></p>`, rejectClose: false });
+    }
+    const { r, q } = c;
+    const summary = `${path(r)}<p>Fare: ${fmtMoney(r.f)} per passenger × ${pax} passenger${pax === 1 ? "" : "s"} = <strong>${fmtMoney(q.total)}</strong></p>
+      <p>${party ? `Party purse: ${this.purse(party)} (${fmtMoney(q.have)}; ${fmtMoney(q.have - q.total)} left after the flight)` : `No group actor named ${esc(this.PARTY)}: no fare is charged`}.</p>
+      <p>Flight time: ${r.h} hour${r.h === 1 ? "" : "s"}.</p>`;
+    const go = await this.confirm("Flight Master", `${summary}<p>${gm ? "Fly now?" : "Book this flight?"}</p>`);
+    if (!go) return;
     if (!gm) {
-      if (party && !canPay) return foundry.applications.api.DialogV2.prompt({ window: { title: "Flight Master" }, content: `${path}<p><strong>The party can't afford this flight</strong> (purse: ${this.purse(party)}).</p>`, rejectClose: false });
-      const go = await this.confirm("Flight Master", `${path}${party ? `<p>Paid from the party purse (${this.purse(party)}).</p>` : ""}<p>Book this flight?</p>`);
-      if (!go) return;
+      if (!activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
       game.socket.emit(SOCKET, { action: "flight", from: f.from, to: f.to, pax, userId: game.user.id });
-      ui.notifications.info("Flight booked. Mount up!");
+      ui.notifications.info("Booking sent to the flight master…");
       return r;
     }
-    const go = await this.confirm("Flight Master", `${path}${party ? (canPay ? `<p>Party purse: ${this.purse(party)}.</p>` : `<p><strong>The party can't afford this</strong> (${this.purse(party)}). Fly anyway without charging?</p>`) : ""}`);
-    if (!go) return;
     return this.doFlight({ from: f.from, to: f.to, pax, scene: !!f.scene });
   },
-  /** Carries out a flight on the GM's client: fare, sound, time, log, chat, scene. Re-checks the route so a player's request can't set its own price. */
+  /** Tells a player how their booking went (the player's client shows it). */
+  tellFlight(userId, ok, text) { if (userId && userId !== game.user.id) game.socket.emit(SOCKET, { action: "flightResult", userId, ok, text }); },
+  /**
+   * Carries out a flight on the GM's client: checks everything again (a player's request can't set its own price), charges the fare,
+   * opens the destination scene (refunding the fare if that fails), then sound, time, log and chat.
+   */
   async doFlight({ from, to, pax, scene = true, userId = null }) {
-    const { pts, routes } = this.flightData(); const open = pts.filter(p => p.u).map(p => p.n);
     const by = userId ? game.users.get(userId) : null;
-    const r = (open.includes(from) && open.includes(to) && from !== to) ? this.route(from, to, open, routes) : null;
-    if (!r) { if (by) await this.gmWhisper(`<p>${esc(by.name)} tried to book a flight from ${esc(from)} to ${esc(to)}, but there's no open route.</p>`); return null; }
-    pax = Math.min(20, Math.max(1, Math.floor(+pax || 1))); const fare = r.f * pax;
-    const party = this.partyActor(); const canPay = party ? this.totalMoney(party) >= fare : false;
-    if (by && party && !canPay) { await this.gmWhisper(`<p>${esc(by.name)} tried to book ${esc(from)} → ${esc(to)} (${fmtMoney(fare)}), but the party can't afford it.</p>`); return null; }
-    if (party && canPay) await this.pay(party, fare);
+    const fail = async error => {
+      if (by) { await this.gmWhisper(`<p>${esc(by.name)}'s flight ${esc(from)} → ${esc(to)} didn't go: ${esc(error)}</p>`); this.tellFlight(userId, false, error); }
+      else ui.notifications.warn(`Flight Master: ${error}`);
+      return null;
+    };
+    let data; try { data = this.flightData(); } catch (e) { return fail(e.message); }
+    pax = Flight.clampPax(pax);
+    const party = this.partyActor();
+    const c = Flight.check({ pts: data.pts, routes: data.routes, from, to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney });
+    if (!c.ok) return fail(c.error);
+    const { r, q } = c; const sc = c.dest?.sc ? game.scenes.getName(c.dest.sc) : null;
+    const before = party ? foundry.utils.deepClone(party.system.currency ?? {}) : null;
+    if (party && q.total) await this.pay(party, q.total);
+    if (scene && sc) {
+      try { await sc.activate(); }
+      catch (e) {
+        let refunded = false; if (party && q.total) { try { await party.update({ "system.currency": before }); refunded = true; } catch (e2) { console.error(`${ID} | flight refund failed`, e2); } }
+        return fail(`the scene "${sc.name}" couldn't be opened (${e.message}). ${refunded ? "The fare was refunded." : party && q.total ? `Refund failed: give the party ${fmtMoney(q.total)} back by hand.` : ""}`.trim());
+      }
+    }
     this.playFlightSound();
     await game.time.advance(Math.round(r.h * 3600));
-    await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fmtMoney(fare)}${party && !canPay ? " (not charged)" : ""}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`);
-    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fmtMoney(fare)}${party && !canPay ? " (owed)" : ""}.</p>`, "Flight Master");
-    const dest = pts.find(p => p.n === to); const sc = dest?.sc ? game.scenes.getName(dest.sc) : null;
-    if (scene && sc) await sc.activate();
+    // The flight has happened by now; a missing Travel Log page only costs the log line.
+    try { await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fmtMoney(q.total)}${party ? "" : " (not charged)"}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`); }
+    catch (e) { console.warn(`${ID} | flight not logged`, e); }
+    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fmtMoney(q.total)}.</p>`, "Flight Master");
+    if (by) this.tellFlight(userId, true, `Flight booked: ${from} → ${to}. Mount up!`);
     return r;
   },
   /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
@@ -438,7 +485,12 @@ export const WCT = {
     reroll(tokens) { return F.need("vendorTrash") ? Trash.reroll(WCT, tokens) : undefined; },
     reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
     showPreview(tokens, n = 12) { return F.need("vendorTrash") ? Trash.showPreview(WCT, tokens, n) : undefined; },
-    preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; }
+    preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; },
+    /** No loot on tokens or actors: setNoLoot(tokensOrActors, on, { actor }) (actor: mark the world actor, every token of it). */
+    setNoLoot(targets, on = true, opts = {}) {
+      if (!F.on("vendorTrash") && !F.on("bossLoot")) return F.need("vendorTrash");
+      return Trash.setNoLoot(WCT, targets, on, opts);
+    }
   },
 
   // ------------------------------------------------------------ character pane
@@ -536,6 +588,7 @@ export const WCT = {
 
 Hooks.once("init", () => {
   registerSettings(); applyCoinSystem();
+  Health.init(WCT);
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
@@ -549,17 +602,23 @@ Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
   if (F.on("flightMaster")) {
-    game.socket.on(SOCKET, async msg => {
-      if (msg?.action !== "flight" || !game.users.activeGM?.isSelf) return;
-      if (!setting("playerFlights")) return;
-      try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: msg.userId, scene: true }); }
-      catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); }
+    game.socket.on(SOCKET, async (msg, senderId) => {
+      if (msg?.action === "flightResult") {
+        if (msg.userId === game.user.id && typeof msg.text === "string") ui.notifications[msg.ok ? "info" : "warn"](`Flight Master: ${msg.text.slice(0, 300)}`);
+        return;
+      }
+      if (msg?.action !== "flight" || !isActiveGM()) return;
+      const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
+      if (!setting("playerFlights")) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
+      try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: uid, scene: true }); }
+      catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); WCT.tellFlight(uid, false, `the flight failed (${e.message}).`); }
     });
     WCT.syncFlightCache();
   }
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
   convertOldCoins();
+  Health.remindSetup(WCT).catch(e => console.warn(`${ID} | setup reminder`, e));
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 
@@ -571,6 +630,10 @@ function registerFlightHooks() {
   const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
   Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
   Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
+  // Flight points name scenes; keep the players' copy right about which ones exist.
+  Hooks.on("createScene", () => WCT.syncFlightCache());
+  Hooks.on("deleteScene", () => WCT.syncFlightCache());
+  Hooks.on("updateScene", (s, changes) => { if ("name" in (changes ?? {})) WCT.syncFlightCache(); });
   // Flight Master button in the token controls, for the GM and (when allowed) players.
   Hooks.on("getSceneControlButtons", controls => {
     const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
@@ -602,6 +665,7 @@ function registerTrashHooks() {
     if (actor?.isToken && effect.statuses?.has?.(dead)) Trash.onDeath(actor.token, WCT, { defeated: true });
   });
   Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, WCT));
+  Hooks.on("renderTokenHUD", (hud, html) => Trash.addNoLootButton(hud, html, WCT));
   // The rules page and the world's creature names feed the flavour rules; re-read them when they change.
   const rulesPage = p => p?.name === Trash.RULES_PAGE && p.parent?.name === WCT.JOURNAL;
   for (const h of ["createJournalEntryPage", "updateJournalEntryPage", "deleteJournalEntryPage"]) Hooks.on(h, p => { if (rulesPage(p)) Trash.resetRules(); });

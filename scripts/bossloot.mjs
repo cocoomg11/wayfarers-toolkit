@@ -15,6 +15,7 @@
  */
 import * as Trash from "./trash.mjs";
 import { on as featureOn } from "./features.mjs";
+import { isActiveGM } from "./gm.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tokenDoc = t => t?.document ?? t;
@@ -43,6 +44,19 @@ export function resultUuid(r) {
   if (type === "pack" || type === "2" || String(coll).includes(".")) return `Compendium.${coll}.Item.${id}`;
   return coll === "Item" ? `Item.${id}` : null;
 }
+
+/**
+ * Whether a boss's body falls back to vendor trash, and why: null (draw as normal), "table" (the linked table is missing),
+ * "empty" (the table has no result that can drop) or "items" (the draw produced no item because the items it points at are missing).
+ * Pure: `tableFound`, `usable` (results with weight > 0), `items` (resolved drops) and `missing` (results whose item wasn't found).
+ */
+export function fallbackReason({ tableFound, usable = 1, items = 0, missing = 0 } = {}) {
+  if (!tableFound) return "table";
+  if (!usable) return "empty";
+  if (!items && missing) return "items";
+  return null;
+}
+export const FALLBACK_TEXT = { table: "its boss loot table is missing", empty: "its boss loot table has no results that can drop", items: "the items its boss loot table points at are missing" };
 
 /** A display label for a result: its name or text. */
 export const resultLabel = r => String(r?.name || r?.text || r?.description || "").replace(/<[^>]*>/g, "").trim() || "(blank)";
@@ -106,15 +120,34 @@ export async function draw(target) {
   const flag = get(target); const table = await tableOf(flag);
   if (!table) return null;
   const picks = drawWeighted([...table.results], flag.draws);
-  const items = []; const nothing = [];
+  const items = []; const nothing = []; const missing = [];
   for (const r of picks) {
     const uuid = resultUuid(r); const src = uuid ? await fromUuid(uuid).catch(() => null) : null;
-    if (!(src instanceof Item)) { nothing.push(resultLabel(r)); continue; }
+    if (!(src instanceof Item)) { if (uuid || r.documentId) missing.push(resultLabel(r)); nothing.push(resultLabel(r)); continue; }
     const o = src.toObject(); delete o._id; delete o.folder; delete o.sort; delete o.ownership;
     o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { bossLoot: { table: table.uuid, source: uuid } } });
     items.push({ uuid, name: src.name, img: src.img, data: o });
   }
-  return { table, flag, items, nothing };
+  return { table, flag, items, nothing, missing, usable: [...table.results].filter(r => (Number(r.weight ?? 1) || 0) > 0).length };
+}
+
+/**
+ * Checks a boss loot link without drawing (for the health check): { flag, table, results, usable, resolved, unresolved: [labels],
+ * draws, tooManyDraws, fallback } where `fallback` is fallbackReason() for a draw where every item result is missing.
+ */
+export async function inspect(target) {
+  const flag = get(target); if (!flag) return null;
+  const table = await tableOf(flag).catch(() => null);
+  if (!table) return { flag, table: null, results: 0, usable: 0, resolved: 0, unresolved: [], draws: flag.draws, tooManyDraws: false, fallback: "table" };
+  const results = [...table.results]; const usableList = results.filter(r => (Number(r.weight ?? 1) || 0) > 0);
+  let resolved = 0; const unresolved = [];
+  for (const r of usableList) {
+    const uuid = resultUuid(r); if (!uuid && !r.documentId) continue;
+    const src = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    if (src instanceof Item) resolved++; else unresolved.push(resultLabel(r));
+  }
+  const fallback = fallbackReason({ tableFound: true, usable: usableList.length, items: resolved, missing: unresolved.length });
+  return { flag, table, results: results.length, usable: usableList.length, resolved, unresolved, draws: flag.draws, tooManyDraws: flag.draws > usableList.length, fallback };
 }
 
 /**
@@ -124,8 +157,10 @@ export async function draw(target) {
 async function dropOne(doc, api, { auto = false } = {}) {
   if (!lootable(doc) || !get(doc)) return null;
   if (drawnFlag(doc)) { if (!auto) ui.notifications.info(`Boss loot: ${doc.name} has already dropped its loot (Reset loot to draw again).`); return null; }
-  const d = await draw(doc);
-  if (!d) { ui.notifications.warn(`Boss loot: the table linked to ${doc.name} wasn't found.`); return null; }
+  if (Trash.isNoLoot(doc)) { if (!auto) ui.notifications.info(`Boss loot: ${doc.name} is marked No loot.`); return null; }
+  const d = await draw(doc).catch(() => null);
+  const why = fallbackReason({ tableFound: !!d, usable: d?.usable ?? 0, items: d?.items.length ?? 0, missing: d?.missing.length ?? 0 });
+  if (why) return fallback(doc, api, why, d, { auto });
   const piles = Trash.usePiles(); const IP = piles ? Trash.itemPiles() : null;
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1; const coin = (d.flag.coinCp || 0) * cpVal;
   await doc.setFlag(ID, "bossLootDrawn", { id: doc.id, at: Date.now(), items: d.items.map(i => i.name), coinCp: d.flag.coinCp || 0 });
@@ -137,6 +172,18 @@ async function dropOne(doc, api, { auto = false } = {}) {
   }
   await card(doc, d, api, { created, coin, piles: !!IP });
   return { token: doc.name, table: d.table.name, items: d.items.map(i => i.name), nothing: d.nothing, coin };
+}
+
+/** Boss loot can't drop: marks the token as drawn (so it doesn't retry on every hit), drops vendor trash instead and tells the GM why. */
+async function fallback(doc, api, why, d, { auto }) {
+  await doc.setFlag(ID, "bossLootDrawn", { id: doc.id, at: Date.now(), items: [], coinCp: 0, fallback: why });
+  let what;
+  if (auto && !S("trashAutoLoot", true) && featureOn("vendorTrash")) what = "no vendor trash either (bodies aren't made lootable automatically; run Vendor Trash yourself)";
+  else { try { what = await Trash.fallbackDrop(doc, api); } catch (e) { console.warn(`${ID} | Boss loot fallback for ${doc.name}`, e); what = `vendor trash failed too (${e.message})`; } }
+  const table = d?.table ? esc(d.table.name) : esc(get(doc)?.table ?? "");
+  const extra = why === "items" && d?.missing?.length ? ` (${d.missing.map(esc).join(", ")})` : "";
+  await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: ${esc(doc.name)}</h3><p>No boss loot dropped: ${FALLBACK_TEXT[why]}${extra}. ${what[0].toUpperCase()}${what.slice(1)}.</p><p class="hint">Table: ${table || "none"}. Fix the link (gem button), then Reset loot to draw again.</p>` });
+  return { token: doc.name, table: d?.table?.name ?? null, items: [], nothing: d?.nothing ?? [], coin: 0, fallback: why, then: what };
 }
 
 /** The GM card: "<name> dropped:" with item links, a Start loot roll button per item (piles and Loot rolls on) or Give to Party. */
@@ -173,7 +220,7 @@ const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
 /** Active GM only: a token with boss loot that is down (0 HP or marked defeated) drops it, once per death. Linked and unlinked. */
 export async function onDeath(doc, api, { defeated = false } = {}) {
-  if (!doc || !game.users.activeGM?.isSelf || !S("bossLootAuto", true) || !lootable(doc) || !get(doc) || drawnFlag(doc)) return;
+  if (!doc || !isActiveGM() || !S("bossLootAuto", true) || !lootable(doc) || !get(doc) || drawnFlag(doc) || Trash.isNoLoot(doc)) return;
   if (!defeated && !isDead(doc)) return;
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
   return Trash.serial(doc.uuid, async () => {
@@ -326,6 +373,8 @@ export function init(api, { vendorTrash = true } = {}) {
     if (actor instanceof Actor && effect.statuses?.has?.(dead)) each(actor, { defeated: true });
   });
   Hooks.on("renderTokenHUD", (hud, html) => addHudButton(hud, html, api));
+  // Vendor Trash adds the No loot button; with it off, Boss loot adds it.
+  if (!vendorTrash) Hooks.on("renderTokenHUD", (hud, html) => Trash.addNoLootButton(hud, html, api));
   Hooks.on("renderChatMessageHTML", (message, html) => onRenderCard(message, html, api));
   // Vendor Trash adds the Reset loot button; with it off, Boss loot adds that button itself.
   if (!vendorTrash) Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, api, { reroll: false }));

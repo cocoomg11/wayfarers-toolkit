@@ -9,9 +9,26 @@ const S = key => game.settings.get(ID, key);
 
 export const HP_MODES = { bar: "Bar only", percent: "Bar and percentage", exact: "Exact HP" };
 
+import { on as featureOn } from "./features.mjs";
 const tokenDoc = t => t?.document ?? t;
-/** Whether a token (Token or TokenDocument) is marked as a boss. */
-export const isBoss = t => !!tokenDoc(t)?.getFlag?.(ID, "boss");
+
+/**
+ * Boss or not, from plain values (tested in Node): an explicit crown flag (true or false) wins; with no flag, a token with boss loot
+ * counts as a boss when `auto` (the "Treat tokens with boss loot as bosses" setting) is on.
+ */
+export function resolveBoss({ crown, hasBossLoot = false, auto = true } = {}) {
+  if (crown === true || crown === false) return crown;
+  return !!(auto && hasBossLoot);
+}
+const autoOn = () => { try { return !!game.settings.get(ID, "bossAutoFromLoot"); } catch { return false; } };
+/** Whether a token has a boss loot table linked (its own actor, or its world actor). Only counts while Boss loot is on. */
+function hasBossLoot(doc) {
+  if (!featureOn("bossLoot")) return false;
+  const has = a => { const f = a?.getFlag?.(ID, "bossLoot"); return !!(f && String(f.table ?? "").trim()); };
+  try { return has(doc?.actor) || has(doc?.actorId ? game.actors.get(doc.actorId) : null); } catch { return false; }
+}
+/** Whether a token (Token or TokenDocument) is a boss: crowned, or (setting on) carrying boss loot and not explicitly uncrowned. */
+export const isBoss = t => { const d = tokenDoc(t); if (!d?.getFlag) return false; return resolveBoss({ crown: d.getFlag(ID, "boss"), hasBossLoot: hasBossLoot(d), auto: autoOn() }); };
 
 /** Marks or unmarks tokens as bosses (GM only). `on` null toggles each. Defaults to the controlled tokens. */
 export async function toggle(tokens = null, on = null) {
@@ -20,14 +37,28 @@ export async function toggle(tokens = null, on = null) {
   if (!tokens.length) return ui.notifications.warn("Boss frames: select a token first.");
   for (const t of tokens) {
     const want = on ?? !isBoss(t);
-    await (want ? t.setFlag(ID, "boss", true) : t.unsetFlag(ID, "boss"));
+    // Off for a token that would be a boss anyway (boss loot) is stored as an explicit false.
+    if (want) await t.setFlag(ID, "boss", true);
+    else if (resolveBoss({ hasBossLoot: hasBossLoot(t), auto: autoOn() })) await t.setFlag(ID, "boss", false);
+    else await t.unsetFlag(ID, "boss");
   }
 }
 
-/** Boss combatants in the viewed combat, once it has started. Hidden ones are left out for players. */
+/**
+ * Boss combatants in the viewed combat, once it has started, whose tokens stand on the scene this user is viewing. Combatants whose
+ * token or actor has been deleted are skipped. Hidden ones are left out for players.
+ */
 function bosses() {
   const c = game.combat; if (!c?.started) return [];
-  return c.combatants.filter(cb => cb.token && cb.actor && isBoss(cb.token) && (game.user.isGM || !(cb.hidden || cb.token.hidden)));
+  const viewed = canvas?.scene?.id ?? null;
+  return c.combatants.filter(cb => {
+    try {
+      const t = cb.token; if (!t || !cb.actor || !t.parent) return false;
+      if (viewed && t.parent.id !== viewed) return false;
+      if (!game.scenes.get(t.parent.id)?.tokens?.has?.(t.id)) return false;
+      return isBoss(t) && (game.user.isGM || !(cb.hidden || t.hidden));
+    } catch { return false; }
+  });
 }
 
 /** A frame's inner markup and whether it is greyed out. */
@@ -182,7 +213,8 @@ function render() {
       n.dataset.tooltip = TIP; n.dataset.tooltipDirection = "DOWN"; nodes.set(k, n);
     }
     n.dataset.combatantId = cb.id;
-    const { html, dead } = frame(cb);
+    let f; try { f = frame(cb); } catch (e) { keep.delete(k); continue; }
+    const { html, dead } = f;
     if (n._html !== html) { n.innerHTML = html; n._html = html; }
     n.classList.toggle("dead", dead);
     if (n.parentNode !== el) el.append(n); // never re-insert a live node: that would drop its pointer capture mid-drag
@@ -286,7 +318,8 @@ function addHudButton(hud, html) {
   col.querySelector(".wct-boss-toggle")?.remove();
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = `control-icon wct-boss-toggle${isBoss(doc) ? " active" : ""}`;
-  btn.dataset.tooltip = "Boss frame"; btn.setAttribute("aria-label", "Toggle boss frame");
+  const crown = doc.getFlag(ID, "boss");
+  btn.dataset.tooltip = crown === false ? "Boss frame (off for this token; it has boss loot)" : crown ? "Boss frame" : isBoss(doc) ? "Boss frame (automatic: it has boss loot)" : "Boss frame"; btn.setAttribute("aria-label", "Toggle boss frame");
   btn.innerHTML = '<i class="fa-solid fa-crown"></i>';
   btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await toggle([doc]); btn.classList.toggle("active", isBoss(doc)); });
   col.append(btn);
@@ -302,12 +335,18 @@ export function init() {
   game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyLayout(); } });
   game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {} });
   window.addEventListener("resize", () => { if (!drag) applyLayout(); });
+  game.settings.register(ID, "bossAutoFromLoot", {
+    name: "Boss frames: treat tokens with boss loot as bosses", hint: "A token whose creature has a boss loot table shows a boss frame in combat without the crown. Turning the crown off on such a token hides its frame. Only with Boss loot turned on.",
+    scope: "world", config: featureOn("bossLoot"), type: Boolean, default: true, onChange: refresh
+  });
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.
   Hooks.on("updateToken", (t, changes) => { if (isBoss(t) || foundry.utils.hasProperty(changes, `flags.${ID}`)) refresh(); });
   // Linked bosses change through their actor; unlinked ones also fire updateToken (their actor delta) above.
-  Hooks.on("updateActor", a => { if (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id)) refresh(); });
+  Hooks.on("updateActor", (a, changes) => { if (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`) || (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id))) refresh(); });
+  // A token, actor or scene deleted mid-combat takes its frame with it.
+  for (const h of ["deleteToken", "deleteActor", "deleteScene", "createToken"]) Hooks.on(h, refresh);
   Hooks.on("deleteCombat", pruneLayout);
   Hooks.once("ready", async () => {
     const old = S("bossFramePos");

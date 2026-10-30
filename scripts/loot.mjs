@@ -6,13 +6,14 @@
  * Players only ever send a choice, so they can't set a roll. Turned off with the "Loot rolls" feature, nothing here is registered.
  */
 import { qualityColor } from "./pane.mjs";
+import { isActiveGM, activeGM } from "./gm.mjs";
 
 const ID = "wayfarers-toolkit";
 const SOCKET = `module.${ID}`;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
 const CHOICES = { need: { label: "Need", icon: "fa-dice-d20" }, greed: { label: "Greed", icon: "fa-coins" }, pass: { label: "Pass", icon: "fa-xmark" } };
-const isGMClient = () => !!game.users.activeGM?.isSelf;
+const isGMClient = () => isActiveGM();
 
 /** Item Piles' API when it is active and set up for the game system. */
 function itemPiles() {
@@ -129,7 +130,7 @@ async function resolve(messageId) {
 // ---------------------------------------------------------------- every client
 function send(message, choice) {
   if (choice === "close") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => resolve(message.id)) : game.socket.emit(SOCKET, { action: "lootClose", messageId: message.id, userId: game.user.id }); return; }
-  if (!game.users.activeGM) return ui.notifications.warn("A GM needs to be logged in to roll for loot.");
+  if (!activeGM()) return ui.notifications.warn("A GM needs to be logged in to roll for loot.");
   if (isGMClient()) return queue(message.id, () => choose(message.id, game.user.id, choice));
   game.socket.emit(SOCKET, { action: "lootChoice", messageId: message.id, userId: game.user.id, choice });
 }

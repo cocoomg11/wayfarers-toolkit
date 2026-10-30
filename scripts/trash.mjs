@@ -7,6 +7,7 @@ const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
 import * as R from "./trash-rules.mjs";
 import { on as featureOn } from "./features.mjs";
+import { isActiveGM } from "./gm.mjs";
 /** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
 export const rules = R;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -70,21 +71,27 @@ function rulesPage() {
   let name; try { name = game.settings.get(ID, "trackerJournal"); } catch { return null; }
   return game.journal.getName(name)?.pages.getName(RULES_PAGE) ?? null;
 }
-/** The world's rules, parsed from the rules page's first table. Bad rows are skipped with a GM warning. */
-export function worldRules() {
-  if (RULES) return RULES;
-  const page = rulesPage(); let rows = [];
+/** Parses the rules page's first table: { page, rules, errors }. Nothing is cached or reported. */
+export function readRules() {
+  const page = rulesPage(); let rows = []; const errors = [];
   if (page) {
     try {
       const t = new DOMParser().parseFromString(page.text?.content || "", "text/html").querySelector("table");
       rows = t ? [...t.querySelectorAll("tr")].filter(tr => !tr.querySelector("th")).map(tr => [...tr.children].map(td => td.textContent.trim()))
         .filter(r => !/^creature match$/i.test(r[0] ?? "")) : [];
-    } catch (e) { console.warn(`${ID} | couldn't read ${RULES_PAGE}`, e); }
+      if (!t) errors.push("the page has no table");
+    } catch (e) { console.warn(`${ID} | couldn't read ${RULES_PAGE}`, e); errors.push(`couldn't read the page (${e.message})`); }
   }
-  const { rules, errors } = R.parseRules(rows);
+  const parsed = R.parseRules(rows);
+  return { page, rules: parsed.rules, errors: [...errors, ...parsed.errors] };
+}
+/** The world's rules, parsed from the rules page's first table. Bad rows are skipped with a warning to the active GM. */
+export function worldRules() {
+  if (RULES) return RULES;
+  const { rules, errors } = readRules();
   if (errors.length) {
     console.warn(`${ID} | ${RULES_PAGE}: skipped ${errors.join("; ")}`);
-    if (game.user?.isGM) ui.notifications.warn(`Vendor Trash: skipped ${errors.length} row${errors.length === 1 ? "" : "s"} of ${RULES_PAGE} (${errors.join("; ")}).`);
+    if (isActiveGM()) ui.notifications.warn(`Vendor Trash: skipped ${errors.length} row${errors.length === 1 ? "" : "s"} of ${RULES_PAGE} (${errors.join("; ")}).`);
   }
   return RULES = rules;
 }
@@ -242,6 +249,88 @@ async function markLooted(docs) {
 }
 const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor.type);
 
+// ---------------------------------------------------------------- no loot
+/**
+ * "No loot": `flags.wayfarers-toolkit.noLoot` on a world actor (every token of it) or on a token. A token's own flag, true or false,
+ * wins over its actor's; so a token can opt back in when its actor is marked. Pure: takes the flag values (undefined when unset).
+ * Returns { on, source: "token" | "actor" | null }.
+ */
+export function resolveNoLoot({ token, actor } = {}) {
+  if (token === true || token === false) return { on: token, source: "token" };
+  if (actor === true) return { on: true, source: "actor" };
+  return { on: false, source: null };
+}
+const worldActorOf = doc => (doc?.actorId ? game.actors.get(doc.actorId) : null) ?? null;
+/** No-loot state of a token (Token or TokenDocument) or an actor. */
+export function noLootOf(target) {
+  const t = target?.document ?? target;
+  if (t instanceof Actor && !t.isToken) return resolveNoLoot({ actor: t.getFlag(ID, "noLoot") });
+  const doc = t instanceof Actor ? t.token : t; if (!doc) return { on: false, source: null };
+  const actorFlag = doc.actor?.getFlag?.(ID, "noLoot") ?? worldActorOf(doc)?.getFlag?.(ID, "noLoot");
+  return resolveNoLoot({ token: doc.getFlag?.(ID, "noLoot"), actor: actorFlag });
+}
+/** True when a token or actor is marked "No loot". */
+export const isNoLoot = target => noLootOf(target).on;
+
+/** A token that carries a pre-rolled drop that hasn't been looted yet. */
+const hasPreRoll = doc => !!rolled(doc) && !doc.getFlag(ID, "looted") && !isPile(doc);
+
+/**
+ * GM: turns "No loot" on or off. Targets are tokens or actors (default: the controlled tokens). A token is marked on its own unless
+ * `{ actor: true }`, which marks its world actor (every token of it). Turning it on removes pre-rolled trash still waiting on the
+ * affected tokens (no reroll). Turning a token off while its actor is marked sets an explicit opt-in on that token.
+ */
+export async function setNoLoot(api, targets = null, on = true, { actor: onActor = false } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  targets ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [];
+  if (!Array.isArray(targets)) targets = [targets];
+  if (!targets.length) return ui.notifications.warn("No loot: select a token first.");
+  const changed = []; const clear = new Set();
+  for (const raw of targets) {
+    const t = raw?.document ?? raw;
+    const doc = t instanceof Actor ? (t.isToken ? t.token : null) : t;
+    const actor = t instanceof Actor ? (t.isToken ? worldActorOf(doc) : t) : (onActor ? worldActorOf(doc) : null);
+    if (actor && (onActor || !doc)) {
+      await (on ? actor.setFlag(ID, "noLoot", true) : actor.unsetFlag(ID, "noLoot"));
+      changed.push(`${actor.name} (every token)`);
+      if (on) for (const s of game.scenes) for (const tok of s.tokens) if (tok.actorId === actor.id && tok.getFlag(ID, "noLoot") !== false) clear.add(tok);
+      continue;
+    }
+    if (!doc?.setFlag) continue;
+    const actorOn = resolveNoLoot({ actor: doc.actor?.getFlag?.(ID, "noLoot") ?? worldActorOf(doc)?.getFlag?.(ID, "noLoot") }).on;
+    if (on) { await doc.setFlag(ID, "noLoot", true); clear.add(doc); }
+    else if (actorOn) await doc.setFlag(ID, "noLoot", false);
+    else if (doc.getFlag(ID, "noLoot") !== undefined) await doc.unsetFlag(ID, "noLoot");
+    changed.push(doc.name);
+  }
+  const wipe = [...clear].filter(hasPreRoll);
+  if (wipe.length) await reset(api, wipe, { reroll: false, quiet: true });
+  if (changed.length) ui.notifications.info(`No loot ${on ? "on" : "off"}: ${changed.join(", ")}${wipe.length ? ` (pre-rolled trash removed from ${wipe.length} token${wipe.length === 1 ? "" : "s"})` : ""}.`);
+  return changed;
+}
+
+/** Token HUD (GM): the No loot toggle. Click: this token. Shift-click: the world actor (every token of it). */
+export function addNoLootButton(hud, html, api) {
+  if (!game.user.isGM) return;
+  const root = html instanceof HTMLElement ? html : html?.[0]; const doc = hud.object?.document ?? hud.document;
+  const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col || !lootable(doc)) return;
+  col.querySelector(".wct-noloot")?.remove();
+  const st = noLootOf(doc); const actor = worldActorOf(doc);
+  const now = st.on ? (st.source === "actor" ? `on for every token of ${actor?.name ?? "this actor"}` : "on for this token") : (st.source === "token" ? "off for this token (its actor is marked)" : "off");
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = `control-icon wct-noloot${st.on ? " active" : ""}`;
+  btn.dataset.tooltip = `No loot: ${now}. Click: this token. Shift-click: every token of ${actor?.name ?? "this actor"}.`;
+  btn.setAttribute("aria-label", "Toggle no loot");
+  btn.innerHTML = '<i class="fa-solid fa-sack-xmark"></i>';
+  btn.addEventListener("click", async ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    if (ev.shiftKey && actor) await setNoLoot(api, [actor], !actor.getFlag(ID, "noLoot"), { actor: true });
+    else await setNoLoot(api, [doc], !st.on);
+    hud.render?.();
+  });
+  col.append(btn);
+}
+
 // ---------------------------------------------------------------- pre-rolled loot
 /**
  * Pre-rolled drops: when an NPC token is placed, its drop is rolled straight away and put on the token's own actor (items flagged as
@@ -315,7 +404,7 @@ async function dropOf(doc, api, { store = true } = {}) {
 
 /** createToken (active GM only): pre-rolls the drop for a newly placed unlinked NPC token. */
 export async function onCreateToken(doc, api) {
-  if (!game.users.activeGM?.isSelf || !S("trashAutoRoll", true) || !autoTarget(doc) || rolled(doc)) return;
+  if (!isActiveGM() || !S("trashAutoRoll", true) || !autoTarget(doc) || rolled(doc) || isNoLoot(doc)) return;
   if (!packIds().length) return;
   try { if (!(await pool()).length) return; await storeDrop(doc, api); }
   catch (e) { console.warn(`${ID} | Vendor Trash: couldn't pre-roll loot for ${doc.name}`, e); }
@@ -328,11 +417,11 @@ export async function reroll(api, tokens = null) {
   const docs = tokens.map(tokenDoc); const done = []; const skipped = [];
   if (!packIds().length || !(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");
   for (const doc of docs) {
-    if (!autoTarget(doc)) { if (doc?.name) skipped.push(doc.name); continue; }
+    if (!autoTarget(doc) || isNoLoot(doc)) { if (doc?.name) skipped.push(doc.name); continue; }
     await storeDrop(doc, api); done.push(doc);
   }
   if (done.length) ui.notifications.info(`Vendor Trash: rerolled ${done.map(d => d.name).join(", ")}.`);
-  if (skipped.length) ui.notifications.info(`Vendor Trash: not rerolled (looted, linked or not an NPC): ${skipped.join(", ")}.`);
+  if (skipped.length) ui.notifications.info(`Vendor Trash: not rerolled (looted, linked, no loot or not an NPC): ${skipped.join(", ")}.`);
   return done.map(d => ({ token: d.name, items: trashItems(d.actor).map(i => `${i.name}${i.system.quantity > 1 ? ` ×${i.system.quantity}` : ""}`), copper: rolled(d)?.copper ?? 0 }));
 }
 
@@ -346,12 +435,12 @@ export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag
  * and the `looted`, `trashRolled` and `bossLootDrawn` flags are removed (so Boss loot draws again on the next death). With clearCoin the actor's coin is set to zero. Other items are never touched.
  * Unlinked tokens get a fresh pre-rolled drop when pre-rolling is on; linked tokens stay unrolled.
  */
-export async function reset(api, tokens = null, { clearCoin = false } = {}) {
+export async function reset(api, tokens = null, { clearCoin = false, reroll = true, quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   const docs = tokens.map(tokenDoc).filter(d => d?.actor);
   if (!docs.length) return ui.notifications.warn("Reset loot: select (or target) the tokens to reset first.");
-  const IP = itemPiles(); const canRoll = featureOn("vendorTrash") && S("trashAutoRoll", true) && packIds().length && (await pool()).length;
+  const IP = itemPiles(); const canRoll = reroll && featureOn("vendorTrash") && S("trashAutoRoll", true) && packIds().length && (await pool()).length;
   const out = [];
   for (const doc of docs) {
     const r = { token: doc.name, pile: false, items: 0, boss: 0, coin: false, rerolled: false };
@@ -375,13 +464,13 @@ export async function reset(api, tokens = null, { clearCoin = false } = {}) {
     if (clearCoin && actor.system?.currency) {
       await actor.update(Object.fromEntries(Object.keys(actor.system.currency).map(k => [`system.currency.${k}`, 0]))); r.coin = true;
     }
-    if (canRoll && autoTarget(doc)) {
+    if (reroll && canRoll && autoTarget(doc) && !isNoLoot(doc)) {
       try { await storeDrop(doc, api); r.rerolled = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't pre-roll loot for ${doc.name}`, e); }
     }
     out.push(r);
   }
   const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.boss && `${r.boss} boss loot item${r.boss === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
-  ui.notifications.info(`Reset loot: ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
+  if (!quiet) ui.notifications.info(`Reset loot: ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
   return out;
 }
 
@@ -403,7 +492,7 @@ const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
 /** Active GM only: when an unlinked NPC token is down (0 HP or marked defeated), its body becomes lootable with its pre-rolled drop. */
 export async function onDeath(doc, api, { defeated = false } = {}) {
-  if (!doc || !game.users.activeGM?.isSelf || !S("trashAutoLoot", true) || !autoTarget(doc)) return;
+  if (!doc || !isActiveGM() || !S("trashAutoLoot", true) || !autoTarget(doc) || isNoLoot(doc)) return;
   if (!defeated && !isDead(doc)) return;
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
   return serial(doc.uuid, async () => {
@@ -424,7 +513,23 @@ export async function vendorTrash(api, tokens = null) {
   if (!(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");
   let wantPiles = true; try { wantPiles = game.settings.get(ID, "trashItemPiles"); } catch { }
   if (wantPiles && game.modules.get("item-piles")?.active && !itemPiles()) ui.notifications.warn("Vendor Trash: Item Piles isn't set up for this game system yet (for dnd5e, install and enable Item Piles: D&D 5e). Using the Give to Party card instead.");
-  return usePiles() ? lootPiles(tokens.map(tokenDoc), api) : lootCard(tokens.map(tokenDoc), api);
+  const docs = tokens.map(tokenDoc); const none = docs.filter(isNoLoot);
+  if (none.length) ui.notifications.info(`Vendor Trash: skipped ${none.map(d => d.name).join(", ")} (No loot).`);
+  const todo = docs.filter(d => !none.includes(d)); if (!todo.length) return;
+  return usePiles() ? lootPiles(todo, api) : lootCard(todo, api);
+}
+
+/**
+ * Boss loot fallback: the normal vendor-trash drop for one body, run inside its per-token queue. Returns what happened, as text for
+ * the GM: "vendor trash dropped", or why not (feature off, No loot, already looted, no compendium).
+ */
+export async function fallbackDrop(doc, api) {
+  if (!featureOn("vendorTrash")) return "no vendor trash either (Vendor Trash is turned off)";
+  if (isNoLoot(doc)) return "no vendor trash either (No loot is set)";
+  if (doc.getFlag(ID, "looted") || isPile(doc)) return "its vendor trash is already on the body";
+  if (!packIds().length || !(await pool()).length) return "no vendor trash either (no trash compendium)";
+  await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
+  return "vendor trash dropped instead";
 }
 
 const itemRow = (i, api) => `@UUID[${i.uuid}]{${esc(i.name)}}${i.qty > 1 ? ` ×${i.qty}` : ""} <span class="wct-val">(${api.fmtMoney(i.value * i.qty)})</span>`;
