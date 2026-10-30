@@ -60,9 +60,52 @@ function render() {
   const list = bosses();
   if (!list.length) { el?.remove(); el = null; lastHTML = ""; return; }
   const html = list.map(frame).join("");
-  if (!el) { el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health"); document.body.append(el); }
+  if (!el) {
+    el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health");
+    el.dataset.tooltip = "Drag to move. Double-click to reset to the top centre."; el.dataset.tooltipDirection = "DOWN";
+    el.addEventListener("pointerdown", dragStart); el.addEventListener("dblclick", resetPos);
+    document.body.append(el);
+  }
   if (html !== lastHTML) { el.innerHTML = html; lastHTML = html; }
+  if (!drag) applyPos();
 }
+
+/* Position: each user's own, saved per client as viewport fractions of the stack's top-left corner. Empty = default top centre. */
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+function place(x, y) {
+  const r = el.getBoundingClientRect();
+  el.style.left = `${clamp(x, 0, innerWidth - r.width)}px`; el.style.top = `${clamp(y, 0, innerHeight - r.height)}px`;
+  el.classList.add("moved");
+}
+function applyPos() {
+  if (!el) return;
+  const p = S("bossFramePos");
+  if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) { el.classList.remove("moved"); el.style.left = el.style.top = ""; return; }
+  place(p.x * innerWidth, p.y * innerHeight);
+}
+let drag = null;
+function dragStart(ev) {
+  if (ev.button !== 0 || ev.target.closest("button, a, input, select, textarea")) return;
+  const r = el.getBoundingClientRect();
+  drag = { id: ev.pointerId, dx: ev.clientX - r.left, dy: ev.clientY - r.top, moved: false };
+  el.setPointerCapture(ev.pointerId); el.classList.add("dragging");
+  el.addEventListener("pointermove", dragMove); el.addEventListener("pointerup", dragEnd); el.addEventListener("pointercancel", dragEnd);
+  ev.preventDefault();
+}
+function dragMove(ev) {
+  if (!drag || ev.pointerId !== drag.id) return;
+  drag.moved = true; place(ev.clientX - drag.dx, ev.clientY - drag.dy);
+}
+function dragEnd(ev) {
+  if (!drag || ev.pointerId !== drag.id) return;
+  const moved = drag.moved; drag = null;
+  el.removeEventListener("pointermove", dragMove); el.removeEventListener("pointerup", dragEnd); el.removeEventListener("pointercancel", dragEnd);
+  el.classList.remove("dragging"); if (el.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
+  if (!moved) return;
+  const r = el.getBoundingClientRect();
+  game.settings.set(ID, "bossFramePos", { x: r.left / innerWidth, y: r.top / innerHeight });
+}
+function resetPos() { game.settings.set(ID, "bossFramePos", {}); }
 /** Batches bursts of document updates into one redraw. */
 const refresh = () => { clearTimeout(timer); timer = setTimeout(render, 50); };
 
@@ -85,6 +128,8 @@ export function init() {
     name: "Boss frames: what players see", hint: "How much of a boss's health players see on its frame. The GM always sees exact hit points.",
     scope: "world", config: true, type: String, default: "bar", choices: HP_MODES, onChange: refresh
   });
+  game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyPos(); } });
+  window.addEventListener("resize", () => { if (!drag) applyPos(); });
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.

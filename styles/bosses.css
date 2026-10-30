@@ -2,9 +2,12 @@
 
 #wct-boss-frames {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60;
-  display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px; cursor: grab; touch-action: none; user-select: none;
   width: min(360px, calc(100vw - 32px));
 }
+#wct-boss-frames.moved { transform: none; }
+#wct-boss-frames.dragging { cursor: grabbing; }
+#wct-boss-frames img { pointer-events: none; -webkit-user-drag: none; }
 .wct-boss { display: flex; align-items: center; gap: 6px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); }
 .wct-boss .portrait {
   flex: 0 0 56px; height: 56px; border-radius: 50%; overflow: hidden;
