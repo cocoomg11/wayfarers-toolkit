@@ -53,6 +53,22 @@ jobs:
           done
           unzip -l module.zip
 
+      - name: Read the zipped packs back
+        run: |
+          rm -rf /tmp/check && mkdir -p /tmp/check && unzip -q module.zip -d /tmp/check
+          node --input-type=module -e '
+            import { extractPack } from "@foundryvtt/foundryvtt-cli";
+            import { readdirSync, readFileSync } from "node:fs";
+            const src = "/tmp/check/packs/macros";
+            await extractPack(src, "/tmp/check/out", { log: false });
+            const docs = readdirSync("/tmp/check/out").map(f => JSON.parse(readFileSync(`/tmp/check/out/${f}`, "utf8")));
+            const macros = docs.filter(d => d._key?.startsWith("!macros!")).map(d => d.name).sort();
+            const folders = docs.filter(d => d._key?.startsWith("!folders!")).map(d => d.name).sort();
+            console.log(`::notice title=module.zip packs/macros::files ${readdirSync(src).join(" ")} | ${macros.length} macros: ${macros.join(", ")} | folders: ${folders.join(", ")}`);
+            const want = readdirSync("src/packs/macros").filter(f => !f.startsWith("_folder_")).length;
+            if (macros.length !== want) { console.error(`expected ${want} macros, found ${macros.length}`); process.exit(1); }
+          '
+
       - name: Upload release assets
         if: github.event_name == 'release'
         env:
