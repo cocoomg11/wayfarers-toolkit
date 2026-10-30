@@ -16,20 +16,23 @@ export const MACRO_FOLDERS = [
 ];
 
 /**
- * id: stable 16-character compendium id; fn: API path called; slot: preferred GM hotbar slot in setup;
+ * id: stable 16-character compendium id; fn: API path called;
  * feature: features.mjs id (setup skips it when off; none = always); shared: setup lets players see the world copy; folder: compendium folder id.
  */
 export const MACROS = [
-  { id: "wctHexTravel0000", name: "Hex Travel", fn: "hexTravel", img: "icons/environment/wilderness/terrain-forest-gray.webp", slot: 2, feature: "hexTravel", folder: "wctFolderTravel0" },
-  { id: "wctFlightMaster0", name: "Flight Master", fn: "flight", img: "icons/creatures/birds/raptor-hawk-flying.webp", slot: 3, feature: "flightMaster", folder: "wctFolderTravel0" },
-  { id: "wctSessionStart0", name: "Session Start", fn: "sessionStart", img: "icons/sundries/books/book-open-turquoise.webp", slot: 5, feature: "sessionStart", folder: "wctFolderSession" },
-  { id: "wctVendorTrash00", name: "Vendor Trash", fn: "vendorTrash", img: "icons/containers/bags/sack-simple-leather-brown.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
-  { id: "wctPreviewTrash0", name: "Preview Vendor Trash", fn: "trash.showPreview", img: "icons/tools/scribal/magnifying-glass.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
-  { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
-  { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", slot: null, feature: "questLog", shared: true, folder: "wctFolderSession" },
-  { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", slot: null, feature: "bossLoot", folder: "wctFolderBossLt0" },
-  { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", slot: null, folder: "wctFolderToolkt0" }
+  { id: "wctHexTravel0000", name: "Hex Travel", fn: "hexTravel", img: "icons/environment/wilderness/terrain-forest-gray.webp", feature: "hexTravel", folder: "wctFolderTravel0" },
+  { id: "wctFlightMaster0", name: "Flight Master", fn: "flight", img: "icons/creatures/birds/raptor-hawk-flying.webp", feature: "flightMaster", folder: "wctFolderTravel0" },
+  { id: "wctSessionStart0", name: "Session Start", fn: "sessionStart", img: "icons/sundries/books/book-open-turquoise.webp", feature: "sessionStart", folder: "wctFolderSession" },
+  { id: "wctVendorTrash00", name: "Vendor Trash", fn: "vendorTrash", img: "icons/containers/bags/sack-simple-leather-brown.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
+  { id: "wctPreviewTrash0", name: "Preview Vendor Trash", fn: "trash.showPreview", img: "icons/tools/scribal/magnifying-glass.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
+  { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
+  { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", feature: "questLog", shared: true, folder: "wctFolderSession" },
+  { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", feature: "bossLoot", folder: "wctFolderBossLt0" },
+  { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", folder: "wctFolderToolkt0" }
 ];
+
+/** Where Run setup's macros are. Setup never puts macros on a hotbar; this is shown after setup and in the setup reminder. */
+export const MACRO_HINT = "Macros are in the \"Wayfarer's Toolkit\" macro folder and the \"Wayfarer's Toolkit Macros\" compendium: drag them to your hotbar if you want them there.";
 
 /** The script body every copy of a macro runs. */
 export function macroCommand(m) {

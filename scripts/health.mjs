@@ -7,7 +7,7 @@ import * as F from "./features.mjs";
 import * as Trash from "./trash.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import { activeGM, isActiveGM, onlineGMs } from "./gm.mjs";
-import { MACROS } from "./macros.mjs";
+import { MACROS, MACRO_HINT } from "./macros.mjs";
 import * as Flight from "./flight.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -249,7 +249,7 @@ export async function remindSetup(api) {
   if (!missing.length) return;
   await ChatMessage.create({
     whisper: gmIds(), speaker: { alias: "Wayfarer's Toolkit" }, flags: { [ID]: { setupReminder: ver } },
-    content: `<p><strong>Wayfarer's Toolkit ${esc(ver)}:</strong> Run setup to add: ${missing.map(esc).join(", ")}.</p><p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>`
+    content: `<p><strong>Wayfarer's Toolkit ${esc(ver)}:</strong> Run setup to add: ${missing.map(esc).join(", ")}.</p>${missing.some(l => l.startsWith("macro ")) ? `<p>${esc(MACRO_HINT)}</p>` : ""}<p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>`
   });
 }
 

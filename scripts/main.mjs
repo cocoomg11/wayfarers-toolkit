@@ -14,7 +14,7 @@ import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
-import { MACROS, macroData } from "./macros.mjs";
+import { MACROS, MACRO_HINT, macroData } from "./macros.mjs";
 import * as Menus from "./settings.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import { log } from "./log.mjs";
@@ -59,8 +59,6 @@ const OLD_RIDER = "Trained Rider";
 /** The riding feat's name for this world: the setting, with the old default read as the new one. */
 const riderName = () => { const n = String(setting("riderFeat") || "").trim(); return !n || n === OLD_RIDER ? DEFAULTS.riderFeat : n; };
 const SOCKET = `module.${ID}`;
-/** The preferred hotbar slot if it's free, else the first free slot from 1 to 50. */
-const freeSlot = (bar = {}, pref = null) => (pref && !bar[pref]) ? pref : Array.from({ length: 50 }, (_, i) => i + 1).find(i => !bar[i]) ?? null;
 
 // ---------------------------------------------------------------- coins
 /**
@@ -186,7 +184,7 @@ function registerSettings() {
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
   game.settings.registerMenu(ID, "health", { name: "Health check", label: "Health check", hint: "Checks features, dependencies, setup, boss loot links, the Vendor Trash Rules page, dungeon scenes, flight routes, encounter zones and connected GMs. Changes nothing.", icon: "fas fa-stethoscope", type: Health.HealthApp, restricted: true });
-  game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
+  game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and macros (in the Wayfarer's Toolkit macro folder) if they don't exist yet. Never touches anyone's hotbar. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
   game.settings.registerMenu(ID, "cleanup", { name: "Remove toolkit data", label: "Remove toolkit data", hint: "Counts, then removes the toolkit's flags, its vendor trash and boss loot items, setup macros or settings from this world (you pick). Asks before changing anything.", icon: "fas fa-broom", type: Cleanup.CleanupApp, restricted: true });
 }
 
@@ -208,8 +206,8 @@ class SetupApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = { id: `${ID}-setup`, window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
   async _renderHTML() {
     const div = document.createElement("div");
-    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder, with the macros on empty hotbar slots</li>${F.on("riderFeat") ? `<li>the ${esc(riderName())} feat</li>` : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
-    div.querySelector("[data-action=run]").addEventListener("click", async () => { const r = await WCT.setup(); ui.notifications.info(`Wayfarer's Toolkit: ${r.length ? "created " + r.join(", ") : "everything already exists"}.`); this.close(); });
+    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder with the macros (nothing is put on any hotbar: drag them from the folder or the <em>Wayfarer's Toolkit Macros</em> compendium)</li>${F.on("riderFeat") ? `<li>the ${esc(riderName())} feat</li>` : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
+    div.querySelector("[data-action=run]").addEventListener("click", async () => { const r = await WCT.setup(); ui.notifications.info(`Wayfarer's Toolkit: ${r.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`); this.close(); });
     return div;
   }
   _replaceHTML(result, content) { content.replaceChildren(result); }
@@ -302,15 +300,13 @@ export const WCT = {
       await Actor.create({ name: this.PARTY, type: "group", img: "icons/environment/people/group.webp", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
       made.push("party actor");
     }
-    // All missing macros in one create, then one hotbar update.
+    // All missing macros in one create. Nobody's hotbar is touched: the GM and players drag them from the folder or the compendium.
     // The same definitions (macros.mjs) build the Wayfarer's Toolkit Macros compendium.
     const want = MACROS.filter(m => F.on(m.feature) && !game.macros.getName(m.name));
     if (want.length) {
       const folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit") ?? await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
       const created = await Macro.implementation.createDocuments(want.map(m => ({ ...macroData(m), folder: folder.id, ...(m.shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
-      const bar = { ...game.user.hotbar }; const patch = {};
-      created.forEach((m, i) => { const free = freeSlot(bar, want[i].slot); if (free) { bar[free] = patch[`hotbar.${free}`] = m.id; } made.push(`macro "${m.name}"`); });
-      if (Object.keys(patch).length) await game.user.update(patch);
+      for (const m of created) made.push(`macro "${m.name}"`);
     }
     if (F.on("riderFeat")) made.push(...await this.renameOldRiderFeat());
     if (F.on("riderFeat") && !game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
@@ -347,19 +343,12 @@ export const WCT = {
     } catch (e) { console.warn(`${ID} | couldn't rename the old riding feat`, e); }
     return done;
   },
-  /** Lets players see the Flight Master macro and puts it on their hotbars (slot 3, or the first free slot). */
+  /** Lets players see the Flight Master macro (Observer). Players' hotbars are left alone: they drag it from the macro directory or the compendium. */
   async shareFlightMacro() {
     if (!this.gmOnly()) return [];
     const m = game.macros.getName("Flight Master"); if (!m) return [];
     const done = []; const OBS = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
     if ((m.ownership.default ?? 0) < OBS) { await m.update({ "ownership.default": OBS }); done.push("Flight Master shared with players"); }
-    const updates = [];
-    for (const u of game.users.filter(u => !u.isGM)) {
-      if (Object.values(u.hotbar ?? {}).includes(m.id)) continue;
-      const slot = freeSlot(u.hotbar, 3);
-      if (slot) { updates.push({ _id: u.id, [`hotbar.${slot}`]: m.id }); done.push(`Flight Master on ${u.name}'s hotbar`); }
-    }
-    if (updates.length) await User.implementation.updateDocuments(updates);
     return done;
   },
 

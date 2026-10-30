@@ -2,6 +2,13 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.14.3
+
+**Changes**
+- Run setup no longer puts macros on any hotbar (the GM's or players'). It still creates the missing macros in the *Wayfarer's Toolkit* macro folder and never overwrites them; macros already on a hotbar are left where they are.
+- Setup's summary, the setup window and the setup reminder say where the macros are: the *Wayfarer's Toolkit* macro folder and the *Wayfarer's Toolkit Macros* compendium, to drag to the hotbar if wanted. Players can drag Flight Master and Quest Log from the compendium themselves.
+- The macro list no longer carries hotbar slot numbers.
+
 ## 1.14.2
 
 **Fixes**

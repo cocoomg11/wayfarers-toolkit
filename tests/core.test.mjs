@@ -140,6 +140,15 @@ test("macro list ids are stable 16-character ids", () => {
   for (const m of MACROS) assert.match(m.id, /^[A-Za-z0-9]{16}$/);
 });
 
+test("Run setup plans no hotbar writes", async () => {
+  for (const m of MACROS) assert.ok(!("slot" in m), `${m.name} has no hotbar slot`);
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../scripts/main.mjs", import.meta.url), "utf8");
+  const setup = src.slice(src.indexOf("async setup()"), src.indexOf("// ------------------------------------------------------------ travel"));
+  assert.ok(setup.length > 100, "setup source found");
+  assert.doesNotMatch(setup, /hotbar\s*[.\[]|["'`]hotbar\.|assignHotbarMacro/, "setup never writes a hotbar");
+});
+
 test("winnerRecipients: owners and assigned players of the receiving actor, never GMs", () => {
   const owners = new Set(["p1", "p2", "gm"]);
   const actor = { id: "A", testUserPermission: (u, lvl) => lvl === "OWNER" && owners.has(u.id) };
