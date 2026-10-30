@@ -1,0 +1,18 @@
+{
+  "_id": "wctPreviewTrash0",
+  "name": "Preview Vendor Trash",
+  "type": "script",
+  "img": "icons/tools/scribal/magnifying-glass.webp",
+  "command": "// Preview Vendor Trash: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.trash.showPreview();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "trash.showPreview"
+    }
+  },
+  "folder": "wctFolderVTrash0",
+  "sort": 500000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctPreviewTrash0"
+}

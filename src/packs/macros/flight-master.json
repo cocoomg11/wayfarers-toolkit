@@ -1,0 +1,18 @@
+{
+  "_id": "wctFlightMaster0",
+  "name": "Flight Master",
+  "type": "script",
+  "img": "icons/creatures/birds/raptor-hawk-flying.webp",
+  "command": "// Flight Master: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.flight();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "flight"
+    }
+  },
+  "folder": "wctFolderTravel0",
+  "sort": 200000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctFlightMaster0"
+}

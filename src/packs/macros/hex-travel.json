@@ -1,0 +1,18 @@
+{
+  "_id": "wctHexTravel0000",
+  "name": "Hex Travel",
+  "type": "script",
+  "img": "icons/environment/wilderness/terrain-forest-gray.webp",
+  "command": "// Hex Travel: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.hexTravel();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "hexTravel"
+    }
+  },
+  "folder": "wctFolderTravel0",
+  "sort": 100000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctHexTravel0000"
+}

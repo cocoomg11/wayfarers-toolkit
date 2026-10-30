@@ -1,0 +1,12 @@
+{
+  "_id": "wctFolderSession",
+  "name": "Sessions and Quests",
+  "type": "Macro",
+  "folder": null,
+  "sorting": "a",
+  "sort": 200000,
+  "color": null,
+  "description": "",
+  "flags": {},
+  "_key": "!folders!wctFolderSession"
+}

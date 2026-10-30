@@ -1,0 +1,18 @@
+{
+  "_id": "wctSessionStart0",
+  "name": "Session Start",
+  "type": "script",
+  "img": "icons/sundries/books/book-open-turquoise.webp",
+  "command": "// Session Start: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.sessionStart();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "sessionStart"
+    }
+  },
+  "folder": "wctFolderSession",
+  "sort": 300000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctSessionStart0"
+}
