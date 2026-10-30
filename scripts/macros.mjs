@@ -10,7 +10,8 @@ export const ID = "wayfarers-toolkit";
 export const MACRO_FOLDERS = [
   { id: "wctFolderTravel0", name: "Travel", sort: 100000 },
   { id: "wctFolderSession", name: "Sessions and Quests", sort: 200000 },
-  { id: "wctFolderVTrash0", name: "Vendor Trash", sort: 300000 }
+  { id: "wctFolderVTrash0", name: "Vendor Trash", sort: 300000 },
+  { id: "wctFolderBossLt0", name: "Boss Loot", sort: 400000 }
 ];
 
 /**
@@ -24,7 +25,8 @@ export const MACROS = [
   { id: "wctVendorTrash00", name: "Vendor Trash", fn: "vendorTrash", img: "icons/containers/bags/sack-simple-leather-brown.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctPreviewTrash0", name: "Preview Vendor Trash", fn: "trash.showPreview", img: "icons/tools/scribal/magnifying-glass.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", slot: null, feature: "vendorTrash", folder: "wctFolderVTrash0" },
-  { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", slot: null, feature: "questLog", shared: true, folder: "wctFolderSession" }
+  { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", slot: null, feature: "questLog", shared: true, folder: "wctFolderSession" },
+  { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", slot: null, feature: "bossLoot", folder: "wctFolderBossLt0" }
 ];
 
 /** The script body every copy of a macro runs. */

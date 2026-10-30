@@ -36,3 +36,4 @@
 .wct-boss.dead .name { color: #9d9d9d; }
 
 #token-hud .control-icon.wct-boss-toggle.active { color: #ffd100; border-color: #ffd100; }
+#token-hud .control-icon.wct-bossloot.active { color: #a335ee; border-color: #a335ee; }

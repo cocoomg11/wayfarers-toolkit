@@ -1,0 +1,12 @@
+{
+  "_id": "wctFolderBossLt0",
+  "name": "Boss Loot",
+  "type": "Macro",
+  "folder": null,
+  "sorting": "a",
+  "sort": 400000,
+  "color": null,
+  "description": "",
+  "flags": {},
+  "_key": "!folders!wctFolderBossLt0"
+}

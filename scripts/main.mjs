@@ -1,6 +1,6 @@
 /**
  * Wayfarer's Toolkit
- * Hex travel, flight routes, a session-start helper, vendor trash, a character pane, a quest log, boss frames and loot rolls.
+ * Hex travel, flight routes, a session-start helper, vendor trash, a character pane, a quest log, boss frames, loot rolls and boss loot.
  * Each tool is a feature that can be turned off (features.mjs); turned-off tools register nothing.
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
  */
@@ -10,6 +10,7 @@ import * as Quests from "./quests.mjs";
 import * as F from "./features.mjs";
 import * as Bosses from "./bosses.mjs";
 import * as Loot from "./loot.mjs";
+import * as BossLoot from "./bossloot.mjs";
 import { MACROS, macroData } from "./macros.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -455,6 +456,21 @@ export const WCT = {
   get bosses() { return F.on("bossFrames") ? Bosses.api : undefined; },
   /** Loot roll API (start(itemOrUuid, { seconds }), close(messageId)); undefined when the feature is off. */
   get lootRoll() { return F.on("lootRolls") ? Loot.api : undefined; },
+  /**
+   * Boss loot API; undefined when the feature is off. set(actorOrToken, { table, draws, coinCp, note }, { world }), get(actorOrToken),
+   * preview(actorOrToken | list) whispers the table's odds to the GM, drop(tokens) drops it now, reset(tokens, { clearCoin }) is Reset loot,
+   * dialog(token) opens the Boss loot dialog, and draw / drawWeighted / odds helpers.
+   */
+  /** GM: whispers the boss loot odds for the selected tokens (the Preview Boss Loot macro). */
+  previewBossLoot(targets) { return F.need("bossLoot") ? BossLoot.preview(WCT, targets) : undefined; },
+  get bossLoot() {
+    if (!F.on("bossLoot")) return undefined;
+    return {
+      get: BossLoot.get, set: BossLoot.set, draw: BossLoot.draw, drawWeighted: BossLoot.drawWeighted, odds: BossLoot.odds,
+      preview: targets => BossLoot.preview(WCT, targets), showPreview: targets => BossLoot.preview(WCT, targets),
+      drop: tokens => BossLoot.drop(WCT, tokens), reset: (tokens, opts = {}) => Trash.reset(WCT, tokens, opts), dialog: target => BossLoot.openDialog(WCT, target ?? canvas.tokens?.controlled?.[0])
+    };
+  },
 
   // ------------------------------------------------------------ features
   features: F,
@@ -526,6 +542,8 @@ Hooks.once("init", () => {
   if (F.on("vendorTrash")) registerTrashHooks();
   if (F.on("bossFrames")) Bosses.init();
   if (F.on("lootRolls")) Loot.init();
+  // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
+  if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;

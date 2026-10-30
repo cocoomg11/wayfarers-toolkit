@@ -6,6 +6,7 @@
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
 import * as R from "./trash-rules.mjs";
+import { on as featureOn } from "./features.mjs";
 /** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
 export const rules = R;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -249,11 +250,40 @@ const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor
  * token carries its source's flag and items, sees a different id, and rolls fresh.
  */
 const S = (k, d) => { try { return game.settings.get(ID, k) ?? d; } catch { return d; } };
-const isPile = doc => !!(itemPiles()?.isValidItemPile?.(doc) || doc?.flags?.["item-piles"]?.data?.enabled || doc?.actor?.flags?.["item-piles"]?.data?.enabled);
+export const isPile = doc => !!(itemPiles()?.isValidItemPile?.(doc) || doc?.flags?.["item-piles"]?.data?.enabled || doc?.actor?.flags?.["item-piles"]?.data?.enabled);
 /** An unlinked NPC token that can carry pre-rolled loot. */
 export const autoTarget = doc => !!doc?.actor && doc.actor.type === "npc" && !doc.actorLink && !doc.getFlag(ID, "looted") && !isPile(doc);
 const rolled = doc => { const f = doc?.getFlag?.(ID, "trashRolled"); return f && f.id === doc.id ? f : null; };
 const trashItems = actor => actor?.items?.filter(i => i.getFlag(ID, "trash")) ?? [];
+/** Items Boss loot put on a body (item flag `bossLoot`). */
+const bossItems = actor => actor?.items?.filter(i => i.getFlag(ID, "bossLoot")) ?? [];
+/** Loot items a pile shows: vendor trash and boss loot. Everything else the creature carries stays hidden. */
+const isLootItem = i => !!(i.getFlag(ID, "trash") || i.getFlag(ID, "bossLoot"));
+
+/** Runs async work for one key (a token UUID) one job at a time, so Vendor Trash and Boss loot don't build the same pile at once. */
+const chains = new Map();
+export function serial(key, fn) {
+  const next = (chains.get(key) ?? Promise.resolve()).then(fn, fn);
+  const tail = next.catch(() => {}); chains.set(key, tail);
+  tail.then(() => { if (chains.get(key) === tail) chains.delete(key); });
+  return next;
+}
+
+/**
+ * Makes a token a lootable Item Piles pile that shows only loot items (trash and boss loot) and coin, or, when it already is one,
+ * refreshes its item filters so loot added since shows too. Shared by Vendor Trash and Boss loot.
+ */
+export async function pileUp(doc, IP = itemPiles()) {
+  const actor = doc.actor;
+  const own = actor.items.filter(i => !isLootItem(i)).map(i => i.id);
+  const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
+  if (isPile(doc)) {
+    if (IP.updateItemPile) await IP.updateItemPile(doc, { overrideItemFilters: filters });
+    return false;
+  }
+  await IP.turnTokensIntoItemPiles(doc, { pileSettings: { type: "pile", overrideItemFilters: filters } });
+  return true;
+}
 
 /** Rolls a token's drop and stores it on the token's actor, replacing any earlier pre-rolled drop. Returns the stored drop. */
 async function storeDrop(doc, api) {
@@ -308,23 +338,23 @@ export async function reroll(api, tokens = null) {
 
 // ---------------------------------------------------------------- resetting loot
 /** A token whose loot can be reset: a looted body or pile, or a linked NPC carrying trash. */
-export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag(ID, "looted") || isPile(doc) || (doc.actorLink && doc.actor.type === "npc" && trashItems(doc.actor).length > 0));
+export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag(ID, "looted") || !!doc.getFlag(ID, "bossLootDrawn") || isPile(doc) || bossItems(doc.actor).length > 0 || (doc.actorLink && doc.actor.type === "npc" && trashItems(doc.actor).length > 0));
 
 /**
  * GM: puts the given (or selected) tokens back to unlooted. Item Piles piles are reverted (for a linked token the actor's own pile
- * setting is cleared too), items flagged as trash are deleted from the token's actor (the world actor for linked tokens), and the
- * `looted` and `trashRolled` flags are removed. With clearCoin the actor's coin is set to zero. Other items are never touched.
+ * setting is cleared too), items flagged as trash or boss loot are deleted from the token's actor (the world actor for linked tokens),
+ * and the `looted`, `trashRolled` and `bossLootDrawn` flags are removed (so Boss loot draws again on the next death). With clearCoin the actor's coin is set to zero. Other items are never touched.
  * Unlinked tokens get a fresh pre-rolled drop when pre-rolling is on; linked tokens stay unrolled.
  */
 export async function reset(api, tokens = null, { clearCoin = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   const docs = tokens.map(tokenDoc).filter(d => d?.actor);
-  if (!docs.length) return ui.notifications.warn("Vendor Trash: select (or target) the tokens to reset first.");
-  const IP = itemPiles(); const canRoll = S("trashAutoRoll", true) && packIds().length && (await pool()).length;
+  if (!docs.length) return ui.notifications.warn("Reset loot: select (or target) the tokens to reset first.");
+  const IP = itemPiles(); const canRoll = featureOn("vendorTrash") && S("trashAutoRoll", true) && packIds().length && (await pool()).length;
   const out = [];
   for (const doc of docs) {
-    const r = { token: doc.name, pile: false, items: 0, coin: false, rerolled: false };
+    const r = { token: doc.name, pile: false, items: 0, boss: 0, coin: false, rerolled: false };
     if (IP && isPile(doc)) {
       try { await IP.revertTokensFromItemPiles([doc]); r.pile = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't revert pile ${doc.name}`, e); }
     }
@@ -337,8 +367,10 @@ export async function reset(api, tokens = null, { clearCoin = false } = {}) {
       if (Object.keys(upd).length) { await actor.update(upd); r.pile = true; }
     }
     const ids = trashItems(actor).map(i => i.id);
-    if (ids.length) { await actor.deleteEmbeddedDocuments("Item", ids); r.items = ids.length; }
+    const bossIds = bossItems(actor).map(i => i.id).filter(id => !ids.includes(id));
+    if (ids.length || bossIds.length) { await actor.deleteEmbeddedDocuments("Item", [...ids, ...bossIds]); r.items = ids.length; r.boss = bossIds.length; }
     if (doc.getFlag(ID, "looted") !== undefined) await doc.unsetFlag(ID, "looted");
+    if (doc.getFlag(ID, "bossLootDrawn") !== undefined) await doc.unsetFlag(ID, "bossLootDrawn");
     if (doc.getFlag(ID, "trashRolled") !== undefined) await doc.unsetFlag(ID, "trashRolled");
     if (clearCoin && actor.system?.currency) {
       await actor.update(Object.fromEntries(Object.keys(actor.system.currency).map(k => [`system.currency.${k}`, 0]))); r.coin = true;
@@ -348,8 +380,8 @@ export async function reset(api, tokens = null, { clearCoin = false } = {}) {
     }
     out.push(r);
   }
-  const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
-  ui.notifications.info(`Vendor Trash: reset ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
+  const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.boss && `${r.boss} boss loot item${r.boss === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
+  ui.notifications.info(`Reset loot: ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
   return out;
 }
 
@@ -358,7 +390,7 @@ export async function confirmReset(api, docs) {
   const names = docs.map(d => esc(d.name)).join(", ");
   const clearCoin = await foundry.applications.api.DialogV2.prompt({
     window: { title: "Reset loot" },
-    content: `<p>Reset the loot on <strong>${names}</strong>? Trash items are removed and the token can be looted again; other items stay.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div>`,
+    content: `<p>Reset the loot on <strong>${names}</strong>? Vendor trash and boss loot items are removed and the token can be looted again; other items stay.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div>`,
     ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => !!button.form.elements.clearCoin?.checked },
     rejectClose: false
   });
@@ -374,11 +406,13 @@ export async function onDeath(doc, api, { defeated = false } = {}) {
   if (!doc || !game.users.activeGM?.isSelf || !S("trashAutoLoot", true) || !autoTarget(doc)) return;
   if (!defeated && !isDead(doc)) return;
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
-  try {
-    if (!packIds().length || !(await pool()).length) return;
-    await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
-  } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't make ${doc.name} lootable`, e); }
-  finally { busy.delete(doc.uuid); }
+  return serial(doc.uuid, async () => {
+    try {
+      if (!packIds().length || !(await pool()).length) return;
+      await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
+    } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't make ${doc.name} lootable`, e); }
+    finally { busy.delete(doc.uuid); }
+  });
 }
 
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
@@ -418,7 +452,7 @@ async function lootCard(docs, api, { auto = false } = {}) {
 /**
  * Item Piles flow: the drop goes onto each creature's own actor (for an unlinked token that's the token's synthetic actor, so the
  * world actor is untouched) and the token becomes a lootable pile that keeps its image. The creature's own gear and features stay
- * hidden from the pile, so players only see the trash and coin. Creatures that dropped nothing are left alone. A drop pre-rolled when
+ * hidden from the pile, so players only see the trash, any boss loot and coin. Creatures that dropped nothing are left alone. A drop pre-rolled when
  * the token was placed is used as it is.
  */
 async function lootPiles(docs, api, { auto = false } = {}) {
@@ -440,9 +474,7 @@ async function lootPiles(docs, api, { auto = false } = {}) {
       await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
       const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
     }
-    const own = actor.items.filter(i => !i.getFlag(ID, "trash")).map(i => i.id);
-    const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
-    await IP.turnTokensIntoItemPiles(doc, { pileSettings: { type: "pile", overrideItemFilters: filters } });
+    await pileUp(doc, IP);
     piles++;
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.join(", ")}</li>`);
   }
@@ -452,8 +484,8 @@ async function lootPiles(docs, api, { auto = false } = {}) {
   return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total, dungeon } } } });
 }
 
-/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash, and a reset button on looted bodies, piles and linked NPCs carrying trash. */
-export function addHudButton(hud, html, api) {
+/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash, and a reset button on looted bodies, piles, bodies that dropped boss loot and linked NPCs carrying trash. With `reroll: false` (Vendor Trash off, Boss loot on) only the reset button. */
+export function addHudButton(hud, html, api, { reroll = true } = {}) {
   if (!game.user.isGM) return;
   const root = html instanceof HTMLElement ? html : html?.[0]; const doc = hud.object?.document ?? hud.document;
   const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col) return;
@@ -466,7 +498,7 @@ export function addHudButton(hud, html, api) {
     rb.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await confirmReset(api, [doc]); hud.render?.(); });
     col.append(rb);
   }
-  if (!autoTarget(doc)) return;
+  if (!reroll || !autoTarget(doc)) return;
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "control-icon wct-trash-reroll";
   const f = rolled(doc);
