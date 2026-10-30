@@ -181,6 +181,7 @@ const MACROS = [
   ["Flight Master", "flight", "icons/creatures/birds/raptor-hawk-flying.webp", 3, "flightMaster"],
   ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5, "sessionStart"],
   ["Vendor Trash", "vendorTrash", "icons/containers/bags/sack-simple-leather-brown.webp", null, "vendorTrash"],
+  ["Preview Vendor Trash", "trash.showPreview", "icons/tools/scribal/magnifying-glass.webp", null, "vendorTrash"],
   ["Sell Vendor Trash", "sellTrash", "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", null, "vendorTrash"],
   ["Quest Log", "questLog", "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", null, "questLog", true]
 ];
@@ -439,11 +440,12 @@ export const WCT = {
   vendorTrash(tokens) { return F.need("vendorTrash") ? Trash.vendorTrash(this, tokens) : undefined; },
   sellTrash(actor) { return F.need("vendorTrash") ? Trash.sellTrash(this, actor) : undefined; },
   syncItemPilesCoins,
-  /** Vendor Trash internals plus reroll(tokens) and preview(tokenOrActor, n) for the GM. */
+  /** Vendor Trash internals plus reroll(tokens), preview(tokenOrActor, n) and showPreview(tokens, n) for the GM. */
   trash: {
     ...Trash,
     reroll(tokens) { return F.need("vendorTrash") ? Trash.reroll(WCT, tokens) : undefined; },
     reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
+    showPreview(tokens, n = 12) { return F.need("vendorTrash") ? Trash.showPreview(WCT, tokens, n) : undefined; },
     preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; }
   },
 

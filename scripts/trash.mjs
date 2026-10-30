@@ -150,6 +150,57 @@ export async function preview(target, n = 20) {
   return out;
 }
 
+/**
+ * GM: whispers one compact preview card per selected (or given) token: kind, CR band, materials allowed and denied, matched rules,
+ * pool size and band widening, the token's current pre-rolled drop and coin (or "looted"), a sample of possible drops and the coin odds.
+ */
+export async function showPreview(api, tokens = null, n = 12) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  tokens ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [...game.user.targets];
+  const docs = tokens.map(tokenDoc).filter(d => d?.actor);
+  if (!docs.length) return ui.notifications.warn("Vendor Trash: select (or target) a token to preview.");
+  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or set Vendor trash compendiums in the module settings.");
+  const items = await pool(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1; const money = c => api.fmtMoney(c * cpVal);
+  const list = (arr, empty = "none") => arr.length ? arr.map(esc).join(", ") : `<span class="hint">${empty}</span>`;
+  const fold = (label, rows) => rows.length ? `<details><summary>${label}</summary><ul style="margin:0.2em 0;padding-left:1.2em;">${rows.join("")}</ul></details>` : `<p class="hint">${label}</p>`;
+  const sampleRows = arr => [...arr].sort(() => Math.random() - 0.5).slice(0, n).sort((a, b) => (a.ilvl || 0) - (b.ilvl || 0))
+    .map(i => `<li>${esc(i.name)} <span class="hint">(${[i.ilvl ? `ilvl ${i.ilvl}` : "", api.fmtMoney(valueOf(i, api))].filter(Boolean).join(", ")})</span></li>`);
+  const out = [];
+  for (const doc of docs) {
+    const actor = doc.actor; const { prof, band, cr, ctx } = context(actor); const dungeon = isDungeon(doc); const dr = dungeon ? dungeonRules() : null;
+    const it = R.candidates(items, prof, "item", band, ctx); const gear = prof.gear ? R.candidates(items, prof, "gear", band, ctx) : null;
+    const widen = c => c.widen ? `widened ${c.widen} step${c.widen === 1 ? "" : "s"}` : "no widening";
+    // The token's current drop.
+    let current;
+    if (doc.getFlag(ID, "looted") || isPile(doc)) current = "<em>looted</em>";
+    else {
+      const f = rolled(doc); const held = trashItems(actor);
+      if (!f && !held.length) current = `<span class="hint">${doc.actorLink ? "linked token: rolled when looted" : "not rolled yet"}</span>`;
+      else {
+        const parts = held.map(i => `${esc(i.name)}${i.system.quantity > 1 ? ` ×${i.system.quantity}` : ""} <span class="hint">(${api.fmtMoney((i.getFlag(ID, "value") ?? 0) * (i.system.quantity || 1))})</span>`);
+        if (f?.copper) parts.push(`<em>${money(f.copper)}</em>`);
+        current = parts.length ? parts.join(", ") : `<span class="hint">nothing</span>`;
+      }
+    }
+    const coinMult = dr && dr.coinMult !== 1 ? ` ×${dr.coinMult} (dungeon)` : "";
+    const coin = prof.coin ? `${Math.round(prof.coin * 100)}% chance of ${money(band.coin[0])}–${money(band.coin[1])}${coinMult}` : "none";
+    out.push(await ChatMessage.create({
+      whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" },
+      content: `<h3>Preview: ${esc(doc.name)}${dungeon ? DUNGEON_TAG : ""}</h3>
+<p><strong>${esc(prof.kind)}</strong> · CR ${esc(cr)} (${esc(band.label)}, ilvl ${band.ilvl[0]}–${band.ilvl[1]})</p>
+<p><strong>Allowed:</strong> ${list([...prof.tags])}<br><strong>Denied:</strong> ${list([...prof.deny])}${prof.gear ? "<br>Drops worn gear" : ""}</p>
+<p><strong>Rules matched:</strong> ${list(prof.rules.map(r => r === "*" ? "* (all)" : r))}</p>
+<p><strong>Pool:</strong> ${items.length} items · ${it.normal.length} fit (${it.strong.length} named for it), ${widen(it)}${gear ? ` · gear ${gear.normal.length}, ${widen(gear)}` : ""}</p>
+<p><strong>Current drop:</strong> ${current}</p>
+${fold(`Possible drops (${Math.min(n, it.normal.length)} of ${it.normal.length})`, sampleRows(it.normal))}
+${it.strong.length ? fold(`Named for it (${Math.min(n, it.strong.length)} of ${it.strong.length})`, sampleRows(it.strong)) : ""}
+${gear ? fold(`Gear (${Math.min(n, gear.normal.length)} of ${gear.normal.length})`, sampleRows(gear.normal)) : ""}
+<p><strong>Coin:</strong> ${coin}</p>`
+    }));
+  }
+  return out;
+}
+
 const DUNGEON_TAG = `<span class="wct-dungeon-tag" style="font-size:0.75em;font-weight:normal;padding:0 0.4em;margin-left:0.3em;border:1px solid currentColor;border-radius:3px;vertical-align:middle;" title="Dungeon scene: more coin and items">Dungeon</span>`;
 
 /** Value of a pool entry in the smallest coin: its vendor sell price if it has one, else the item's own price. */
