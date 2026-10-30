@@ -1,13 +1,13 @@
-/* Wayfarer's Toolkit: boss frames (top centre) and the token HUD toggle. Only styles elements the Boss frames feature creates. */
+/* Wayfarer's Toolkit: boss frames (top centre by default, each movable) and the token HUD toggle. Only styles elements the Boss frames feature creates. */
 
-#wct-boss-frames {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60;
-  display: flex; flex-direction: column; gap: 6px; cursor: grab; touch-action: none; user-select: none;
-  width: min(360px, calc(100vw - 32px));
-}
-#wct-boss-frames.moved { transform: none; }
-#wct-boss-frames.dragging { cursor: grabbing; }
+#wct-boss-frames { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 #wct-boss-frames img { pointer-events: none; -webkit-user-drag: none; }
+.wct-boss {
+  position: absolute; top: 12px; left: calc(50% - min(180px, 50vw - 16px)); width: min(360px, calc(100vw - 32px));
+  pointer-events: auto; cursor: grab; touch-action: none; user-select: none;
+}
+.wct-boss.dragging { cursor: grabbing; z-index: 1; }
+.wct-boss-ghost { position: absolute; border: 2px dashed #ffd100; border-radius: 6px; background: rgba(255, 209, 0, 0.08); pointer-events: none; }
 .wct-boss { display: flex; align-items: center; gap: 6px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); }
 .wct-boss .portrait {
   flex: 0 0 56px; height: 56px; border-radius: 50%; overflow: hidden;

@@ -254,7 +254,7 @@ Select a token, open its token HUD (right-click) and click the **crown** button 
 
 While a combat is running and a marked boss is one of its combatants, every connected client sees its frame at the top centre of the screen: the token image, its name and a health bar that updates as it takes damage (temporary hit points show as a striped segment). Several bosses stack. The frame goes away when the combat ends, the boss is removed from it or unmarked. A boss at 0 HP or marked defeated stays on screen, greyed out, until the combat ends. Hidden combatants and hidden tokens aren't shown to players.
 
-Each user can drag the frame stack anywhere on their own screen (click and drag a frame); the position is remembered on that browser and kept on-screen after a resize. Double-click it to snap it back to the top centre.
+Each user can arrange the frames on their own screen. Drag a group's top frame to move the whole group; drag any other frame to pull it out on its own. Drop a frame within a few pixels of another frame's edge and it snaps flush against it (a dashed outline shows where) and joins that group; new bosses join the main stack. The layout is remembered on that browser and kept on-screen after a resize. Double-click any frame to put them all back in one stack at the top centre.
 
 **Boss frames: what players see** (world setting): *Bar only*, *Bar and percentage* or *Exact HP*. The GM always sees exact hit points.
 

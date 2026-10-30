@@ -30,6 +30,7 @@ function bosses() {
   return c.combatants.filter(cb => cb.token && cb.actor && isBoss(cb.token) && (game.user.isGM || !(cb.hidden || cb.token.hidden)));
 }
 
+/** A frame's inner markup and whether it is greyed out. */
 function frame(cb) {
   const hp = cb.actor.system?.attributes?.hp ?? {};
   const max = Math.max(0, Number(hp.effectiveMax ?? hp.max) || 0);
@@ -45,67 +46,236 @@ function frame(cb) {
   const tone = pct > 0.5 ? "high" : pct > 0.2 ? "mid" : "low";
   const img = cb.token.texture?.src || cb.actor.img || "icons/svg/mystery-man.svg";
   const tempW = max && temp && !dead ? Math.min(1, temp / max) : 0;
-  return `<div class="wct-boss${dead ? " dead" : ""}" data-combatant-id="${cb.id}">
-    <div class="portrait"><img src="${esc(img)}" alt=""></div>
+  const html = `<div class="portrait"><img src="${esc(img)}" alt=""></div>
     <div class="info"><div class="name">${esc(cb.token.name || cb.name)}</div>
       <div class="bar ${tone}" role="meter" aria-label="${esc(cb.token.name)} health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${dead ? 0 : Math.round(pct * 100)}">
         <div class="fill" style="width:${dead ? 0 : (pct * 100).toFixed(1)}%"></div>
         ${tempW ? `<div class="temp" style="width:${(tempW * 100).toFixed(1)}%"></div>` : ""}
         ${text ? `<span class="txt">${text}</span>` : ""}
-      </div></div></div>`;
+      </div></div>`;
+  return { html, dead };
 }
 
-let el = null; let lastHTML = ""; let timer = null;
+/* ---------- Layout (pure; no Foundry globals) ----------
+ * Saved per client as { main: {x, y} | null, frames: { [tokenId]: entry } }, coordinates as viewport fractions of a top-left corner.
+ * A frame with no entry is in the main group: stacked in combat order under the main group's position (default top centre).
+ * An entry is either a free group anchor { x, y } or a frame snapped to another { to, side, x, y } (side: below/above/left/right;
+ * x, y are where it was dropped, used if the frame it is snapped to isn't on screen). Frames snapped together form a group; its
+ * anchor is the frame everything hangs off (the top of the main stack, or a free frame). */
+export const GAP = 6, SNAP = 16, TOP = 12;
+const SIDES = ["below", "above", "right", "left"];
+const offset = (r, side, w, h, gap) => side === "below" ? { x: r.x, y: r.y + r.h + gap } : side === "above" ? { x: r.x, y: r.y - gap - h }
+  : side === "right" ? { x: r.x + r.w + gap, y: r.y } : { x: r.x - gap - w, y: r.y };
+
+/** Positions for the frames `ids` (in combat order), with `sizes[id] = {w, h}`, on a vw x vh viewport.
+ * Returns { pos: {id: {x, y, w, h}}, root: {id: anchorId}, parent: {id: {to, side}}, groups: {anchorId: [ids]}, mainRoot }. */
+export function computeLayout(ids, sizes, layout, vw, vh, gap = GAP) {
+  const present = new Set(ids), frames = layout?.frames ?? {};
+  const implicit = ids.filter(id => !frames[id]);
+  const parent = {};
+  implicit.forEach((id, i) => { if (i) parent[id] = { to: implicit[i - 1], side: "below", implicit: true }; });
+  for (const id of ids) {
+    const e = frames[id];
+    if (e?.to && present.has(e.to) && e.to !== id && SIDES.includes(e.side)) parent[id] = { to: e.to, side: e.side };
+  }
+  // Break any cycle by turning the frame where it closes into a free anchor.
+  for (const id of ids) {
+    const seen = new Set([id]); let cur = id;
+    while (parent[cur]) { cur = parent[cur].to; if (seen.has(cur)) { delete parent[cur]; break; } seen.add(cur); }
+  }
+  // Children per slot, snapped-on frames first, then the main stack; several in one slot chain along that side.
+  const slots = {};
+  for (const exp of [true, false]) for (const id of ids) {
+    const p = parent[id]; if (!p || !!p.implicit === exp) continue;
+    ((slots[p.to] ??= {})[p.side] ??= []).push(id);
+  }
+  const pos = {}, root = {}, groups = {};
+  const size = id => ({ w: sizes[id]?.w ?? 0, h: sizes[id]?.h ?? 0 });
+  const placeKids = (id, r) => {
+    for (const side of SIDES) {
+      let tail = id;
+      for (const c of slots[id]?.[side] ?? []) {
+        const { w, h } = size(c), t = pos[tail];
+        pos[c] = { ...offset(t, side, w, h, gap), w, h }; root[c] = r; groups[r].push(c);
+        placeKids(c, r);
+        // The next frame in this slot goes past the furthest one already chained along this side.
+        tail = c; while (slots[tail]?.[side]?.length) tail = slots[tail][side].at(-1);
+      }
+    }
+  };
+  const mainRoot = implicit[0] ?? null;
+  for (const id of ids) {
+    if (parent[id]) continue;
+    const { w, h } = size(id);
+    const e = id === mainRoot ? layout?.main : frames[id];
+    const x = Number.isFinite(e?.x) ? e.x * vw : (vw - w) / 2, y = Number.isFinite(e?.y) ? e.y * vh : TOP;
+    pos[id] = { x, y, w, h }; root[id] = id; groups[id] = [id];
+    placeKids(id, id);
+  }
+  // Keep each group on-screen as a whole.
+  for (const members of Object.values(groups)) {
+    const b = bbox(members.map(m => pos[m]));
+    const dx = clamp(b.x, 0, vw - b.w) - b.x, dy = clamp(b.y, 0, vh - b.h) - b.y;
+    if (dx || dy) for (const m of members) { pos[m].x += dx; pos[m].y += dy; }
+  }
+  return { pos, root, parent, groups, mainRoot };
+}
+export const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+export function bbox(rs) {
+  const x = Math.min(...rs.map(r => r.x)), y = Math.min(...rs.map(r => r.y));
+  return { x, y, w: Math.max(...rs.map(r => r.x + r.w)) - x, h: Math.max(...rs.map(r => r.y + r.h)) - y };
+}
+
+/** The nearest edge of `targets` ({id, x, y, w, h}) that rect `r` is within `th` px of, and where `r` would sit flush against it. */
+export function findSnap(r, targets, th = SNAP, gap = GAP) {
+  let best = null;
+  const overlapX = t => r.x < t.x + t.w && r.x + r.w > t.x, overlapY = t => r.y < t.y + t.h && r.y + r.h > t.y;
+  for (const t of targets) for (const side of SIDES) {
+    const p = offset(t, side, r.w, r.h, gap);
+    const vert = side === "below" || side === "above";
+    const ok = vert ? overlapX(t) : overlapY(t); // only edges the frame actually lines up against
+    const d = vert ? Math.abs(r.y - p.y) : Math.abs(r.x - p.x);
+    if (ok && d <= th && (!best || d < best.d)) best = { to: t.id, side, x: p.x, y: p.y, d };
+  }
+  return best;
+}
+
+/** A copy of `layout` with frame `id` taken out of its group as a free anchor at (x, y) px; frames snapped to it take its place. */
+export function detach(layout, id, comp, x, y, vw, vh) {
+  const out = { main: layout?.main ?? null, frames: { ...(layout?.frames ?? {}) } };
+  const p = comp.parent[id];
+  for (const [k, e] of Object.entries(out.frames)) if (e?.to === id) out.frames[k] = p ? { ...e, to: p.to, side: p.side } : { x: e.x, y: e.y };
+  out.frames[id] = { x: x / vw, y: y / vh };
+  return out;
+}
+
+/** A copy of `layout` without entries for tokens not in `live`; frames snapped to a removed one become free at their drop point. */
+export function prune(layout, live) {
+  const frames = {}; let changed = false;
+  for (const [k, e] of Object.entries(layout?.frames ?? {})) {
+    if (!live.has(k)) { changed = true; continue; }
+    if (e?.to && !live.has(e.to)) { frames[k] = { x: e.x, y: e.y }; changed = true; } else frames[k] = e;
+  }
+  return changed ? { main: layout?.main ?? null, frames } : null;
+}
+
+/* ---------- DOM ---------- */
+const TIP = "Drag to move. Dragging a group's top frame moves the whole group; dragging any other frame pulls it out. Drop it next to another frame to snap them together. Double-click to reset.";
+let el = null; let ghost = null; let timer = null; const nodes = new Map(); let drag = null;
+const keyOf = cb => cb.tokenId ?? cb.token?.id ?? cb.id;
+const getLayout = () => { const l = S("bossLayout"); return l && typeof l === "object" ? l : {}; };
+
 function render() {
   const list = bosses();
-  if (!list.length) { el?.remove(); el = null; lastHTML = ""; return; }
-  const html = list.map(frame).join("");
+  if (!list.length) { if (drag) endDrag(null); el?.remove(); el = null; nodes.clear(); return; }
   if (!el) {
     el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health");
-    el.dataset.tooltip = "Drag to move. Double-click to reset to the top centre."; el.dataset.tooltipDirection = "DOWN";
     el.addEventListener("pointerdown", dragStart); el.addEventListener("dblclick", resetPos);
     document.body.append(el);
   }
-  if (html !== lastHTML) { el.innerHTML = html; lastHTML = html; }
-  if (!drag) applyPos();
+  const keep = new Set();
+  for (const cb of list) {
+    const k = keyOf(cb); if (keep.has(k)) continue; keep.add(k);
+    let n = nodes.get(k);
+    if (!n) {
+      n = document.createElement("div"); n.className = "wct-boss"; n.dataset.tokenId = k;
+      n.dataset.tooltip = TIP; n.dataset.tooltipDirection = "DOWN"; nodes.set(k, n);
+    }
+    n.dataset.combatantId = cb.id;
+    const { html, dead } = frame(cb);
+    if (n._html !== html) { n.innerHTML = html; n._html = html; }
+    n.classList.toggle("dead", dead);
+    if (n.parentNode !== el) el.append(n); // never re-insert a live node: that would drop its pointer capture mid-drag
+  }
+  for (const [k, n] of nodes) if (!keep.has(k)) { if (drag?.ids.has(k)) endDrag(null); n.remove(); nodes.delete(k); }
+  applyLayout();
 }
 
-/* Position: each user's own, saved per client as viewport fractions of the stack's top-left corner. Empty = default top centre. */
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
-function place(x, y) {
-  const r = el.getBoundingClientRect();
-  el.style.left = `${clamp(x, 0, innerWidth - r.width)}px`; el.style.top = `${clamp(y, 0, innerHeight - r.height)}px`;
-  el.classList.add("moved");
+/** Places every frame from the layout (the drag's working copy while dragging, with the dragged frames following the pointer). */
+function applyLayout() {
+  if (!el) return null;
+  const ids = [...nodes.keys()], sizes = {};
+  for (const id of ids) { const n = nodes.get(id); sizes[id] = { w: n.offsetWidth, h: n.offsetHeight }; }
+  const comp = computeLayout(ids, sizes, drag?.layout ?? getLayout(), innerWidth, innerHeight);
+  if (drag) {
+    const rs = [...drag.ids].filter(id => comp.pos[id]).map(id => comp.pos[id]);
+    if (rs.length) {
+      const b = bbox(rs);
+      const dx = clamp(drag.x - drag.ox, -b.x, innerWidth - b.w - b.x), dy = clamp(drag.y - drag.oy, -b.y, innerHeight - b.h - b.y);
+      for (const id of drag.ids) if (comp.pos[id]) { comp.pos[id].x += dx; comp.pos[id].y += dy; }
+    }
+  }
+  for (const [id, p] of Object.entries(comp.pos)) { const s = nodes.get(id).style; s.left = `${p.x}px`; s.top = `${p.y}px`; }
+  return comp;
 }
-function applyPos() {
-  if (!el) return;
-  const p = S("bossFramePos");
-  if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) { el.classList.remove("moved"); el.style.left = el.style.top = ""; return; }
-  place(p.x * innerWidth, p.y * innerHeight);
-}
-let drag = null;
+
 function dragStart(ev) {
-  if (ev.button !== 0 || ev.target.closest("button, a, input, select, textarea")) return;
-  const r = el.getBoundingClientRect();
-  drag = { id: ev.pointerId, dx: ev.clientX - r.left, dy: ev.clientY - r.top, moved: false };
-  el.setPointerCapture(ev.pointerId); el.classList.add("dragging");
-  el.addEventListener("pointermove", dragMove); el.addEventListener("pointerup", dragEnd); el.addEventListener("pointercancel", dragEnd);
+  const n = ev.target.closest(".wct-boss");
+  if (!n || ev.button !== 0 || ev.target.closest("button, a, input, select, textarea")) return;
+  const id = n.dataset.tokenId;
+  drag = { pointer: ev.pointerId, id, node: n, sx: ev.clientX, sy: ev.clientY, x: 0, y: 0, ox: 0, oy: 0, moved: false, ids: new Set([id]), layout: null };
+  n.setPointerCapture(ev.pointerId); n.classList.add("dragging");
+  n.addEventListener("pointermove", dragMove); n.addEventListener("pointerup", dragEnd); n.addEventListener("pointercancel", dragEnd);
   ev.preventDefault();
 }
 function dragMove(ev) {
-  if (!drag || ev.pointerId !== drag.id) return;
-  drag.moved = true; place(ev.clientX - drag.dx, ev.clientY - drag.dy);
+  if (!drag || ev.pointerId !== drag.pointer) return;
+  if (!drag.moved) {
+    if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 3) return;
+    // Decide what moves on the first real move, so a double-click never changes the layout.
+    drag.moved = true; drag.layout = getLayout();
+    const comp = applyLayout(), id = drag.id, p = comp.pos[id];
+    if (comp.root[id] === id) { drag.ids = new Set(comp.groups[id]); drag.group = true; drag.main = id === comp.mainRoot; }
+    else drag.layout = detach(drag.layout, id, comp, p.x, p.y, innerWidth, innerHeight);
+    for (const m of drag.ids) nodes.get(m)?.classList.add("dragging");
+    drag.ox = drag.sx; drag.oy = drag.sy;
+  }
+  drag.x = ev.clientX; drag.y = ev.clientY;
+  const comp = applyLayout();
+  drag.snap = snapFor(comp);
+  showGhost(drag.snap, comp.pos[drag.id]);
+}
+/** Where the dragged anchor would snap, against frames outside the dragged group. */
+function snapFor(comp) {
+  const r = comp?.pos[drag.id]; if (!r) return null;
+  const targets = Object.entries(comp.pos).filter(([id]) => !drag.ids.has(id)).map(([id, p]) => ({ id, ...p }));
+  return findSnap(r, targets);
+}
+function showGhost(s, r) {
+  if (!s || !r) { ghost?.remove(); ghost = null; return; }
+  if (!ghost) { ghost = document.createElement("div"); ghost.className = "wct-boss-ghost"; el.append(ghost); }
+  Object.assign(ghost.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${r.w}px`, height: `${r.h}px` });
 }
 function dragEnd(ev) {
-  if (!drag || ev.pointerId !== drag.id) return;
-  const moved = drag.moved; drag = null;
-  el.removeEventListener("pointermove", dragMove); el.removeEventListener("pointerup", dragEnd); el.removeEventListener("pointercancel", dragEnd);
-  el.classList.remove("dragging"); if (el.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
-  if (!moved) return;
-  const r = el.getBoundingClientRect();
-  game.settings.set(ID, "bossFramePos", { x: r.left / innerWidth, y: r.top / innerHeight });
+  if (!drag || ev.pointerId !== drag.pointer) return;
+  endDrag(ev);
 }
-function resetPos() { game.settings.set(ID, "bossFramePos", {}); }
+function endDrag(ev) {
+  const d = drag; drag = null; showGhost(null);
+  d.node.removeEventListener("pointermove", dragMove); d.node.removeEventListener("pointerup", dragEnd); d.node.removeEventListener("pointercancel", dragEnd);
+  for (const n of nodes.values()) n.classList.remove("dragging");
+  if (ev && d.node.hasPointerCapture?.(ev.pointerId)) d.node.releasePointerCapture(ev.pointerId);
+  if (!d.moved || !ev || ev.type === "pointercancel") return applyLayout();
+  // Final position of the dragged anchor, as drawn.
+  const n = nodes.get(d.id); if (!n) return applyLayout();
+  const vw = innerWidth, vh = innerHeight, s = d.snap;
+  const x = s ? s.x : parseFloat(n.style.left), y = s ? s.y : parseFloat(n.style.top);
+  const out = { main: d.layout.main ?? null, frames: { ...(d.layout.frames ?? {}) } };
+  if (d.main) out.main = { x: x / vw, y: y / vh };                              // the main stack: lines up against the other, stays its own group
+  else if (s) out.frames[d.id] = { to: s.to, side: s.side, x: x / vw, y: y / vh }; // a frame or group joins the one it snapped to
+  else out.frames[d.id] = { x: x / vw, y: y / vh };
+  game.settings.set(ID, "bossLayout", out);
+  drag = { ...d, layout: out, ids: new Set() }; applyLayout(); drag = null;     // draw it now, before the setting round-trips
+}
+function resetPos(ev) { if (ev.target.closest(".wct-boss")) game.settings.set(ID, "bossLayout", {}); }
+/** Forgets frames whose tokens are in no combat any more. */
+function pruneLayout() {
+  const live = new Set();
+  for (const c of game.combats ?? []) for (const cb of c.combatants) live.add(keyOf(cb));
+  const out = prune(getLayout(), live);
+  if (out) game.settings.set(ID, "bossLayout", out);
+}
+
 /** Batches bursts of document updates into one redraw. */
 const refresh = () => { clearTimeout(timer); timer = setTimeout(render, 50); };
 
@@ -128,15 +298,25 @@ export function init() {
     name: "Boss frames: what players see", hint: "How much of a boss's health players see on its frame. The GM always sees exact hit points.",
     scope: "world", config: true, type: String, default: "bar", choices: HP_MODES, onChange: refresh
   });
-  game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyPos(); } });
-  window.addEventListener("resize", () => { if (!drag) applyPos(); });
+  // Each user's own frame layout on this browser. Replaces the older single-stack "bossFramePos", read once to carry it over.
+  game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyLayout(); } });
+  game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {} });
+  window.addEventListener("resize", () => { if (!drag) applyLayout(); });
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.
   Hooks.on("updateToken", (t, changes) => { if (isBoss(t) || foundry.utils.hasProperty(changes, `flags.${ID}`)) refresh(); });
   // Linked bosses change through their actor; unlinked ones also fire updateToken (their actor delta) above.
   Hooks.on("updateActor", a => { if (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id)) refresh(); });
-  Hooks.once("ready", render);
+  Hooks.on("deleteCombat", pruneLayout);
+  Hooks.once("ready", async () => {
+    const old = S("bossFramePos");
+    if (Number.isFinite(old?.x) && Number.isFinite(old?.y)) {
+      if (!getLayout().main) await game.settings.set(ID, "bossLayout", { ...getLayout(), main: { x: old.x, y: old.y } });
+      await game.settings.set(ID, "bossFramePos", {});
+    }
+    pruneLayout(); render();
+  });
 }
 
 export const api = { toggle, isBoss, refresh };
