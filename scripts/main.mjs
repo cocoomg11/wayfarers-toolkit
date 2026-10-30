@@ -10,6 +10,7 @@ import * as Quests from "./quests.mjs";
 import * as F from "./features.mjs";
 import * as Bosses from "./bosses.mjs";
 import * as Loot from "./loot.mjs";
+import { MACROS, macroData } from "./macros.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -175,17 +176,6 @@ class SetupApp extends foundry.applications.api.ApplicationV2 {
   _replaceHTML(result, content) { content.replaceChildren(result); }
 }
 
-/** [name, API method, icon, preferred hotbar slot, feature, shared with players] */
-const MACROS = [
-  ["Hex Travel", "hexTravel", "icons/environment/wilderness/terrain-forest-gray.webp", 2, "hexTravel"],
-  ["Flight Master", "flight", "icons/creatures/birds/raptor-hawk-flying.webp", 3, "flightMaster"],
-  ["Session Start", "sessionStart", "icons/sundries/books/book-open-turquoise.webp", 5, "sessionStart"],
-  ["Vendor Trash", "vendorTrash", "icons/containers/bags/sack-simple-leather-brown.webp", null, "vendorTrash"],
-  ["Preview Vendor Trash", "trash.showPreview", "icons/tools/scribal/magnifying-glass.webp", null, "vendorTrash"],
-  ["Sell Vendor Trash", "sellTrash", "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", null, "vendorTrash"],
-  ["Quest Log", "questLog", "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", null, "questLog", true]
-];
-
 const RIDER_FEAT = name => ({
   name, type: "feat", img: "icons/environment/creatures/horse-brown.webp",
   flags: { [ID]: { feat: "trained-rider" } },
@@ -250,12 +240,13 @@ export const WCT = {
       made.push("party actor");
     }
     // All missing macros in one create, then one hotbar update.
-    const want = MACROS.filter(([name, , , , feature]) => F.on(feature) && !game.macros.getName(name));
+    // The same definitions (macros.mjs) build the Wayfarer's Toolkit Macros compendium.
+    const want = MACROS.filter(m => F.on(m.feature) && !game.macros.getName(m.name));
     if (want.length) {
       const folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit") ?? await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
-      const created = await Macro.implementation.createDocuments(want.map(([name, fn, img, , , shared]) => ({ name, type: "script", img, folder: folder.id, command: `// ${name}: Wayfarer's Toolkit\nreturn game.modules.get("${ID}")?.api?.${fn}() ?? ui.notifications.error("Wayfarer's Toolkit module is not active.");`, ...(shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
+      const created = await Macro.implementation.createDocuments(want.map(m => ({ ...macroData(m), folder: folder.id, ...(m.shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
       const bar = { ...game.user.hotbar }; const patch = {};
-      created.forEach((m, i) => { const free = freeSlot(bar, want[i][3]); if (free) { bar[free] = patch[`hotbar.${free}`] = m.id; } made.push(`macro "${m.name}"`); });
+      created.forEach((m, i) => { const free = freeSlot(bar, want[i].slot); if (free) { bar[free] = patch[`hotbar.${free}`] = m.id; } made.push(`macro "${m.name}"`); });
       if (Object.keys(patch).length) await game.user.update(patch);
     }
     if (F.on("riderFeat")) made.push(...await this.renameOldRiderFeat());

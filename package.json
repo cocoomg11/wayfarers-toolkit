@@ -1,0 +1,13 @@
+{
+  "name": "wayfarers-toolkit",
+  "private": true,
+  "description": "Build tooling for the Wayfarer's Toolkit Foundry VTT module (the module itself needs no install step).",
+  "scripts": {
+    "pack:sources": "node tools/build-packs.mjs sources",
+    "pack:check": "node tools/build-packs.mjs check",
+    "pack:compile": "node tools/build-packs.mjs compile"
+  },
+  "devDependencies": {
+    "@foundryvtt/foundryvtt-cli": "3.0.4"
+  }
+}

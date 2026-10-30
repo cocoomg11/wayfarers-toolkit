@@ -44,6 +44,12 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, macros on empty hotbar slots) and never overwrites existing documents.
 
+## Macro compendium
+
+The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel and Flight Master (*Travel*), Session Start and Quest Log (*Sessions and Quests*), and Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*). Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** still creates its own world copies in a *Wayfarer's Toolkit* macro folder, so you only need the compendium for a fresh hotbar, a player's hotbar or a macro you deleted.
+
+Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've turned off under **Choose features** are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
+
 ## Choosing features
 
 Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames and Loot rolls. All are on by default. Saving reloads Foundry.
@@ -359,3 +365,7 @@ This is an unofficial fan-made module. It is not affiliated with or endorsed by 
 - Flight sound (`sounds/be-good.ogg`) recorded by a friend of the author, used with permission.
 
 Bug reports and suggestions: [GitHub issues](https://github.com/cocoomg11/wayfarers-toolkit/issues).
+
+## Building from source
+
+The compendium sources live in `src/packs/macros` as JSON and are generated from `scripts/macros.mjs`, the same list Run setup uses. After changing a macro, run `node tools/build-packs.mjs sources` and commit the JSON. The release workflow installs `@foundryvtt/foundryvtt-cli`, checks the sources are current, compiles them into `packs/macros` (LevelDB) and adds `packs/` to `module.zip`. To build locally: `npm install`, then `node tools/build-packs.mjs compile`.
