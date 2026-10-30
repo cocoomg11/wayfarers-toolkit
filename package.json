@@ -3,6 +3,8 @@
   "private": true,
   "description": "Build tooling for the Wayfarer's Toolkit Foundry VTT module (the module itself needs no install step).",
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "for f in scripts/*.mjs tools/*.mjs tests/*.mjs; do node --check \"$f\" || exit 1; done",
     "pack:sources": "node tools/build-packs.mjs sources",
     "pack:check": "node tools/build-packs.mjs check",
     "pack:compile": "node tools/build-packs.mjs compile"

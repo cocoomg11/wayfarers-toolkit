@@ -8,6 +8,7 @@ import * as Trash from "./trash.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import { activeGM, isActiveGM, onlineGMs } from "./gm.mjs";
 import { MACROS } from "./macros.mjs";
+import * as Flight from "./flight.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -76,12 +77,16 @@ function setupState(api) {
 
 async function bossLoot(api) {
   if (!F.on("bossLoot")) return [off("Boss loot is off.")];
-  const out = []; const targets = [];
+  const out = []; const targets = []; const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   for (const a of game.actors) if (a.getFlag(ID, "bossLoot")) targets.push({ label: a.name, ref: a, noLoot: Trash.isNoLoot(a) });
   for (const t of allTokens()) {
     try { if (!t.actorLink && t.delta?._source?.flags?.[ID]?.bossLoot && t.actor) targets.push({ label: `${t.name} (token on ${t.parent.name})`, ref: t, noLoot: Trash.isNoLoot(t) }); } catch { }
   }
-  if (!targets.length) return [off("No creature has a boss loot table linked.")];
+  const pr = BossLoot.partyRules();
+  const unlinked = game.actors.filter(a => a.type === "npc" && !a.getFlag(ID, "bossLoot") && game.tables.some(t => BossLoot.tableOwnerName(t.name) === a.name.trim())).map(a => a.name);
+  const linkLine = unlinked.length ? [warn(`${plural(unlinked.length, "creature")} with a table named for it but not linked (${listNames(unlinked, 6)}). <button type="button" data-wct-action="autolink-boss" style="width:auto;line-height:1.4;padding:0 0.4em;"><i class="fa-solid fa-link"></i> Link boss tables by name</button>`)] : [];
+  out.push(ok(`Party size ${pr.size}: boss coin ×${(pr.size / 4).toFixed(2).replace(/\.?0+$/, "")}${pr.size > 4 ? (pr.extra ? ", +1 draw for bosses with 3 or more" : ", no extra draw (setting off)") : ""}.`));
+  if (!targets.length) return [...out, off("No creature has a boss loot table linked."), ...linkLine];
   for (const x of targets) {
     try {
       const r = await BossLoot.inspect(x.ref); if (!r) continue;
@@ -94,10 +99,12 @@ async function bossLoot(api) {
       const notes = [];
       if (r.unresolved.length) notes.push(`${plural(r.unresolved.length, "result")} point at missing items (${listNames(r.unresolved, 5)})`);
       if (r.tooManyDraws) notes.push(`${plural(r.draws, "draw")} but only ${plural(r.usable, "usable result")}`);
-      out.push(notes.length ? warn(`${name}: ${t}, ${plural(r.resolved, "item")} · ${notes.join("; ")}.`) : ok(`${name}: ${t}, ${plural(r.resolved, "item")}, ${plural(r.draws, "draw")}.`));
+      const adj = [r.scaledDraws !== r.draws ? `${plural(r.scaledDraws, "draw")} (set ${r.draws})` : plural(r.draws, "draw")];
+      if (r.coinCp) adj.push(`${api.fmtMoney(r.scaledCoinCp * cpVal)} coin${r.scaledCoinCp !== r.coinCp ? ` (set ${api.fmtMoney(r.coinCp * cpVal)})` : ""}`);
+      out.push(notes.length ? warn(`${name}: ${t}, ${plural(r.resolved, "item")}, ${adj.join(", ")} · ${notes.join("; ")}.`) : ok(`${name}: ${t}, ${plural(r.resolved, "item")}, ${adj.join(", ")}.`));
     } catch (e) { out.push(bad(`${esc(x.label)}: couldn't check (${esc(e.message)}).`)); }
   }
-  return out;
+  return [...out, ...linkLine];
 }
 
 function noLoot() {
@@ -136,9 +143,23 @@ function flights(api) {
   const out = []; const open = data.pts.filter(p => p.u);
   out.push(open.length >= 2 ? ok(`${plural(data.pts.length, "flight point")} (${open.length} unlocked), ${plural(data.routes.length, "route")}.`) : warn(`Only ${open.length} unlocked flight point${open.length === 1 ? "" : "s"}: Flight Master needs two.`));
   for (const p of data.pts.filter(p => p.sm)) out.push(bad(`Flight point ${esc(p.n)}: scene "${esc(p.sc)}" doesn't exist (flights there are refused).`));
+  const noScene = data.pts.filter(p => p.n && !p.sc).map(p => p.n);
+  if (noScene.length) out.push(warn(`No scene: flying to ${listNames(noScene)} won't open a scene (still allowed).`));
+  let probs = []; try { probs = api.flightProblems(); } catch { }
+  for (const p of probs) out.push(warn(`Flight Routes: ${esc(Flight.rowProblemText(p))}.`));
   const names = new Set(data.pts.map(p => p.n));
   for (const r of data.routes) { const u = [r.a, r.b].filter(n => !names.has(n)); if (u.length) out.push(bad(`Route ${esc(r.a)} → ${esc(r.b)}: unknown flight point ${u.map(esc).join(", ")}.`)); }
   if (!api.partyActor()) out.push(warn(`No group actor named ${esc(api.PARTY)}: fares aren't charged.`));
+  return out;
+}
+
+function zones(api) {
+  if (!F.on("hexTravel")) return [off("Hex Travel is off.")];
+  const r = api.internals.checkZones();
+  if (r.error) return [bad(`Hex Travel: Encounter zones setting: ${esc(r.error)}.`)];
+  const n = Object.keys(r.zones).length;
+  const out = [n ? ok(`${plural(n, "encounter zone")}: ${listNames(Object.keys(r.zones))}.`) : warn("No encounter zones set (Hex Travel › Encounter zones).")];
+  for (const u of r.unknown) out.push(warn(`Zone ${esc(u.zone)}: no roll table named "${esc(u.table)}" (encounters there are rolled without a table).`));
   return out;
 }
 
@@ -151,7 +172,7 @@ function gms() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */
@@ -193,6 +214,7 @@ export class HealthApp extends foundry.applications.api.ApplicationV2 {
     div.querySelector("[data-action=post]").addEventListener("click", () => post(API));
     div.querySelector("[data-action=again]").addEventListener("click", () => this.render());
     div.querySelector("[data-wct-action=run-setup]")?.addEventListener("click", () => runSetup(() => this.render()));
+    div.querySelector("[data-wct-action=autolink-boss]")?.addEventListener("click", async ev => { ev.currentTarget.disabled = true; await API.bossLoot?.autoLink(); this.render(); });
     return div;
   }
   _replaceHTML(result, content) { content.replaceChildren(result); }
@@ -228,6 +250,8 @@ export function init(api) {
   Hooks.on("renderChatMessageHTML", (message, el) => {
     const f = message.flags?.[ID]; if (!f?.health && !f?.setupReminder) return;
     const root = el instanceof HTMLElement ? el : el?.[0];
+    const link = root?.querySelector?.("[data-wct-action=autolink-boss]");
+    if (link) { if (!game.user.isGM) link.remove(); else link.addEventListener("click", async ev => { ev.preventDefault(); link.disabled = true; await API.bossLoot?.autoLink(); }); }
     const btn = root?.querySelector?.("[data-wct-action=run-setup]"); if (!btn) return;
     if (!game.user.isGM) return btn.remove();
     btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; await runSetup(); btn.disabled = false; });

@@ -8,6 +8,8 @@ const WOW = "wow-classic-items";
 import * as R from "./trash-rules.mjs";
 import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
+import { log, byWhom } from "./log.mjs";
+import * as Summary from "./summary.mjs";
 /** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
 export const rules = R;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -139,6 +141,7 @@ export async function rollDrop(actor, { dungeon = false } = {}) {
   for (const [p, slot] of slots) { if (!ic(p)) continue; const it = R.pickFor(items, prof, slot, band, ctx); if (it) out.push(it); }
   let copper = R.coinRoll(prof, band);
   if (rules && copper) copper = Math.round(copper * rules.coinMult);
+  log(`Vendor Trash: rolled ${actor?.name ?? "?"}: kind ${prof.kind}, ${band.label}${rules ? ", dungeon" : ""}, ${slots.length} slot rolls →`, out.map(i => `${i.name}${i.ilvl ? ` (ilvl ${i.ilvl})` : ""}`), `${copper}c`);
   return { items: out, copper, kind: prof.kind, band: band.label, dungeon: !!rules };
 }
 
@@ -391,10 +394,13 @@ async function storeDrop(doc, api) {
   return flag;
 }
 /** The drop on a token as { items: [{ uuid, name, value, qty, id }], copper, dungeon }, rolling and storing it first if it has none yet. */
-async function dropOf(doc, api, { store = true } = {}) {
+async function dropOf(doc, api, { store = true, tries = 1 } = {}) {
   let f = rolled(doc);
   if (!f) {
-    if (!store) { const d = await rollDrop(doc.actor, { dungeon: isDungeon(doc) }); return { items: d.items.map(i => ({ uuid: i.uuid, name: i.name, value: valueOf(i, api), qty: 1 })), copper: d.copper, dungeon: d.dungeon }; }
+    if (!store) {
+      // `tries` > 1 (a boss falling back to trash) rolls again when a roll comes up empty.
+      let d; for (let n = 0; n < Math.max(1, tries); n++) { d = await rollDrop(doc.actor, { dungeon: isDungeon(doc) }); if (d.items.length || d.copper) break; }
+      return { items: d.items.map(i => ({ uuid: i.uuid, name: i.name, value: valueOf(i, api), qty: 1 })), copper: d.copper, dungeon: d.dungeon }; }
     f = await storeDrop(doc, api);
   }
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
@@ -406,7 +412,7 @@ async function dropOf(doc, api, { store = true } = {}) {
 export async function onCreateToken(doc, api) {
   if (!isActiveGM() || !S("trashAutoRoll", true) || !autoTarget(doc) || rolled(doc) || isNoLoot(doc)) return;
   if (!packIds().length) return;
-  try { if (!(await pool()).length) return; await storeDrop(doc, api); }
+  try { if (!(await pool()).length) return; log(`Vendor Trash: pre-rolling ${doc.name}, automatic step run by ${byWhom()}`); await storeDrop(doc, api); }
   catch (e) { console.warn(`${ID} | Vendor Trash: couldn't pre-roll loot for ${doc.name}`, e); }
 }
 
@@ -492,12 +498,15 @@ const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
 /** Active GM only: when an unlinked NPC token is down (0 HP or marked defeated), its body becomes lootable with its pre-rolled drop. */
 export async function onDeath(doc, api, { defeated = false } = {}) {
-  if (!doc || !isActiveGM() || !S("trashAutoLoot", true) || !autoTarget(doc) || isNoLoot(doc)) return;
+  if (!doc || !isActiveGM() || !S("trashAutoLoot", true)) return;
   if (!defeated && !isDead(doc)) return;
+  if (!autoTarget(doc)) return log(`Vendor Trash: ${doc.name} gets no automatic loot (${!doc.actor ? "no actor" : doc.actor.type !== "npc" ? "not an NPC" : doc.actorLink ? "linked token" : doc.getFlag(ID, "looted") ? "already looted" : "already a pile"})`);
+  if (isNoLoot(doc)) return log(`Vendor Trash: ${doc.name} gets no loot (No loot is set)`);
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
   return serial(doc.uuid, async () => {
     try {
-      if (!packIds().length || !(await pool()).length) return;
+      if (!packIds().length || !(await pool()).length) return log(`Vendor Trash: ${doc.name} gets no loot (no trash compendium or empty pool)`);
+      log(`Vendor Trash: making ${doc.name} lootable, automatic step run by ${byWhom()}`);
       await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
     } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't make ${doc.name} lootable`, e); }
     finally { busy.delete(doc.uuid); }
@@ -528,30 +537,47 @@ export async function fallbackDrop(doc, api) {
   if (isNoLoot(doc)) return "no vendor trash either (No loot is set)";
   if (doc.getFlag(ID, "looted") || isPile(doc)) return "its vendor trash is already on the body";
   if (!packIds().length || !(await pool()).length) return "no vendor trash either (no trash compendium)";
-  await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
-  return "vendor trash dropped instead";
+  // A linked boss has no pre-rolled drop: it's rolled now, with up to three tries so a boss doesn't come up empty-handed.
+  const report = {}; const opts = { auto: true, report, tries: doc.actorLink ? 3 : 1 };
+  await (usePiles() ? lootPiles([doc], api, opts) : lootCard([doc], api, opts));
+  log(`Boss loot fallback for ${doc.name}:`, report);
+  return fallbackText(report);
+}
+/** The GM's wording for what a fallback vendor-trash drop actually did (pure; tested in Node). */
+export function fallbackText(report = {}) {
+  if (report.error) return `vendor trash failed too (${report.error})`;
+  if (report.skipped) return "its vendor trash is already on the body";
+  if (report.dropped) return "vendor trash dropped instead";
+  return "no vendor trash rolled for it either (its drop came up empty)";
 }
 
 const itemRow = (i, api) => `@UUID[${i.uuid}]{${esc(i.name)}}${i.qty > 1 ? ` ×${i.qty}` : ""} <span class="wct-val">(${api.fmtMoney(i.value * i.qty)})</span>`;
 
 /** The original flow: a GM loot card with a Give to Party button. A pre-rolled drop is taken off the creature and put on the card. */
-async function lootCard(docs, api, { auto = false } = {}) {
+async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}) {
   const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
+  report.skipped = skipped.length; report.dropped = 0;
   if (auto && !todo.length) return;
   await markLooted(todo);
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   for (const doc of todo) {
     // Linked tokens are rolled on the spot and nothing is written to their world actor.
-    const d = await dropOf(doc, api, { store: !doc.actorLink }); if (d.dungeon) dungeon = true;
+    const d = await dropOf(doc, api, { store: !doc.actorLink, tries }); if (d.dungeon) dungeon = true;
     const parts = d.items.map(i => { total += i.value * i.qty; for (let n = 0; n < i.qty; n++) drops.push({ uuid: i.uuid, value: i.value }); return itemRow(i, api); });
     const ids = d.items.map(i => i.id).filter(Boolean); if (ids.length) await doc.actor.deleteEmbeddedDocuments("Item", ids);
     if (d.copper) { const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
+    if (parts.length) report.dropped++;
+    log(`Vendor Trash: ${doc.name} dropped`, d.items.map(i => i.name), `${d.copper}c`);
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
   }
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
-  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { drops, coin: coinTotal, given: false, dungeon } } } });
+  const flag = { drops, coin: coinTotal, value: total, given: false, dungeon };
+  const single = { content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
+  // Automatic deaths are gathered into one GM summary when several happen together.
+  if (auto) return Summary.queue({ kind: "trash", body: todo[0]?.uuid, rows, coin: coinTotal, value: total, flag, single }, a => api.fmtMoney(a));
+  return ChatMessage.create(single);
 }
 
 /**
@@ -560,21 +586,24 @@ async function lootCard(docs, api, { auto = false } = {}) {
  * hidden from the pile, so players only see the trash, any boss loot and coin. Creatures that dropped nothing are left alone. A drop pre-rolled when
  * the token was placed is used as it is.
  */
-async function lootPiles(docs, api, { auto = false } = {}) {
+async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {}) {
   const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !((doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) && skipped.push(doc.name)));
+  report.skipped = skipped.length; report.dropped = 0; report.empty = 0;
   if (auto && !todo.length) return;
   await markLooted(todo);
   for (const doc of todo) {
     const actor = doc.actor;
     // Unlinked tokens use (or store) their pre-rolled drop; a linked token's drop is rolled now and added to its actor, as before.
-    const d = await dropOf(doc, api, { store: !doc.actorLink }); if (d.dungeon) dungeon = true;
+    const d = await dropOf(doc, api, { store: !doc.actorLink, tries }); if (d.dungeon) dungeon = true;
     const fresh = [];
     for (const i of d.items.filter(i => !i.id)) { const o = await trashItemData(i.uuid, i.value, cpVal); if (o) { o.system.quantity = i.qty; fresh.push(o); } }
     if (fresh.length) await actor.createEmbeddedDocuments("Item", fresh);
     const parts = d.items.map(i => { total += i.value * i.qty; return itemRow(i, api); });
-    if (!d.items.length && !d.copper) { empty.push(doc.name); continue; }
+    log(`Vendor Trash: ${doc.name} (${d.dungeon ? "dungeon" : "normal"}) dropped`, d.items.map(i => i.name), `${d.copper}c`);
+    if (!d.items.length && !d.copper) { empty.push(doc.name); report.empty++; continue; }
+    report.dropped++;
     if (d.copper) {
       await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
       const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
@@ -586,11 +615,14 @@ async function lootPiles(docs, api, { auto = false } = {}) {
   if (auto && !rows.length) return;
   if (!rows.length && !empty.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
-  return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total, dungeon } } } });
+  const flag = { piles: true, coin: coinTotal, value: total, dungeon };
+  const single = { content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
+  if (auto) return Summary.queue({ kind: "trash", body: todo[0]?.uuid, rows, coin: coinTotal, value: total, flag, single }, a => api.fmtMoney(a));
+  return ChatMessage.create(single);
 }
 
-/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash, and a reset button on looted bodies, piles, bodies that dropped boss loot and linked NPCs carrying trash. With `reroll: false` (Vendor Trash off, Boss loot on) only the reset button. */
-export function addHudButton(hud, html, api, { reroll = true } = {}) {
+/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash, and a reset button on looted bodies, piles, bodies that dropped boss loot and linked NPCs carrying trash. With `allowReroll: false` (Vendor Trash off, Boss loot on) only the reset button. */
+export function addHudButton(hud, html, api, { allowReroll = true } = {}) {
   if (!game.user.isGM) return;
   const root = html instanceof HTMLElement ? html : html?.[0]; const doc = hud.object?.document ?? hud.document;
   const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col) return;
@@ -603,7 +635,7 @@ export function addHudButton(hud, html, api, { reroll = true } = {}) {
     rb.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await confirmReset(api, [doc]); hud.render?.(); });
     col.append(rb);
   }
-  if (!reroll || !autoTarget(doc)) return;
+  if (!allowReroll || !autoTarget(doc)) return;
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "control-icon wct-trash-reroll";
   const f = rolled(doc);

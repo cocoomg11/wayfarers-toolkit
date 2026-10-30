@@ -7,6 +7,7 @@
  */
 import { qualityColor } from "./pane.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
+import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
 const SOCKET = `module.${ID}`;
@@ -26,6 +27,22 @@ const state = m => m?.flags?.[ID]?.lootRoll ?? null;
 /** The character a user rolls for: their assigned character, else the first character they own. */
 const characterOf = u => u?.character ?? game.actors.find(a => a.type === "character" && a.testUserPermission(u, "OWNER")) ?? null;
 
+/**
+ * Who gets the item, best first (pure; tested in Node). `choices` is { userId: { choice, roll, rerolls } }. Need beats Greed; within
+ * the winning tier, the higher last roll wins. Ties are settled by `tieBreak(tiedIds)` (rerolls) before this is called, so equal last
+ * rolls here keep their order. Returns [{ uid, tier, roll }] for Need and Greed choices only, Need first.
+ */
+export function rankChoices(choices = {}) {
+  const last = c => (c.rerolls?.length ? c.rerolls.at(-1) : c.roll) ?? 0;
+  const order = { need: 0, greed: 1 };
+  return Object.entries(choices).filter(([, c]) => c && c.choice in order)
+    .map(([uid, c], i) => ({ uid, tier: c.choice, roll: last(c), i }))
+    .sort((a, b) => order[a.tier] - order[b.tier] || b.roll - a.roll || a.i - b.i)
+    .map(({ uid, tier, roll }) => ({ uid, tier, roll }));
+}
+/** True when some connected user is a GM (pure helper over a user list). */
+export const gmOnline = (users = []) => [...users].some(u => u?.isGM && u.active);
+
 // ---------------------------------------------------------------- the card
 function cardHTML(st) {
   const rows = Object.entries(st.choices ?? {}).map(([uid, c]) => {
@@ -37,7 +54,9 @@ function cardHTML(st) {
   let foot;
   if (st.status === "open") foot = `<div class="wct-loot-buttons">${Object.entries(CHOICES).map(([k, c]) => `<button type="button" data-wct-loot="${k}" class="${k}"><i class="fa-solid ${c.icon}"></i> ${c.label}</button>`).join("")}</div>
       <p class="wct-loot-timer"><i class="fa-solid fa-hourglass-half"></i> <span data-wct-loot-ends="${st.ends}"></span>${waiting.length ? ` · waiting on ${waiting.join(", ")}` : ""}</p>
-      <button type="button" data-wct-loot="close" class="wct-loot-close"><i class="fa-solid fa-gavel"></i> Close the roll now</button>`;
+      <p class="wct-loot-nogm" hidden><i class="fa-solid fa-plug-circle-xmark"></i> A GM needs to be connected.</p>
+      <button type="button" data-wct-loot="close" class="wct-loot-close"><i class="fa-solid fa-gavel"></i> Close the roll now</button>
+      <div class="wct-loot-assign" data-wct-loot-assign><select aria-label="Assign to"></select><button type="button" data-wct-loot="assign"><i class="fa-solid fa-hand-holding"></i> Assign to…</button></div>`;
   else foot = `<p class="wct-loot-result">${st.result ?? ""}</p>`;
   return `<div class="wct-loot-card" style="--q:${esc(st.color)}">
     <header><img src="${esc(st.img)}" alt=""><div><small>Loot roll${st.pileName ? ` · ${esc(st.pileName)}` : ""}</small><h3>${esc(st.name)}${st.quantity > 1 ? ` <span class="qty">×${st.quantity}</span>` : ""}</h3></div></header>
@@ -92,7 +111,26 @@ async function choose(messageId, userId, choice) {
   if (done) await resolve(messageId);
 }
 
-/** Settles the roll: Need beats Greed, highest d100 wins, ties reroll among the tied. Moves the item to the winner's character. */
+/** Moves the item from its pile to `actor` with Item Piles. Item Piles 3.3 wants Item documents (not ids). Throws on failure. */
+async function moveTo(item, actor) {
+  const IP = itemPiles(); if (!IP) throw new Error("Item Piles isn't active");
+  const res = await IP.transferItems(item.parent, actor, [item]);
+  if (Array.isArray(res) && !res.length) throw new Error("Item Piles moved nothing");
+  return res;
+}
+/** Whispers the winner's user (and only them) that they won. */
+function tellWinner(user, actor, st) {
+  if (!user) return;
+  return ChatMessage.create({ whisper: [user.id], speaker: { alias: "Loot" }, content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> You won <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}${actor ? `; it's on ${esc(actor.name)}` : ""}.</p>` });
+}
+async function announce(actor, st) {
+  await ChatMessage.create({ content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> <strong>${esc(actor.name)}</strong> receives <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}.</p>`, speaker: { alias: "Loot" } });
+}
+
+/**
+ * Settles the roll: Need beats Greed, highest d100 wins, ties reroll among the tied. Moves the item to the winner's character. If the
+ * winner has no character, their actor is gone or the move fails, the next-best valid roll (Need before Greed) gets it, and the card says so.
+ */
 async function resolve(messageId) {
   clearTimeout(timers.get(messageId)); timers.delete(messageId);
   const message = game.messages.get(messageId); const st = foundry.utils.deepClone(state(message));
@@ -102,35 +140,75 @@ async function resolve(messageId) {
   const tier = ["need", "greed"].find(k => entries.some(([, c]) => c.choice === k));
   if (!tier) {
     st.result = entries.length ? "Everyone passed. The item stays where it is." : "Nobody rolled. The item stays where it is.";
+    log("Loot roll:", st.name, st.result);
     await save(message, st); return;
   }
-  let tied = entries.filter(([, c]) => c.choice === tier).map(([uid]) => uid);
+  // Ties at the top of each tier are rerolled now, so the ranking below is strict where it matters.
   const last = uid => { const c = st.choices[uid]; return c.rerolls?.length ? c.rerolls.at(-1) : c.roll; };
-  for (let guard = 0; guard < 20; guard++) {
-    const top = Math.max(...tied.map(last)); tied = tied.filter(uid => last(uid) === top);
-    if (tied.length === 1) break;
-    for (const uid of tied) (st.choices[uid].rerolls ??= []).push(await d100());
+  for (const k of ["need", "greed"]) {
+    let tied = entries.filter(([, c]) => c.choice === k).map(([uid]) => uid);
+    for (let guard = 0; guard < 20 && tied.length > 1; guard++) {
+      const top = Math.max(...tied.map(last)); tied = tied.filter(uid => last(uid) === top);
+      if (tied.length === 1) break;
+      for (const uid of tied) (st.choices[uid].rerolls ??= []).push(await d100());
+    }
   }
-  const winner = tied[0]; st.winner = winner;
-  const user = game.users.get(winner); const actor = characterOf(user);
-  const label = `${CHOICES[tier].label} ${last(winner)}`;
+  const ranked = rankChoices(st.choices);
   const item = await fromUuid(st.itemUuid);
   if (!item || item.parent?.uuid !== st.pileUuid) {
-    st.result = `${esc(st.names?.[winner] ?? user?.name)} won (${label}), but ${esc(st.name)} is no longer in the pile.`;
+    const w = ranked[0]; st.winner = w.uid;
+    st.result = `${esc(st.names?.[w.uid] ?? game.users.get(w.uid)?.name)} won (${CHOICES[w.tier].label} ${w.roll}), but ${esc(st.name)} is no longer in the pile.`;
     await save(message, st); return;
   }
-  if (!actor) { st.result = `${esc(user?.name)} won (${label}) but has no character; the item stays in the pile.`; await save(message, st); return; }
-  try { await itemPiles().transferItems(item.parent, actor, [item.id]); }
-  catch (e) { st.result = `${esc(actor.name)} won (${label}), but the item couldn't be moved: ${esc(e.message)}`; await save(message, st); throw e; }
-  st.result = `<strong>${esc(actor.name)}</strong> wins ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} (${label}).`;
+  const notes = [];
+  for (const r of ranked) {
+    const user = game.users.get(r.uid); const actor = characterOf(user); const label = `${CHOICES[r.tier].label} ${r.roll}`;
+    const who = esc(st.names?.[r.uid] ?? user?.name ?? "?");
+    if (!user || !actor) { notes.push(`${who} (${label}) has no character`); continue; }
+    try { await moveTo(item, actor); }
+    catch (e) { console.warn(`${ID} | loot roll transfer to ${actor.name}`, e); notes.push(`${esc(actor.name)} (${label}) couldn't receive it: ${esc(e.message)}`); continue; }
+    st.winner = r.uid;
+    st.result = `<strong>${esc(actor.name)}</strong> wins ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} (${label}).${notes.length ? `<br><span class="hint">Passed on: ${notes.join("; ")}.</span>` : ""}`;
+    log("Loot roll:", st.name, "→", actor.name, label, notes);
+    await save(message, st);
+    await announce(actor, st); await tellWinner(user, actor, st);
+    return;
+  }
+  st.result = `Nobody who rolled could receive ${esc(st.name)} (${notes.join("; ")}). It stays in the pile.`;
+  log("Loot roll:", st.name, "no valid winner", notes);
   await save(message, st);
-  await ChatMessage.create({ content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> <strong>${esc(actor.name)}</strong> receives <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}.</p>`, speaker: { alias: "Loot" } });
+}
+
+/** GM: ends an open roll and gives the item to `actorId` (a player character or the party actor). */
+async function assign(messageId, actorId) {
+  clearTimeout(timers.get(messageId)); timers.delete(messageId);
+  const message = game.messages.get(messageId); const st = foundry.utils.deepClone(state(message));
+  if (!st || st.status !== "open") return;
+  const actor = game.actors.get(actorId); if (!actor) return ui.notifications.warn("Loot roll: pick who gets it.");
+  const item = await fromUuid(st.itemUuid);
+  st.status = "done";
+  if (!item || item.parent?.uuid !== st.pileUuid) { st.result = `${esc(st.name)} is no longer in the pile.`; await save(message, st); return; }
+  try { await moveTo(item, actor); }
+  catch (e) { st.status = "open"; await save(message, st); schedule(message); throw new Error(`couldn't give ${st.name} to ${actor.name} (${e.message})`); }
+  st.result = `The GM gave ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} to <strong>${esc(actor.name)}</strong>.`;
+  log("Loot roll:", st.name, "assigned to", actor.name);
+  await save(message, st); await announce(actor, st);
+  const owner = game.users.find(u => !u.isGM && (u.character?.id === actor.id)) ?? null;
+  if (owner) await tellWinner(owner, actor, st);
+}
+
+/** Actors the GM can assign to: player characters, then the party actor. */
+function assignees() {
+  const party = game.actors.find(a => a.type === "group" && a.name === (() => { try { return game.settings.get(ID, "partyActor"); } catch { return ""; } })());
+  const pcs = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).sort((a, b) => a.name.localeCompare(b.name));
+  return [...pcs, ...(party ? [party] : [])];
 }
 
 // ---------------------------------------------------------------- every client
-function send(message, choice) {
+function send(message, choice, extra = {}) {
   if (choice === "close") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => resolve(message.id)) : game.socket.emit(SOCKET, { action: "lootClose", messageId: message.id, userId: game.user.id }); return; }
-  if (!activeGM()) return ui.notifications.warn("A GM needs to be logged in to roll for loot.");
+  if (choice === "assign") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => assign(message.id, extra.actorId)) : game.socket.emit(SOCKET, { action: "lootAssign", messageId: message.id, userId: game.user.id, actorId: extra.actorId }); return; }
+  if (!activeGM()) { ui.notifications.warn("A GM needs to be connected."); return false; }
   if (isGMClient()) return queue(message.id, () => choose(message.id, game.user.id, choice));
   game.socket.emit(SOCKET, { action: "lootChoice", messageId: message.id, userId: game.user.id, choice });
 }
@@ -140,12 +218,25 @@ function onRender(message, html) {
   if (st.status === "open" && isGMClient() && !timers.has(message.id)) schedule(message);
   const root = html instanceof HTMLElement ? html : html?.[0]; if (!root) return;
   const mine = st.eligible?.includes(game.user.id) && !st.choices?.[game.user.id];
+  const assignBox = root.querySelector("[data-wct-loot-assign]");
+  if (assignBox) {
+    if (!game.user.isGM) assignBox.remove();
+    else assignBox.querySelector("select").innerHTML = assignees().map(a => `<option value="${esc(a.id)}">${esc(a.name)}${a.type === "group" ? " (party)" : ""}</option>`).join("");
+  }
   root.querySelectorAll("[data-wct-loot]").forEach(b => {
     const k = b.dataset.wctLoot;
-    if (k === "close" ? !game.user.isGM : !mine) return b.remove();
-    b.addEventListener("click", ev => { ev.preventDefault(); root.querySelectorAll("[data-wct-loot]").forEach(x => { x.disabled = true; }); send(message, k); });
+    if ((k === "close" || k === "assign") ? !game.user.isGM : !mine) return b.remove();
+    if (k === "assign") return b.addEventListener("click", ev => { ev.preventDefault(); const actorId = assignBox?.querySelector("select")?.value; if (!actorId) return ui.notifications.warn("Loot roll: no player character or party actor to assign to."); b.disabled = true; send(message, "assign", { actorId }); });
+    b.addEventListener("click", ev => {
+      ev.preventDefault();
+      const btns = root.querySelectorAll("[data-wct-loot]:not([data-wct-loot=close]):not([data-wct-loot=assign])");
+      btns.forEach(x => { x.disabled = true; });
+      if (send(message, k) === false) btns.forEach(x => { x.disabled = false; });
+      else btns.forEach(x => { x.dataset.wctChosen = "1"; });
+    });
   });
   if (!root.querySelector(".wct-loot-buttons button")) root.querySelector(".wct-loot-buttons")?.remove();
+  if (mine) { cards.add(root); gmState(root); }
   const span = root.querySelector("[data-wct-loot-ends]"); if (!span) return;
   const tick = () => {
     if (!span.isConnected && iv) { clearInterval(iv); return; }
@@ -155,6 +246,16 @@ function onRender(message, html) {
   };
   let iv = null; tick(); iv = setInterval(tick, 1000);
 }
+
+/** Open cards on this client with choice buttons, so they can be enabled and disabled as GMs connect and leave. */
+const cards = new Set();
+/** Disables a card's choice buttons (with a note) while no GM is connected. */
+function gmState(root) {
+  const none = !activeGM();
+  root.querySelectorAll(".wct-loot-buttons button").forEach(b => { if (!b.dataset.wctChosen) b.disabled = none; });
+  const note = root.querySelector(".wct-loot-nogm"); if (note) note.hidden = !none;
+}
+function refreshCards() { for (const r of cards) { if (!r.isConnected) cards.delete(r); else gmState(r); } }
 
 /** Dice button on each item row of an Item Piles pile window, for the GM. */
 function addPileButton(element, item) {
@@ -173,22 +274,32 @@ function addPileButton(element, item) {
 export function init() {
   game.settings.register(ID, "lootRollSeconds", {
     name: "Loot rolls: time to choose (seconds)", hint: "How long players have to pick Need, Greed or Pass. The GM can close a roll early from its chat card.",
-    scope: "world", config: true, type: Number, default: 60, range: { min: 10, max: 300, step: 5 }
+    scope: "world", config: false, type: Number, default: 60, range: { min: 10, max: 300, step: 5 }
   });
   Hooks.on("renderChatMessageHTML", onRender);
   Hooks.on("item-piles-renderPileItem", addPileButton);
+  // Players' Need / Greed / Pass buttons follow whether a GM is connected. activeGM() reads user.active, which Foundry updates
+  // just after this hook, so check on the next tick.
+  Hooks.on("userConnected", () => setTimeout(refreshCards, 0));
 }
 
 /** Called from the module's ready hook: the GM's socket handler, and timers for rolls still open after a reload. */
 export function ready() {
   game.socket.on(SOCKET, (msg, senderId) => {
-    if (!isGMClient() || !msg?.messageId || !["lootChoice", "lootClose"].includes(msg.action)) return;
+    if (!isGMClient() || !msg?.messageId || !["lootChoice", "lootClose", "lootAssign"].includes(msg.action)) return;
     // Foundry passes the sender's user id; fall back to the one in the message.
     const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
     if (msg.action === "lootChoice") queue(msg.messageId, () => choose(msg.messageId, uid, msg.choice));
-    else if (game.users.get(uid)?.isGM) queue(msg.messageId, () => resolve(msg.messageId));
+    else if (msg.action === "lootAssign" && game.users.get(uid)?.isGM) queue(msg.messageId, () => assign(msg.messageId, msg.actorId));
+    else if (msg.action === "lootClose" && game.users.get(uid)?.isGM) queue(msg.messageId, () => resolve(msg.messageId));
   });
   if (isGMClient()) for (const m of game.messages) if (state(m)?.status === "open") schedule(m);
 }
 
-export const api = { start, close: id => (game.user.isGM && isGMClient() ? queue(id, () => resolve(id)) : null) };
+export const api = {
+  start,
+  close: id => (game.user.isGM && isGMClient() ? queue(id, () => resolve(id)) : null),
+  /** GM: ends an open roll and gives the item to an actor (player character or party actor). */
+  assign: (id, actor) => (game.user.isGM && isGMClient() ? queue(id, () => assign(id, actor?.id ?? actor)) : null),
+  rankChoices
+};

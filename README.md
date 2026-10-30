@@ -4,6 +4,8 @@ A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the *
 
 The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world under **Choose features**.
 
+What changed in each version: [CHANGELOG](CHANGELOG.md).
+
 ## Features
 
 | Tool | What it does |
@@ -45,7 +47,7 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, macros on empty hotbar slots) and never overwrites existing documents.
 
-**Setup reminder.** After each module update, the first time the world loads the GM gets a whisper if Run setup would add anything for the features turned on ("Wayfarer's Toolkit 1.13.0: Run setup to add: …") with a **Run setup** button. It's sent once per version, not on every load.
+**Setup reminder.** After each module update, the first time the world loads the GM gets a whisper if Run setup would add anything for the features turned on ("Wayfarer's Toolkit 1.14.0: Run setup to add: …") with a **Run setup** button. It's sent once per version, not on every load.
 
 ### Health check
 
@@ -54,10 +56,26 @@ Enable the module in your world, then open **Game Settings → Configure Setting
 - which features are on;
 - dependencies: Item Piles and Item Piles: D&D 5e, the vendor-trash compendiums, and whether the coins match the Coin system setting (and Item Piles' currencies in three-coin mode);
 - setup: each macro, the tracker journal and pages, the party actor, the Vendor Trash Rules page and the riding feat, for the features turned on, with a **Run setup** button when something's missing;
-- boss loot: every actor and token with a table linked, whether the table exists, how many results resolve to items, and whether there are more draws than usable results. Links that would fall back to vendor trash are flagged;
+- boss loot: the party size and what it does to boss loot, every actor and token with a table linked, whether the table exists, how many results resolve to items, the draws and coin adjusted for the party size, and whether there are more draws than usable results. Links that would fall back to vendor trash are flagged. Creatures with a table named for them but not linked get a **Link boss tables by name** button;
 - how many actors and tokens are marked **No loot**;
-- problems on the Vendor Trash Rules page, scenes marked Dungeon, and Flight Master points whose scene is missing or routes naming an unknown point;
+- problems on the Vendor Trash Rules page, scenes marked Dungeon, Flight Master points whose scene is missing (✗) or not set (⚠ "no scene: flying there won't open a scene", still allowed), routes naming an unknown point, and malformed Flight Routes rows (named by table, row and column);
+- the Encounter zones setting: invalid JSON (with where the problem is) and zones whose roll table doesn't exist;
 - the active GM and how many GMs are online.
+
+### Remove toolkit data
+
+**Remove toolkit data** (a button in the module settings, GM only) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
+
+- toolkit flags (`flags.wayfarers-toolkit`) on actors, on tokens on every scene, on scenes (Dungeon), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests);
+- optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
+- optionally, the **world macros Run setup made** (macros carrying the toolkit's macro flag);
+- optionally, **reset the module's settings** to their defaults (feature toggles included; Foundry offers to reload).
+
+Type **REMOVE** and click **Remove**. Nothing else is touched: your own documents, other modules' flags and items the toolkit didn't create stay. Item Piles piles stay piles (use Reset loot on them first if you want normal tokens back). What was removed is shown in a notification and whispered to the GMs. It doesn't need to be the active GM. From a macro: `api.cleanup.plan()` counts, `api.cleanup.remove({ actors: true, tokens: true, … })` removes.
+
+### Debug logging
+
+**General settings… → General: Debug logging** (off by default) writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM's client ran an automatic step, the creature kind, CR band and items rolled, boss loot draws, and how each loot roll was settled. With it off nothing is logged.
 
 ### Several GMs
 
@@ -77,23 +95,35 @@ A tool that's turned off adds nothing: no buttons, macros, key bindings, chat bu
 
 ## Configure
 
-All settings are per world:
+The module's settings list shows **Choose features**, **Health check**, **Run setup**, **Remove toolkit data**, **Party size**, **Coin system** and **Campaign name**, and a button per group that opens that group's settings:
 
+| Button | Settings |
+| --- | --- |
+| **General settings…** | Tracker journal, Party actor, Set Item Piles coins for three coins, Debug logging |
+| **Travel settings…** | Hex Travel (encounter zones, encounter die, off-road and mounted multipliers, paces), Flight Master (players can book, fare unit, sound, volume), Session Start (hidden scenes), Riding Training (feat name) |
+| **Vendor Trash settings…** | Compendiums, Use Item Piles, roll on placement, lootable on death, the dungeon settings |
+| **Boss loot & frames settings…** | Drop automatically on death, Extra drop for parties above 4, what players see on boss frames, treat tokens with boss loot as bosses; and a **Link boss tables by name** button |
+| **Loot rolls settings…** | Time to choose |
+| **Quest log settings…** | Quest folder, objectives in chat, sounds, volume |
+
+Each setting is labelled "Feature: setting". A group whose features are all turned off has no button, and settings of a turned-off feature aren't listed. (The settings kept their keys from earlier versions, so nothing you set before is lost.)
+
+- **Party size** (1–8, default 4): how many characters the party has. Boss loot uses it (see [Boss loot](#boss-loot)).
 - **Campaign name**: used in the session recap heading.
 - **Tracker journal / Party actor**: document names the tools look for.
-- **Encounter zones**: JSON mapping a zone name to an encounter roll table, e.g. `{"Forest": "Encounters · Forest"}`.
+- **Encounter zones**: JSON mapping a zone name to an encounter roll table, e.g. `{"Forest": "Encounters · Forest"}`. If it isn't valid JSON, the GM gets a notification naming the setting and where the problem is ("invalid JSON at line 1, column 11"); zones naming a table that doesn't exist are listed too (also in the health check).
 - **Encounter die, off-road multiplier, mounted multiplier, pace speeds**.
 - **Scenes hidden from Session Start**: a regular expression.
 
 ### Flight routes
 
-The tracker journal's **Flight Routes** page holds two tables: flight points (name, scene to open on arrival, unlocked yes/no) and routes (from, to, fare per passenger, hours). Write fares with coins, like `2s`, `1g 20s` or `75c`; a plain number such as `2` is read in the *Fare unit* setting (gold by default). Edit the tables directly; Flight Master reads the page each time.
+The tracker journal's **Flight Routes** page holds two tables: flight points (name, scene to open on arrival, unlocked yes/no) and routes (from, to, fare per passenger, hours). Write fares with coins, like `2s`, `1g 20s` or `75c`; a plain number such as `2` is read in the *Fare unit* setting (gold by default). Edit the tables directly; Flight Master reads the page each time. When a row is malformed (missing columns, an empty name, a fare or hours that can't be read, a point listed twice), the GM gets a warning naming the table, row and column ("Routes row 2, Fare: "x2" isn't a fare"), and the health check lists them all. A flight point with no scene is allowed; flying there just doesn't open a scene.
 
-**Players and Flight Master.** With *Players can use Flight Master* on (the default), players get a feather button in the token controls and, after setup, the Flight Master macro on their hotbar. A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be connected ("A GM needs to be connected to fly."). Players see a copy of the flight points and routes, never the GM journal itself.
+**Players and Flight Master.** With *Flight Master: Players can book flights* on (the default, in Travel settings…), players get a feather button in the token controls and, after setup, the Flight Master macro on their hotbar. A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be connected ("A GM needs to be connected to fly."). Players see a copy of the flight points and routes, never the GM journal itself.
 
-**Checks before a flight.** Before anyone confirms, Flight Master shows the route, the fare per passenger × passengers = total, the party purse and the flight time. A flight is refused, with nothing charged, when the party can't afford it ("needs X, has Y (short Z)"), when the destination's scene doesn't exist, or when a route names a flight point that isn't in the Flight Points table. The active GM's client checks everything again before charging; if the destination scene then can't be opened, the fare is refunded and the GM (and the player who booked) is told.
+**Checks before a flight.** Before anyone confirms, Flight Master shows the route, the fare per passenger × passengers = total, the party purse and the flight time. A flight is refused (a window with an **OK** button), with nothing charged, when the party can't afford it ("needs X, has Y (short Z)"), when the destination's scene doesn't exist, or when a route names a flight point that isn't in the Flight Points table. The active GM's client checks everything again before charging; if the destination scene then can't be opened, the fare is refunded and the GM (and the player who booked) is told.
 
-**Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in the *Flight sound* setting, or clear it for silence.
+**Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in the *Flight Master: Departure sound* setting, or clear it for silence.
 
 ## Vendor Trash
 
@@ -116,11 +146,13 @@ Every item is priced at its vendor value and marked as vendor trash. Each token 
 | **Roll trash loot when NPC tokens are placed** | on | Pre-rolls the drop of every unlinked NPC token as it's placed. Off: the drop is rolled when the body is looted. |
 | **Make bodies lootable automatically on death** | on | At 0 HP or when marked defeated, the body becomes an Item Piles pile (or, without Item Piles, the GM gets the Give to Party card). Off: run the Vendor Trash macro yourself. |
 
-Both settings belong to Vendor Trash and only show when it's turned on. The rolling and looting happen on the active GM's client, so a GM has to be logged in.
+Both are in **Vendor Trash settings…**, which only shows when Vendor Trash is turned on. The rolling and looting happen on the active GM's client, so a GM has to be logged in.
+
+**Several deaths at once.** When several bodies become lootable within about a second and a half of each other (an area spell), the GM gets **one** summary card instead of one per creature: a Vendor Trash section and a Boss loot section, a line per creature and the totals. The Give to Party and per-item **Start loot roll** buttons are on it as usual.
 
 ### With Item Piles: loot the bodies
 
-When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is active (and *Vendor Trash uses Item Piles* is on, the default), Vendor Trash puts each creature's drop and coin on that creature and turns its token into an Item Pile. The token keeps its image and name. Players double-click the body (standing next to it) to open it and take the items and coin, which go onto their own character. The GM gets a short summary card. A creature that dropped nothing is left as it is.
+When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is active (and *Vendor Trash: Use Item Piles* is on, the default), Vendor Trash puts each creature's drop and coin on that creature and turns its token into an Item Pile. The token keeps its image and name. Players double-click the body (standing next to it) to open it and take the items and coin, which go onto their own character. The GM gets a short summary card. A creature that dropped nothing is left as it is.
 
 - **Only the loot shows.** The creature's own weapons, armor and features stay on it but are hidden from the pile, so players see just the trash and coin.
 - **The world actor isn't touched** for ordinary unlinked tokens: the loot goes onto the token's own copy of the actor. (If an NPC's token is linked to its actor, the loot goes onto that actor.)
@@ -152,11 +184,11 @@ What drops depends on the creature: its type, its subtype and the words in its n
 
 **Material tags.** Each item is sorted by the words in its name: `fur` (fur, pelt, hide, leather, mane…), `tooth` (tooth, tusk, horn, fang, claw…), `flesh` (meat, flank, heart, eye, gland…), `insect` (chitin, carapace, mandible, stinger, ichor, silk, web…), `venom`, `egg`, `scale`, `avian` (feather, talon, beak, quill), `wing`, `aquatic` (fin, gill, blubber, pearl), `shell`, `undead` (bone, skull, dust, grave…), `elemental` (stone, ash, ember, essence, shard, crystal…), `plant` (root, petal, spore, bark, leaf…), `ooze` (slime, goo, residue) and `trinket` (made things: spoons, mugs, pouches, candles, rings…). Weapons and armour are `gear`; loot whose name matches nothing is `misc`, which humanoids and creatures of unusual types can drop.
 
-**Creature words.** The creature's name and subtype are matched against ordinary English animal words (wolf, hound, bear, boar, cat, stag, rat, ape, spider, scorpion, beetle, wasp, crab, turtle, crocodile, lizard, snake, raptor, bat, owl, hawk, vulture, wyvern, shark, gnoll, kobold, goblin, orc, ogre, troll, dragon, drake, whelp, skeleton, zombie, ghost…). The words decide which materials it may drop. If the sheet has no creature type the name decides the type too (a "Mangy Wolf" is a beast, a "Bandit Lookout" a humanoid).
+**Creature words.** The creature's name and subtype are matched against ordinary English animal words (wolf, hound, bear, boar, cat, stag, rat, ape, spider, scorpion, beetle, wasp, crab, turtle, crocodile, lizard, snake, raptor, bat, owl, hawk, vulture, wyvern, shark, gnoll, kobold, goblin, orc, ogre, troll, dragon, drake, whelp, skeleton, zombie, ghost…). The words decide which materials it may drop. If the sheet has no creature type the name decides the type too (a "Mangy Wolf" is a beast, a "Bandit Lookout" a humanoid). A humanoid race word (gnoll, kobold, goblin, orc, ogre, troll) in the name or subtype makes the creature a humanoid whatever its type on the sheet, so a gnoll statted as a fiend still drops trinkets, gear and coin; so does a role word such as *bandit* or *guard* when no animal word is beside it. Dragons, undead, elementals, constructs, oozes and plants keep their type (a gnoll lich drops bones).
 
 **Family words.** If an item's name contains a creature-family word, only creatures of that family drop it. The family words are the animal words above plus the first word of every NPC name in your world (skipping words such as *Young*, *Mangy* or colours) and any listed on the rules page. So once a "Duskwing Stalker" exists in the world, a "Duskwing Chitin" only drops from creatures whose name contains *Duskwing*, never from ordinary spiders, without that name being written anywhere in the module. Items named after the creature are picked first (75% of the time). Items matching no rule fall back to the creature type's usual kinds of junk.
 
-**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items, their item levels and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
+**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items, their item levels and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor Trash: Compendiums**; in those, loot-type items with no rarity count as trash.
 
 ### No loot
 
@@ -342,6 +374,8 @@ Select a token, open its token HUD (right-click) and click the **crown** button 
 
 While a combat is running and a marked boss is one of its combatants, every connected client sees its frame at the top centre of the screen: the token image, its name and a health bar that updates as it takes damage (temporary hit points show as a striped segment). Several bosses stack. The frame goes away when the combat ends, the boss is removed from it or unmarked. A boss at 0 HP or marked defeated stays on screen, greyed out, until the combat ends. Hidden combatants and hidden tokens aren't shown to players.
 
+With the **Carousel Combat Tracker** module showing its dock along the top of the screen, the default stack sits just below the dock instead of under it, and follows it when it changes size. Frames you've moved stay where you put them.
+
 Each user can arrange the frames on their own screen. Drag a group's top frame to move the whole group; drag any other frame to pull it out on its own. Drop a frame within a few pixels of another frame's edge and it snaps flush against it (a dashed outline shows where) and joins that group; new bosses join the main stack. The layout is remembered on that browser and kept on-screen after a resize. Double-click any frame to put them all back in one stack at the top centre.
 
 **Boss frames: what players see** (world setting): *Bar only*, *Bar and percentage* or *Exact HP*. The GM always sees exact hit points.
@@ -355,11 +389,17 @@ Frames show only for the combat on the scene you're viewing, and a frame disappe
 Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without it the feature just adds nothing.
 
 1. Open an Item Piles pile or lootable body as the GM. Each item row has a **dice** button (*Roll for this*), next to *Take*. From a macro: `game.modules.get("wayfarers-toolkit").api.lootRoll.start(itemOrUuid, { seconds })`.
-2. A **Loot roll** chat card shows the item's name, icon and rarity colour, with **Need**, **Greed** and **Pass** buttons and a countdown (**Loot rolls: time to choose**, default 60 seconds). Every logged-in player who has a character can choose once; the GM can **Close the roll now**.
+2. A **Loot roll** chat card shows the item's name, icon and rarity colour, with **Need**, **Greed** and **Pass** buttons and a countdown (**Loot rolls: time to choose** in Loot rolls settings…, default 60 seconds). Every logged-in player who has a character can choose once; the GM can **Close the roll now**.
 3. Each choice goes to the GM's client, which rolls a d100 for Need and Greed and writes it on the card, so everyone sees every roll and nobody can set their own.
 4. When everyone has chosen or time runs out: the highest Need wins; if nobody chose Need, the highest Greed. Ties reroll among the tied players. The item (the whole stack) moves from the pile to the winner's assigned character (or the first character they own) through Item Piles, and the result is posted to chat. If everyone passes or nobody answers, the item stays in the pile.
 
-A GM must be logged in for players' choices to count. An open roll survives a GM reload and closes when its time is up.
+**If the winner can't take it** (they have no character, their character was deleted, or Item Piles can't move the item), the item goes to the next-best roll (Need before Greed, then by roll) and the card says who was passed over and why. If nobody who rolled can receive it, it stays in the pile.
+
+**Assign to…** The GM's copy of an open card has a dropdown of the player characters and the party actor and an **Assign to…** button: it ends the roll and moves the item there straight away.
+
+The winner gets a whisper, "You won *item*", as well as the public line.
+
+A GM must be connected for players' choices to count. While none is, players' Need / Greed / Pass buttons are disabled with "A GM needs to be connected." and come back when a GM connects. An open roll survives a GM reload and closes when its time is up.
 
 ## Boss loot
 
@@ -370,11 +410,15 @@ Hand-picked drops for named creatures, alongside (or instead of) vendor trash. W
 3. When the creature drops to 0 HP or is marked defeated, the active GM's client draws the table once: `draws` results, weighted, without replacement (the same item never drops twice in one draw). The roll table itself is never changed, so "drawn" marks on it don't matter. The items are copied onto the body and, with Item Piles, it becomes a lootable pile showing only loot (vendor trash and boss loot) and coin; the creature's own gear stays hidden. Without Item Piles the GM's card has a **Give to Party** button.
 4. The GM gets a card "*Name* dropped:" with a link per item and, when Loot rolls is on, a **Start loot roll** button per item.
 
-**Fallback.** If the linked table has been deleted, has no results that can drop, or the draw finds none of the items its results point at, the body gets the normal vendor-trash drop instead (unless it's marked No loot) and the GM is whispered which creature and why. The health check lists these links in advance.
+**Party size.** Boss coin is scaled by the **Party size** setting: `coinCp × party size / 4`, rounded to the copper (a 1,000c boss drops 1,250c for five). The flag itself is not changed. With **Boss loot: extra drop for parties above 4** on (the default), a boss with 3 or more draws draws one more for a party of 5 or more, never more than its table's usable results. Preview Boss Loot and the health check show the adjusted coin and draws next to the ones set.
+
+**Link boss tables by name.** If your tables are named after their creatures, link them all at once: **Boss loot & frames settings… → Link boss tables by name**, the button in the health check, or `api.bossLoot.autoLink({ folder, overwrite })`. Every world NPC actor without a boss loot link gets the world roll table named exactly "*Actor name* · Loot" (also "*Actor name* - Loot" or "Loot: *Actor name*"), with 1 draw and no coin, unless the table says otherwise: a table flag `flags.wayfarers-toolkit.bossLootDefaults = { draws, coinCp, note }`, or "draws: 2" / "coin: 1500" (copper) in the table's description. Existing links are never changed unless `overwrite: true`. `folder` (a folder, its id or name) limits it to actors in that folder. You get a notification and a whisper listing what was linked and skipped.
+
+**Fallback.** If the linked table has been deleted, has no results that can drop, or the draw finds none of the items its results point at, the body gets the normal vendor-trash drop instead (unless it's marked No loot) and the GM is whispered which creature, why and what happened: "vendor trash dropped instead", "no vendor trash rolled for it either", "its vendor trash is already on the body", or why there's none (Vendor Trash off, No loot, no compendium). A linked boss has no pre-rolled trash, so its fallback drop is rolled then (up to three tries before it counts as empty). The health check lists these links in advance.
 
 Each death draws once: healing and dying again doesn't draw again. **Reset loot** (token HUD) removes the boss loot items as well as vendor trash and lets it draw again. **Boss loot: drop automatically on death** (world setting, on by default) can be turned off; then drop it yourself with `api.bossLoot.drop(tokens)`.
 
-**Preview Boss Loot** (macro) whispers the GM a card per selected token: the table, the number of draws, coin, note, and every result with its weight and its chance per draw.
+**Preview Boss Loot** (macro) whispers the GM a card per selected token: the table, the number of draws and coin (adjusted for the party size), note, and every result with its weight and its chance per draw.
 
 ### Flag format
 
@@ -403,6 +447,7 @@ await api.bossLoot.set(token, { table: "RollTable.abc123def456ghi7", draws: 2, c
 api.bossLoot.get(token.actor);   // { table, draws, coinCp, note } or null
 api.bossLoot.preview(token);     // GM card with the odds
 api.bossLoot.drop([token]);      // drop now (skipped if it already dropped)
+await api.bossLoot.autoLink();   // link tables named "<creature> · Loot"; { folder, overwrite }
 ```
 
 ## Three-coin economy (copper, silver, gold)
@@ -413,7 +458,7 @@ An optional classic-MMO-style economy: no electrum or platinum, and **100 copper
 
 1. **Platinum and electrum are converted for you.** Each time the world loads in three-coin mode (and when you **Run setup**), the GM's client turns any pp or ep left on actors, containers and unlinked tokens into the new coins: **1 pp = 10 gold** and **1 ep = 50 silver** (half a gold piece, its standard 5e value), and whispers the GM who was changed. If you'd rather decide yourself, convert or remove them while you're still on Standard.
 2. Open **Game Settings → Configure Settings → Wayfarer's Toolkit** and set **Coin system** to *Three coins: copper, silver, gold (100 to 1)*. Save; Foundry reloads.
-3. Set **Fare unit** to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
+3. Set **Flight Master: Fare unit** (Travel settings…) to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
 4. Check a sheet: the currency block should show only copper, silver and gold, left to right.
 
 To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they are; they're just read at 5e rates again.
@@ -426,7 +471,7 @@ To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they 
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash, `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash, `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ## License
 
@@ -442,5 +487,7 @@ This is an unofficial fan-made module. It is not affiliated with or endorsed by 
 Bug reports and suggestions: [GitHub issues](https://github.com/cocoomg11/wayfarers-toolkit/issues).
 
 ## Building from source
+
+Tests: `npm test` runs the pure-logic tests in `tests/` with Node's built-in test runner (Node 22; nothing to install), and `npm run check` syntax-checks every script. Both run on GitHub Actions for every push and pull request to `main`.
 
 The compendium sources live in `src/packs/macros` as JSON and are generated from `scripts/macros.mjs`, the same list Run setup uses. After changing a macro, run `node tools/build-packs.mjs sources` and commit the JSON. The release workflow installs `@foundryvtt/foundryvtt-cli`, checks the sources are current, compiles them into `packs/macros` (LevelDB) and adds `packs/` to `module.zip`. To build locally: `npm install`, then `node tools/build-packs.mjs compile`.

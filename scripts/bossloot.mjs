@@ -16,6 +16,8 @@
 import * as Trash from "./trash.mjs";
 import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
+import { log, byWhom } from "./log.mjs";
+import * as Summary from "./summary.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tokenDoc = t => t?.document ?? t;
@@ -83,6 +85,48 @@ export function odds(results) {
   return results.map(r => { const w = Math.max(0, Number(r.weight ?? 1) || 0); return { result: r, weight: w, pct: total ? (100 * w) / total : 0 }; });
 }
 
+// ---------------------------------------------------------------- party size (pure)
+/** Party size as a whole number from 1 to 8 (default 4). */
+export const clampParty = n => Math.min(8, Math.max(1, Math.floor(Number(n) || 4)));
+/** Boss coin for the party size: coinCp × partySize / 4, rounded to the copper. The stored flag is never changed. */
+export const scaledCoin = (coinCp, partySize = 4) => Math.max(0, Math.round((Number(coinCp) || 0) * clampParty(partySize) / 4));
+/**
+ * Draws for the party size: a boss with 3 or more draws gets one more when the party is bigger than 4 and `extra` is on,
+ * never more than the table's usable results (`usable`, when known). Fewer draws than set are never taken away.
+ */
+export function scaledDraws(draws, partySize = 4, { extra = true, usable = Infinity } = {}) {
+  const d = Math.max(1, Math.floor(Number(draws) || 1));
+  if (!extra || d < 3 || clampParty(partySize) <= 4) return d;
+  return Math.max(d, Math.min(d + 1, Number.isFinite(usable) ? usable : d + 1));
+}
+/** World party-size settings, read safely. */
+export function partyRules() {
+  return { size: clampParty(S("partySize", 4)), extra: !!S("bossLootExtraDraw", true) };
+}
+
+/**
+ * Bulk linking: the actor name a world table is named for ("<name> · Loot", "<name> - Loot" or "Loot: <name>"), or null.
+ * Matching is exact on the name (trimmed); a plain hyphen and the en/em dash all count.
+ */
+export function tableOwnerName(tableName) {
+  const n = String(tableName ?? "").trim();
+  let m = n.match(/^(.+?)\s+(?:·|-|–|—)\s+Loot$/); if (m) return m[1].trim();
+  m = n.match(/^Loot:\s*(.+)$/); if (m) return m[1].trim();
+  return null;
+}
+/**
+ * Defaults for a bulk link: the table's flag (flags.wayfarers-toolkit.bossLootDefaults = { draws, coinCp, note }), else "draws: 2" and
+ * "coin: 1500" (copper) written in the table's description, else draws 1 and no coin.
+ */
+export function linkDefaults(flagDefaults, description = "") {
+  let d = flagDefaults && typeof flagDefaults === "object" ? flagDefaults : null;
+  if (!d) {
+    const txt = String(description ?? "").replace(/<[^>]*>/g, " ");
+    d = { draws: txt.match(/\bdraws?\s*[:=]\s*(\d+)/i)?.[1], coinCp: txt.match(/\bcoin(?:cp)?\s*[:=]\s*(\d+)/i)?.[1] };
+  }
+  return { draws: Math.max(1, Math.floor(Number(d.draws) || 1)), coinCp: Math.max(0, Math.floor(Number(d.coinCp) || 0)), note: String(d.note ?? "").trim() };
+}
+
 // ---------------------------------------------------------------- reading and writing the link
 /** The actor a target refers to: a token's actor (synthetic for unlinked tokens) or the actor itself. */
 const actorOf = t => { const d = tokenDoc(t); return d?.actor ?? (d instanceof Actor ? d : null); };
@@ -119,7 +163,11 @@ const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor
 export async function draw(target) {
   const flag = get(target); const table = await tableOf(flag);
   if (!table) return null;
-  const picks = drawWeighted([...table.results], flag.draws);
+  const pr = partyRules();
+  const usableN = [...table.results].filter(r => (Number(r.weight ?? 1) || 0) > 0).length;
+  const draws = scaledDraws(flag.draws, pr.size, { extra: pr.extra, usable: usableN });
+  const picks = drawWeighted([...table.results], draws);
+  log(`Boss loot: ${tokenDoc(target)?.name ?? "?"} draws ${draws} (set ${flag.draws}, party ${pr.size}) from ${table.name}:`, picks.map(resultLabel));
   const items = []; const nothing = []; const missing = [];
   for (const r of picks) {
     const uuid = resultUuid(r); const src = uuid ? await fromUuid(uuid).catch(() => null) : null;
@@ -128,7 +176,7 @@ export async function draw(target) {
     o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { bossLoot: { table: table.uuid, source: uuid } } });
     items.push({ uuid, name: src.name, img: src.img, data: o });
   }
-  return { table, flag, items, nothing, missing, usable: [...table.results].filter(r => (Number(r.weight ?? 1) || 0) > 0).length };
+  return { table, flag, draws, items, nothing, missing, usable: usableN };
 }
 
 /**
@@ -147,7 +195,9 @@ export async function inspect(target) {
     if (src instanceof Item) resolved++; else unresolved.push(resultLabel(r));
   }
   const fallback = fallbackReason({ tableFound: true, usable: usableList.length, items: resolved, missing: unresolved.length });
-  return { flag, table, results: results.length, usable: usableList.length, resolved, unresolved, draws: flag.draws, tooManyDraws: flag.draws > usableList.length, fallback };
+  const pr = partyRules();
+  const draws = scaledDraws(flag.draws, pr.size, { extra: pr.extra, usable: usableList.length });
+  return { flag, table, results: results.length, usable: usableList.length, resolved, unresolved, draws: flag.draws, scaledDraws: draws, coinCp: flag.coinCp ?? 0, scaledCoinCp: scaledCoin(flag.coinCp ?? 0, pr.size), partySize: pr.size, tooManyDraws: flag.draws > usableList.length, fallback };
 }
 
 /**
@@ -162,20 +212,22 @@ async function dropOne(doc, api, { auto = false } = {}) {
   const why = fallbackReason({ tableFound: !!d, usable: d?.usable ?? 0, items: d?.items.length ?? 0, missing: d?.missing.length ?? 0 });
   if (why) return fallback(doc, api, why, d, { auto });
   const piles = Trash.usePiles(); const IP = piles ? Trash.itemPiles() : null;
-  const cpVal = Object.fromEntries(api.coins()).cp ?? 1; const coin = (d.flag.coinCp || 0) * cpVal;
-  await doc.setFlag(ID, "bossLootDrawn", { id: doc.id, at: Date.now(), items: d.items.map(i => i.name), coinCp: d.flag.coinCp || 0 });
+  const cpVal = Object.fromEntries(api.coins()).cp ?? 1; const coinCp = scaledCoin(d.flag.coinCp || 0, partyRules().size); const coin = coinCp * cpVal;
+  log(`Boss loot: ${doc.name} drops`, d.items.map(i => i.name), `${coinCp}c (flag ${d.flag.coinCp || 0}c), run by ${byWhom()}`);
+  await doc.setFlag(ID, "bossLootDrawn", { id: doc.id, at: Date.now(), items: d.items.map(i => i.name), coinCp });
   let created = [];
   if (IP) {
     if (d.items.length) created = await doc.actor.createEmbeddedDocuments("Item", d.items.map(i => i.data));
     if (coin) await api.addMoney(doc.actor, coin, { consolidate: true });
     if (created.length || coin) await Trash.pileUp(doc, IP);
   }
-  await card(doc, d, api, { created, coin, piles: !!IP });
+  await card(doc, d, api, { created, coin, piles: !!IP, auto });
   return { token: doc.name, table: d.table.name, items: d.items.map(i => i.name), nothing: d.nothing, coin };
 }
 
 /** Boss loot can't drop: marks the token as drawn (so it doesn't retry on every hit), drops vendor trash instead and tells the GM why. */
 async function fallback(doc, api, why, d, { auto }) {
+  log(`Boss loot: ${doc.name} falls back to vendor trash (${why})`);
   await doc.setFlag(ID, "bossLootDrawn", { id: doc.id, at: Date.now(), items: [], coinCp: 0, fallback: why });
   let what;
   if (auto && !S("trashAutoLoot", true) && featureOn("vendorTrash")) what = "no vendor trash either (bodies aren't made lootable automatically; run Vendor Trash yourself)";
@@ -187,7 +239,7 @@ async function fallback(doc, api, why, d, { auto }) {
 }
 
 /** The GM card: "<name> dropped:" with item links, a Start loot roll button per item (piles and Loot rolls on) or Give to Party. */
-async function card(doc, d, api, { created, coin, piles }) {
+async function card(doc, d, api, { created, coin, piles, auto = false }) {
   const rolls = piles && featureOn("lootRolls");
   const rows = piles
     ? created.map(i => `<li>@UUID[${i.uuid}]{${esc(i.name)}}${rolls ? ` <button type="button" class="wct-bossloot-roll" data-wct-bossloot-roll="${esc(i.uuid)}" style="width:auto;line-height:1.4;padding:0 0.4em;margin-left:0.3em;"><i class="fa-solid fa-dice"></i> Start loot roll</button>` : ""}</li>`)
@@ -195,10 +247,16 @@ async function card(doc, d, api, { created, coin, piles }) {
   if (coin) rows.push(`<li><em>${api.fmtMoney(coin)}</em></li>`);
   const empty = !rows.length;
   const content = `<h3>${esc(doc.name)} dropped:</h3>${empty ? `<p class="hint">Nothing${d.nothing.length ? ` (${d.nothing.map(esc).join(", ")})` : ""}.</p>` : `<ul>${rows.join("")}</ul>`}
-${d.flag.note ? `<p class="hint">${esc(d.flag.note)}</p>` : ""}<p class="hint">From ${esc(d.table.name)} · ${d.flag.draws} draw${d.flag.draws === 1 ? "" : "s"}${piles && !empty ? " · the body is ready to loot" : ""}.</p>
+${d.flag.note ? `<p class="hint">${esc(d.flag.note)}</p>` : ""}<p class="hint">From ${esc(d.table.name)} · ${d.draws ?? d.flag.draws} draw${(d.draws ?? d.flag.draws) === 1 ? "" : "s"}${piles && !empty ? " · the body is ready to loot" : ""}.</p>
 ${!piles && !empty ? `<button type="button" data-wct-action="give-bossloot"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
-  const flags = { [ID]: { bossLootCard: { token: doc.uuid, piles, given: false, drops: piles ? [] : d.items.map(i => i.uuid), coin: piles ? 0 : coin } } };
-  return ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Boss loot" }, flags });
+  const flag = { token: doc.uuid, piles, given: false, drops: piles ? [] : d.items.map(i => i.uuid), coin: piles ? 0 : coin };
+  const single = { content, whisper: gmIds(), speaker: { alias: "Boss loot" }, flags: { [ID]: { bossLootCard: flag } } };
+  if (auto) {
+    // One line per creature in a batched summary; the Start loot roll buttons stay on it.
+    const line = `<li><strong>${esc(doc.name)}</strong>: ${empty ? `<span class="hint">nothing</span>` : `<ul>${rows.join("")}</ul>`}</li>`;
+    return Summary.queue({ kind: "boss", body: doc.uuid, rows: [line], coin, flag, single }, a => api.fmtMoney(a));
+  }
+  return ChatMessage.create(single);
 }
 
 /** GM: manual drop for the given (or selected) tokens. Tokens that already dropped are skipped (Reset loot first). */
@@ -220,8 +278,9 @@ const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
 /** Active GM only: a token with boss loot that is down (0 HP or marked defeated) drops it, once per death. Linked and unlinked. */
 export async function onDeath(doc, api, { defeated = false } = {}) {
-  if (!doc || !isActiveGM() || !S("bossLootAuto", true) || !lootable(doc) || !get(doc) || drawnFlag(doc) || Trash.isNoLoot(doc)) return;
+  if (!doc || !isActiveGM() || !S("bossLootAuto", true) || !lootable(doc) || !get(doc) || drawnFlag(doc)) return;
   if (!defeated && !isDead(doc)) return;
+  if (Trash.isNoLoot(doc)) return log(`Boss loot: ${doc.name} drops nothing (No loot is set)`);
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
   return Trash.serial(doc.uuid, async () => {
     try { await dropOne(doc, api, { auto: true }); }
@@ -258,13 +317,47 @@ export async function preview(api, targets = null) {
         return `<tr><td>${label}</td><td style="text-align:right">${weight}</td><td style="text-align:right">${pct.toFixed(pct && pct < 1 ? 2 : 1)}%</td></tr>`;
       });
       const doc = tokenDoc(t); const drawn = doc?.getFlag ? drawnFlag(doc) : null;
-      body = `<p><strong>Table:</strong> @UUID[${table.uuid}]{${esc(table.name)}}<br><strong>Draws:</strong> ${flag.draws} (without replacement)${flag.coinCp ? `<br><strong>Coin:</strong> ${api.fmtMoney(flag.coinCp * cpVal)}` : ""}${flag.note ? `<br><strong>Note:</strong> ${esc(flag.note)}` : ""}</p>
+      const pr = partyRules(); const usableN = [...table.results].filter(r => (Number(r.weight ?? 1) || 0) > 0).length;
+      const dn = scaledDraws(flag.draws, pr.size, { extra: pr.extra, usable: usableN }); const cc = scaledCoin(flag.coinCp ?? 0, pr.size);
+      const forParty = ` for a party of ${pr.size}`;
+      body = `<p><strong>Table:</strong> @UUID[${table.uuid}]{${esc(table.name)}}<br><strong>Draws:</strong> ${dn}${dn !== flag.draws ? ` (set ${flag.draws}; +1${forParty})` : ""} (without replacement)${flag.coinCp ? `<br><strong>Coin:</strong> ${api.fmtMoney(cc * cpVal)}${cc !== flag.coinCp ? ` (set ${api.fmtMoney(flag.coinCp * cpVal)}; scaled${forParty})` : ""}` : ""}${flag.note ? `<br><strong>Note:</strong> ${esc(flag.note)}` : ""}</p>
 <table><thead><tr><th>Result</th><th>Weight</th><th>Per draw</th></tr></thead><tbody>${rows.join("")}</tbody></table>
 <p class="hint">${drawn ? `Already dropped: ${(drawn.items ?? []).map(esc).join(", ") || "nothing"}.` : "Not dropped yet."}</p>`;
     }
     out.push(await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: ${esc(name)}</h3>${body}` }));
   }
   return out;
+}
+
+// ---------------------------------------------------------------- bulk linking
+/**
+ * GM: links world NPC actors without a boss loot flag to a world roll table named for them ("<Actor name> · Loot", "<Actor name> - Loot"
+ * or "Loot: <Actor name>"). Draws 1 and no coin, unless the table carries flags.wayfarers-toolkit.bossLootDefaults { draws, coinCp, note }.
+ * `folder` (a Folder, its id or name) limits it to actors in that folder. Existing links are kept unless `overwrite`.
+ * Returns { linked: [{ actor, table }], skipped: [{ actor, why }] } and reports in a notification and a GM whisper.
+ */
+export async function autoLink(api, { folder = null, overwrite = false, quiet = false } = {}) {
+  if (!game.user.isGM) { ui.notifications.warn("GM only."); return null; }
+  const byOwner = new Map();
+  for (const t of game.tables) { const n = tableOwnerName(t.name); if (n && !byOwner.has(n)) byOwner.set(n, t); }
+  let fid = null;
+  if (folder) { const f = folder?.id ? folder : game.folders.get(folder) ?? game.folders.find(x => x.type === "Actor" && x.name === folder); fid = f?.id ?? "__none__"; }
+  const linked = []; const skipped = [];
+  for (const a of game.actors) {
+    if (a.type !== "npc" || (fid && a.folder?.id !== fid)) continue;
+    const t = byOwner.get(a.name.trim());
+    if (!t) continue;
+    if (a.getFlag(ID, "bossLoot") && !overwrite) { skipped.push({ actor: a.name, why: "already linked" }); continue; }
+    const d = linkDefaults(t.getFlag?.(ID, "bossLootDefaults"), t.description);
+    try { await a.setFlag(ID, "bossLoot", { table: t.uuid, draws: d.draws, coinCp: d.coinCp, note: d.note }); linked.push({ actor: a.name, table: t.name }); }
+    catch (e) { skipped.push({ actor: a.name, why: e.message }); }
+  }
+  log("Boss loot: auto-link", { linked, skipped });
+  if (!quiet) {
+    ui.notifications.info(`Boss loot: linked ${linked.length} creature${linked.length === 1 ? "" : "s"}${skipped.length ? `, skipped ${skipped.length}` : ""}.`);
+    await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: link tables by name</h3>${linked.length ? `<p><strong>Linked:</strong></p><ul>${linked.map(l => `<li>${esc(l.actor)} → ${esc(l.table)}</li>`).join("")}</ul>` : "<p>Nothing new to link.</p>"}${skipped.length ? `<p><strong>Skipped:</strong></p><ul>${skipped.map(x => `<li>${esc(x.actor)} (${esc(x.why)})</li>`).join("")}</ul>` : ""}<p class="hint">Tables named "&lt;creature&gt; · Loot", "&lt;creature&gt; - Loot" or "Loot: &lt;creature&gt;" are linked to the world NPC actor with that exact name.</p>` });
+  }
+  return { linked, skipped };
 }
 
 // ---------------------------------------------------------------- dialog
@@ -361,7 +454,11 @@ function onRenderCard(message, html, api) {
 export function init(api, { vendorTrash = true } = {}) {
   game.settings.register(ID, "bossLootAuto", {
     name: "Boss loot: drop automatically on death", hint: "When a creature with a boss loot table drops to 0 HP or is marked defeated, its loot is drawn once and put on the body (an Item Piles pile, or a Give to Party card without Item Piles). Off: use api.bossLoot.drop(tokens).",
-    scope: "world", config: true, type: Boolean, default: true
+    scope: "world", config: false, type: Boolean, default: true
+  });
+  game.settings.register(ID, "bossLootExtraDraw", {
+    name: "Boss loot: extra drop for parties above 4", hint: "With Party size above 4, a boss with 3 or more draws draws one more (never more than its table's usable results). Boss coin always scales with Party size.",
+    scope: "world", config: false, type: Boolean, default: true
   });
   const hpChanged = c => foundry.utils.hasProperty(c ?? {}, "system.attributes.hp");
   const each = (actor, opts) => { for (const t of tokensFor(actor)) onDeath(t, api, opts); };
@@ -377,5 +474,5 @@ export function init(api, { vendorTrash = true } = {}) {
   if (!vendorTrash) Hooks.on("renderTokenHUD", (hud, html) => Trash.addNoLootButton(hud, html, api));
   Hooks.on("renderChatMessageHTML", (message, html) => onRenderCard(message, html, api));
   // Vendor Trash adds the Reset loot button; with it off, Boss loot adds that button itself.
-  if (!vendorTrash) Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, api, { reroll: false }));
+  if (!vendorTrash) Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, api, { allowReroll: false }));
 }

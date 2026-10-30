@@ -29,3 +29,7 @@
 .wct-loot-result { margin: 6px 0 0; }
 .wct-loot-won img { width: 20px; height: 20px; vertical-align: middle; border: 1px solid var(--q, #fff); }
 .wct-loot-won .item { color: var(--q, inherit); font-weight: bold; text-shadow: 0 0 1px #000; }
+.wct-loot-nogm { margin: 4px 0 0; font-size: 0.85em; color: #e0a040; }
+.wct-loot-assign { display: flex; gap: 4px; margin-top: 4px; font-size: 0.85em; }
+.wct-loot-assign select { flex: 1; min-width: 0; }
+.wct-loot-assign button { flex: 0 0 auto; width: auto; margin: 0; }

@@ -100,7 +100,7 @@ const offset = (r, side, w, h, gap) => side === "below" ? { x: r.x, y: r.y + r.h
 
 /** Positions for the frames `ids` (in combat order), with `sizes[id] = {w, h}`, on a vw x vh viewport.
  * Returns { pos: {id: {x, y, w, h}}, root: {id: anchorId}, parent: {id: {to, side}}, groups: {anchorId: [ids]}, mainRoot }. */
-export function computeLayout(ids, sizes, layout, vw, vh, gap = GAP) {
+export function computeLayout(ids, sizes, layout, vw, vh, gap = GAP, top = TOP) {
   const present = new Set(ids), frames = layout?.frames ?? {};
   const implicit = ids.filter(id => !frames[id]);
   const parent = {};
@@ -139,7 +139,7 @@ export function computeLayout(ids, sizes, layout, vw, vh, gap = GAP) {
     if (parent[id]) continue;
     const { w, h } = size(id);
     const e = id === mainRoot ? layout?.main : frames[id];
-    const x = Number.isFinite(e?.x) ? e.x * vw : (vw - w) / 2, y = Number.isFinite(e?.y) ? e.y * vh : TOP;
+    const x = Number.isFinite(e?.x) ? e.x * vw : (vw - w) / 2, y = Number.isFinite(e?.y) ? e.y * vh : top;
     pos[id] = { x, y, w, h }; root[id] = id; groups[id] = [id];
     placeKids(id, id);
   }
@@ -150,6 +150,15 @@ export function computeLayout(ids, sizes, layout, vw, vh, gap = GAP) {
     if (dx || dy) for (const m of members) { pos[m].x += dx; pos[m].y += dy; }
   }
   return { pos, root, parent, groups, mainRoot };
+}
+/**
+ * Default top of the boss stack (pure): just below another module's bar at the top of the screen (such as a combat tracker dock)
+ * when `rect` (its bounding box: { top, bottom, height, width }) is visible near the top, else TOP. Moved layouts ignore this.
+ */
+export function defaultTop(rect, vh = Infinity, gap = GAP) {
+  if (!rect || !(rect.height > 0) || !(rect.width > 0)) return TOP;
+  if (rect.top > vh / 3 || rect.bottom <= 0) return TOP; // not a bar along the top
+  return Math.max(TOP, Math.round(rect.bottom + gap));
 }
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
 export function bbox(rs) {
@@ -221,6 +230,8 @@ function render() {
   }
   for (const [k, n] of nodes) if (!keep.has(k)) { if (drag?.ids.has(k)) endDrag(null); n.remove(); nodes.delete(k); }
   applyLayout();
+  // The combat dock may draw just after us (it renders on the same combat hooks): place the stack again once it has.
+  setTimeout(() => { if (!drag) applyLayout(); }, 300);
 }
 
 /** Places every frame from the layout (the drag's working copy while dragging, with the dragged frames following the pointer). */
@@ -228,7 +239,7 @@ function applyLayout() {
   if (!el) return null;
   const ids = [...nodes.keys()], sizes = {};
   for (const id of ids) { const n = nodes.get(id); sizes[id] = { w: n.offsetWidth, h: n.offsetHeight }; }
-  const comp = computeLayout(ids, sizes, drag?.layout ?? getLayout(), innerWidth, innerHeight);
+  const comp = computeLayout(ids, sizes, drag?.layout ?? getLayout(), innerWidth, innerHeight, GAP, dockTop());
   if (drag) {
     const rs = [...drag.ids].filter(id => comp.pos[id]).map(id => comp.pos[id]);
     if (rs.length) {
@@ -239,6 +250,20 @@ function applyLayout() {
   }
   for (const [id, p] of Object.entries(comp.pos)) { const s = nodes.get(id).style; s.left = `${p.x}px`; s.top = `${p.y}px`; }
   return comp;
+}
+
+/** The Carousel Combat Tracker's dock (#combat-dock) when it is shown: the default stack goes just below it. Watched for size changes. */
+let dockSeen = null; let dockObs = null;
+function dockTop() {
+  const d = document.getElementById("combat-dock");
+  if (d !== dockSeen) {
+    dockObs?.disconnect(); dockObs = null; dockSeen = d;
+    if (d && typeof ResizeObserver === "function") { dockObs = new ResizeObserver(() => { if (!drag) applyLayout(); }); dockObs.observe(d); }
+  }
+  if (!d) return TOP;
+  const cs = getComputedStyle(d);
+  if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return TOP;
+  return defaultTop(d.getBoundingClientRect(), innerHeight);
 }
 
 function dragStart(ev) {
@@ -329,7 +354,7 @@ function addHudButton(hud, html) {
 export function init() {
   game.settings.register(ID, "bossHpDisplay", {
     name: "Boss frames: what players see", hint: "How much of a boss's health players see on its frame. The GM always sees exact hit points.",
-    scope: "world", config: true, type: String, default: "bar", choices: HP_MODES, onChange: refresh
+    scope: "world", config: false, type: String, default: "bar", choices: HP_MODES, onChange: refresh
   });
   // Each user's own frame layout on this browser. Replaces the older single-stack "bossFramePos", read once to carry it over.
   game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyLayout(); } });
@@ -337,7 +362,7 @@ export function init() {
   window.addEventListener("resize", () => { if (!drag) applyLayout(); });
   game.settings.register(ID, "bossAutoFromLoot", {
     name: "Boss frames: treat tokens with boss loot as bosses", hint: "A token whose creature has a boss loot table shows a boss frame in combat without the crown. Turning the crown off on such a token hides its frame. Only with Boss loot turned on.",
-    scope: "world", config: featureOn("bossLoot"), type: Boolean, default: true, onChange: refresh
+    scope: "world", config: false, type: Boolean, default: true, onChange: refresh
   });
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);

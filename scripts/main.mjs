@@ -15,6 +15,9 @@ import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
 import { MACROS, macroData } from "./macros.mjs";
+import * as Menus from "./settings.mjs";
+import * as Cleanup from "./cleanup.mjs";
+import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -45,7 +48,9 @@ const DEFAULTS = {
   dungeonDropBonus: 25,
   dungeonExtraRoll: true,
   trashAutoRoll: true,
-  trashAutoLoot: true
+  trashAutoLoot: true,
+  partySize: 4,
+  debugLog: false
 };
 /** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
 const OLD_RIDER = "Trained Rider";
@@ -140,39 +145,59 @@ async function syncItemPilesCoins() {
 
 function registerSettings() {
   F.registerSettings();
-  // Settings that belong to a turned-off feature stay registered (so nothing breaks) but are left out of the settings list.
-  const s = (key, name, hint, type, extra = {}, feature = null) => game.settings.register(ID, key, { name, hint, scope: "world", config: feature ? F.on(feature) : true, type, default: DEFAULTS[key], ...extra });
-  s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
-  s("trackerJournal", "Tracker journal", "Journal holding the Travel Log, Flight Routes and Session Recap pages.", String);
-  s("partyActor", "Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
-  s("zones", "Encounter zones", "JSON object mapping zone name to encounter roll table name.", String, {}, "hexTravel");
-  s("encounterDie", "Encounter die", "Each off-road hex rolls this die; a 1 is an encounter.", Number, {}, "hexTravel");
-  s("offroadMult", "Off-road time multiplier", "Off-road hexes take this many times as long as road hexes.", Number, {}, "hexTravel");
-  s("mountMult", "Mounted speed multiplier", "Overland speed multiplier when the party travels mounted.", Number, {}, "hexTravel");
-  s("paceSlow", "Slow pace (mph)", "", Number, {}, "hexTravel");
-  s("paceNormal", "Normal pace (mph)", "", Number, {}, "hexTravel");
-  s("paceFast", "Fast pace (mph)", "", Number, {}, "hexTravel");
-  s("hiddenScenes", "Scenes hidden from Session Start", "Regular expression; matching scene names are left out of the list.", String, {}, "sessionStart");
-  s("playerFlights", "Players can use Flight Master", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) }, "flightMaster");
-  s("flightSound", "Flight sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" }, "flightMaster");
-  s("flightVolume", "Flight sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } }, "flightMaster");
-  s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
-  s("fareUnit", "Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
-  s("riderFeat", "Riding feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name (Riding Training by default).", String, {}, "riderFeat");
-  s("trashItemPiles", "Vendor Trash uses Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean, {}, "vendorTrash");
-  s("itemPilesCoins", "Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
-  if (F.on("vendorTrash")) {
-    s("dungeonCoinMult", "Dungeon coin multiplier", "Coin dropped by creatures in scenes marked as dungeons (Scene configuration › Basics) is multiplied by this.", Number, { range: { min: 1, max: 5, step: 0.25 } });
-    s("dungeonDropBonus", "Dungeon drop bonus (%)", "Percentage points added to each item-drop chance for creatures in dungeon scenes (a 70% drop becomes 95% at +25). Chances never go above 100%.", Number, { range: { min: 0, max: 100, step: 5 } });
-    s("dungeonExtraRoll", "Dungeon extra item roll", "Creatures in dungeon scenes roll their item drops a second time (coin is not rolled again). The trash pool is grey items only, so this stands in for better-quality loot.", Boolean);
-    s("trashAutoRoll", "Roll trash loot when NPC tokens are placed", "Each unlinked NPC token gets its vendor-trash drop and coin rolled when it's placed (pasted copies roll their own). The loot waits hidden on the token until the body is looted. Reroll it from the dice button in the token HUD.", Boolean);
-    s("trashAutoLoot", "Make bodies lootable automatically on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
-  }
-  s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() }, "vendorTrash");
+  // Shown in the main settings list: Choose features, Health check, Remove toolkit data, Run setup, Party size, Coin system, Campaign name
+  // and one "… settings" button per feature group. Everything else is registered with config: false (same keys as before, so nothing
+  // stored is lost) and shown in its group's submenu (settings.mjs). Settings of a turned-off feature stay registered but aren't shown.
+  const s = (key, name, hint, type, extra = {}, config = false) => game.settings.register(ID, key, { name, hint, scope: "world", config, type, default: DEFAULTS[key], ...extra });
+  s("partySize", "Party size", "How many characters the party has (1 to 8). Boss loot coin scales with it (× party size / 4) and, above 4, bosses with 3 or more draws get one more (see Boss loot settings).", Number, { range: { min: 1, max: 8, step: 1 } }, true);
+  s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true }, true);
+  s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String, {}, true);
+  // General
+  s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log, Flight Routes and Session Recap pages.", String);
+  s("partyActor", "General: Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
+  s("itemPilesCoins", "General: Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
+  s("debugLog", "General: Debug logging", "Writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM ran an automatic step, the items and CR bands chosen, how loot rolls were settled. Off: nothing is logged.", Boolean);
+  // Travel
+  s("zones", "Hex Travel: Encounter zones", "JSON object mapping zone name to encounter roll table name, e.g. {\"Forest\": \"Encounters · Forest\"}.", String, { onChange: v => checkZones(v, { notify: true }) });
+  s("encounterDie", "Hex Travel: Encounter die", "Each off-road hex rolls this die; a 1 is an encounter.", Number);
+  s("offroadMult", "Hex Travel: Off-road time multiplier", "Off-road hexes take this many times as long as road hexes.", Number);
+  s("mountMult", "Hex Travel: Mounted speed multiplier", "Overland speed multiplier when the party travels mounted.", Number);
+  s("paceSlow", "Hex Travel: Slow pace (mph)", "", Number);
+  s("paceNormal", "Hex Travel: Normal pace (mph)", "", Number);
+  s("paceFast", "Hex Travel: Fast pace (mph)", "", Number);
+  s("hiddenScenes", "Session Start: Scenes hidden from the list", "Regular expression; matching scene names are left out of the list.", String);
+  s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
+  s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
+  s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
+  s("fareUnit", "Flight Master: Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
+  s("riderFeat", "Riding Training: Feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name (Riding Training by default).", String);
+  // Vendor Trash
+  s("trashItemPiles", "Vendor Trash: Use Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean);
+  s("dungeonCoinMult", "Vendor Trash: Dungeon coin multiplier", "Coin dropped by creatures in scenes marked as dungeons (Scene configuration › Basics) is multiplied by this.", Number, { range: { min: 1, max: 5, step: 0.25 } });
+  s("dungeonDropBonus", "Vendor Trash: Dungeon drop bonus (%)", "Percentage points added to each item-drop chance for creatures in dungeon scenes (a 70% drop becomes 95% at +25). Chances never go above 100%.", Number, { range: { min: 0, max: 100, step: 5 } });
+  s("dungeonExtraRoll", "Vendor Trash: Dungeon extra item roll", "Creatures in dungeon scenes roll their item drops a second time (coin is not rolled again). The trash pool is grey items only, so this stands in for better-quality loot.", Boolean);
+  s("trashAutoRoll", "Vendor Trash: Roll loot when NPC tokens are placed", "Each unlinked NPC token gets its vendor-trash drop and coin rolled when it's placed (pasted copies roll their own). The loot waits hidden on the token until the body is looted. Reroll it from the dice button in the token HUD.", Boolean);
+  s("trashAutoLoot", "Vendor Trash: Make bodies lootable on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
+  s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
-  game.settings.registerMenu(ID, "health", { name: "Health check", label: "Health check", hint: "Checks features, dependencies, setup, boss loot links, the Vendor Trash Rules page, dungeon scenes and connected GMs. Changes nothing.", icon: "fas fa-stethoscope", type: Health.HealthApp, restricted: true });
+  game.settings.registerMenu(ID, "health", { name: "Health check", label: "Health check", hint: "Checks features, dependencies, setup, boss loot links, the Vendor Trash Rules page, dungeon scenes, flight routes, encounter zones and connected GMs. Changes nothing.", icon: "fas fa-stethoscope", type: Health.HealthApp, restricted: true });
   game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and hotbar macros if they don't exist yet. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
+  game.settings.registerMenu(ID, "cleanup", { name: "Remove toolkit data", label: "Remove toolkit data", hint: "Counts, then removes the toolkit's flags, its vendor trash and boss loot items, setup macros or settings from this world (you pick). Asks before changing anything.", icon: "fas fa-broom", type: Cleanup.CleanupApp, restricted: true });
+}
+
+/**
+ * Checks the Encounter zones setting: returns { zones, error, unknown: [{ zone, table }] }. With `notify`, a GM gets a notification
+ * naming the setting and the JSON problem's position, and the zones whose tables don't exist.
+ */
+function checkZones(text = setting("zones"), { notify = false } = {}) {
+  const r = Flight.parseZones(text);
+  const unknown = r.error ? [] : Flight.unknownZoneTables(r.zones, game.tables?.map?.(t => t.name) ?? []);
+  if (notify && game.user?.isGM) {
+    if (r.error) ui.notifications.error(`Wayfarer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`);
+    else if (unknown.length) ui.notifications.warn(`Wayfarer's Toolkit › Hex Travel: Encounter zones: no roll table named ${unknown.map(u => `"${u.table}" (zone ${u.zone})`).join(", ")}.`);
+  }
+  return { ...r, unknown };
 }
 
 class SetupApp extends foundry.applications.api.ApplicationV2 {
@@ -208,7 +233,7 @@ export const WCT = {
   get version() { return game.modules.get(ID)?.version; },
   get JOURNAL() { return setting("trackerJournal"); },
   get PARTY() { return setting("partyActor"); },
-  get ZONES() { try { return JSON.parse(setting("zones") || "{}"); } catch (e) { ui.notifications.error("Wayfarer's Toolkit: the Encounter zones setting isn't valid JSON."); return {}; } },
+  get ZONES() { const r = Flight.parseZones(setting("zones")); if (r.error) ui.notifications.error(`Wayfarer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`); return r.zones; },
   get PACE() { return { slow: setting("paceSlow"), normal: setting("paceNormal"), fast: setting("paceFast") }; },
   get OFFROAD_MULT() { return setting("offroadMult"); },
   get MOUNT_MULT() { return setting("mountMult"); },
@@ -224,6 +249,8 @@ export const WCT = {
   parseTable(html, i) { const t = new DOMParser().parseFromString(html, "text/html").querySelectorAll("table")[i]; return t ? [...t.querySelectorAll("tbody tr")].map(tr => [...tr.children].map(td => td.textContent.trim())) : []; },
   gmWhisper(content) { return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" } }); },
   say(content, alias = "Narrator") { return ChatMessage.create({ content, speaker: { alias } }); },
+  /** An information or refusal window with a single OK button. */
+  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
   form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
   confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ window: { title }, content, rejectClose: false }); },
   gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
@@ -250,7 +277,9 @@ export const WCT = {
   /** GM: checks the world and whispers the report (also the Health check button in the settings and the Toolkit Health Check macro). */
   health(opts = {}) { if (!this.gmOnly()) return; return Health.post(this, opts); },
   /** For the health check: coin settings, Item Piles' currencies and the active GM helpers. */
-  internals: { ipCoinsMatch, riderName, activeGM, isActiveGM },
+  internals: { ipCoinsMatch, riderName, activeGM, isActiveGM, checkZones, flightProblems: () => WCT.flightProblems() },
+  /** Party size (1–8) from the world setting. */
+  get partySize() { return BossLoot.clampParty(setting("partySize")); },
 
   async setup() {
     if (!this.gmOnly()) return [];
@@ -372,11 +401,25 @@ export const WCT = {
     const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: parseMoney(f), h: +h || 0 }));
     return { pts, routes };
   },
+  /** Malformed rows in the Flight Routes tables (GM): [{ table, row, column, text }]. */
+  flightProblems() {
+    if (!game.user.isGM) return [];
+    const html = this.page("Flight Routes").text.content;
+    return Flight.flightRowProblems(this.parseTable(html, 0), this.parseTable(html, 1));
+  },
+  /** Active GM: warns once per change about malformed Flight Routes rows. */
+  warnFlightRows() {
+    if (!isActiveGM()) return;
+    let probs; try { probs = this.flightProblems(); } catch { return; }
+    const key = JSON.stringify(probs); if (key === this._flightWarned) return; this._flightWarned = key;
+    if (probs.length) ui.notifications.warn(`Flight Master: ${probs.length} problem${probs.length === 1 ? "" : "s"} in ${this.JOURNAL} › Flight Routes: ${probs.slice(0, 3).map(Flight.rowProblemText).join("; ")}${probs.length > 3 ? "; …(see the health check)" : ""}.`);
+  },
   async syncFlightCache() {
     if (!isActiveGM()) return;
     let data; try { data = this.flightData(); } catch { return; }
     const old = game.settings.get(ID, "flightCache");
     if (JSON.stringify(old) !== JSON.stringify(data)) await game.settings.set(ID, "flightCache", data);
+    this.warnFlightRows();
   },
   route(from, to, open, routes) { return Flight.route(from, to, open, routes); },
   partyActor() { return game.actors.find(a => a.type === "group" && a.name === this.PARTY); },
@@ -411,7 +454,7 @@ export const WCT = {
     const path = r => `<p><strong>${r.path.map(esc).join(" → ")}</strong></p>`;
     if (!c.ok) {
       if (!c.r) return ui.notifications.warn(c.error);
-      return foundry.applications.api.DialogV2.prompt({ window: { title: "Flight Master" }, content: `${path(c.r)}<p><strong>${esc(c.error)}</strong></p>`, rejectClose: false });
+      return this.info("Flight Master", `${path(c.r)}<p><strong>${esc(c.error)}</strong></p>`);
     }
     const { r, q } = c;
     const summary = `${path(r)}<p>Fare: ${fmtMoney(r.f)} per passenger × ${pax} passenger${pax === 1 ? "" : "s"} = <strong>${fmtMoney(q.total)}</strong></p>
@@ -520,12 +563,18 @@ export const WCT = {
     return {
       get: BossLoot.get, set: BossLoot.set, draw: BossLoot.draw, drawWeighted: BossLoot.drawWeighted, odds: BossLoot.odds,
       preview: targets => BossLoot.preview(WCT, targets), showPreview: targets => BossLoot.preview(WCT, targets),
-      drop: tokens => BossLoot.drop(WCT, tokens), reset: (tokens, opts = {}) => Trash.reset(WCT, tokens, opts), dialog: target => BossLoot.openDialog(WCT, target ?? canvas.tokens?.controlled?.[0])
+      drop: tokens => BossLoot.drop(WCT, tokens), reset: (tokens, opts = {}) => Trash.reset(WCT, tokens, opts), dialog: target => BossLoot.openDialog(WCT, target ?? canvas.tokens?.controlled?.[0]),
+      /** Links NPC actors to world tables named "<name> · Loot" (also " - Loot" or "Loot: <name>"). { folder, overwrite } */
+      autoLink: (opts = {}) => BossLoot.autoLink(WCT, opts),
+      scaledCoin: BossLoot.scaledCoin, scaledDraws: BossLoot.scaledDraws
     };
   },
 
   // ------------------------------------------------------------ features
   features: F,
+  /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
+  cleanup: { plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) },
+  log,
 
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
   parseMoney, fmtMoney, coins,
@@ -597,6 +646,8 @@ Hooks.once("init", () => {
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
   if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
+  // Feature settings submenus last, once every setting they list is registered.
+  Menus.registerMenus();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -617,6 +668,7 @@ Hooks.once("ready", () => {
   }
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
+  if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
   convertOldCoins();
   Health.remindSetup(WCT).catch(e => console.warn(`${ID} | setup reminder`, e));
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);

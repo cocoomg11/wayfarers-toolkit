@@ -113,6 +113,8 @@ export const TYPE_PROFILES = {
   fiend: { kind: "other", tags: ["elemental", "tooth", "scale", "wing", "flesh", "misc"], core: ["elemental", "tooth", "scale", "wing", "flesh"] },
   celestial: { kind: "other", tags: ["avian", "wing", "elemental", "misc"], core: ["avian", "wing", "elemental"] }
 };
+/** dnd5e types a humanoid creature word never overrides. */
+export const HARD_TYPES = ["dragon", "undead", "elemental", "construct", "ooze", "plant"];
 const KIND_PROFILES = { humanoid: TYPE_PROFILES.humanoid, dragon: TYPE_PROFILES.dragon, undead: TYPE_PROFILES.undead, elemental: TYPE_PROFILES.elemental, plant: TYPE_PROFILES.plant, ooze: TYPE_PROFILES.ooze };
 
 /** How each kind of creature rolls: [chance, slot]. `item` is a flavour-matching loot item, `gear` a worn weapon or armour piece. */
@@ -136,13 +138,16 @@ export const KIND_COIN = { humanoid: 0.75, undead: 0.25 };
 export function profileFor({ name = "", type = "", subtype = "" } = {}, rules = []) {
   type = String(type || "").toLowerCase().trim(); const text = `${name} ${subtype}`;
   const hits = CREATURE_WORDS.filter(g => g.re.test(text));
+  const person = hits.find(g => g.kind === "humanoid");
+  const race = hits.find(g => g.kind === "humanoid" && g.family); // gnoll, kobold, goblin, orc, ogre, troll
+  const beasts = hits.filter(g => g.kind !== "humanoid");
   let base; let groups = [];
-  if (TYPE_PROFILES[type] && !["beast", "monstrosity"].includes(type)) base = TYPE_PROFILES[type];
+  // A humanoid race word (or a person word with no animal word beside it) makes the creature humanoid whatever its dnd5e type,
+  // except for types where that's clearly wrong (a gnoll lich is still undead).
+  if (person && !HARD_TYPES.includes(type) && (!type || race || !beasts.length)) { base = KIND_PROFILES.humanoid; groups = hits.filter(g => g.kind === "humanoid"); }
+  else if (TYPE_PROFILES[type] && !["beast", "monstrosity"].includes(type)) base = TYPE_PROFILES[type];
   else {
-    const person = hits.find(g => g.kind === "humanoid");
-    const beasts = hits.filter(g => g.kind !== "humanoid");
-    if (!type && person) { base = KIND_PROFILES.humanoid; groups = [person]; }
-    else if (beasts.length) {
+    if (beasts.length) {
       groups = beasts; const k = beasts[0].kind;
       base = { kind: k, tags: [...new Set(beasts.flatMap(g => g.tags))], core: [...new Set(beasts.flatMap(g => g.core))], deny: KIND_PROFILES[k]?.deny, hard: KIND_PROFILES[k]?.hard };
     } else if (TYPE_PROFILES[type]) base = TYPE_PROFILES[type];
