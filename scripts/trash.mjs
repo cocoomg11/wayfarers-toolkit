@@ -5,51 +5,26 @@
  */
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
+import * as R from "./trash-rules.mjs";
+/** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
+export const rules = R;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-// Name keywords that sort junk into kinds. A creature also prefers junk that shares a word with its own name.
-const KINDS = {
-  beast: /\b(fang|fangs|claw|claws|tooth|teeth|tusk|tusks|hide|pelt|fur|furry|hair|feather|feathers|talon|talons|beak|wing|webbing|tail|paw|paws|scale|scales|horn|hoof|ear|eye|gland|venom|ichor|shell|carapace|chitin|mane|whisker|snout|flank|haunch|spinneret|stinger|egg|silk|trophy|antler|antlers|quill|quills|flipper|fin|blubber)\b/i,
-  undead: /\b(bone|bones|skull|dust|ectoplasm|rotting|rotted|decaying|grave|ghostly|shroud|tomb|jawbone|femur|rib|soul)\b/i,
-  elemental: /\b(elemental|stone|rock|ash|ashes|ember|cinder|crystal|essence|pitch|slag|sand|coal|magma|molten|glowing|charged|frost|frozen|static|mote)\b/i,
-  plant: /\b(root|roots|lasher|vine|leaf|leaves|bark|seed|seeds|thorn|thorns|petal|petals|sap|moss|spore|spores|husk|bloom|lotus|blossom|seaweed|kelp|mushroom|fungus)\b/i,
-  trinket: /\b(watch|bauble|pipe|coin|coins|diary|page|locket|trinket|candle|sack|pouch|dice|flask|bottle|letter|pendant|ring|necklace|figurine|idol|key|token|charm|cup|mug|comb|mirror|spoon|broken|chipped|cracked|ruined|bent|torn|tattered|worn|damaged)\b/i
-};
-// Words in a creature's name that mark it as a beast when its sheet has no creature type.
-const BEAST_NAMES = /\b(wolf|wolves|worg|boar|bear|spider|tarantula|raptor|crocolisk|croc|vulture|buzzard|cat|panther|lion|prowler|stalker|stag|deer|owl|bat|scorpid|scorpion|basilisk|kodo|hyena|crab|turtle|snake|serpent|python|gorilla|ape|hawk|eagle|rat|boar|stag|mare|horse|ox|yeti|condor|wyvern|hydra|thresher|shark|lizard|gator)\b/i;
-const UNDEAD_NAMES = /\b(skeleton|zombie|ghoul|ghost|spirit|wraith|lich|banshee|abomination|mummy|wight|shade|undead|risen|forsaken|scourge)\b/i;
-const ELEMENTAL_NAMES = /\b(elemental|golem|construct|harvester|watcher|shredder|gargoyle|imp|fire|flame|earth|stone|water|air|storm|magma|living)\b/i;
-const WHELP_NAMES = /\b(whelp|drake|dragon|dragonkin|wyrm)\b/i;
+// What may drop from what, the CR bands and the world rules format live in trash-rules.mjs.
 
-/** Creature kind from the dnd5e creature type, falling back to the name. */
-export function creatureKind(actor) {
-  const t = String(actor?.system?.details?.type?.value ?? "").toLowerCase();
-  const n = actor?.name ?? "";
-  if (["beast", "monstrosity"].includes(t)) return "beast";
-  if (t === "dragon") return "dragon";
-  if (["humanoid", "giant"].includes(t)) return "humanoid";
-  if (t === "undead") return "undead";
-  if (["elemental", "construct"].includes(t)) return "elemental";
-  if (["plant", "fey"].includes(t)) return "plant";
-  if (t) return "other";
-  if (WHELP_NAMES.test(n)) return "dragon";
-  if (UNDEAD_NAMES.test(n)) return "undead";
-  if (BEAST_NAMES.test(n)) return "beast";
-  if (ELEMENTAL_NAMES.test(n) && !/\b(bandit|guard|deputy|mage|priest)\b/i.test(n)) return "elemental";
-  return "humanoid";
-}
+/** Creature kind (beast, dragon, humanoid, undead, elemental, plant, ooze, other) from the dnd5e creature type, falling back to the name. */
+export function creatureKind(actor) { return R.profileFor(creatureInfo(actor)).kind; }
+const creatureInfo = actor => ({ name: actor?.name ?? "", type: actor?.system?.details?.type?.value ?? "", subtype: actor?.system?.details?.type?.subtype ?? "" });
 
 /** MMO-style level for a challenge rating: CR 1 ≈ level 4, CR 5 ≈ level 17, CR 10 ≈ level 34, CR 18 ≈ level 60. */
 export const wowLevel = cr => Math.max(1, Math.min(63, Math.round((+cr || 0) * 3.3) + 1));
+/** Coin (in copper) a creature of this CR carries when it carries any: a random amount in its CR band. */
+export const coinFor = cr => { const [lo, hi] = R.bandFor(cr).coin; return Math.round(lo + Math.random() * (hi - lo)); };
 
-/** Copper a humanoid carries, roughly like classic-MMO mob drops: level 10 ≈ 25c, 20 ≈ 85c, 40 ≈ 3s, 60 ≈ 6s (±50%). */
-export const coinFor = cr => Math.round(Math.pow(wowLevel(cr), 1.8) * 0.4 * (0.5 + Math.random()));
-
-const rand = a => a[Math.floor(Math.random() * a.length)];
 const chance = p => Math.random() < p;
 
 /** The trash pool: every grey item in the configured compendiums, indexed once per session on first use (a promise, so calls made
- * while the index is loading share one scan). */
+ * while the index is loading share one scan). Each entry carries its material tags (trash-rules.mjs). */
 let POOL = null;
 export function packIds() {
   const set = String(game.settings.get(ID, "trashPacks") || "").split(/[,\s]+/).filter(Boolean);
@@ -72,28 +47,55 @@ async function buildPool() {
       if (!wowGrey && !generic) continue;
       const vp = e.flags?.[WOW]?.vendorPrice?.totalCopper;
       const ilvl = +((desc.match(/Item Level (\d+)/) || [])[1] || 0);
-      const junk = e.type === "loot";
-      const kind = junk ? (Object.keys(KINDS).find(k => KINDS[k].test(e.name)) ?? "misc") : "gear";
-      items.push({ uuid: e.uuid, name: e.name, img: e.img, type: e.type, ilvl, kind, copper: vp ?? null, price: e.system?.price ?? null });
+      items.push(R.classifyItem({ uuid: e.uuid, name: e.name, img: e.img, type: e.type, ilvl, copper: vp ?? null, price: e.system?.price ?? null }));
     }
   }
+  console.log(`${ID} | Vendor Trash pool: ${items.length} items from ${packIds().join(", ") || "no compendium"}`);
   return items;
 }
 export function resetPool() { POOL = null; }
 
-/** Picks one piece of junk of the given kinds, preferring items that share a word with the creature's name. */
-function pickJunk(items, kinds, creatureName) {
-  const cands = items.filter(i => kinds.includes(i.kind));
-  if (!cands.length) return null;
-  const words = (creatureName.match(/[A-Za-z']{3,}/g) ?? []).map(w => w.toLowerCase().replace(/s$/, "")).filter(w => !["young", "elder", "old", "large", "small", "giant", "greater", "lesser", "the", "and", "chief", "leader"].includes(w));
-  const named = cands.filter(i => words.some(w => i.name.toLowerCase().includes(w)));
-  return named.length && chance(0.75) ? rand(named) : rand(cands);
+// ---------------------------------------------------------------- world rules and family words
+export const RULES_PAGE = "Vendor Trash Rules";
+/** The rules page's starting content, created by Run setup in the tracker journal. */
+export const RULES_PAGE_HTML = `<h2>Vendor Trash Rules</h2><p>Extra drop rules for this world. Each row applies to every creature whose name, type or subtype contains <em>Creature match</em> (not case-sensitive; <strong>*</strong> matches every creature). Separate list entries with commas.</p><ul><li><strong>Allow tags</strong>: materials the creature may also drop: ${R.ALL_TAGS.join(", ")}. <em>gear</em> lets it drop worn weapons and armour, <em>coin</em> makes it carry coin.</li><li><strong>Allow items</strong>: parts of item names it always may drop (and prefers).</li><li><strong>Deny items</strong>: parts of item names it never drops.</li><li><strong>Family words</strong>: words that tie items to this creature: an item with that word in its name only drops from creatures with a row (or name) carrying it.</li></ul><p>Rows with an unknown tag or no creature are skipped and the GM is warned. Delete the example rows if you don't want them.</p><table><thead><tr><th>Creature match</th><th>Allow tags</th><th>Allow items</th><th>Deny items</th><th>Family words</th></tr></thead><tbody><tr><td>ember</td><td>elemental</td><td></td><td></td><td></td></tr><tr><td>swamp</td><td>plant</td><td></td><td></td><td></td></tr></tbody></table>`;
+
+let RULES = null; let FAMS = null;
+/** Forgets the parsed rules page (re-read on the next roll). */
+export function resetRules() { RULES = null; FAMS = null; }
+/** Forgets the world's family words (creature names changed). */
+export function resetFamilies() { FAMS = null; }
+function rulesPage() {
+  let name; try { name = game.settings.get(ID, "trackerJournal"); } catch { return null; }
+  return game.journal.getName(name)?.pages.getName(RULES_PAGE) ?? null;
 }
-function pickGear(items, cr) {
-  const lv = wowLevel(cr);
-  let cands = items.filter(i => i.kind === "gear" && i.ilvl >= lv - 4 && i.ilvl <= lv + 4);
-  if (!cands.length) cands = items.filter(i => i.kind === "gear" && Math.abs(i.ilvl - lv) <= 10);
-  return cands.length ? rand(cands) : null;
+/** The world's rules, parsed from the rules page's first table. Bad rows are skipped with a GM warning. */
+export function worldRules() {
+  if (RULES) return RULES;
+  const page = rulesPage(); let rows = [];
+  if (page) {
+    try {
+      const t = new DOMParser().parseFromString(page.text?.content || "", "text/html").querySelector("table");
+      rows = t ? [...t.querySelectorAll("tr")].filter(tr => !tr.querySelector("th")).map(tr => [...tr.children].map(td => td.textContent.trim()))
+        .filter(r => !/^creature match$/i.test(r[0] ?? "")) : [];
+    } catch (e) { console.warn(`${ID} | couldn't read ${RULES_PAGE}`, e); }
+  }
+  const { rules, errors } = R.parseRules(rows);
+  if (errors.length) {
+    console.warn(`${ID} | ${RULES_PAGE}: skipped ${errors.join("; ")}`);
+    if (game.user?.isGM) ui.notifications.warn(`Vendor Trash: skipped ${errors.length} row${errors.length === 1 ? "" : "s"} of ${RULES_PAGE} (${errors.join("; ")}).`);
+  }
+  return RULES = rules;
+}
+/** Family words: the first word of every NPC name in the world plus the rules page's Family words. */
+export function worldFamilies() {
+  FAMS ??= R.familyWordsFrom(game.actors.filter(a => a.type === "npc").map(a => a.name), worldRules().flatMap(r => r.familyWords));
+  return FAMS;
+}
+/** Loot profile, CR band and matching context for one creature. */
+function context(actor) {
+  const info = creatureInfo(actor); const cr = actor?.system?.details?.cr ?? 0;
+  return { prof: R.profileFor(info, worldRules()), band: R.bandFor(cr), cr, ctx: { worldFams: worldFamilies(), creatureWords: R.creatureWordsOf(info.name, info.subtype) } };
 }
 
 // ---------------------------------------------------------------- dungeons
@@ -115,53 +117,39 @@ export function addDungeonField(app, html) {
   tab.append(group);
 }
 
-/** Item drops for one creature kind. `ic` is the item-drop chance check (raised in dungeons). */
-function rollItems(items, kind, cr, name, ic, add) {
-  switch (kind) {
-    case "beast":
-      if (ic(0.7)) add(pickJunk(items, ["beast"], name));
-      if (ic(0.15)) add(pickJunk(items, ["beast"], name));
-      break;
-    case "dragon":
-      add(pickJunk(items, ["beast"], name.match(/dragon|drake|whelp/i) ? "Dragon Scale" : name));
-      if (ic(0.3)) add(pickJunk(items, ["beast", "elemental"], name));
-      break;
-    case "humanoid":
-      if (ic(0.5)) add(pickJunk(items, chance(0.7) ? ["trinket"] : ["trinket", "misc"], name));
-      if (ic(0.35)) add(pickGear(items, cr));
-      break;
-    case "undead":
-      if (ic(0.6)) add(pickJunk(items, ["undead"], name));
-      if (ic(0.2)) add(pickGear(items, cr));
-      break;
-    case "elemental":
-      if (ic(0.6)) add(pickJunk(items, ["elemental"], name));
-      break;
-    case "plant":
-      if (ic(0.6)) add(pickJunk(items, ["plant"], name));
-      break;
-    default:
-      if (ic(0.5)) add(pickJunk(items, ["beast", "undead", "elemental", "plant", "misc"], name));
-  }
-}
-
 /**
- * Rolls the drop for one creature: { items: [poolEntry], copper, kind, dungeon }. With `dungeon`, coin is multiplied, every
- * item-drop chance gets the dungeon bonus (capped at 100%) and, if set, the item drops roll a second time. Off dungeons the odds are unchanged.
+ * Rolls the drop for one creature: { items: [poolEntry], copper, kind, band, dungeon }. The creature's CR band sets how many times its
+ * drop table is rolled, the item level of what drops and its coin; its profile (trash-rules.mjs) decides which items fit. With `dungeon`,
+ * coin is multiplied, every item-drop chance gets the dungeon bonus (capped at 100%) and, if set, the drop table is rolled twice as often.
  */
 export async function rollDrop(actor, { dungeon = false } = {}) {
-  const items = await pool(); const kind = creatureKind(actor); const cr = actor?.system?.details?.cr ?? 0; const name = actor?.name ?? "";
+  const items = await pool(); const { prof, band, ctx } = context(actor);
   const rules = dungeon ? dungeonRules() : null;
-  const out = []; let copper = 0;
-  const add = x => { if (x) out.push(x); };
   const ic = rules ? p => chance(Math.min(1, p + rules.dropBonus)) : chance;
-  if (kind === "humanoid" && chance(0.75)) copper = coinFor(cr);
-  if (kind === "undead" && chance(0.25)) copper = coinFor(cr);
-  rollItems(items, kind, cr, name, ic, add);
-  if (rules?.extraRoll) rollItems(items, kind, cr, name, ic, add);
+  let slots = R.slotsFor(prof, band); if (rules?.extraRoll) slots = [...slots, ...slots];
+  const out = [];
+  for (const [p, slot] of slots) { if (!ic(p)) continue; const it = R.pickFor(items, prof, slot, band, ctx); if (it) out.push(it); }
+  let copper = R.coinRoll(prof, band);
   if (rules && copper) copper = Math.round(copper * rules.coinMult);
-  return { items: out, copper, kind, dungeon: !!rules };
+  return { items: out, copper, kind: prof.kind, band: band.label, dungeon: !!rules };
 }
+
+/** What a creature could drop, for checking a world's flavour rules: profile, band and a sample of up to `n` items per slot. */
+export async function preview(target, n = 20) {
+  const doc = tokenDoc(target); const actor = doc?.actor ?? target; if (!actor) return null;
+  const items = await pool(); const { prof, band, ctx } = context(actor);
+  const sample = list => [...list].sort(() => Math.random() - 0.5).slice(0, n).map(i => `${i.name}${i.ilvl ? ` (ilvl ${i.ilvl})` : ""}`);
+  const it = R.candidates(items, prof, "item", band, ctx); const gear = R.candidates(items, prof, "gear", band, ctx);
+  const out = {
+    creature: actor.name, kind: prof.kind, tags: [...prof.tags], deny: [...prof.deny], groups: prof.groups, rules: prof.rules, band: band.label,
+    pool: items.length, items: { named: sample(it.strong), fitting: sample(it.normal), count: it.normal.length, widened: it.widen },
+    gear: prof.gear ? { fitting: sample(gear.normal), count: gear.normal.length, widened: gear.widen } : null,
+    coin: prof.coin ? `${Math.round(prof.coin * 100)}% chance of ${band.coin[0]}–${band.coin[1]} copper` : "none"
+  };
+  console.log(`${ID} | Vendor Trash preview for ${actor.name}: ${it.normal.length} fitting items (${it.strong.length} named for it) out of ${items.length} in the pool`, out);
+  return out;
+}
+
 const DUNGEON_TAG = `<span class="wct-dungeon-tag" style="font-size:0.75em;font-weight:normal;padding:0 0.4em;margin-left:0.3em;border:1px solid currentColor;border-radius:3px;vertical-align:middle;" title="Dungeon scene: more coin and items">Dungeon</span>`;
 
 /** Value of a pool entry in the smallest coin: its vendor sell price if it has one, else the item's own price. */
@@ -202,6 +190,86 @@ async function markLooted(docs) {
 }
 const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor.type);
 
+// ---------------------------------------------------------------- pre-rolled loot
+/**
+ * Pre-rolled drops: when an NPC token is placed, its drop is rolled straight away and put on the token's own actor (items flagged as
+ * trash) with the coin kept in the token flag `flags.wayfarers-toolkit.trashRolled` ({ id, copper, band, dungeon }). Players can't open
+ * an NPC's inventory, so nothing shows until the body becomes lootable. `id` is the token the roll was made for: a copied or pasted
+ * token carries its source's flag and items, sees a different id, and rolls fresh.
+ */
+const S = (k, d) => { try { return game.settings.get(ID, k) ?? d; } catch { return d; } };
+const isPile = doc => !!(itemPiles()?.isValidItemPile?.(doc) || doc?.flags?.["item-piles"]?.data?.enabled || doc?.actor?.flags?.["item-piles"]?.data?.enabled);
+/** An unlinked NPC token that can carry pre-rolled loot. */
+export const autoTarget = doc => !!doc?.actor && doc.actor.type === "npc" && !doc.actorLink && !doc.getFlag(ID, "looted") && !isPile(doc);
+const rolled = doc => { const f = doc?.getFlag?.(ID, "trashRolled"); return f && f.id === doc.id ? f : null; };
+const trashItems = actor => actor?.items?.filter(i => i.getFlag(ID, "trash")) ?? [];
+
+/** Rolls a token's drop and stores it on the token's actor, replacing any earlier pre-rolled drop. Returns the stored drop. */
+async function storeDrop(doc, api) {
+  const actor = doc.actor; const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
+  const old = trashItems(actor).map(i => i.id); if (old.length) await actor.deleteEmbeddedDocuments("Item", old);
+  const d = await rollDrop(actor, { dungeon: isDungeon(doc) });
+  const create = [];
+  for (const i of d.items) {
+    const v = valueOf(i, api); const same = create.find(o => o.flags[ID].source === i.uuid);
+    if (same) { same.system.quantity += 1; continue; }
+    const o = await trashItemData(i.uuid, v, cpVal); if (!o) continue; o.flags[ID].value = v; create.push(o);
+  }
+  if (create.length) await actor.createEmbeddedDocuments("Item", create);
+  const flag = { id: doc.id, copper: d.copper, band: d.band, dungeon: d.dungeon };
+  await doc.setFlag(ID, "trashRolled", flag);
+  return flag;
+}
+/** The drop on a token as { items: [{ uuid, name, value, qty, id }], copper, dungeon }, rolling and storing it first if it has none yet. */
+async function dropOf(doc, api, { store = true } = {}) {
+  let f = rolled(doc);
+  if (!f) {
+    if (!store) { const d = await rollDrop(doc.actor, { dungeon: isDungeon(doc) }); return { items: d.items.map(i => ({ uuid: i.uuid, name: i.name, value: valueOf(i, api), qty: 1 })), copper: d.copper, dungeon: d.dungeon }; }
+    f = await storeDrop(doc, api);
+  }
+  const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
+  const items = trashItems(doc.actor).map(i => ({ id: i.id, uuid: i.getFlag(ID, "source"), name: i.name, value: i.getFlag(ID, "value") ?? Math.round(i.system.price?.value || 0) * cpVal, qty: i.system.quantity || 1 }));
+  return { items, copper: f.copper || 0, dungeon: !!f.dungeon };
+}
+
+/** createToken (active GM only): pre-rolls the drop for a newly placed unlinked NPC token. */
+export async function onCreateToken(doc, api) {
+  if (!game.users.activeGM?.isSelf || !S("trashAutoRoll", true) || !autoTarget(doc) || rolled(doc)) return;
+  if (!packIds().length) return;
+  try { if (!(await pool()).length) return; await storeDrop(doc, api); }
+  catch (e) { console.warn(`${ID} | Vendor Trash: couldn't pre-roll loot for ${doc.name}`, e); }
+}
+
+/** GM: rolls the drop of the given (or selected) tokens again. Already looted bodies and linked tokens are skipped. */
+export async function reroll(api, tokens = null) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
+  const docs = tokens.map(tokenDoc); const done = []; const skipped = [];
+  if (!packIds().length || !(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");
+  for (const doc of docs) {
+    if (!autoTarget(doc)) { if (doc?.name) skipped.push(doc.name); continue; }
+    await storeDrop(doc, api); done.push(doc);
+  }
+  if (done.length) ui.notifications.info(`Vendor Trash: rerolled ${done.map(d => d.name).join(", ")}.`);
+  if (skipped.length) ui.notifications.info(`Vendor Trash: not rerolled (looted, linked or not an NPC): ${skipped.join(", ")}.`);
+  return done.map(d => ({ token: d.name, items: trashItems(d.actor).map(i => `${i.name}${i.system.quantity > 1 ? ` ×${i.system.quantity}` : ""}`), copper: rolled(d)?.copper ?? 0 }));
+}
+
+// ---------------------------------------------------------------- automatic looting on death
+const busy = new Set();
+const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
+/** Active GM only: when an unlinked NPC token is down (0 HP or marked defeated), its body becomes lootable with its pre-rolled drop. */
+export async function onDeath(doc, api, { defeated = false } = {}) {
+  if (!doc || !game.users.activeGM?.isSelf || !S("trashAutoLoot", true) || !autoTarget(doc)) return;
+  if (!defeated && !isDead(doc)) return;
+  if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
+  try {
+    if (!packIds().length || !(await pool()).length) return;
+    await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
+  } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't make ${doc.name} lootable`, e); }
+  finally { busy.delete(doc.uuid); }
+}
+
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
 export async function vendorTrash(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
@@ -214,15 +282,21 @@ export async function vendorTrash(api, tokens = null) {
   return usePiles() ? lootPiles(tokens.map(tokenDoc), api) : lootCard(tokens.map(tokenDoc), api);
 }
 
-/** The original flow: a GM loot card with a Give to Party button. */
-async function lootCard(docs, api) {
+const itemRow = (i, api) => `@UUID[${i.uuid}]{${esc(i.name)}}${i.qty > 1 ? ` ×${i.qty}` : ""} <span class="wct-val">(${api.fmtMoney(i.value * i.qty)})</span>`;
+
+/** The original flow: a GM loot card with a Give to Party button. A pre-rolled drop is taken off the creature and put on the card. */
+async function lootCard(docs, api, { auto = false } = {}) {
   const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
+  if (auto && !todo.length) return;
   await markLooted(todo);
+  const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   for (const doc of todo) {
-    const d = await rollDrop(doc.actor, { dungeon: isDungeon(doc) }); if (d.dungeon) dungeon = true;
-    const parts = d.items.map(i => { const v = valueOf(i, api); total += v; drops.push({ uuid: i.uuid, value: v }); return `@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`; });
-    if (d.copper) { const v = d.copper * (Object.fromEntries(api.coins()).cp ?? 1); coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
+    // Linked tokens are rolled on the spot and nothing is written to their world actor.
+    const d = await dropOf(doc, api, { store: !doc.actorLink }); if (d.dungeon) dungeon = true;
+    const parts = d.items.map(i => { total += i.value * i.qty; for (let n = 0; n < i.qty; n++) drops.push({ uuid: i.uuid, value: i.value }); return itemRow(i, api); });
+    const ids = d.items.map(i => i.id).filter(Boolean); if (ids.length) await doc.actor.deleteEmbeddedDocuments("Item", ids);
+    if (d.copper) { const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
   }
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
@@ -233,39 +307,54 @@ async function lootCard(docs, api) {
 /**
  * Item Piles flow: the drop goes onto each creature's own actor (for an unlinked token that's the token's synthetic actor, so the
  * world actor is untouched) and the token becomes a lootable pile that keeps its image. The creature's own gear and features stay
- * hidden from the pile, so players only see the trash and coin. Creatures that dropped nothing are left alone.
+ * hidden from the pile, so players only see the trash and coin. Creatures that dropped nothing are left alone. A drop pre-rolled when
+ * the token was placed is used as it is.
  */
-async function lootPiles(docs, api) {
+async function lootPiles(docs, api, { auto = false } = {}) {
   const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !((doc.getFlag(ID, "looted") || IP.isValidItemPile(doc)) && skipped.push(doc.name)));
+  if (auto && !todo.length) return;
   await markLooted(todo);
   for (const doc of todo) {
     const actor = doc.actor;
-    const d = await rollDrop(actor, { dungeon: isDungeon(doc) }); if (d.dungeon) dungeon = true;
-    const own = actor.items.map(i => i.id);
-    const create = []; const parts = [];
-    for (const i of d.items) {
-      const v = valueOf(i, api);
-      const same = create.find(o => o.flags[ID].source === i.uuid);
-      if (same) same.system.quantity += 1;
-      else { const o = await trashItemData(i.uuid, v, cpVal); if (!o) continue; create.push(o); }
-      total += v; parts.push(`@UUID[${i.uuid}]{${esc(i.name)}} <span class="wct-val">(${api.fmtMoney(v)})</span>`);
-    }
-    if (!create.length && !d.copper) { empty.push(doc.name); continue; }
-    if (create.length) await actor.createEmbeddedDocuments("Item", create);
+    // Unlinked tokens use (or store) their pre-rolled drop; a linked token's drop is rolled now and added to its actor, as before.
+    const d = await dropOf(doc, api, { store: !doc.actorLink }); if (d.dungeon) dungeon = true;
+    const fresh = [];
+    for (const i of d.items.filter(i => !i.id)) { const o = await trashItemData(i.uuid, i.value, cpVal); if (o) { o.system.quantity = i.qty; fresh.push(o); } }
+    if (fresh.length) await actor.createEmbeddedDocuments("Item", fresh);
+    const parts = d.items.map(i => { total += i.value * i.qty; return itemRow(i, api); });
+    if (!d.items.length && !d.copper) { empty.push(doc.name); continue; }
     if (d.copper) {
       await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
       const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
     }
+    const own = actor.items.filter(i => !i.getFlag(ID, "trash")).map(i => i.id);
     const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
     await IP.turnTokensIntoItemPiles(doc, { pileSettings: { type: "pile", overrideItemFilters: filters } });
     piles++;
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.join(", ")}</li>`);
   }
+  if (auto && !rows.length) return;
   if (!rows.length && !empty.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
   return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total, dungeon } } } });
+}
+
+/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash. */
+export function addHudButton(hud, html, api) {
+  if (!game.user.isGM) return;
+  const root = html instanceof HTMLElement ? html : html?.[0]; const doc = hud.object?.document ?? hud.document;
+  const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col || !autoTarget(doc)) return;
+  col.querySelector(".wct-trash-reroll")?.remove();
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "control-icon wct-trash-reroll";
+  const f = rolled(doc);
+  btn.dataset.tooltip = f ? `Reroll trash (now: ${trashItems(doc.actor).map(i => i.name).join(", ") || "no items"}${f.copper ? `, ${api.fmtMoney(f.copper * (Object.fromEntries(api.coins()).cp ?? 1))}` : ""})` : "Roll trash";
+  btn.setAttribute("aria-label", "Reroll vendor trash");
+  btn.innerHTML = '<i class="fa-solid fa-dice"></i>';
+  btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await reroll(api, [doc]); hud.render?.(); });
+  col.append(btn);
 }
 
 /** Gives a loot card's items and coin to the party actor. Trash items are priced at their vendor value and flagged for Sell Trash. */

@@ -11,7 +11,7 @@ The module supplies only the logic. Your own campaign content (encounter tables,
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
-| **Vendor Trash** | Select defeated creatures and roll grey vendor-trash loot: beasts drop body parts, humanoids drop worn gear, trinkets and a little coin, undead drop bones. With Item Piles, the bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in. |
+| **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in. |
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Players can use it for their own characters. |
 | **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in an MMO-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
@@ -72,12 +72,22 @@ The tracker journal's **Flight Routes** page holds two tables: flight points (na
 
 Grey "vendor trash" from defeated creatures, in the style of classic MMOs.
 
-1. Select (or target) the defeated creatures' tokens.
-2. Run the **Vendor Trash** macro. Each creature's drop is rolled; every item is priced at its vendor value and marked as vendor trash.
-3. The loot goes either onto the bodies or to the party (see below).
-4. At a vendor, run **Sell Vendor Trash**. Pick whose trash to sell (the party actor or a character holding some; a selected token's actor is picked by default) and confirm. The coin goes to the same actor.
+1. Place NPC tokens as usual. Each unlinked NPC token gets its drop and coin rolled the moment it's placed. The loot waits on the token's own copy of the actor; players can't see it.
+2. When the creature drops to 0 HP or is marked defeated in the combat tracker, its body becomes lootable (see below). Nothing else to do.
+3. At a vendor, run **Sell Vendor Trash**. Pick whose trash to sell (the party actor or a character holding some; a selected token's actor is picked by default) and confirm. The coin goes to the same actor.
 
-Each token is only looted once. Characters and group actors are never looted.
+Every item is priced at its vendor value and marked as vendor trash. Each token is only looted once. Characters and group actors are never looted.
+
+**Placing and rolling.** Only unlinked NPC tokens are pre-rolled; characters, group actors, linked tokens and tokens that are already piles or looted are left alone. A copied or pasted token rolls its own drop. Healing a creature back above 0 HP before its body is looted doesn't reroll anything; it keeps the loot it had. To check or change a drop, open the token HUD and hover the **dice** button (it lists the current drop) or click it to reroll; from a macro, `api.trash.reroll(tokens)`.
+
+**The Vendor Trash macro** still works: select (or target) creatures and run it to loot them by hand (for example linked tokens, or with the automatic settings off). It uses the pre-rolled drop when there is one and rolls one otherwise.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| **Roll trash loot when NPC tokens are placed** | on | Pre-rolls the drop of every unlinked NPC token as it's placed. Off: the drop is rolled when the body is looted. |
+| **Make bodies lootable automatically on death** | on | At 0 HP or when marked defeated, the body becomes an Item Piles pile (or, without Item Piles, the GM gets the Give to Party card). Off: run the Vendor Trash macro yourself. |
+
+Both settings belong to Vendor Trash and only show when it's turned on. The rolling and looting happen on the active GM's client, so a GM has to be logged in.
 
 ### With Item Piles: loot the bodies
 
@@ -99,20 +109,61 @@ The GM gets a loot card listing each creature's drop and its vendor value. Click
 
 ### What drops
 
-What drops depends on the creature:
+What drops depends on the creature: its type, its subtype and the words in its name.
 
 | Creature | Drops |
 | --- | --- |
-| Beast, monstrosity | A body part (70%), sometimes two. Parts sharing a word with the creature's name come first: a boar drops tusks, a spider drops webbing. No coin. |
-| Humanoid, giant | Coin (75%), a trinket (50%), a piece of worn gear for its level (35%). |
-| Undead | Bones and dust (60%), sometimes worn gear or coin. |
-| Elemental, construct | Stones, ash, essences (60%). |
-| Plant, fey | Roots, petals, spores (60%). |
-| Dragon | Scales and claws. |
+| Beast, monstrosity | A body part (70%), sometimes two, made of what that creature has: a wolf or bear fur, fangs, claws and meat; a spider or scorpion chitin, silk, venom and stingers; a bird feathers, talons and beaks; a crocodile or snake scales, teeth and eggs. No coin. |
+| Humanoid, giant | Coin (75%), a trinket or other junk (50%), a piece of worn gear for its level (35%). Never body parts, except ones named after its own kind (a gnoll's mane). |
+| Undead | Bones, dust and rotting flesh (60%), sometimes worn gear or coin. |
+| Elemental, construct | Stones, ash, embers, essences and shards (60%). |
+| Plant, fey | Roots, petals, bark, leaves and spores (60%). |
+| Ooze | Slime and residue (60%). |
+| Dragon | Scales, claws, teeth and wing parts. Never fur, insect parts, feathers or bones, not even through the rules page. |
 
-The creature type comes from the sheet; if it's blank, the name decides (a "Mangy Wolf" is a beast, a "Bandit Lookout" a humanoid). A creature's level for gear and coin comes from its CR (CR 1 ≈ level 4, CR 5 ≈ 17, CR 10 ≈ 34, CR 18 ≈ 60).
+**Material tags.** Each item is sorted by the words in its name: `fur` (fur, pelt, hide, leather, mane…), `tooth` (tooth, tusk, horn, fang, claw…), `flesh` (meat, flank, heart, eye, gland…), `insect` (chitin, carapace, mandible, stinger, ichor, silk, web…), `venom`, `egg`, `scale`, `avian` (feather, talon, beak, quill), `wing`, `aquatic` (fin, gill, blubber, pearl), `shell`, `undead` (bone, skull, dust, grave…), `elemental` (stone, ash, ember, essence, shard, crystal…), `plant` (root, petal, spore, bark, leaf…), `ooze` (slime, goo, residue) and `trinket` (made things: spoons, mugs, pouches, candles, rings…). Weapons and armour are `gear`; loot whose name matches nothing is `misc`, which humanoids and creatures of unusual types can drop.
 
-**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
+**Creature words.** The creature's name and subtype are matched against ordinary English animal words (wolf, hound, bear, boar, cat, stag, rat, ape, spider, scorpion, beetle, wasp, crab, turtle, crocodile, lizard, snake, raptor, bat, owl, hawk, vulture, wyvern, shark, gnoll, kobold, goblin, orc, ogre, troll, dragon, drake, whelp, skeleton, zombie, ghost…). The words decide which materials it may drop. If the sheet has no creature type the name decides the type too (a "Mangy Wolf" is a beast, a "Bandit Lookout" a humanoid).
+
+**Family words.** If an item's name contains a creature-family word, only creatures of that family drop it. The family words are the animal words above plus the first word of every NPC name in your world (skipping words such as *Young*, *Mangy* or colours) and any listed on the rules page. So once a "Duskwing Stalker" exists in the world, a "Duskwing Chitin" only drops from creatures whose name contains *Duskwing*, never from ordinary spiders, without that name being written anywhere in the module. Items named after the creature are picked first (75% of the time). Items matching no rule fall back to the creature type's usual kinds of junk.
+
+**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items, their item levels and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor trash compendiums**; in those, loot-type items with no rarity count as trash.
+
+### Value by challenge rating
+
+Higher CR means better loot: more rolls, higher item levels and more coin. The bands live in one commented constant, `CR_BANDS` in `scripts/trash-rules.mjs`, to tune if your table wants richer or poorer trash:
+
+| Band | Item level | Vendor value of unlevelled items | Coin (if it carries any) | Rolls of its drop table |
+| --- | --- | --- | --- | --- |
+| CR 0–1/4 | 1–6 | 1–30c | 60c–3s 20c | 1 |
+| CR 1/2–1 | 3–10 | 5c–1s | 1s 50c–6s | 1 |
+| CR 2–4 | 7–16 | 20c–4s | 10s–40s | 1 |
+| CR 5–8 | 15–28 | 1s–15s | 50s–1g 60s | 1–2 |
+| CR 9–12 | 28–42 | 4s–40s | 2g–5g 60s | 1–2 |
+| CR 13–16 | 41–55 | 10s–80s | 3g–7g | 2 |
+| CR 17+ | 54–63 | 20s–2g | 6g–17g | 2–3 |
+
+(Copper, silver and gold at 100 to 1. In a standard 5e economy the same copper amounts are paid out in cp, sp and gp.) The bands aim for trash to be a modest slice of a party's income, around a tenth, on a wealth curve of roughly 1g per character by level 2, 15g by 6, 75g by 10, 400g by 14 and 1,200g by 18; quest rewards and treasure stay the main income. If too few matching items fall inside a band, the item-level range widens a few levels at a time until some do: a creature drops a slightly off-level item before it drops one that doesn't fit it.
+
+**Checking a creature.** Select a token and run `game.modules.get("wayfarers-toolkit").api.trash.preview()` (or pass a token or actor, and how many items to list: `preview(token, 40)`). It returns the creature's kind, materials, CR band, the rules that matched and a sample of what it can drop, and logs how many items of the pool fit.
+
+### Your own rules: the Vendor Trash Rules page
+
+**Run setup** adds a **Vendor Trash Rules** page to the tracker journal. Its first table holds extra rules for your world; edit it like any journal table. Each row applies to every creature whose name, type or subtype contains the text in the first column (not case-sensitive; `*` matches every creature):
+
+| Creature match | Allow tags | Allow items | Deny items | Family words |
+| --- | --- | --- | --- | --- |
+| ember | elemental | | | |
+| trapper | fur, gear | | | |
+| swamp | plant | Bog Lily | Dry Leaf | |
+| marsh lurker | | | | murkfin |
+
+- **Allow tags**: material tags (listed above) the creature may also drop. `gear` lets it drop worn weapons and armour; `coin` makes it carry coin.
+- **Allow items**: parts of item names it may always drop, and drops first.
+- **Deny items**: parts of item names it never drops.
+- **Family words**: words that tie items to this creature, as if they were the first word of its name. In the last row, items with *Murkfin* in their name drop from Marsh Lurkers (and from creatures named Murkfin…), and no one else.
+
+Lists are separated by commas. Rows with an unknown tag or an empty first column are skipped, and the GM gets a warning naming them. Changes apply to the next roll; already pre-rolled tokens keep their loot until rerolled.
 
 ### Dungeon loot
 
@@ -124,7 +175,7 @@ Mark a scene as a dungeon to make its creatures richer: open the scene's configu
 | **Dungeon drop bonus (%)** | 25 | Percentage points added to every item-drop chance (a 70% body part becomes 95%), never above 100%. |
 | **Dungeon extra item roll** | on | The creature's item drops are rolled a second time (coin is not). |
 
-The trash pool is grey items only by design, so instead of raising item quality the dungeon bonus gives an extra roll. Whether coin drops at all is unchanged; only the amount goes up. Scenes not marked as dungeons drop exactly as before. The GM's Vendor Trash card shows a small **Dungeon** tag when the bonus applied. The checkbox and settings belong to Vendor Trash and disappear when it's turned off.
+The dungeon bonus comes on top of the creature's CR band. The trash pool is grey items only by design, so instead of raising item quality the dungeon bonus gives an extra roll. A pre-rolled token gets the bonus of the scene it was placed on. Whether coin drops at all is unchanged; only the amount goes up. Scenes not marked as dungeons drop exactly as before. The GM's Vendor Trash card shows a small **Dungeon** tag when the bonus applied. The checkbox and settings belong to Vendor Trash and disappear when it's turned off.
 
 ## Riding Training and Long Road
 
@@ -290,7 +341,7 @@ To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they 
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`. Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`); both are undefined when their feature is off. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`. Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`); both are undefined when their feature is off. The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash and `api.trash.preview(tokenOrActor, n)` shows what a creature can drop, and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ## License
 

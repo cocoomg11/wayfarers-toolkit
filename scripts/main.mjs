@@ -38,7 +38,9 @@ const DEFAULTS = {
   riderFeat: "Riding Training",
   dungeonCoinMult: 2,
   dungeonDropBonus: 25,
-  dungeonExtraRoll: true
+  dungeonExtraRoll: true,
+  trashAutoRoll: true,
+  trashAutoLoot: true
 };
 /** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
 const OLD_RIDER = "Trained Rider";
@@ -154,6 +156,8 @@ function registerSettings() {
     s("dungeonCoinMult", "Dungeon coin multiplier", "Coin dropped by creatures in scenes marked as dungeons (Scene configuration › Basics) is multiplied by this.", Number, { range: { min: 1, max: 5, step: 0.25 } });
     s("dungeonDropBonus", "Dungeon drop bonus (%)", "Percentage points added to each item-drop chance for creatures in dungeon scenes (a 70% drop becomes 95% at +25). Chances never go above 100%.", Number, { range: { min: 0, max: 100, step: 5 } });
     s("dungeonExtraRoll", "Dungeon extra item roll", "Creatures in dungeon scenes roll their item drops a second time (coin is not rolled again). The trash pool is grey items only, so this stands in for better-quality loot.", Boolean);
+    s("trashAutoRoll", "Roll trash loot when NPC tokens are placed", "Each unlinked NPC token gets its vendor-trash drop and coin rolled when it's placed (pasted copies roll their own). The loot waits hidden on the token until the body is looted. Reroll it from the dice button in the token HUD.", Boolean);
+    s("trashAutoLoot", "Make bodies lootable automatically on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
   }
   s("trashPacks", "Vendor trash compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() }, "vendorTrash");
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
@@ -224,13 +228,13 @@ export const WCT = {
   gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
   opt(v, label, sel) { return `<option value="${esc(v)}" ${sel ? "selected" : ""}>${esc(label ?? v)}</option>`; },
   campaign() { return setting("campaignName") || game.world.title; },
-  trackerPages() { return { ...TRACKER_PAGES }; },
+  trackerPages() { return { ...TRACKER_PAGES, ...(F.on("vendorTrash") ? { [Trash.RULES_PAGE]: Trash.RULES_PAGE_HTML } : {}) }; },
 
   // ------------------------------------------------------------ setup
   async setup() {
     if (!this.gmOnly()) return [];
     const made = [];
-    const needJournal = ["hexTravel", "flightMaster", "sessionStart"].some(F.on);
+    const needJournal = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash"].some(F.on);
     const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
     if (!needJournal) { /* no tool that writes the tracker journal is on */ }
     else if (!game.journal.getName(this.JOURNAL)) {
@@ -435,7 +439,12 @@ export const WCT = {
   vendorTrash(tokens) { return F.need("vendorTrash") ? Trash.vendorTrash(this, tokens) : undefined; },
   sellTrash(actor) { return F.need("vendorTrash") ? Trash.sellTrash(this, actor) : undefined; },
   syncItemPilesCoins,
-  trash: Trash,
+  /** Vendor Trash internals plus reroll(tokens) and preview(tokenOrActor, n) for the GM. */
+  trash: {
+    ...Trash,
+    reroll(tokens) { return F.need("vendorTrash") ? Trash.reroll(WCT, tokens) : undefined; },
+    preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; }
+  },
 
   // ------------------------------------------------------------ character pane
   characterPane(actor) { return F.need("characterPane") ? Pane.characterPane(actor) : undefined; },
@@ -569,4 +578,22 @@ function registerTrashHooks() {
     if (message.getFlag(ID, "trash")?.given) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Given to party'; return; }
     btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; try { await Trash.giveTrash(message, WCT); } catch (e) { btn.disabled = false; ui.notifications.error(`Vendor Trash: ${e.message}`); } });
   });
+  // Pre-rolled loot: rolled when an unlinked NPC token is placed (active GM's client only; the checks live in trash.mjs).
+  Hooks.on("createToken", doc => Trash.onCreateToken(doc, WCT));
+  // Bodies become lootable at 0 HP (an unlinked token's HP lives in its actor delta) or when marked defeated.
+  const hpChanged = c => foundry.utils.hasProperty(c ?? {}, "system.attributes.hp");
+  Hooks.on("updateActor", (actor, changes) => { if (actor.isToken && hpChanged(changes)) Trash.onDeath(actor.token, WCT); });
+  Hooks.on("updateToken", (doc, changes) => { if (hpChanged(changes.delta)) Trash.onDeath(doc, WCT); });
+  Hooks.on("updateCombatant", (c, changes) => { if (changes.defeated === true) Trash.onDeath(c.token, WCT, { defeated: true }); });
+  Hooks.on("createActiveEffect", effect => {
+    const actor = effect.parent; const dead = CONFIG.specialStatusEffects?.DEFEATED ?? "dead";
+    if (actor?.isToken && effect.statuses?.has?.(dead)) Trash.onDeath(actor.token, WCT, { defeated: true });
+  });
+  Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, WCT));
+  // The rules page and the world's creature names feed the flavour rules; re-read them when they change.
+  const rulesPage = p => p?.name === Trash.RULES_PAGE && p.parent?.name === WCT.JOURNAL;
+  for (const h of ["createJournalEntryPage", "updateJournalEntryPage", "deleteJournalEntryPage"]) Hooks.on(h, p => { if (rulesPage(p)) Trash.resetRules(); });
+  Hooks.on("createActor", Trash.resetFamilies);
+  Hooks.on("deleteActor", Trash.resetFamilies);
+  Hooks.on("updateActor", (a, changes) => { if ("name" in (changes ?? {})) Trash.resetFamilies(); });
 }
