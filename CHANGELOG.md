@@ -2,6 +2,16 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.14.1
+
+**New**
+- **Adding your own loot** (Vendor Trash): any item can show in a body's loot pile. Items a GM adds to an NPC are marked **Lootable** automatically (setting *Items the GM adds to an NPC count as loot*, on by default; stat-block items never are). GM-only **Lootable** checkbox on NPC item sheets and **Mark as loot / Unmark loot** in the NPC inventory context menu.
+- **Everything is lootable** per NPC (sheet header control, `api.trash.setAllLootable`): its pile shows every physical item, never features or spells.
+- Bodies that are already piles refresh their filters when a mark or *Everything is lootable* changes.
+- Setting *Unconscious bodies become lootable* (off by default).
+- Reset loot: *Also remove hand-added loot* option (marked items stay by default). Remove toolkit data and the health check include the new flags.
+- API: `api.trash.setLootable(items, on)`, `api.trash.setAllLootable(actorOrToken, on)`.
+
 ## 1.14.0
 
 **Fixes**

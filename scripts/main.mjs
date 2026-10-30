@@ -49,6 +49,8 @@ const DEFAULTS = {
   dungeonExtraRoll: true,
   trashAutoRoll: true,
   trashAutoLoot: true,
+  trashGmAddedLoot: true,
+  trashUnconscious: false,
   partySize: 4,
   debugLog: false
 };
@@ -178,6 +180,8 @@ function registerSettings() {
   s("dungeonExtraRoll", "Vendor Trash: Dungeon extra item roll", "Creatures in dungeon scenes roll their item drops a second time (coin is not rolled again). The trash pool is grey items only, so this stands in for better-quality loot.", Boolean);
   s("trashAutoRoll", "Vendor Trash: Roll loot when NPC tokens are placed", "Each unlinked NPC token gets its vendor-trash drop and coin rolled when it's placed (pasted copies roll their own). The loot waits hidden on the token until the body is looted. Reroll it from the dice button in the token HUD.", Boolean);
   s("trashAutoLoot", "Vendor Trash: Make bodies lootable on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
+  s("trashGmAddedLoot", "Vendor Trash: Items the GM adds to an NPC count as loot", "When a GM adds a weapon, armour, consumable, tool, loot or container to an NPC (dragged onto its sheet or created there), the item is marked Lootable and shows in the body's loot pile. Items that came with the stat block are never marked. Change the mark on the item sheet or the inventory context menu.", Boolean);
+  s("trashUnconscious", "Vendor Trash: Unconscious bodies become lootable", "An unlinked NPC token that gets the Unconscious condition becomes lootable as if it had died (No loot and one-loot-per-body still apply).", Boolean);
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
@@ -529,6 +533,10 @@ export const WCT = {
     reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
     showPreview(tokens, n = 12) { return F.need("vendorTrash") ? Trash.showPreview(WCT, tokens, n) : undefined; },
     preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; },
+    /** Marks items (documents or UUIDs) Lootable (true), not lootable (false) or clears the mark (null). GM only. */
+    setLootable(items, on = true) { return F.need("vendorTrash") ? Trash.setLootable(items, on) : undefined; },
+    /** Everything is lootable on an actor or token (every physical item shows in its pile). GM only. */
+    setAllLootable(target, on = true) { return F.need("vendorTrash") ? Trash.setAllLootable(target ?? canvas.tokens?.controlled?.[0], on) : undefined; },
     /** No loot on tokens or actors: setNoLoot(tokensOrActors, on, { actor }) (actor: mark the world actor, every token of it). */
     setNoLoot(targets, on = true, opts = {}) {
       if (!F.on("vendorTrash") && !F.on("bossLoot")) return F.need("vendorTrash");
@@ -714,8 +722,23 @@ function registerTrashHooks() {
   Hooks.on("updateCombatant", (c, changes) => { if (changes.defeated === true) Trash.onDeath(c.token, WCT, { defeated: true }); });
   Hooks.on("createActiveEffect", effect => {
     const actor = effect.parent; const dead = CONFIG.specialStatusEffects?.DEFEATED ?? "dead";
-    if (actor?.isToken && effect.statuses?.has?.(dead)) Trash.onDeath(actor.token, WCT, { defeated: true });
+    if (!actor?.isToken) return;
+    if (effect.statuses?.has?.(dead)) return Trash.onDeath(actor.token, WCT, { defeated: true });
+    if (effect.statuses?.has?.("unconscious") && setting("trashUnconscious")) Trash.onDeath(actor.token, WCT, { defeated: true });
   });
+  // Your own loot: GM-added items are marked Lootable as they're created; marks and "Everything is lootable" refresh existing piles.
+  Hooks.on("preCreateItem", (item, data, options, userId) => Trash.onPreCreateItem(item, data, options, userId));
+  const lootFlagChanged = c => foundry.utils.hasProperty(c ?? {}, `flags.${ID}.lootable`) || foundry.utils.hasProperty(c ?? {}, `flags.${ID}.-=lootable`);
+  Hooks.on("updateItem", (item, changes) => { if (item.parent instanceof Actor && lootFlagChanged(changes)) Trash.refreshPiles(item.parent); });
+  Hooks.on("createItem", item => { if (item.parent instanceof Actor && item.getFlag(ID, "lootable") === true) Trash.refreshPiles(item.parent); });
+  Hooks.on("updateActor", (actor, changes) => {
+    if (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.allLootable`) || foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.-=allLootable`)) Trash.refreshPiles(actor);
+  });
+  // Lootable checkbox on NPC items' sheets, Mark as loot in the inventory context menu, Everything is lootable in the NPC sheet header (GM).
+  // renderDocumentSheetV2 fires for every ApplicationV2 document sheet whatever the system's class name (dnd5e's ItemSheet5e included).
+  Hooks.on("renderDocumentSheetV2", (app, element) => { if (app.document instanceof Item) Trash.addLootableCheckbox(app, element); });
+  Hooks.on("dnd5e.getItemContextOptions", (item, options) => Trash.addItemContextOptions(item, options));
+  Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => Trash.addAllLootableControl(app, controls));
   Hooks.on("renderTokenHUD", (hud, html) => Trash.addHudButton(hud, html, WCT));
   Hooks.on("renderTokenHUD", (hud, html) => Trash.addNoLootButton(hud, html, WCT));
   // The rules page and the world's creature names feed the flavour rules; re-read them when they change.

@@ -29,7 +29,7 @@ export const MENUS = [
   },
   {
     key: "menuVendorTrash", label: "Vendor Trash settings…", title: "Vendor Trash", icon: "fa-solid fa-sack-dollar", features: ["vendorTrash"],
-    settings: [["trashPacks", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"],
+    settings: [["trashPacks", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["trashUnconscious", "vendorTrash"],
       ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"]]
   },
   {

@@ -349,8 +349,128 @@ const rolled = doc => { const f = doc?.getFlag?.(ID, "trashRolled"); return f &&
 const trashItems = actor => actor?.items?.filter(i => i.getFlag(ID, "trash")) ?? [];
 /** Items Boss loot put on a body (item flag `bossLoot`). */
 const bossItems = actor => actor?.items?.filter(i => i.getFlag(ID, "bossLoot")) ?? [];
-/** Loot items a pile shows: vendor trash and boss loot. Everything else the creature carries stays hidden. */
-const isLootItem = i => !!(i.getFlag(ID, "trash") || i.getFlag(ID, "bossLoot"));
+// ---------------------------------------------------------------- your own loot
+/** Item types that are physical things a body can carry (what "Everything is lootable" shows). Features, spells, classes never show. */
+export const PHYSICAL_TYPES = new Set(["weapon", "equipment", "consumable", "tool", "loot", "container"]);
+const tkFlags = i => i?.flags?.[ID] ?? {};
+/**
+ * Whether a pile shows this item: vendor trash, boss loot, items marked Lootable (`flags.wayfarers-toolkit.lootable === true`) and,
+ * with `all` (the creature is marked "Everything is lootable"), every physical item not explicitly marked `lootable: false`. Pure.
+ */
+export function isLootItem(i, { all = false } = {}) {
+  const f = tkFlags(i);
+  if (f.trash || f.bossLoot || f.lootable === true) return true;
+  return !!all && f.lootable !== false && PHYSICAL_TYPES.has(i?.type);
+}
+/** Loot the GM put on a body: lootable items (or every physical item with `all`) that aren't vendor trash or boss loot. Pure. */
+export const isHandLoot = (i, opts = {}) => { const f = tkFlags(i); return !f.trash && !f.bossLoot && isLootItem(i, opts); };
+/** Item Piles filters for a body: the base filters plus an `_id` filter hiding every item the pile shouldn't show. Pure. */
+export function buildFilters(base = [], items = [], { all = false } = {}) {
+  const hide = items.filter(i => !isLootItem(i, { all })).map(i => i.id ?? i._id);
+  const out = [...(base ?? [])]; if (hide.length) out.push({ path: "_id", filters: hide });
+  return out;
+}
+/** "Everything is lootable" on a token's actor (an unlinked token's own actor inherits its world actor's flag) or an actor. */
+export const allLootableOf = target => { const t = target?.document ?? target; const a = t instanceof Actor ? t : t?.actor; return !!a?.getFlag?.(ID, "allLootable"); };
+/** Items on a body that the GM added as loot (shown in its pile on top of the drop). */
+export const handLoot = (actor, all = allLootableOf(actor)) => actor?.items?.filter(i => isHandLoot(i, { all })) ?? [];
+
+/**
+ * Whether an item the GM just created on an actor is marked Lootable automatically (pure, tested in Node): the setting is on, the
+ * creating user is a GM and it's this client, the actor is an NPC that wasn't created a moment ago (items arriving with a new or
+ * imported actor's stat block), the item is a physical type, it isn't the toolkit's own (trash, boss loot) and it carries no Lootable mark yet.
+ */
+export function autoLootDecision({ enabled = true, isGM = false, ownClient = false, actorType, itemType, flags = {}, actorAgeMs = Infinity, internal = false } = {}) {
+  if (!enabled || !isGM || !ownClient || internal) return false;
+  if (actorType !== "npc" || !PHYSICAL_TYPES.has(itemType)) return false;
+  if (flags?.trash || flags?.bossLoot || flags?.lootable !== undefined) return false;
+  return actorAgeMs > 3000;
+}
+/** preCreateItem: marks items a GM adds to an NPC as Lootable (no extra update; runs on the creating client only). */
+export function onPreCreateItem(item, data, options, userId) {
+  const actor = item?.parent; if (!(actor instanceof Actor)) return;
+  const created = actor.isToken ? null : actor._stats?.createdTime;
+  const ok = autoLootDecision({
+    enabled: S("trashGmAddedLoot", true), isGM: !!game.user?.isGM, ownClient: userId === game.user?.id, actorType: actor.type, itemType: item.type,
+    flags: data?.flags?.[ID] ?? item.flags?.[ID], actorAgeMs: created ? Date.now() - created : Infinity, internal: !!options?.wctInternal
+  });
+  if (!ok) return;
+  item.updateSource({ [`flags.${ID}.lootable`]: true });
+  log(`Vendor Trash: ${item.name} added to ${actor.name} by a GM, marked Lootable`);
+}
+
+/** Every token document standing for an actor: its own token (unlinked) or, for a world actor, all its tokens on every scene. */
+function tokensOf(actor) {
+  if (!actor) return [];
+  if (actor.isToken) return actor.token ? [actor.token] : [];
+  const out = []; for (const s of game.scenes) for (const t of s.tokens) if (t.actorId === actor.id) out.push(t);
+  return out;
+}
+/** Active GM: refreshes the item filters of the piles standing for an actor (an item's Lootable mark or Everything is lootable changed). */
+export async function refreshPiles(actor) {
+  const IP = itemPiles(); if (!IP || !isActiveGM()) return;
+  for (const doc of tokensOf(actor)) {
+    if (!doc.actor || !isPile(doc)) continue;
+    try { await serial(doc.uuid, () => pileUp(doc, IP)); log(`Vendor Trash: refreshed the pile filters of ${doc.name}`); }
+    catch (e) { console.warn(`${ID} | Vendor Trash: couldn't refresh pile ${doc.name}`, e); }
+  }
+}
+
+/** GM: marks items (Item documents or UUIDs) as Lootable, or clears the mark (`on` false sets an explicit false, null removes it). */
+export async function setLootable(items, on = true) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  if (!Array.isArray(items)) items = [items];
+  const out = [];
+  for (let i of items) {
+    if (typeof i === "string") i = await fromUuid(i);
+    if (!i?.setFlag) continue;
+    if (on === null) await i.unsetFlag(ID, "lootable"); else await i.setFlag(ID, "lootable", !!on);
+    out.push(i);
+  }
+  return out;
+}
+/** GM: turns "Everything is lootable" on or off for an actor or token (a token sets it on its own actor; for an unlinked token that's just this token). */
+export async function setAllLootable(target, on = true) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  const t = target?.document ?? target; const actor = t instanceof Actor ? t : t?.actor;
+  if (!actor) return ui.notifications.warn("Everything is lootable: no actor.");
+  await (on ? actor.setFlag(ID, "allLootable", true) : actor.unsetFlag(ID, "allLootable"));
+  ui.notifications.info(`Everything is lootable ${on ? "on" : "off"}: ${actor.name}.`);
+  return !!on;
+}
+
+/** Item sheets (ApplicationV2): a GM-only "Lootable" checkbox on items owned by an NPC. */
+export function addLootableCheckbox(app, element) {
+  const item = app?.document; const root = element instanceof HTMLElement ? element : (app?.element ?? element?.[0]);
+  if (!game.user.isGM || !root || !(item instanceof Item) || item.parent?.type !== "npc") return;
+  root.querySelector(".wct-lootable")?.remove();
+  const host = root.querySelector(".sheet-header") ?? root.querySelector(".window-content"); if (!host) return;
+  const wrap = document.createElement("label");
+  wrap.className = "wct-lootable"; wrap.style.cssText = "display:flex;align-items:center;gap:0.3em;font-size:var(--font-size-12,12px);flex:0 0 auto;";
+  wrap.dataset.tooltip = "Vendor Trash: show this item in the creature's loot pile when its body becomes lootable.";
+  wrap.innerHTML = `<input type="checkbox" ${isLootItem(item, { all: allLootableOf(item.parent) }) && tkFlags(item).lootable !== false ? "checked" : ""}> Lootable`;
+  const box = wrap.querySelector("input");
+  box.addEventListener("change", async ev => { ev.stopPropagation(); await setLootable([item], box.checked); });
+  box.addEventListener("input", ev => ev.stopPropagation());
+  if (host.classList.contains("window-content")) host.prepend(wrap); else host.append(wrap);
+}
+/** dnd5e item context menu (actor sheet inventory rows): Mark as loot / Unmark loot, GM only, on items owned by an NPC. */
+export function addItemContextOptions(item, options) {
+  if (!game.user.isGM || item?.parent?.type !== "npc") return;
+  const on = tkFlags(item).lootable === true || (allLootableOf(item.parent) && tkFlags(item).lootable !== false && PHYSICAL_TYPES.has(item.type));
+  if (tkFlags(item).trash || tkFlags(item).bossLoot) return;
+  const name = on ? "Unmark loot" : "Mark as loot";
+  options.push({ name, label: name, icon: `<i class="fa-solid ${on ? "fa-sack-xmark" : "fa-sack-dollar"}"></i>`, group: "action", condition: () => true, callback: () => setLootable([item], !on) });
+}
+/** Actor sheet header control (GM, NPCs): Everything is lootable on / off. */
+export function addAllLootableControl(app, controls) {
+  const actor = app?.document ?? app?.actor;
+  if (!game.user.isGM || !(actor instanceof Actor) || actor.type !== "npc" || !Array.isArray(controls)) return;
+  const on = allLootableOf(actor);
+  // The control dispatches through the sheet's actions (data-action), so the handler is added to this sheet's own options.
+  if (app.options?.actions && !app.options.actions.wctAllLootable) app.options.actions.wctAllLootable = async function () { const a = this.document ?? this.actor; if (!a) return; await setAllLootable(a, !allLootableOf(a)); this.render?.(); };
+  controls.push({ icon: on ? "fa-solid fa-sack-xmark" : "fa-solid fa-sack-dollar", label: on ? "Everything is lootable: turn off" : "Everything is lootable: turn on", action: "wctAllLootable", visible: true });
+}
 
 /** Runs async work for one key (a token UUID) one job at a time, so Vendor Trash and Boss loot don't build the same pile at once. */
 const chains = new Map();
@@ -362,13 +482,13 @@ export function serial(key, fn) {
 }
 
 /**
- * Makes a token a lootable Item Piles pile that shows only loot items (trash and boss loot) and coin, or, when it already is one,
- * refreshes its item filters so loot added since shows too. Shared by Vendor Trash and Boss loot.
+ * Makes a token a lootable Item Piles pile that shows only loot items (trash, boss loot, items marked Lootable or, with Everything is
+ * lootable, every physical item) and coin, or, when it already is one, refreshes its item filters so loot added since shows too.
+ * Shared by Vendor Trash and Boss loot.
  */
 export async function pileUp(doc, IP = itemPiles()) {
   const actor = doc.actor;
-  const own = actor.items.filter(i => !isLootItem(i)).map(i => i.id);
-  const filters = [...(IP.ITEM_FILTERS ?? [])]; if (own.length) filters.push({ path: "_id", filters: own });
+  const filters = buildFilters(IP.ITEM_FILTERS ?? [], [...actor.items], { all: allLootableOf(actor) });
   if (isPile(doc)) {
     if (IP.updateItemPile) await IP.updateItemPile(doc, { overrideItemFilters: filters });
     return false;
@@ -441,7 +561,7 @@ export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag
  * and the `looted`, `trashRolled` and `bossLootDrawn` flags are removed (so Boss loot draws again on the next death). With clearCoin the actor's coin is set to zero. Other items are never touched.
  * Unlinked tokens get a fresh pre-rolled drop when pre-rolling is on; linked tokens stay unrolled.
  */
-export async function reset(api, tokens = null, { clearCoin = false, reroll = true, quiet = false } = {}) {
+export async function reset(api, tokens = null, { clearCoin = false, reroll = true, quiet = false, removeHandAdded = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   const docs = tokens.map(tokenDoc).filter(d => d?.actor);
@@ -449,7 +569,7 @@ export async function reset(api, tokens = null, { clearCoin = false, reroll = tr
   const IP = itemPiles(); const canRoll = reroll && featureOn("vendorTrash") && S("trashAutoRoll", true) && packIds().length && (await pool()).length;
   const out = [];
   for (const doc of docs) {
-    const r = { token: doc.name, pile: false, items: 0, boss: 0, coin: false, rerolled: false };
+    const r = { token: doc.name, pile: false, items: 0, boss: 0, hand: 0, coin: false, rerolled: false };
     if (IP && isPile(doc)) {
       try { await IP.revertTokensFromItemPiles([doc]); r.pile = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't revert pile ${doc.name}`, e); }
     }
@@ -463,7 +583,9 @@ export async function reset(api, tokens = null, { clearCoin = false, reroll = tr
     }
     const ids = trashItems(actor).map(i => i.id);
     const bossIds = bossItems(actor).map(i => i.id).filter(id => !ids.includes(id));
-    if (ids.length || bossIds.length) { await actor.deleteEmbeddedDocuments("Item", [...ids, ...bossIds]); r.items = ids.length; r.boss = bossIds.length; }
+    // Items the GM marked Lootable stay (with their mark) unless asked; on an unlinked token only its own items, never the world actor's.
+    const handIds = removeHandAdded ? actor.items.filter(i => isHandLoot(i) && !ids.includes(i.id) && !bossIds.includes(i.id) && ownItem(actor, i)).map(i => i.id) : [];
+    if (ids.length || bossIds.length || handIds.length) { await actor.deleteEmbeddedDocuments("Item", [...ids, ...bossIds, ...handIds]); r.items = ids.length; r.boss = bossIds.length; r.hand = handIds.length; }
     if (doc.getFlag(ID, "looted") !== undefined) await doc.unsetFlag(ID, "looted");
     if (doc.getFlag(ID, "bossLootDrawn") !== undefined) await doc.unsetFlag(ID, "bossLootDrawn");
     if (doc.getFlag(ID, "trashRolled") !== undefined) await doc.unsetFlag(ID, "trashRolled");
@@ -475,28 +597,31 @@ export async function reset(api, tokens = null, { clearCoin = false, reroll = tr
     }
     out.push(r);
   }
-  const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.boss && `${r.boss} boss loot item${r.boss === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
+  const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.boss && `${r.boss} boss loot item${r.boss === 1 ? "" : "s"} removed`, r.hand && `${r.hand} hand-added loot item${r.hand === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
   if (!quiet) ui.notifications.info(`Reset loot: ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
   return out;
 }
 
-/** Asks the GM to confirm a reset, with an "Also clear coin" checkbox. */
+/** True when an item belongs to this actor itself: for an unlinked token's actor, one of the token's own (delta) items. */
+const ownItem = (actor, i) => !actor?.isToken || !actor.token?.delta?._source?.items || actor.token.delta._source.items.some(x => x._id === i.id);
+
+/** Asks the GM to confirm a reset, with "Also clear coin" and "Also remove hand-added loot" checkboxes. */
 export async function confirmReset(api, docs) {
   const names = docs.map(d => esc(d.name)).join(", ");
-  const clearCoin = await foundry.applications.api.DialogV2.prompt({
+  const opts = await foundry.applications.api.DialogV2.prompt({
     window: { title: "Reset loot" },
-    content: `<p>Reset the loot on <strong>${names}</strong>? Vendor trash and boss loot items are removed and the token can be looted again; other items stay.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div>`,
-    ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => !!button.form.elements.clearCoin?.checked },
+    content: `<p>Reset the loot on <strong>${names}</strong>? Vendor trash and boss loot items are removed and the token can be looted again; other items stay, including items marked Lootable.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div><div class="form-group"><label><input type="checkbox" name="removeHandAdded"> Also remove hand-added loot (items marked Lootable)</label></div>`,
+    ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => ({ clearCoin: !!button.form.elements.clearCoin?.checked, removeHandAdded: !!button.form.elements.removeHandAdded?.checked }) },
     rejectClose: false
   });
-  if (clearCoin === null || clearCoin === undefined) return null;
-  return reset(api, docs, { clearCoin });
+  if (!opts) return null;
+  return reset(api, docs, opts);
 }
 
 // ---------------------------------------------------------------- automatic looting on death
 const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
-/** Active GM only: when an unlinked NPC token is down (0 HP or marked defeated), its body becomes lootable with its pre-rolled drop. */
+/** Active GM only: when an unlinked NPC token is down (0 HP, marked defeated or, with the setting, unconscious), its body becomes lootable with its pre-rolled drop and any loot the GM added. */
 export async function onDeath(doc, api, { defeated = false } = {}) {
   if (!doc || !isActiveGM() || !S("trashAutoLoot", true)) return;
   if (!defeated && !isDead(doc)) return;
@@ -505,7 +630,8 @@ export async function onDeath(doc, api, { defeated = false } = {}) {
   if (busy.has(doc.uuid)) return; busy.add(doc.uuid);
   return serial(doc.uuid, async () => {
     try {
-      if (!packIds().length || !(await pool()).length) return log(`Vendor Trash: ${doc.name} gets no loot (no trash compendium or empty pool)`);
+      const noPool = !packIds().length || !(await pool()).length;
+      if (noPool && !handLoot(doc.actor).length) return log(`Vendor Trash: ${doc.name} gets no loot (no trash compendium or empty pool, no hand-added loot)`);
       log(`Vendor Trash: making ${doc.name} lootable, automatic step run by ${byWhom()}`);
       await (usePiles() ? lootPiles([doc], api, { auto: true }) : lootCard([doc], api, { auto: true }));
     } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't make ${doc.name} lootable`, e); }
@@ -555,7 +681,7 @@ const itemRow = (i, api) => `@UUID[${i.uuid}]{${esc(i.name)}}${i.qty > 1 ? ` ×$
 
 /** The original flow: a GM loot card with a Give to Party button. A pre-rolled drop is taken off the creature and put on the card. */
 async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}) {
-  const rows = []; const drops = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
+  const rows = []; const drops = []; const extra = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
   report.skipped = skipped.length; report.dropped = 0;
   if (auto && !todo.length) return;
@@ -565,15 +691,18 @@ async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}
     // Linked tokens are rolled on the spot and nothing is written to their world actor.
     const d = await dropOf(doc, api, { store: !doc.actorLink, tries }); if (d.dungeon) dungeon = true;
     const parts = d.items.map(i => { total += i.value * i.qty; for (let n = 0; n < i.qty; n++) drops.push({ uuid: i.uuid, value: i.value }); return itemRow(i, api); });
-    const ids = d.items.map(i => i.id).filter(Boolean); if (ids.length) await doc.actor.deleteEmbeddedDocuments("Item", ids);
+    // Loot the GM added goes on the card too (unlinked tokens only; a linked token's world actor is never changed here).
+    const extraItems = doc.actorLink ? [] : handLoot(doc.actor);
+    for (const i of extraItems) { const o = i.toObject(); delete o._id; if (o.flags?.[ID]) delete o.flags[ID].lootable; extra.push(o); parts.push(`${esc(i.name)}${(i.system?.quantity ?? 1) > 1 ? ` ×${i.system.quantity}` : ""}`); }
+    const ids = [...d.items.map(i => i.id).filter(Boolean), ...extraItems.map(i => i.id)]; if (ids.length) await doc.actor.deleteEmbeddedDocuments("Item", ids);
     if (d.copper) { const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`); }
     if (parts.length) report.dropped++;
     log(`Vendor Trash: ${doc.name} dropped`, d.items.map(i => i.name), `${d.copper}c`);
     rows.push(`<li><strong>${esc(doc.name)}</strong>: ${parts.length ? parts.join(", ") : "<span class=\"hint\">nothing</span>"}</li>`);
   }
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
-  const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
-  const flag = { drops, coin: coinTotal, value: total, given: false, dungeon };
+  const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || extra.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
+  const flag = { drops, extra, coin: coinTotal, value: total, given: false, dungeon };
   const single = { content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
   // Automatic deaths are gathered into one GM summary when several happen together.
   if (auto) return Summary.queue({ kind: "trash", body: todo[0]?.uuid, rows, coin: coinTotal, value: total, flag, single }, a => api.fmtMoney(a));
@@ -601,8 +730,9 @@ async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {
     for (const i of d.items.filter(i => !i.id)) { const o = await trashItemData(i.uuid, i.value, cpVal); if (o) { o.system.quantity = i.qty; fresh.push(o); } }
     if (fresh.length) await actor.createEmbeddedDocuments("Item", fresh);
     const parts = d.items.map(i => { total += i.value * i.qty; return itemRow(i, api); });
-    log(`Vendor Trash: ${doc.name} (${d.dungeon ? "dungeon" : "normal"}) dropped`, d.items.map(i => i.name), `${d.copper}c`);
-    if (!d.items.length && !d.copper) { empty.push(doc.name); report.empty++; continue; }
+    const extra = handLoot(actor); for (const i of extra) parts.push(`${esc(i.name)}${(i.system?.quantity ?? 1) > 1 ? ` ×${i.system.quantity}` : ""}`);
+    log(`Vendor Trash: ${doc.name} (${d.dungeon ? "dungeon" : "normal"}) dropped`, d.items.map(i => i.name), `${d.copper}c`, extra.length ? `plus hand-added: ${extra.map(i => i.name).join(", ")}` : "");
+    if (!d.items.length && !d.copper && !extra.length) { empty.push(doc.name); report.empty++; continue; }
     report.dropped++;
     if (d.copper) {
       await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
@@ -648,7 +778,7 @@ export function addHudButton(hud, html, api, { allowReroll = true } = {}) {
 
 /** Gives a loot card's items and coin to the party actor. Trash items are priced at their vendor value and flagged for Sell Trash. */
 export async function giveTrash(message, api) {
-  const data = message.getFlag(ID, "trash"); if (!data || data.given || !data.drops) return ui.notifications.info("Already given.");
+  const data = message.getFlag(ID, "trash"); if (!data || data.given || (!data.drops && !data.extra)) return ui.notifications.info("Already given.");
   const party = api.partyActor(); if (!party) return ui.notifications.warn(`No group actor named ${api.PARTY}.`);
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   // Repeats of one item stack: existing stacks go up in one update, new items are created in one go.
@@ -661,9 +791,11 @@ export async function giveTrash(message, api) {
   }
   if (updates.length) await party.updateEmbeddedDocuments("Item", updates);
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
+  if (data.extra?.length) await party.createEmbeddedDocuments("Item", data.extra, { wctInternal: true });
   if (data.coin) await api.addMoney(party, Math.round(data.coin / cpVal) * cpVal, { consolidate: true });
   await message.setFlag(ID, "trash", { ...data, given: true });
-  ui.notifications.info(`Vendor Trash: gave ${data.drops.length} item${data.drops.length === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
+  const n = data.drops.length + (data.extra?.length ?? 0);
+  ui.notifications.info(`Vendor Trash: gave ${n} item${n === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
 }
 
 /** Actors holding vendor trash: the party actor and any player characters. */

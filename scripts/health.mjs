@@ -122,6 +122,15 @@ function noLoot() {
   return out;
 }
 
+function ownLoot() {
+  if (!F.on("vendorTrash")) return [off("Vendor Trash is off.")];
+  const all = new Set(); let items = 0;
+  const scan = a => { if (a.getFlag(ID, "allLootable")) all.add(a.isToken ? a.token?.uuid : a.uuid); for (const i of a.items) if (i.getFlag(ID, "lootable") === true) items++; };
+  for (const a of game.actors) if (a.type === "npc") scan(a);
+  for (const t of allTokens()) { try { if (!t.actorLink && t.actor?.type === "npc" && t.delta?._source) { const own = new Set((t.delta._source.items ?? []).map(i => i._id)); if (t.delta._source.flags?.[ID]?.allLootable) all.add(t.uuid); for (const i of t.actor.items) if (own.has(i.id) && i.getFlag(ID, "lootable") === true) items++; } } catch { } }
+  return [(all.size || items) ? ok(`Your own loot: ${plural(all.size, "NPC")} with Everything is lootable, ${plural(items, "item")} marked Lootable.`) : off("Your own loot: no NPC has Everything is lootable and no item is marked Lootable.")];
+}
+
 function rulesPage() {
   if (!F.on("vendorTrash")) return [off("Vendor Trash is off.")];
   const { page, rules, errors } = Trash.readRules();
@@ -171,7 +180,7 @@ function gms() {
 }
 
 const SECTIONS = [
-  ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot],
+  ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
   ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["GMs", gms]
 ];
 
