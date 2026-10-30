@@ -443,6 +443,7 @@ export const WCT = {
   trash: {
     ...Trash,
     reroll(tokens) { return F.need("vendorTrash") ? Trash.reroll(WCT, tokens) : undefined; },
+    reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
     preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; }
   },
 

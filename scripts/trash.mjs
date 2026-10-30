@@ -255,6 +255,66 @@ export async function reroll(api, tokens = null) {
   return done.map(d => ({ token: d.name, items: trashItems(d.actor).map(i => `${i.name}${i.system.quantity > 1 ? ` ×${i.system.quantity}` : ""}`), copper: rolled(d)?.copper ?? 0 }));
 }
 
+// ---------------------------------------------------------------- resetting loot
+/** A token whose loot can be reset: a looted body or pile, or a linked NPC carrying trash. */
+export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag(ID, "looted") || isPile(doc) || (doc.actorLink && doc.actor.type === "npc" && trashItems(doc.actor).length > 0));
+
+/**
+ * GM: puts the given (or selected) tokens back to unlooted. Item Piles piles are reverted (for a linked token the actor's own pile
+ * setting is cleared too), items flagged as trash are deleted from the token's actor (the world actor for linked tokens), and the
+ * `looted` and `trashRolled` flags are removed. With clearCoin the actor's coin is set to zero. Other items are never touched.
+ * Unlinked tokens get a fresh pre-rolled drop when pre-rolling is on; linked tokens stay unrolled.
+ */
+export async function reset(api, tokens = null, { clearCoin = false } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
+  const docs = tokens.map(tokenDoc).filter(d => d?.actor);
+  if (!docs.length) return ui.notifications.warn("Vendor Trash: select (or target) the tokens to reset first.");
+  const IP = itemPiles(); const canRoll = S("trashAutoRoll", true) && packIds().length && (await pool()).length;
+  const out = [];
+  for (const doc of docs) {
+    const r = { token: doc.name, pile: false, items: 0, coin: false, rerolled: false };
+    if (IP && isPile(doc)) {
+      try { await IP.revertTokensFromItemPiles([doc]); r.pile = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't revert pile ${doc.name}`, e); }
+    }
+    const actor = doc.actor; // read after reverting: an unlinked token's synthetic actor may have been rebuilt
+    if (doc.actorLink) {
+      // Clear the actor-level (and prototype token) pile setting so future tokens of this actor aren't piles.
+      const upd = {};
+      if (actor.flags?.["item-piles"]?.data?.enabled) upd["flags.item-piles.data.enabled"] = false;
+      if (actor.prototypeToken?.flags?.["item-piles"]?.data?.enabled) upd["prototypeToken.flags.item-piles.data.enabled"] = false;
+      if (Object.keys(upd).length) { await actor.update(upd); r.pile = true; }
+    }
+    const ids = trashItems(actor).map(i => i.id);
+    if (ids.length) { await actor.deleteEmbeddedDocuments("Item", ids); r.items = ids.length; }
+    if (doc.getFlag(ID, "looted") !== undefined) await doc.unsetFlag(ID, "looted");
+    if (doc.getFlag(ID, "trashRolled") !== undefined) await doc.unsetFlag(ID, "trashRolled");
+    if (clearCoin && actor.system?.currency) {
+      await actor.update(Object.fromEntries(Object.keys(actor.system.currency).map(k => [`system.currency.${k}`, 0]))); r.coin = true;
+    }
+    if (canRoll && autoTarget(doc)) {
+      try { await storeDrop(doc, api); r.rerolled = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't pre-roll loot for ${doc.name}`, e); }
+    }
+    out.push(r);
+  }
+  const say = r => [r.pile && "pile reverted", r.items && `${r.items} trash item${r.items === 1 ? "" : "s"} removed`, r.coin && "coin cleared", r.rerolled && "rerolled"].filter(Boolean).join(", ") || "flags cleared";
+  ui.notifications.info(`Vendor Trash: reset ${out.map(r => `${r.token} (${say(r)})`).join("; ")}.`);
+  return out;
+}
+
+/** Asks the GM to confirm a reset, with an "Also clear coin" checkbox. */
+export async function confirmReset(api, docs) {
+  const names = docs.map(d => esc(d.name)).join(", ");
+  const clearCoin = await foundry.applications.api.DialogV2.prompt({
+    window: { title: "Reset loot" },
+    content: `<p>Reset the loot on <strong>${names}</strong>? Trash items are removed and the token can be looted again; other items stay.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div>`,
+    ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => !!button.form.elements.clearCoin?.checked },
+    rejectClose: false
+  });
+  if (clearCoin === null || clearCoin === undefined) return null;
+  return reset(api, docs, { clearCoin });
+}
+
 // ---------------------------------------------------------------- automatic looting on death
 const busy = new Set();
 const isDead = doc => { const hp = doc?.actor?.system?.attributes?.hp; return !!hp && (hp.max ?? 1) > 0 && (hp.value ?? 1) <= 0; };
@@ -341,12 +401,21 @@ async function lootPiles(docs, api, { auto = false } = {}) {
   return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: { piles: true, coin: coinTotal, value: total, dungeon } } } });
 }
 
-/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash. */
+/** Token HUD (GM): a dice button that rerolls an unlooted NPC's pre-rolled trash, and a reset button on looted bodies, piles and linked NPCs carrying trash. */
 export function addHudButton(hud, html, api) {
   if (!game.user.isGM) return;
   const root = html instanceof HTMLElement ? html : html?.[0]; const doc = hud.object?.document ?? hud.document;
-  const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col || !autoTarget(doc)) return;
-  col.querySelector(".wct-trash-reroll")?.remove();
+  const col = root?.querySelector(".col.left") ?? root?.querySelector(".col.right"); if (!col) return;
+  col.querySelector(".wct-trash-reroll")?.remove(); col.querySelector(".wct-trash-reset")?.remove();
+  if (resettable(doc)) {
+    const rb = document.createElement("button");
+    rb.type = "button"; rb.className = "control-icon wct-trash-reset";
+    rb.dataset.tooltip = "Reset loot"; rb.setAttribute("aria-label", "Reset loot");
+    rb.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+    rb.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await confirmReset(api, [doc]); hud.render?.(); });
+    col.append(rb);
+  }
+  if (!autoTarget(doc)) return;
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "control-icon wct-trash-reroll";
   const f = rolled(doc);
