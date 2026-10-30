@@ -2,6 +2,14 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.14.2
+
+**Fixes**
+- Boss loot fallback: a body whose earlier drop came up empty (no trash, no pile) now reports "no vendor trash rolled for it either" instead of "already on the body".
+- Reset loot: an unlinked body whose pile filters had been refreshed no longer stays a pile (the pile setting left on the token's own actor is cleared), so it rerolls, gets the HUD dice back and becomes lootable again on its next death. Pile detection now uses Item Piles' own check when Item Piles is active.
+- Loot rolls: the "You won" whisper (normal win and GM Assign) goes to every player who owns the receiving actor or has it as their character; for the party actor, to its player owners, or nobody.
+- Remove toolkit data: Cancel button next to Remove.
+
 ## 1.14.1
 
 **New**

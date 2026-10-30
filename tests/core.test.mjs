@@ -4,7 +4,7 @@ import "./_globals.mjs";
 const { pickActiveGM } = await import("../scripts/gm.mjs");
 const Flight = await import("../scripts/flight.mjs");
 const { resolveBoss, computeLayout, findSnap, detach, prune, defaultTop, TOP } = await import("../scripts/bosses.mjs");
-const { rankChoices, gmOnline } = await import("../scripts/loot.mjs");
+const { rankChoices, gmOnline, winnerRecipients } = await import("../scripts/loot.mjs");
 const { mergeParts } = await import("../scripts/summary.mjs");
 const { MENUS, menuKeys, menuOn } = await import("../scripts/settings.mjs");
 const { MACROS } = await import("../scripts/macros.mjs");
@@ -138,4 +138,15 @@ test("settings submenus follow the feature toggles", () => {
 
 test("macro list ids are stable 16-character ids", () => {
   for (const m of MACROS) assert.match(m.id, /^[A-Za-z0-9]{16}$/);
+});
+
+test("winnerRecipients: owners and assigned players of the receiving actor, never GMs", () => {
+  const owners = new Set(["p1", "p2", "gm"]);
+  const actor = { id: "A", testUserPermission: (u, lvl) => lvl === "OWNER" && owners.has(u.id) };
+  const users = [{ id: "gm", isGM: true }, { id: "p1" }, { id: "p2" }, { id: "p3", character: { id: "A" } }, { id: "p4", character: { id: "B" } }];
+  assert.deepEqual(winnerRecipients(actor, users).sort(), ["p1", "p2", "p3"]);
+  const party = { id: "P", testUserPermission: () => false };
+  assert.deepEqual(winnerRecipients(party, users), [], "party with no player owners: nobody");
+  assert.deepEqual(winnerRecipients(actor, users, { id: "p4" }).sort(), ["p1", "p2", "p3", "p4"]);
+  assert.deepEqual(winnerRecipients(null, users), []);
 });

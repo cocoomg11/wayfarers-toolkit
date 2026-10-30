@@ -118,10 +118,21 @@ async function moveTo(item, actor) {
   if (Array.isArray(res) && !res.length) throw new Error("Item Piles moved nothing");
   return res;
 }
-/** Whispers the winner's user (and only them) that they won. */
-function tellWinner(user, actor, st) {
-  if (!user) return;
-  return ChatMessage.create({ whisper: [user.id], speaker: { alias: "Loot" }, content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> You won <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}${actor ? `; it's on ${esc(actor.name)}` : ""}.</p>` });
+/**
+ * Who hears "You won": every non-GM user who owns the receiving actor or has it as their assigned character (the same way a roller's
+ * character is found), plus `extra` (the user who won the roll). A party actor with no player owners gets nobody. Pure over `users`.
+ */
+export function winnerRecipients(actor, users = game.users, extra = null) {
+  const ids = new Set();
+  if (actor) for (const u of users) if (!u.isGM && ((u.character?.id ?? u.character) === actor.id || actor.testUserPermission?.(u, "OWNER"))) ids.add(u.id);
+  if (extra && !extra.isGM) ids.add(extra.id);
+  return [...ids];
+}
+/** Whispers the receiving actor's players that they won. */
+function tellWinner(actor, st, extra = null) {
+  const whisper = winnerRecipients(actor, game.users, extra);
+  if (!whisper.length) return;
+  return ChatMessage.create({ whisper, speaker: { alias: "Loot" }, content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> You won <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}${actor ? `; it's on ${esc(actor.name)}` : ""}.</p>` });
 }
 async function announce(actor, st) {
   await ChatMessage.create({ content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> <strong>${esc(actor.name)}</strong> receives <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}.</p>`, speaker: { alias: "Loot" } });
@@ -171,7 +182,7 @@ async function resolve(messageId) {
     st.result = `<strong>${esc(actor.name)}</strong> wins ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} (${label}).${notes.length ? `<br><span class="hint">Passed on: ${notes.join("; ")}.</span>` : ""}`;
     log("Loot roll:", st.name, "→", actor.name, label, notes);
     await save(message, st);
-    await announce(actor, st); await tellWinner(user, actor, st);
+    await announce(actor, st); await tellWinner(actor, st, user);
     return;
   }
   st.result = `Nobody who rolled could receive ${esc(st.name)} (${notes.join("; ")}). It stays in the pile.`;
@@ -193,8 +204,7 @@ async function assign(messageId, actorId) {
   st.result = `The GM gave ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} to <strong>${esc(actor.name)}</strong>.`;
   log("Loot roll:", st.name, "assigned to", actor.name);
   await save(message, st); await announce(actor, st);
-  const owner = game.users.find(u => !u.isGM && (u.character?.id === actor.id)) ?? null;
-  if (owner) await tellWinner(owner, actor, st);
+  await tellWinner(actor, st);
 }
 
 /** Actors the GM can assign to: player characters, then the party actor. */

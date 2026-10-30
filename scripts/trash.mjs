@@ -342,7 +342,13 @@ export function addNoLootButton(hud, html, api) {
  * token carries its source's flag and items, sees a different id, and rolls fresh.
  */
 const S = (k, d) => { try { return game.settings.get(ID, k) ?? d; } catch { return d; } };
-export const isPile = doc => !!(itemPiles()?.isValidItemPile?.(doc) || doc?.flags?.["item-piles"]?.data?.enabled || doc?.actor?.flags?.["item-piles"]?.data?.enabled);
+/** Whether a token is an Item Piles pile. With Item Piles active its own check decides (a stale `enabled` flag left on an unlinked
+ * token's actor delta doesn't make a pile); the raw flags are only read when the API is missing. */
+export const isPile = doc => {
+  const IP = itemPiles();
+  if (IP?.isValidItemPile) { try { return !!IP.isValidItemPile(doc); } catch { /* fall through to the flags */ } }
+  return !!(doc?.flags?.["item-piles"]?.data?.enabled || doc?.actor?.flags?.["item-piles"]?.data?.enabled);
+};
 /** An unlinked NPC token that can carry pre-rolled loot. */
 export const autoTarget = doc => !!doc?.actor && doc.actor.type === "npc" && !doc.actorLink && !doc.getFlag(ID, "looted") && !isPile(doc);
 const rolled = doc => { const f = doc?.getFlag?.(ID, "trashRolled"); return f && f.id === doc.id ? f : null; };
@@ -580,6 +586,10 @@ export async function reset(api, tokens = null, { clearCoin = false, reroll = tr
       if (actor.flags?.["item-piles"]?.data?.enabled) upd["flags.item-piles.data.enabled"] = false;
       if (actor.prototypeToken?.flags?.["item-piles"]?.data?.enabled) upd["prototypeToken.flags.item-piles.data.enabled"] = false;
       if (Object.keys(upd).length) { await actor.update(upd); r.pile = true; }
+    } else if (actor.flags?.["item-piles"]?.data?.enabled) {
+      // Refreshing a pile's filters writes `enabled: true` onto an unlinked token's actor delta, which reverting the token leaves behind.
+      // An explicit false on the delta wins over anything inherited and needs no deletion syntax.
+      try { await actor.update({ "flags.item-piles.data.enabled": false }); r.pile = true; } catch (e) { console.warn(`${ID} | Vendor Trash: couldn't clear the pile flag on ${doc.name}`, e); }
     }
     const ids = trashItems(actor).map(i => i.id);
     const bossIds = bossItems(actor).map(i => i.id).filter(id => !ids.includes(id));
@@ -661,13 +671,23 @@ export async function vendorTrash(api, tokens = null) {
 export async function fallbackDrop(doc, api) {
   if (!featureOn("vendorTrash")) return "no vendor trash either (Vendor Trash is turned off)";
   if (isNoLoot(doc)) return "no vendor trash either (No loot is set)";
-  if (doc.getFlag(ID, "looted") || isPile(doc)) return "its vendor trash is already on the body";
+  const prior = priorDrop(doc);
+  if (prior === "onBody") return fallbackText({ skipped: 1 });
+  if (prior === "empty") return fallbackText({ dropped: 0 });
   if (!packIds().length || !(await pool()).length) return "no vendor trash either (no trash compendium)";
   // A linked boss has no pre-rolled drop: it's rolled now, with up to three tries so a boss doesn't come up empty-handed.
   const report = {}; const opts = { auto: true, report, tries: doc.actorLink ? 3 : 1 };
   await (usePiles() ? lootPiles([doc], api, opts) : lootCard([doc], api, opts));
   log(`Boss loot fallback for ${doc.name}:`, report);
   return fallbackText(report);
+}
+/**
+ * What an earlier drop left on a body (pure): "onBody" when it's a pile or carries vendor trash, "empty" when it was marked looted but
+ * nothing was dropped (an empty roll marks the body looted without making a pile), null when it hasn't been looted yet.
+ */
+export function priorDrop(doc) {
+  if (isPile(doc) || trashItems(doc?.actor).length) return "onBody";
+  return doc?.getFlag?.(ID, "looted") ? "empty" : null;
 }
 /** The GM's wording for what a fallback vendor-trash drop actually did (pure; tested in Node). */
 export function fallbackText(report = {}) {

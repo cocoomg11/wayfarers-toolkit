@@ -103,3 +103,27 @@ test("No loot precedence", () => {
   assert.deepEqual(Trash.resolveNoLoot({ token: false, actor: true }), { on: false, source: "token" });
   assert.equal(Trash.resolveNoLoot({ token: true, actor: false }).on, true);
 });
+
+test("isPile: Item Piles' own check decides; flags only without the API", () => {
+  const doc = new Doc({ id: "t1", actor: new Actor({ flags: { "item-piles": { data: { enabled: true } } } }) });
+  const mods = game.modules.get; const had = game.itempiles;
+  try {
+    game.modules.get = id => id === "item-piles" ? { active: true } : null;
+    game.itempiles = { API: { turnTokensIntoItemPiles() {}, ITEM_QUANTITY_ATTRIBUTE: "system.quantity", isValidItemPile: () => false } };
+    assert.equal(Trash.isPile(doc), false, "stale delta flag ignored when Item Piles says no");
+    game.itempiles.API.isValidItemPile = () => true;
+    assert.equal(Trash.isPile(new Doc({ id: "t2" })), true);
+    game.itempiles = undefined;
+    assert.equal(Trash.isPile(doc), true, "flag fallback without the API");
+    assert.equal(Trash.isPile(new Doc({ id: "t3", actor: new Actor({}) })), false);
+  } finally { game.modules.get = mods; game.itempiles = had; }
+});
+
+test("priorDrop: an empty looted body isn't 'already on the body'", () => {
+  const trash = new Item({ id: "i1", flags: { [ID]: { trash: true } } });
+  assert.equal(Trash.priorDrop(new Doc({ id: "a", actor: new Actor({}) })), null);
+  assert.equal(Trash.priorDrop(new Doc({ id: "b", flags: { [ID]: { looted: true } }, actor: new Actor({}) })), "empty");
+  assert.equal(Trash.priorDrop(new Doc({ id: "c", flags: { [ID]: { looted: true } }, actor: new Actor({ items: [trash] }) })), "onBody");
+  assert.equal(Trash.priorDrop(new Doc({ id: "d", actor: new Actor({ flags: { "item-piles": { data: { enabled: true } } } }) })), "onBody");
+  assert.equal(Trash.fallbackText({ dropped: 0 }), "no vendor trash rolled for it either (its drop came up empty)");
+});

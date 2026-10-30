@@ -71,7 +71,7 @@ Enable the module in your world, then open **Game Settings → Configure Setting
 - optionally, the **world macros Run setup made** (macros carrying the toolkit's macro flag);
 - optionally, **reset the module's settings** to their defaults (feature toggles included; Foundry offers to reload).
 
-Type **REMOVE** and click **Remove**. Nothing else is touched: your own documents, other modules' flags and items the toolkit didn't create stay. Item Piles piles stay piles (use Reset loot on them first if you want normal tokens back). What was removed is shown in a notification and whispered to the GMs. It doesn't need to be the active GM. From a macro: `api.cleanup.plan()` counts, `api.cleanup.remove({ actors: true, tokens: true, … })` removes.
+Type **REMOVE** and click **Remove** (or **Cancel** to close without changes). Nothing else is touched: your own documents, other modules' flags and items the toolkit didn't create stay. Item Piles piles stay piles (use Reset loot on them first if you want normal tokens back). What was removed is shown in a notification and whispered to the GMs. It doesn't need to be the active GM. From a macro: `api.cleanup.plan()` counts, `api.cleanup.remove({ actors: true, tokens: true, … })` removes.
 
 ### Debug logging
 
@@ -414,7 +414,7 @@ Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without
 
 **Assign to…** The GM's copy of an open card has a dropdown of the player characters and the party actor and an **Assign to…** button: it ends the roll and moves the item there straight away.
 
-The winner gets a whisper, "You won *item*", as well as the public line.
+The players of the receiving character (everyone who owns it or has it as their character) get a whisper, "You won *item*", as well as the public line; the same goes for a GM Assign. Given to the party actor, its player owners get the whisper, if it has any.
 
 A GM must be connected for players' choices to count. While none is, players' Need / Greed / Pass buttons are disabled with "A GM needs to be connected." and come back when a GM connects. An open roll survives a GM reload and closes when its time is up.
 
