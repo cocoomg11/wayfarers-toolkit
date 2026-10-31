@@ -68,6 +68,8 @@
 .wct-card-text p { margin: 3px 0 0; font-size: var(--font-size-12, 12px); color: var(--wct-muted); line-height: 1.35; }
 .wct-card.wct-needs { opacity: 0.55; }
 .wct-card.wct-needs .wct-card-text p::after { content: " (switch the quest log on first)"; font-style: italic; }
+.wct-card[data-feature="flightMap"].wct-needs .wct-card-text p::after { content: " (switch Flight Master on first)"; }
+.wct-card[data-feature="travelPace"].wct-needs .wct-card-text p::after { content: " (switch Hex Travel on first)"; }
 
 /* Buttons and actions. */
 .wct-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
@@ -172,3 +174,26 @@
 .wct-update .wct-update-actions .hint { margin: 2px 0 0; font-size: 11px; opacity: 0.8; }
 .wct-update button.done { opacity: 0.7; }
 .wct-update a[data-wct-update] { cursor: pointer; }
+
+/* 1.20: flight route map, party gold tracker, settings import preview. */
+.wct-flight-map .window-content, .wct-gold .window-content, .wct-settings-io .window-content { padding: 0; overflow: hidden; }
+.wct-fmap, .wct-gold-body, .wct-sio { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--wct-fg); }
+.wct-fmap > .wct-note { margin: 10px 14px 0; }
+.wct-fm-svg { flex: 1; min-height: 0; width: 100%; }
+.wct-fm-edge { stroke: var(--wct-accent); stroke-width: 3; }
+.wct-fm-edge.free { stroke-dasharray: 2 6; stroke-linecap: round; }
+.wct-fm-edge.closed { stroke: var(--wct-muted); stroke-width: 2; stroke-dasharray: 8 6; opacity: 0.6; }
+.wct-fm-svg marker path { fill: var(--wct-accent); }
+.wct-fm-node circle { fill: var(--wct-accent); stroke: var(--wct-fg); stroke-width: 2; }
+.wct-fm-node.locked circle { fill: var(--wct-card); stroke: var(--wct-muted); stroke-dasharray: 3 3; }
+.wct-fm-node.here circle.ring { fill: none; stroke: var(--wct-ok); stroke-width: 3; }
+.wct-fm-node text { fill: var(--wct-fg); font-size: 18px; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 3px; }
+.wct-fm-node.locked text { fill: var(--wct-muted); font-style: italic; }
+.wct-fm-node.drag { cursor: grab; }
+.wct-gold-body .wct-main, .wct-sio .wct-main { flex: 1; }
+.wct-gold-body h3, .wct-sio h3 { margin: 14px 0 4px; border: 0; }
+.wct-gold-status.green { color: var(--wct-ok); } .wct-gold-status.amber { color: var(--wct-warn); } .wct-gold-status.red { color: var(--wct-bad); }
+.wct-grid tr.current td { background: var(--wct-hover); }
+.wct-dim { opacity: 0.55; }
+.wct-sio code { font-size: var(--font-size-12, 12px); word-break: break-all; }
+.wct-discovered i { margin-right: 4px; }

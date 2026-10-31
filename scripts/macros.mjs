@@ -18,7 +18,7 @@ export const MACRO_FOLDERS = [
 
 /**
  * id: stable 16-character compendium id; fn: API path called;
- * feature: features.mjs id (setup skips it when off; none = always); shared: setup lets players see the world copy; folder: compendium folder id.
+ * feature: features.mjs id, or "a:b" for several (setup skips it unless all are on; none = always); shared: setup lets players see the world copy; folder: compendium folder id.
  */
 export const MACROS = [
   { id: "wctHexTravel0000", name: "Hex Travel", fn: "hexTravel", img: "icons/environment/wilderness/terrain-forest-gray.webp", feature: "hexTravel", folder: "wctFolderTravel0" },
@@ -30,8 +30,14 @@ export const MACROS = [
   { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", feature: "questLog", shared: true, folder: "wctFolderSession" },
   { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", feature: "bossLoot", folder: "wctFolderBossLt0" },
   { id: "wctLootHistory00", name: "Loot History", fn: "lootHistory", img: "icons/sundries/books/book-worn-brown.webp", feature: "lootRolls", folder: "wctFolderLootRl0" },
+  { id: "wctFlightMap0000", name: "Flight Route Map", fn: "flightMap", img: "icons/tools/navigation/map-chart-tan.webp", feature: "flightMaster:flightMap", shared: true, folder: "wctFolderTravel0" },
+  { id: "wctTravelPace000", name: "Travel Pace", fn: "travelPace", img: "icons/environment/settlement/signpost.webp", feature: "hexTravel:travelPace", shared: true, folder: "wctFolderTravel0" },
+  { id: "wctPartyGold0000", name: "Party Gold", fn: "partyGold", img: "icons/commodities/currency/coins-stitched-pouch-brown.webp", feature: "partyGold", folder: "wctFolderToolkt0" },
   { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", folder: "wctFolderToolkt0" }
 ];
+
+/** Whether a macro's feature(s) are on: `on` is features.mjs's on(id). */
+export const macroOn = (m, on) => !m.feature || String(m.feature).split(":").every(id => on(id));
 
 /** Where Run setup's macros are. Setup never puts macros on a hotbar; this is shown after setup and in the setup reminder. */
 export const MACRO_HINT = "Macros are in the \"Wayfarer's Toolkit\" macro folder and the \"Wayfarer's Toolkit Macros\" compendium: drag them to your hotbar if you want them there.";

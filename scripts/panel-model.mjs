@@ -20,6 +20,11 @@ export const FEATURE_CARDS = [
   { id: "bossFrames", icon: "fa-solid fa-crown", text: "Big health bars at the top of the screen for creatures you mark as bosses, while they're in combat." },
   { id: "bossLoot", icon: "fa-solid fa-gem", text: "Hand-picked drops for named creatures, drawn from a roll table you link to them." },
   { id: "lootRolls", icon: "fa-solid fa-dice", text: "Need / Greed / Pass rolls for items on a defeated creature. Needs the Item Piles module." },
+  { id: "flightMap", icon: "fa-solid fa-map-location-dot", text: "A map of the flight network. Players see the flight points they've unlocked and the routes between them. Needs Flight Master." },
+  { id: "travelPace", icon: "fa-solid fa-person-hiking", text: "Fast, normal or slow (careful) pace for Hex Travel, with what each does to Perception, Survival and Stealth. Needs Hex Travel." },
+  { id: "partyGold", icon: "fa-solid fa-scale-balanced", text: "GM only: how much coin the party carries, against a wealth curve per act that you can edit." },
+  { id: "settingsIO", icon: "fa-solid fa-file-export", text: "Save the toolkit's settings to a file and load them into another world, with a preview first." },
+  { id: "permissionChecks", icon: "fa-solid fa-user-shield", text: "The health check also checks the permissions your players need for the tools turned on, with a fix for each." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -33,13 +38,13 @@ export const TABS = [
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
     basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"], ["campaignName", "sessionStart"]],
-    advanced: [["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
+    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
   {
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
-    advanced: [["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
+    advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
       ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null]]
   },
   {
@@ -101,6 +106,13 @@ export const LABELS = {
   weaponSwapCost: ["Weapon swap cost", "What swapping sets costs during combat. A character in an active combat who swaps gets a short chat line saying so; nothing is enforced. Outside combat swapping is free and silent."],
   relicClasses: ["Classes with a relic slot", "Characters of the ticked classes get a relic slot in the character pane, for a spellcasting focus or a relic (worn, no hand needed)."],
   itemCompare: ["Item comparison tooltips", "Hovering an item in the character pane, or in a loot pile or merchant, shows how it compares with what's in its slot or weapon-set hand: armour class, damage, bonuses, properties, attunement, value and weight."],
+  paceRequests: ["Players can ask for a travel pace", "Players get a Travel Pace window to ask for fast, normal or slow pace. You get a whisper with a button to accept. You always set the pace yourself."],
+  flightDiscovered: ["Announce new flight points", "When you unlock a flight point (in the flight network editor or from a macro), chat says \"Discovered! New flight point: …\" for everyone."],
+  flightMapLocked: ["Locked flight points on players' map", "Hidden: players' route map shows only unlocked points and the routes between them. Greyed: locked points show as Unknown, greyed out, with their routes dashed."],
+  flightAdvanceTime: ["Flights advance world time", "On arrival, world time moves on by the flight's hours, so a calendar module follows. Off: flights take no time."],
+  goldAct: ["Party is in act / tier", "Which act (or tier) of the wealth curve the party is in now. The tracker highlights it."],
+  goldCurve: ["Wealth curve (gold per character)", "Gold per character expected at each act or tier, in order, separated by commas: Act/Tier 1 first. The tracker multiplies it by the party size."],
+  goldIncludeGear: ["Count mundane gear in party wealth", "Adds the price of the party's non-magical gear (items with no rarity) to their coin."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
@@ -183,14 +195,14 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "travelPace", "partyGold", "settingsIO", "permissionChecks"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
  */
 export const PRESETS = {
   minimal: { label: "Minimal", icon: "fa-solid fa-feather", text: "Just the quest log, the on-screen quest tracker and the character pane. Add more any time.", on: ["questLog", "questTracker", "characterPane"] },
-  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights, junk loot on every creature, boss frames and boss loot, loot rolls, quests and the character pane. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat"].includes(id)), suggestCoins: "threeCoin" },
+  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights with a route map, junk loot on every creature, boss frames and boss loot, loot rolls, quests, the character pane and the party gold tracker. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "travelPace"].includes(id)), suggestCoins: "threeCoin" },
   everything: { label: "Everything", icon: "fa-solid fa-layer-group", text: "Every tool on, including hex travel and the riding feat.", on: FEATURE_IDS }
 };
 /** A preset → the feature settings it writes: { "feature-<id>": boolean }. */
@@ -199,7 +211,7 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
@@ -229,6 +241,7 @@ export function issueFix(section, text, { hasAutolink = false } = {}) {
   if (section === "Flight Master" && /Flight Routes journal page/.test(t)) return { action: "flightImport", label: "Import from the Flight Routes journal page" };
   if (section === "Flight Master") return { action: "flights", label: "Open the flight network" };
   if (section === "Vendor Trash Rules page") return { action: "rules", label: "Open the rules page" };
+  if (section === "Permissions" && /Run setup/.test(t)) return { action: "setup", label: "Run setup" };
   return null;
 }
 

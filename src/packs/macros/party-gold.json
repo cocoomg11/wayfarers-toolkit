@@ -1,0 +1,18 @@
+{
+  "_id": "wctPartyGold0000",
+  "name": "Party Gold",
+  "type": "script",
+  "img": "icons/commodities/currency/coins-stitched-pouch-brown.webp",
+  "command": "// Party Gold: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.partyGold();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "partyGold"
+    }
+  },
+  "folder": "wctFolderToolkt0",
+  "sort": 1200000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctPartyGold0000"
+}

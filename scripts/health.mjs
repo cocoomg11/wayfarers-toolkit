@@ -7,11 +7,13 @@ import * as F from "./features.mjs";
 import * as Trash from "./trash.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import { activeGM, onlineGMs } from "./gm.mjs";
-import { MACROS } from "./macros.mjs";
+import { MACROS, macroOn } from "./macros.mjs";
 import * as Updates from "./updates.mjs";
 import * as Flight from "./flight.mjs";
 import * as History from "./history.mjs";
 import { phasesOf } from "./bosses.mjs";
+import * as Perm from "./permissions.mjs";
+import * as Quests from "./quests.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -221,6 +223,56 @@ function lootExtras() {
   return out;
 }
 
+/** The world's facts for the permission checks (permissions.mjs decides what passes). Read-only. */
+function permissionFacts(api) {
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  const PERMS = ["MACRO_SCRIPT", "ITEM_CREATE", "ACTOR_CREATE", "FILES_BROWSE"];
+  const OWN = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+  const users = game.users.filter(u => !u.isGM);
+  const players = users.map(u => {
+    const ch = u.character ? (u.character.id ? u.character : game.actors.get(u.character)) : null;
+    const can = {}; for (const k of PERMS) { try { can[k] = !!u.hasPermission(k); } catch { } }
+    return { name: u.name, active: !!u.active, character: ch?.name ?? null, characterOwned: !!ch?.testUserPermission?.(u, "OWNER"), ownsAnyCharacter: game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")), can };
+  });
+  const party = api.partyActor?.();
+  const lvl = d => users.length ? Math.min(...users.map(u => { try { return d.getUserLevel?.(u) ?? (d.ownership?.[u.id] ?? d.ownership?.default ?? 0); } catch { return 0; } })) : OWN.OWNER;
+  const macros = {}; for (const m of MACROS) { const w = game.macros.getName(m.name); if (w) macros[m.name] = w.ownership?.default ?? 0; }
+  let quests = null;
+  if (F.on("questLog")) {
+    try {
+      const shown = Quests.all().filter(j => { const q = Quests.data(j); return !q.hidden && q.status !== "available"; });
+      quests = { visible: shown.length, unreadable: users.length ? shown.filter(j => users.some(u => !j.testUserPermission(u, "OBSERVER"))).map(j => j.name) : [] };
+    } catch { quests = null; }
+  }
+  return {
+    on: F.on, socket: game.modules.get(ID)?.socket !== false, itemPiles: modActive("item-piles"),
+    settings: { playerFlights: !!get("playerFlights"), paceRequests: !!get("paceRequests"), trashItemPiles: !!get("trashItemPiles"), junkSellButton: !!get("junkSellButton") },
+    players, party: party ? { name: party.name, playerLevel: lvl(party) } : null, macros, quests
+  };
+}
+
+function permissions(api) {
+  if (!F.on("permissionChecks")) return [off("Permission checks are off (control panel › Features).")];
+  const lines = Perm.featureChecks(permissionFacts(api));
+  if (!lines.length) return [off("No tool turned on needs player permissions.")];
+  return lines.map(l => line(l.level, `${esc(l.text)}${l.hint && l.level !== "ok" ? ` <em>Fix: ${esc(l.hint)}</em>` : ""}`));
+}
+
+/** Flight route map, travel pace, party gold and settings export / import (1.20). */
+function bundle2(api) {
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  const out = [];
+  if (F.on("flightMap")) out.push(F.on("flightMaster") ? ok(`Flight route map: on; locked points ${get("flightMapLocked") === "grey" ? "greyed" : "hidden"} for players.`) : warn("Flight route map is on but Flight Master is off, so there's no map to show (control panel › Features)."));
+  if (F.on("flightMaster")) out.push(off(`Flights ${get("flightAdvanceTime") ? "advance" : "don't advance"} world time; new flight points ${get("flightDiscovered") ? "are" : "aren't"} announced.`));
+  if (F.on("travelPace")) out.push(F.on("hexTravel") ? ok(`Travel pace: the party travels at ${esc(api.travelPaceNow())} pace; players ${get("paceRequests") ? "can" : "can't"} ask for another.`) : warn("Travel pace is on but Hex Travel is off, so it does nothing (control panel › Features)."));
+  if (F.on("partyGold")) {
+    try { const r = api.gold.read(); const cur = r.rows.find(x => x.current); out.push(r.curveError ? warn(`Party gold: the wealth curve can't be read (${esc(r.curveError)}); the default curve is used.`) : ok(`Party gold: ${esc(api.fmtMoney(r.wealth))} against ${esc(api.fmtMoney(cur?.target ?? 0))} for act/tier ${r.act} (${esc(cur?.direction ?? "")}).`)); }
+    catch (e) { out.push(warn(`Party gold: couldn't read (${esc(e.message)}).`)); }
+  }
+  if (F.on("settingsIO")) out.push(ok("Settings export / import: on (control panel › Overview)."));
+  return out.length ? out : [off("None of the 1.20 tools is on.")];
+}
+
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
@@ -228,7 +280,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */
@@ -299,4 +351,4 @@ export function init(api) {
 }
 
 /** For tests and macros: the macro names Run setup would make for the features on. */
-export const setupMacroNames = () => MACROS.filter(m => F.on(m.feature)).map(m => m.name);
+export const setupMacroNames = () => MACROS.filter(m => macroOn(m, F.on)).map(m => m.name);

@@ -1,0 +1,18 @@
+{
+  "_id": "wctFlightMap0000",
+  "name": "Flight Route Map",
+  "type": "script",
+  "img": "icons/tools/navigation/map-chart-tan.webp",
+  "command": "// Flight Route Map: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.flightMap();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "flightMap"
+    }
+  },
+  "folder": "wctFolderTravel0",
+  "sort": 1000000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctFlightMap0000"
+}

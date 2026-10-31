@@ -22,6 +22,27 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.20.0",
+    changes: [
+      { feature: "flightMap", text: "Flight route map: the flight network drawn as a map (map button in the token controls, the Flight Route Map macro, or control panel › Travel). Players see the flight points they've unlocked and the routes between them; drag points to arrange it and Save layout." },
+      { feature: "flightMaster", text: "Unlocking a flight point now posts \"Discovered! New flight point: …\" in chat (Announce new flight points, Travel › Advanced)." },
+      { feature: "flightMaster", text: "Flights no longer move world time on by default. Turn on Flights advance world time (Travel › Advanced) to have the clock, and any calendar module, jump ahead by the flight's hours on arrival." },
+      { feature: "travelPace", text: "Travel pace for Hex Travel: fast, normal or slow (careful), each with its effect on Perception, Survival and Stealth checks shown in Hex Travel and chat. Set the party's pace in the Travel Pace window; players can ask for one and you accept from a whisper." },
+      { feature: "partyGold", text: "Party gold tracker (GM only, read-only): the coin your player characters and the party actor carry, optionally with their mundane gear, against a wealth curve per act × party size, in green, amber or red. Edit the curve and the current act in Loot › Advanced; open it from Loot › Party gold… or the Party Gold macro." },
+      { feature: "settingsIO", text: "Settings export / import: control panel › Overview › Export settings saves every toolkit setting to a file; Import settings… shows what would change and writes only what you tick." },
+      { feature: "permissionChecks", text: "The health check now has a Permissions section: for each tool that's on, whether players have what it needs (characters they own, script macros, the party actor, quest journals, the module socket), with a fix for each." },
+      "The new tools are switches on the Features tab. Run setup adds the new macros (Flight Route Map, Travel Pace, Party Gold) to the macro folder; nothing goes on a hotbar."
+    ],
+    actions: [
+      {
+        id: "flightTime", feature: "flightMaster", label: "Keep flights advancing world time", icon: "fa-solid fa-clock",
+        hint: "Before 1.20 every flight moved world time on by its hours. Click to keep doing that (Flights advance world time, Travel › Advanced).",
+        check: ({ api }) => { try { return game.settings.get("wayfarers-toolkit", "flightAdvanceTime") !== true; } catch { return false; } },
+        run: () => game.settings.set("wayfarers-toolkit", "flightAdvanceTime", true)
+      }
+    ]
+  },
+  {
     version: "1.19.0",
     changes: [
       { feature: "lootRolls", text: "Loot history: every finished loot roll is recorded (item, each player's Need, Greed or Pass and roll, who got it, and how it ended). Open it from control panel › Loot › Loot history…, or the Loot History macro. Sort it, filter by player or session date, see a tally per player, export a CSV or clear it. Only GMs see it." },

@@ -15,12 +15,17 @@ import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
 import * as Updates from "./updates.mjs";
-import { MACROS, macroData } from "./macros.mjs";
+import { MACROS, macroData, macroOn } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import * as Merchant from "./merchant.mjs";
 import { log } from "./log.mjs";
+import * as Pace from "./travel-pace.mjs";
+import * as FlightMap from "./flight-map.mjs";
+import * as Gold from "./gold.mjs";
+import * as SettingsIO from "./settings-io.mjs";
+import { DEFAULT_CURVE, curveText } from "./gold-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -60,7 +65,16 @@ const DEFAULTS = {
   debugLog: false,
   weaponSets: true,
   weaponSwapCost: "attack",
-  relicClasses: "paladin, druid, cleric"
+  relicClasses: "paladin, druid, cleric",
+  paceRequests: true,
+  travelPaceCurrent: "normal",
+  flightDiscovered: true,
+  flightMapLocked: "hide",
+  // Off by default from 1.20 (earlier versions always advanced time); the 1.20.0 update notes offer a button to turn it back on.
+  flightAdvanceTime: false,
+  goldAct: 1,
+  goldCurve: curveText(DEFAULT_CURVE),
+  goldIncludeGear: false
 };
 /** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
 const OLD_RIDER = "Trained Rider";
@@ -188,10 +202,22 @@ function registerSettings() {
   s("weaponSwapCost", "Character pane: Weapon swap cost", "What a weapon-set swap costs in combat. Shown in a chat line when a character in an active combat swaps; nothing is enforced. Outside combat swapping is free and silent.", String, { choices: { free: "Free", attack: "Part of an attack", object: "Object interaction", bonus: "Bonus action", action: "Action" } });
   s("itemCompare", "Character pane: Item comparison tooltips", "Hovering an item in the character pane (or in a loot pile or merchant, for your character) compares it with what's in its slot or weapon-set hand.", Boolean);
   s("relicClasses", "Character pane: Classes with a relic slot", "dnd5e class identifiers, separated by commas, whose characters get a relic slot in the character pane (for a spellcasting focus or a relic).", String, { onChange: () => Pane.refreshOpen?.() });
+  // Travel pace (feature travelPace, with Hex Travel). The party's pace is a world setting everyone reads; only GMs write it.
+  s("paceRequests", "Travel pace: players can ask for a pace", "Players get a Travel Pace window to ask for fast, normal or slow pace; the GM gets a whisper with a button to accept.", Boolean);
+  s("travelPaceCurrent", "Travel pace: the party's pace", "", String, { choices: { fast: "Fast", normal: "Normal", slow: "Slow (careful)" } });
+  // Flight Master refinements.
+  s("flightDiscovered", "Flight Master: announce new flight points", "When the GM unlocks a flight point, chat says \"Discovered! New flight point: …\".", Boolean);
+  s("flightMapLocked", "Flight route map: locked points for players", "Hidden: players' map shows only unlocked points. Greyed: locked points show as Unknown.", String, { choices: { hide: "Hidden", grey: "Greyed out, unnamed" }, onChange: () => FlightMap.refresh() });
+  s("flightAdvanceTime", "Flight Master: flights advance world time", "On arrival, world time advances by the flight's hours (game.time.advance, which calendar modules follow).", Boolean);
+  // Party gold tracker.
+  s("goldAct", "Party gold: current act / tier", "", Number, { range: { min: 1, max: 20, step: 1 }, onChange: () => Gold.refresh() });
+  s("goldCurve", "Party gold: wealth curve", "Gold per character for each act or tier, separated by commas (Act/Tier 1 first).", String, { onChange: () => Gold.refresh() });
+  s("goldIncludeGear", "Party gold: count mundane gear", "Adds the price of the party's non-magical, no-rarity gear to their coin.", Boolean, { onChange: () => Gold.refresh() });
+  Gold.registerSettings();
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
-  game.settings.register(ID, "flightNetwork", { scope: "world", config: false, type: Object, default: Flight.emptyNetwork(), onChange: () => FlightEditor.refresh() });
+  game.settings.register(ID, "flightNetwork", { scope: "world", config: false, type: Object, default: Flight.emptyNetwork(), onChange: () => { FlightEditor.refresh(); FlightMap.refresh(); } });
   // The pre-1.17 setup reminder's version stamp: no longer written, only read to tell a world that ran an earlier version from a new one.
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
   Updates.registerSettings();
@@ -274,7 +300,7 @@ export const WCT = {
       if (j) for (const name of Object.keys(tp)) out.push({ key: `page:${name}`, label: name === Trash.RULES_PAGE ? `${name} page` : `tracker page "${name}"`, ok: !!j?.pages.getName(name) });
     }
     if (needParty) out.push({ key: "party", label: `party actor "${this.PARTY}"`, ok: !!game.actors.find(a => a.type === "group" && a.name === this.PARTY) });
-    for (const m of MACROS.filter(m => F.on(m.feature))) out.push({ key: `macro:${m.fn}`, label: `macro "${m.name}"`, ok: !!game.macros.getName(m.name) });
+    for (const m of MACROS.filter(m => macroOn(m, F.on))) out.push({ key: `macro:${m.fn}`, label: `macro "${m.name}"`, ok: !!game.macros.getName(m.name) });
     if (F.on("riderFeat")) out.push({ key: "feat", label: `${riderName()} feat`, ok: !!game.items.find(i => i.getFlag(ID, "feat") === "trained-rider") });
     return out;
   },
@@ -304,7 +330,7 @@ export const WCT = {
     }
     // All missing macros in one create. Nobody's hotbar is touched: the GM and players drag them from the folder or the compendium.
     // The same definitions (macros.mjs) build the Wayfarer's Toolkit Macros compendium.
-    const want = MACROS.filter(m => F.on(m.feature) && !game.macros.getName(m.name));
+    const want = MACROS.filter(m => macroOn(m, F.on) && !game.macros.getName(m.name));
     if (want.length) {
       const folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit") ?? await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
       const created = await Macro.implementation.createDocuments(want.map(m => ({ ...macroData(m), folder: folder.id, ...(m.shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
@@ -363,15 +389,18 @@ export const WCT = {
     const content = `<div class="form-group"><label>Zone</label><select name="zone">${[...zones, "Other (no encounter table)"].map(z => this.opt(z, z, z === guess)).join("")}</select></div>
       <div class="form-group"><label>Road hexes</label><input type="number" name="road" value="0" min="0"></div>
       <div class="form-group"><label>Off-road hexes</label><input type="number" name="off" value="0" min="0"></div>
-      <div class="form-group"><label>Pace</label><select name="pace">${this.opt("slow", `Slow · ${this.PACE.slow} mph · can travel stealthily`)}${this.opt("normal", `Normal · ${this.PACE.normal} mph`, true)}${this.opt("fast", `Fast · ${this.PACE.fast} mph · −5 passive Perception`)}</select></div>
+      <div class="form-group"><label>Pace</label><select name="pace">${this.paceOptions()}</select></div>
+      ${F.on("travelPace") ? `<p class="hint">The party's pace is ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}; changing it here sets it for the party.</p>` : ""}
       <p class="hint">1 hex = 1 mile. Roads are safe; each off-road hex takes ×${this.OFFROAD_MULT} time and rolls 1d${this.ENC_DIE} (1 = encounter). </p>
       <div class="form-group"><label>Mounted (speed ×${this.MOUNT_MULT})</label><input type="checkbox" name="mounted" ${mountedDefault ? "checked" : ""}></div>
       ${riders.members ? `<p class="hint">${riders.untrained.length ? `Long Road: not trained to ride yet: ${riders.untrained.map(esc).join(", ")}.` : `Long Road: every party member has ${esc(riderName())}.`}</p>` : ""}`;
     const f = await this.form("Hex Travel", content, "Travel"); if (!f) return;
     const road = Math.max(0, Math.floor(+f.road || 0)), off = Math.max(0, Math.floor(+f.off || 0));
     if (!road && !off) return ui.notifications.warn("No hexes entered.");
-    const mph = this.PACE[f.pace] * (f.mounted ? this.MOUNT_MULT : 1);
-    const hours = (road + off * this.OFFROAD_MULT) / mph;
+    const pace = Pace.normPace(f.pace);
+    const hours = Pace.tripHours({ road, off, mph: this.PACE[pace], offroadMult: this.OFFROAD_MULT, mountMult: this.MOUNT_MULT, mounted: !!f.mounted });
+    if (!Number.isFinite(hours)) return ui.notifications.warn(`Hex Travel: the ${pace} pace setting is 0 miles per hour.`);
+    if (F.on("travelPace") && pace !== this.travelPaceNow()) await game.settings.set(ID, "travelPaceCurrent", pace);
     const table = game.tables.getName(Z[f.zone] ?? "");
     const enc = [];
     for (let i = 1; i <= off; i++) {
@@ -380,12 +409,50 @@ export const WCT = {
     }
     const before = this.stamp(); await game.time.advance(Math.round(hours * 3600)); const after = this.stamp();
     const trips = (s.trips || 0) + 1; await this.setState({ trips });
-    const summary = `<strong>${esc(f.zone)}</strong>: ${road} road + ${off} off-road hexes, ${f.pace} pace${f.mounted ? ", mounted" : ""}. ${hours.toFixed(1)} h (${before} → ${after}).`;
+    const summary = `<strong>${esc(f.zone)}</strong>: ${road} road + ${off} off-road hexes, ${pace} pace${f.mounted ? ", mounted" : ""}. ${hours.toFixed(1)} h (${before} → ${after}).${F.on("travelPace") ? ` ${esc(Pace.effectText(pace))}` : ""}`;
     const encHtml = enc.length ? `<ul>${enc.map(e => `<li>${e}</li>`).join("")}</ul>` : `<p>No encounters${off ? "" : ". Roads are safe"}.</p>`;
     await this.appendPage("Travel Log", `<p><strong>Trip ${trips}.</strong> ${summary}</p>${encHtml}`);
     await this.gmWhisper(`<h3>Hex Travel</h3><p>${summary}</p>${encHtml}`);
-    await this.say(`<p><em>The party travels ${road + off} miles through ${esc(f.zone)} (${hours.toFixed(1)} hours).</em></p>`, "Travel");
+    await this.say(`<p><em>The party travels ${road + off} miles through ${esc(f.zone)} (${hours.toFixed(1)} hours).</em></p>${F.on("travelPace") ? `<p>${esc(Pace.PACES[pace].label)} pace: ${esc(Pace.effectText(pace))}</p>` : ""}`, "Travel");
     return { hours, enc };
+  },
+  /** Hex Travel's pace options; with Travel pace on, the party's pace is picked and the SRD 5.2 effects are named. */
+  paceOptions() {
+    if (!F.on("travelPace")) return `${this.opt("slow", `Slow · ${this.PACE.slow} mph · can travel stealthily`)}${this.opt("normal", `Normal · ${this.PACE.normal} mph`, true)}${this.opt("fast", `Fast · ${this.PACE.fast} mph · −5 passive Perception`)}`;
+    const now = this.travelPaceNow();
+    return Pace.PACE_IDS.map(p => this.opt(p, Pace.optionLabel(p, this.PACE[p]), p === now)).join("");
+  },
+  // ------------------------------------------------------------ travel pace (feature travelPace, with Hex Travel)
+  /** The party's pace: fast | normal | slow. */
+  travelPaceNow() { try { return Pace.normPace(setting("travelPaceCurrent")); } catch { return "normal"; } },
+  /** GM: sets the party's pace and says so in chat. */
+  async setTravelPace(pace, { announce = true, by = null } = {}) {
+    if (!this.gmOnly()) return null;
+    pace = Pace.normPace(pace);
+    await game.settings.set(ID, "travelPaceCurrent", pace);
+    if (announce) await this.say(`<p><strong>The party travels at ${esc(Pace.PACES[pace].label.toLowerCase())} pace</strong>${by ? ` (asked by ${esc(by)})` : ""}. ${esc(Pace.effectText(pace))}</p>`, "Travel");
+    return pace;
+  },
+  /** Opens Travel pace: the GM sets the party's pace, a player asks the GM for one. */
+  async travelPace() {
+    if (!F.need("travelPace") || !F.need("hexTravel")) return;
+    const gm = game.user.isGM; const now = this.travelPaceNow();
+    if (!gm && !setting("paceRequests")) return ui.notifications.info(`The party travels at ${Pace.PACES[now].label.toLowerCase()} pace. ${Pace.effectText(now)}`);
+    const rows = Pace.PACE_IDS.map(p => `<label class="wct-check" style="display:block;margin:4px 0;"><input type="radio" name="pace" value="${p}" ${p === now ? "checked" : ""}> <strong>${esc(Pace.PACES[p].label)}</strong> · ${this.PACE[p]} miles an hour, about ${Math.round(Pace.PACES[p].perDay * this.PACE[p] / Pace.PACES[p].perHour)} a day · ${esc(Pace.effectText(p))}</label>`).join("");
+    const content = `<p>The party travels at <strong>${esc(Pace.PACES[now].label.toLowerCase())}</strong> pace.</p>${rows}<p class="hint">${gm ? "Hex Travel uses the party's pace, and players see it here." : "The GM decides; your request goes to them."}${gm ? ` Speeds come from the pace settings (control panel › Travel › Advanced): ${this.PACE.fast}, ${this.PACE.normal} and ${this.PACE.slow} miles an hour.` : ""}</p>`;
+    const f = await this.form("Travel pace", content, gm ? "Set pace" : "Ask the GM"); if (!f?.pace) return;
+    if (gm) return this.setTravelPace(f.pace);
+    if (!activeGM()) return ui.notifications.warn("A GM needs to be connected.");
+    game.socket.emit(SOCKET, { action: "paceRequest", pace: Pace.normPace(f.pace), userId: game.user.id });
+    ui.notifications.info("Travel pace: request sent to the GM.");
+  },
+  /** Active GM: a player's pace request becomes a whisper with an Accept button. */
+  async paceRequest(msg, senderId) {
+    const r = Pace.readRequest(msg); if (!r || !isActiveGM() || !setting("paceRequests")) return;
+    const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : r.userId; const u = game.users.get(uid);
+    if (!u || u.isGM) return;
+    return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name } } },
+      content: `<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>` });
   },
   // ------------------------------------------------------------ flight network (the flightNetwork world setting; everyone can read it)
   /** The flight network, cleaned up (see flight.mjs). */
@@ -395,7 +462,9 @@ export const WCT = {
     if (!game.user.isGM) throw new Error("Only a GM can change the flight network.");
     const net = Flight.normalizeNetwork(obj); const errors = Flight.validateNetwork(net).filter(p => p.level === "error");
     if (errors.length) throw new Error(`Flight network not saved: ${errors.slice(0, 4).map(Flight.problemText).join("; ")}${errors.length > 4 ? "; …" : ""}.`);
+    const found = F.on("flightMaster") && setting("flightDiscovered") ? Flight.newlyUnlocked(this.flightNetwork(), net) : [];
     await game.settings.set(ID, "flightNetwork", net);
+    for (const p of found) await this.say(`<p class="wct-discovered"><i class="fa-solid fa-feather-pointed"></i> <strong>Discovered!</strong> New flight point: <strong>${esc(p.name)}</strong>.</p>`, "Flight Master");
     return net;
   },
   sceneExists(uuid) { return !!uuid && !!fromUuidSync(uuid, { strict: false }); },
@@ -525,7 +594,8 @@ export const WCT = {
       }
     }
     this.playFlightSound();
-    await game.time.advance(Math.round(r.h * 3600));
+    // Core world time, which calendar modules follow. Only with Flights advance world time on (off by default from 1.20).
+    if (setting("flightAdvanceTime") === true && r.h > 0) await game.time.advance(Math.round(r.h * 3600));
     const fareText = free ? "free flight" : `${fmtMoney(q.total)}${charge || !q.total ? "" : " (not charged)"}`;
     // The flight has happened by now; a missing Travel Log page only costs the log line.
     try { await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.names.map(esc).join(" → ")}, ${r.h} h, ${fareText}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`); }
@@ -609,6 +679,16 @@ export const WCT = {
     };
   },
 
+  // ------------------------------------------------------------ 1.20: flight map, party gold, settings export / import
+  /** Opens the flight route map (everyone; players see the unlocked points). */
+  flightMap() { return F.need("flightMap") && F.need("flightMaster") ? FlightMap.open(this) : undefined; },
+  /** GM: opens the party gold tracker. */
+  partyGold() { return F.need("partyGold") && this.gmOnly() ? Gold.open(this) : undefined; },
+  /** Party gold numbers (GM): { coin, gear, wealth, size, rows, … } in the smallest coin; undefined when the feature is off. */
+  get gold() { return F.on("partyGold") ? { read: () => Gold.read(this), open: () => Gold.open(this), snapshot: note => Gold.snapshot(this, note), snapshots: Gold.snapshots } : undefined; },
+  /** Settings export / import (GM): export() downloads the file, import() opens the import window, read(text) checks a file's text. */
+  get settingsIO() { return F.on("settingsIO") ? { export: () => SettingsIO.exportFile(this), import: () => SettingsIO.openImport(this), read: text => SettingsIO.readText(text), apply: rows => SettingsIO.apply(rows) } : undefined; },
+
   // ------------------------------------------------------------ features
   features: F,
   /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
@@ -688,7 +768,8 @@ Object.assign(WCT.flight, {
   unlock: (nameOrId, on = true) => WCT.unlockFlightPoint(nameOrId, on),
   importLegacy: (opts = {}) => WCT.importLegacyFlights(opts),
   fly: (from, to, opts = {}) => WCT.flyNow(from, to, opts),
-  editor: () => WCT.flightEditor()
+  editor: () => WCT.flightEditor(),
+  map: () => WCT.flightMap()
 });
 
 Hooks.once("init", () => {
@@ -697,6 +778,7 @@ Hooks.once("init", () => {
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
+  if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
   if (F.on("bossFrames")) Bosses.init();
   if (F.on("lootRolls")) Loot.init();
@@ -706,6 +788,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
+  if (F.on("travelPace") && F.on("hexTravel")) game.socket.on(SOCKET, (msg, senderId) => { if (msg?.action === "paceRequest") WCT.paceRequest(msg, senderId).catch(e => console.warn(`${ID} | pace request`, e)); });
   if (F.on("flightMaster")) {
     game.socket.on(SOCKET, async (msg, senderId) => {
       if (msg?.action === "flightResult") {
@@ -740,6 +823,22 @@ function registerFlightHooks() {
     const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
     if (!game.user.isGM && !game.settings.get(ID, "playerFlights")) return;
     tokens.tools.wctFlight = { name: "wctFlight", title: "Flight Master", icon: "fa-solid fa-feather-pointed", order: 99, button: true, visible: true, onChange: () => WCT.flight() };
+  });
+  // Flight route map button: for everyone (players see only what's unlocked), when the map is turned on.
+  if (F.on("flightMap")) Hooks.on("getSceneControlButtons", controls => {
+    const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;
+    tokens.tools.wctFlightMap = { name: "wctFlightMap", title: "Flight route map", icon: "fa-solid fa-map-location-dot", order: 100, button: true, visible: true, onChange: () => WCT.flightMap() };
+  });
+}
+
+function registerPaceHooks() {
+  // A player's pace request: the GM's Accept button on the whispered card.
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    const req = message.flags?.[ID]?.paceRequest; if (!req) return;
+    const btn = html.querySelector?.("[data-wct-action=accept-pace]"); if (!btn) return;
+    if (!game.user.isGM) return btn.remove();
+    if (WCT.travelPaceNow() === Pace.normPace(req.pace)) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-check"></i> That\'s the pace now'; }
+    btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; try { await WCT.setTravelPace(req.pace, { by: req.user }); } catch (e) { btn.disabled = false; ui.notifications.error(`Travel pace: ${e.message}`); } });
   });
 }
 

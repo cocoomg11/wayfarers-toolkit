@@ -1,0 +1,18 @@
+{
+  "_id": "wctTravelPace000",
+  "name": "Travel Pace",
+  "type": "script",
+  "img": "icons/environment/settlement/signpost.webp",
+  "command": "// Travel Pace: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.travelPace();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "travelPace"
+    }
+  },
+  "folder": "wctFolderTravel0",
+  "sort": 1100000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctTravelPace000"
+}

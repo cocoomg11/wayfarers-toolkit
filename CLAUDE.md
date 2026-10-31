@@ -15,6 +15,11 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `bosses.mjs` boss frames; `phases.mjs` pure phase thresholds; `bossloot.mjs` boss loot tables.
 - `loot.mjs` Need/Greed/Pass; `history.mjs` / `history-model.mjs` loot roll history (UI / pure).
 - `pane.mjs` character pane; `weapon-sets.mjs` pure weapon-set rules; `compare.mjs` pure item comparison tooltips.
+- `flight-map.mjs` route map window (model: `Flight.mapModel`, `autoLayout`, `newlyUnlocked`, `withPositions` in flight.mjs).
+- `travel-pace.mjs` pure pace rules (SRD 5.2 figures, effect text, trip hours/days, socket request reader); UI and socket in main.mjs (`travelPace`, `setTravelPace`, `paceRequest`).
+- `gold.mjs` / `gold-model.mjs` party gold tracker (UI / pure curve, coin, gear and status maths).
+- `settings-io.mjs` / `settings-io-model.mjs` settings export/import (UI / pure file format and validation).
+- `permissions.mjs` pure permission checks; `health.mjs` gathers the facts (`permissionFacts`) for its *Permissions* section.
 - `quests.mjs` quest log + tracker. Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
 
 ## Key patterns
@@ -23,13 +28,21 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - **Health check:** `health.mjs`, `api.health()`; each check is wrapped, never throws, never changes anything. Add a line when adding a feature with setup needs.
 - **Update notes:** each user-visible release gets an entry at the top of `NOTES` in `update-notes.mjs` (plain-words changes, optional `actions` with `check()`/`run()`). Patch releases without an entry post nothing.
 - **Active-GM writes:** anything that writes documents automatically runs only when `isActiveGM()` (`gm.mjs`) so multi-GM worlds don't double-write. Players send choices over the socket; the active GM acts.
-- **API surface:** `api.quests`, `bosses`, `lootRoll`, `trash`, `bossLoot`, `flight`, `pane`, `panel(tab)`, `wizard()`, `health()`, `setup()`, `setupPlan()`, `updateNotes`, `cleanup`. Macros only call the API.
+- **API surface:** `api.quests`, `bosses`, `lootRoll`, `trash`, `bossLoot`, `flight` (+ `flight.map()`), `flightMap()`, `travelPace()`, `setTravelPace()`, `partyGold()`, `gold`, `settingsIO`, `pane`, `panel(tab)`, `wizard()`, `health()`, `setup()`, `setupPlan()`, `updateNotes`, `cleanup`. Macros only call the API.
 - Flags live under `flags.wayfarers-toolkit.*`. Windows use the `wct-window` class (backdrop blur is disabled on purpose: it tanks FPS in v14).
 - Pure logic goes in files with no Foundry calls at import time so it can be tested in Node.
 
+## 1.20 notes
+- New features: `flightMap` (needs `flightMaster`), `travelPace` (needs `hexTravel`), `partyGold`, `settingsIO`, `permissionChecks`. Cross-feature needs are checked at the call site (`F.need` twice) and in `macroOn(m, F.on)` (`feature: "a:b"` on a macro).
+- Flight refinements stay in Flight Master: `flightDiscovered` (chat on unlock, in `setFlightNetwork` via `Flight.newlyUnlocked`; an empty previous network announces nothing) and `flightAdvanceTime` (default **false** from 1.20; earlier versions always advanced; update-notes action `flightTime` turns it back on). Map positions live on points as `pos` in `flightNetwork`.
+- Travel pace: `travelPaceCurrent` (world, GM writes) and `paceRequests`. Socket action `paceRequest` is only handled when both features are on. Speeds still come from `paceSlow/Normal/Fast`.
+- Party gold: settings `goldAct`, `goldCurve` (text, parsed by `parseCurve`; bad text falls back to the default with a warning), `goldIncludeGear`, hidden `goldSnapshots`. No Session Start hook exists, so there's no automatic snapshot; don't add one by changing `sessionStart()`.
+- Settings IO: `SKIP` in settings-io-model.mjs lists record-type settings never exported/imported; add new record settings there (and to `WIZARD_IGNORE`).
+- Health: *Permissions* lines come from `Perm.featureChecks(facts)`; add a need there when a tool starts relying on a player permission.
+
 ## Tests
 - `npm test` = `node --test tests/*.test.mjs`; `npm run check` syntax-checks all scripts. CI runs them (`test.yml`).
-- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network, phases, history, compare. `tests/_globals.mjs` stubs minimal Foundry globals.
+- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.
 - Not testable in Node (needs a live world): hooks, ApplicationV2 windows, Item Piles integration, sockets, chat cards. Say what is untested in the changelog/handoff.
 
 ## Release process

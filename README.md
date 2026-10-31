@@ -20,6 +20,11 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Boss frames** | Mark a token as a boss (crown button in the token HUD). While it's in a running combat, everyone sees a classic-MMO-style frame for it at the top of the screen: portrait, name and health bar. Several bosses stack; defeated ones turn grey. Optional phase marks on the health bar, with a whisper to the GM as each is crossed. |
 | **Loot rolls** | Need / Greed / Pass for an item lying in an Item Piles pile or body. Players roll from a chat card with a countdown; the GM's client makes every roll and moves the item to the winner's character. A GM-only loot history keeps every result, with a per-player tally and CSV export. |
 | **Boss loot** | Link a roll table of hand-picked drops to a creature. When it dies, the table is drawn (weighted, no repeats) and the items go on its body next to any vendor trash, with a **Start loot roll** button per item on the GM's card. |
+| **Flight route map** | The flight network drawn as a map: flight points and the routes between them. Players see the points they've unlocked (locked ones hidden, or greyed and unnamed); the GM drags points to arrange it. Needs Flight Master. |
+| **Travel pace** | Fast, normal or slow (careful) pace for Hex Travel, after the SRD 5.2 travel pace rules: what each pace does to Perception, Survival and Stealth checks shows in Hex Travel and chat. The GM sets the party's pace; players can ask for one. Needs Hex Travel. |
+| **Party gold tracker** | GM only, read-only: the coin the player characters and the party actor carry (optionally with their mundane gear), against an editable wealth curve per act or tier × party size, in green, amber or red. |
+| **Settings export / import** | Save every toolkit setting (world and this browser's) to a JSON file and load them back, with a preview of what changes. |
+| **Permission checks** | The health check also checks the permissions players need for each tool that's on, with a fix for each problem. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Compatibility
@@ -69,6 +74,8 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 - how many actors and tokens are marked **No loot**;
 - problems on the Vendor Trash Rules page, scenes marked Dungeon, the flight network's size, flight points with no scene (⚠, information only: flying there still works) or a deleted scene, routes into locked points, routes naming a point that doesn't exist (✗), and an old Flight Routes journal page waiting to be imported;
 - encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
+- the route map, travel pace, party gold and settings export / import (1.20), when they're on;
+- **Permissions** (with *Permission checks* on): for each tool that's on, what players need, each line ✓ / ⚠ / ✗ with a fix: the module socket (player flights, loot roll choices, pace requests, quest notices), a character each player owns (loot rolls, the character pane, looting bodies, Sell all junk), the *Use Script Macros* permission and Observer on the shared macros (Flight Master, Quest Log, Travel Pace, Flight Route Map), Observer on the party actor (players see the purse their flights use), quest journals players should be able to read, and Item Piles for lootable bodies;
 - whether update notes are on, and the last version this world ran;
 - the active GM and how many GMs are online.
 
@@ -93,7 +100,7 @@ A world can have more than one GM logged in. Everything the toolkit does on its 
 
 ## Macro compendium
 
-The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel and Flight Master (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Toolkit Health Check (*Toolkit*). Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
+The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
 Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
@@ -114,11 +121,11 @@ The settings kept their keys from earlier versions, so anything you set before i
 
 ### Overview tab
 
-A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard**, **Show update notes** and **Remove toolkit data…**, and the **Show update notes after updating** switch (saved as soon as you flip it; see [Update notes](#update-notes)).
+A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard**, **Show update notes**, **Export settings** and **Import settings…** (with [Settings export / import](#settings-export--import) on) and **Remove toolkit data…**, and the **Show update notes after updating** switch (saved as soon as you flip it; see [Update notes](#update-notes)).
 
 ### Features tab
 
-One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
+One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Flight route map, Travel pace, Party gold tracker, Settings export / import, Permission checks and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
 
 A tool that's switched off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included). Its settings stay in the other tabs, greyed out with a note, so you can see them. **Run setup** skips its macros and items. Nothing already in your world is deleted, so switching a tool back on picks up where it left off. Calling a switched-off tool from a macro just shows a warning.
 
@@ -127,7 +134,9 @@ A tool that's switched off adds nothing: no buttons, macros, key bindings, chat 
 | | Settings |
 | --- | --- |
 | **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes), **Campaign name** (the "Previously, in …" recap heading) |
-| **Advanced** | Encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
+| **Advanced** | **Announce new flight points** (on), **Flights advance world time** (off), **Locked flight points on players' map** (hidden or greyed), **Players can ask for a travel pace** (on), encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
+
+With the route map and travel pace on, the tab also has **Flight route map…** and **Travel pace…** buttons.
 
 If an earlier version's **Scenes hidden from Session Start** held a hand-written pattern, it's shown in Advanced as a text field with a note; ticking scenes replaces it.
 
@@ -136,7 +145,7 @@ If an earlier version's **Scenes hidden from Session Start** held a hand-written
 | | Settings |
 | --- | --- |
 | **Basics** | **Roll loot when creatures are placed**, **Bodies can be looted when they die**, **Items you give a creature count as loot**, **Party size** (1–8, see [Boss loot](#boss-loot)), **Seconds to choose Need / Greed / Pass**; and a **Loot history…** button (see [Loot history](#loot-history)) |
-| **Advanced** | **Keep a loot roll history** (on), **Sell all junk button** (on; see [Sell all junk](#sell-all-junk-at-a-merchant)), unconscious creatures can be looted, loot stays on the body (Item Piles), the three dungeon settings, **Where junk loot comes from** (tick item compendiums by name), keep Item Piles' coins in step (three-coin economy), [debug logging](#debug-logging) |
+| **Advanced** | **Party is in act / tier**, **Wealth curve (gold per character)**, **Count mundane gear in party wealth** (off) (see [Party gold tracker](#party-gold-tracker)), **Keep a loot roll history** (on), **Sell all junk button** (on; see [Sell all junk](#sell-all-junk-at-a-merchant)), unconscious creatures can be looted, loot stays on the body (Item Piles), the three dungeon settings, **Where junk loot comes from** (tick item compendiums by name), keep Item Piles' coins in step (three-coin economy), [debug logging](#debug-logging) |
 
 ### Boss & Combat tab
 
@@ -177,7 +186,7 @@ Flight Master always takes the cheapest way through unlocked points, so the part
 
 ### Flying
 
-Open Flight Master from the feather button in the token controls or the **Flight Master** macro. Pick From, To and the number of passengers, then **Check route**: before anyone confirms, the window shows the route, the fare per passenger × passengers = total, the party purse and the flight time. Confirming charges the fare from the party group actor's purse (with change), plays the departure sound, advances the world time, writes the trip to the Travel Log and posts "The party flies from … The party lands at *Harbor Town*." to chat.
+Open Flight Master from the feather button in the token controls or the **Flight Master** macro. Pick From, To and the number of passengers, then **Check route**: before anyone confirms, the window shows the route, the fare per passenger × passengers = total, the party purse and the flight time. Confirming charges the fare from the party group actor's purse (with change), plays the departure sound, advances the world time by the flight's hours if *Flights advance world time* is on (off by default from 1.20), writes the trip to the Travel Log and posts "The party flies from … The party lands at *Harbor Town*." to chat.
 
 - **A point with a scene:** that scene is activated on arrival (the GM can untick *Open destination scene for players*). If it can't be opened, the fare is refunded and the flight is called off.
 - **A point with no scene** (or a scene that has been deleted): the flight still happens, the fare is charged, time passes and the trip is logged, but the scene stays where it is. The GM gets a whisper saying the party landed there and may need moving.
@@ -202,6 +211,18 @@ The import never edits or deletes the page and never runs on its own. Once the f
 ### Scripting
 
 `api.flight()` opens Flight Master. `api.flight.network()` returns the network (`{ version, points: [{ id, name, sceneUuid, unlocked, note }], routes: [{ id, from, to, fareCp, hours, twoWay, free }] }`; `from` / `to` are point ids and `fareCp` is in the smallest coin in use). GM only: `api.flight.setNetwork(obj)` replaces it (points may be named by name in routes; a network with errors is refused), `api.flight.unlock("Hill Fort")` unlocks a point by name or id (`unlock(name, false)` locks it), `api.flight.fly(from, to, { pax, free, scene })` flies now without the window, `api.flight.importLegacy({ dryRun })` and `api.flight.editor()`.
+
+### Route map
+
+With **Flight route map** on (Features tab), the token controls get a map button next to the feather (for players too), and there's a **Flight Route Map** macro and **control panel › Travel › Flight route map…**. The map draws each flight point as a dot and each route as a line (dotted for free routes, an arrow for one-way ones); hover a line for its hours and fare. A ring marks the point for the scene you're on.
+
+- **Players** see the unlocked points and the routes between them. *Locked flight points on players' map* (Travel › Advanced) decides the rest: **Hidden** (default) leaves locked points off the map; **Greyed out, unnamed** shows them as *Unknown*, greyed, with their routes dashed and no fare or hours.
+- **The GM** sees every point (locked ones marked) and can drag points around; **Save layout** stores the positions in the flight network (each point's `pos`, 0 to 1), so players see the same map. **Arrange in a circle** spreads every point evenly. Points never placed are laid out on a circle.
+
+### Discoveries and time
+
+- **Discovered!** When a GM unlocks a flight point (the editor's Unlocked switch, then Save, or `api.flight.unlock(name)`), chat says "Discovered! New flight point: *name*." for everyone. Switch it off with *Announce new flight points* (Travel › Advanced). The first save of a new network and the import from the old journal page announce nothing.
+- **Flights advance world time** (Travel › Advanced, **off** by default): on arrival, world time moves on by the flight's hours with Foundry's own `game.time.advance`, so a calendar module that follows world time follows the flight. Before 1.20 every flight did this; the 1.20 update notes card has a **Keep flights advancing world time** button for worlds that want to keep it.
 
 **Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in *Departure sound* (control panel › Travel › Advanced), or clear it for silence.
 
@@ -350,6 +371,41 @@ Mark a scene as a dungeon to make its creatures richer: open the scene's configu
 | **Dungeon extra item roll** | on | The creature's item drops are rolled a second time (coin is not). |
 
 The dungeon bonus comes on top of the creature's CR band. The trash pool is grey items only by design, so instead of raising item quality the dungeon bonus gives an extra roll. A pre-rolled token gets the bonus of the scene it was placed on. Whether coin drops at all is unchanged; only the amount goes up. Scenes not marked as dungeons drop exactly as before. The GM's Vendor Trash card shows a small **Dungeon** tag when the bonus applied. The checkbox and settings belong to Vendor Trash and disappear when it's turned off.
+
+## Travel pace
+
+With **Travel pace** on (it needs Hex Travel), the party has a pace: **fast**, **normal** or **slow (careful)**. The effects follow the SRD 5.2 travel pace rules, in the module's words:
+
+| Pace | Distance (SRD) | While travelling |
+| --- | --- | --- |
+| Fast | 4 miles an hour, 30 a day | Disadvantage on Perception, Survival and Stealth checks |
+| Normal | 3 miles an hour, 24 a day | Disadvantage on Stealth checks |
+| Slow (careful) | 2 miles an hour, 18 a day | Advantage on Perception and Survival checks |
+
+Hex Travel's speed still comes from the *Slow / Normal / Fast pace* settings (Travel › Advanced), so a world that changed them keeps its numbers. Nothing is rolled or enforced: the effect is named in Hex Travel's pace list, in the GM's trip summary and in the chat line, for you to apply.
+
+- **The GM** sets the pace in the **Travel Pace** window (the **Travel Pace** macro, *control panel › Travel › Travel pace…* or `api.travelPace()`), which posts "The party travels at … pace" with its effect. Picking another pace in Hex Travel sets it too.
+- **Players** open the same window (the macro is shared with them) and **Ask the GM**: the GMs get a whisper with a **Set … pace** button. With *Players can ask for a travel pace* off, players just see the current pace.
+
+Without Travel pace, Hex Travel's pace list is as before. There's no hex trail.
+
+## Party gold tracker
+
+With **Party gold tracker** on, GMs get a **Party gold** window (*control panel › Loot › Party gold…*, the **Party Gold** macro or `api.partyGold()`). It's read-only.
+
+- **Wealth** is the coin of every player character (a character actor a player owns or has assigned) and of the party group actor, coins in their containers included. With *Count mundane gear in party wealth* on, the price of their non-magical gear with no rarity is added. Amounts show in your coin system (three coins or standard).
+- **The wealth curve** is gold per character for each act or tier (*Wealth curve*, Loot › Advanced, numbers separated by commas, Act/Tier 1 first). The default is 1, 3, 15, 30, 75, 200, 400, 600, 1200; change it to suit your game. Each act's target is its gold × **Party size**.
+- **Status** per act: **green** at 75% to 150% of the target, **amber** at 50% to 75% or 150% to 200%, **red** further off. *Party is in act / tier* picks the act the banner talks about.
+- **Take snapshot** saves the wealth now (the last 50 are kept, in a hidden world setting) to compare later. Nothing is taken automatically.
+
+`api.gold.read()` returns the same numbers.
+
+## Settings export / import
+
+With **Settings export / import** on, the Overview tab has **Export settings** and **Import settings…** (also `api.settingsIO.export()` and `.import()`).
+
+- **Export** downloads `wayfarers-toolkit-settings-<world>-<date>.json` with two sections: **world** (the GM's settings for this world, feature switches and the flight network included) and **client** (this browser's own: window positions, tracked quests). Stored records (the loot history, the last version seen, gold snapshots) aren't included.
+- **Import** reads a file and checks it: it must be a toolkit export of a format this version reads. Each setting's value is checked against the setting (on/off, a number in range, one of the choices); settings this version doesn't have, and values that don't fit, are listed and ignored. A preview lists every setting with its current value and the file's, the ones that differ ticked; only ticked ones are written after you confirm. Client settings apply to the browser you import in. Foundry reloads if a feature switch changed.
 
 ## Riding Training and Long Road
 

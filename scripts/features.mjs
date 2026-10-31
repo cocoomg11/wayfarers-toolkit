@@ -17,7 +17,12 @@ export const FEATURES = [
   { id: "questTracker", label: "Quest tracker", hint: "An on-screen list of tracked quests and their open objectives. Needs the quest log; each player can still hide it." },
   { id: "bossFrames", label: "Boss frames", hint: "Health frames at the top of every screen for tokens the GM marks as bosses (crown button in the token HUD) while they're in combat, with optional phase marks." },
   { id: "lootRolls", label: "Loot rolls", hint: "Need / Greed / Pass rolls for an item in an Item Piles pile: a dice button on the item's row starts one; the winner's character gets the item, and a GM-only loot history. Needs Item Piles." },
-  { id: "bossLoot", label: "Boss loot", hint: "Link a roll table of hand-picked drops to a creature (gem button in the token HUD). When it dies, the table is drawn and the items go on its body (an Item Piles pile, or a Give to Party card), with a Start loot roll button per item." }
+  { id: "bossLoot", label: "Boss loot", hint: "Link a roll table of hand-picked drops to a creature (gem button in the token HUD). When it dies, the table is drawn and the items go on its body (an Item Piles pile, or a Give to Party card), with a Start loot roll button per item." },
+  { id: "flightMap", label: "Flight route map", hint: "A map of the flight network: flight points and the routes between them. The GM sees and arranges every point; players see the unlocked ones (locked ones hidden or greyed). Needs Flight Master." },
+  { id: "travelPace", label: "Travel pace", hint: "Fast, normal or slow (careful) pace for Hex Travel, with each pace's effect on Perception, Survival and Stealth checks. The GM sets the party's pace; players can ask for one. Needs Hex Travel." },
+  { id: "partyGold", label: "Party gold tracker", hint: "GM only, read-only: the coin the player characters and the party actor carry (optionally their mundane gear too), compared with a wealth curve per act × party size." },
+  { id: "settingsIO", label: "Settings export / import", hint: "Save every toolkit setting (world and this browser's) to a JSON file and load them back, with a preview before anything changes." },
+  { id: "permissionChecks", label: "Permission checks", hint: "The health check also checks the permissions each tool turned on relies on (characters players own, script macros, the party actor, quest journals, the module socket) and says how to fix what's missing." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 const byId = id => FEATURES.find(f => f.id === id);

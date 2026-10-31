@@ -128,8 +128,11 @@ function rawScenesRow(off) {
 
 function settingsTab(tab) {
   const advanced = [...(tab.advanced ?? []).map(rowHTML), tab.id === "travel" ? rawScenesRow(!isOn("sessionStart")) : ""].join("");
-  const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>` : "";
-  const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>` : "";
+  const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>
+    ${F.on("flightMap") ? `<div class="wct-actions"><button type="button" data-act="flight-map" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-map-location-dot"></i> Flight route map…</button><span class="hint">The network drawn as a map. Drag points to arrange it; players see the same layout.</span></div>` : ""}
+    ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
+  const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
+    ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
     <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${actions}
@@ -161,6 +164,7 @@ function overviewTab() {
       <button type="button" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
       <button type="button" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
       <button type="button" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
+      ${F.on("settingsIO") ? `<button type="button" data-act="settings-export"><i class="fa-solid fa-file-export"></i> Export settings</button><button type="button" data-act="settings-import"><i class="fa-solid fa-file-import"></i> Import settings…</button>` : ""}
       <button type="button" data-act="cleanup" class="wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
     <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
@@ -242,11 +246,13 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     const el = this.element?.querySelector("[data-dirty-note]"); if (el) el.textContent = n ? `Unsaved changes in ${n} setting${n === 1 ? "" : "s"} (all tabs).` : "";
   }
 
-  /** Quest tracker needs the quest log: shown as not available while the quest log switch is off. */
+  /** Tools that need another (quest tracker → quest log, route map → Flight Master, travel pace → Hex Travel): shown as not available while it is off. */
   featureDeps() {
     const root = this.element; if (!root) return;
-    const log = root.querySelector('[name="feature:questLog"]'); const tr = root.querySelector('[data-feature="questTracker"]');
-    if (log && tr) tr.classList.toggle("wct-needs", !log.checked);
+    for (const [need, card] of [["questLog", "questTracker"], ["flightMaster", "flightMap"], ["hexTravel", "travelPace"]]) {
+      const base = root.querySelector(`[name="feature:${need}"]`); const c = root.querySelector(`[data-feature="${card}"]`);
+      if (base && c) c.classList.toggle("wct-needs", !base.checked);
+    }
   }
 
   wireZones(root) {
@@ -296,6 +302,11 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
       if (act === "flight-editor") return API.flightEditor();
       if (act === "loot-history") return API.lootHistory();
+      if (act === "flight-map") return API.flightMap();
+      if (act === "travel-pace") return API.travelPace();
+      if (act === "party-gold") return API.partyGold();
+      if (act === "settings-export") return API.settingsIO?.export();
+      if (act === "settings-import") return API.settingsIO?.import();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }

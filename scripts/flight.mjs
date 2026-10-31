@@ -27,8 +27,8 @@ export function normalizeNetwork(raw, idFn = newId) {
   const uid = id => { id = str(id); if (!id || ids.has(id)) { do id = idFn(); while (ids.has(id)); } ids.add(id); return id; };
   for (const p of Array.isArray(src.points) ? src.points : []) {
     if (!p || typeof p !== "object") continue;
-    const scene = str(p.sceneUuid);
-    net.points.push({ id: uid(p.id), name: str(p.name), sceneUuid: scene || null, unlocked: p.unlocked === true || /^(y|yes|true)$/i.test(str(p.unlocked)), note: str(p.note) });
+    const scene = str(p.sceneUuid); const pos = cleanPos(p.pos);
+    net.points.push({ id: uid(p.id), name: str(p.name), sceneUuid: scene || null, unlocked: p.unlocked === true || /^(y|yes|true)$/i.test(str(p.unlocked)), note: str(p.note), ...(pos ? { pos } : {}) });
   }
   const byId = new Set(net.points.map(p => p.id));
   const byName = new Map(); for (const p of net.points) if (p.name && !byName.has(nameKey(p.name))) byName.set(nameKey(p.name), p.id);
@@ -39,6 +39,14 @@ export function normalizeNetwork(raw, idFn = newId) {
     net.routes.push({ id: uid(r.id), from: ref(r.from), to: ref(r.to), fareCp: Number.isFinite(fare) && fare > 0 ? fare : 0, hours: Number.isFinite(hours) && hours > 0 ? hours : 0, twoWay: r.twoWay !== false, free: r.free === true });
   }
   return net;
+}
+
+/** A map position { x, y } (each 0 to 1, rounded to 4 places), or null when there isn't a usable one. */
+export function cleanPos(pos) {
+  if (!pos || typeof pos !== "object") return null;
+  const x = +pos.x, y = +pos.y; if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const c = v => Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000;
+  return { x: c(x), y: c(y) };
 }
 
 /** A point by id, or by name (case and surrounding spaces ignored). */
@@ -262,3 +270,50 @@ export function unknownZoneTables(zones = {}, tableNames = []) {
 /** A fare cell: "2", "1.5", "2s", "1g 20s", "75 c" (coin letters or words), or blank (free). */
 export const fareOk = s => { s = String(s ?? "").trim(); return !s || /^\d+(\.\d+)?$/.test(s) || /^(\s*\d+(\.\d+)?\s*[a-z]+\.?\s*)+$/i.test(s); };
 
+
+// ---------------------------------------------------------------- flight map (feature flightMap) and discoveries
+/** Positions on a circle for `n` points (0 to 1 each), starting at the top, clockwise. */
+export function autoLayout(n) {
+  if (n <= 0) return [];
+  if (n === 1) return [{ x: 0.5, y: 0.5 }];
+  return Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
+    return { x: Math.round((0.5 + 0.4 * Math.cos(a)) * 10000) / 10000, y: Math.round((0.5 + 0.4 * Math.sin(a)) * 10000) / 10000 };
+  });
+}
+
+/**
+ * What the route map draws: { nodes: [{ id, name, x, y, unlocked, placed, here }], edges: [{ id, from, to, twoWay, free, hours,
+ * fareCp, open }] }. A GM sees every point (locked ones marked) and every route between known points. Players see only unlocked
+ * points and the routes between them, unless `lockedForPlayers` is "grey": then locked points and their routes show greyed, with no
+ * name ("Unknown"). Points without a saved position get one from autoLayout (over all points, so positions don't jump when a
+ * point is unlocked). `here`: the point id for the current scene, if any.
+ */
+export function mapModel(net, { isGM = false, lockedForPlayers = "hide", here = null } = {}) {
+  const auto = autoLayout(net.points.length);
+  const showLocked = isGM || lockedForPlayers === "grey";
+  const nodes = [];
+  net.points.forEach((p, i) => {
+    if (!p.unlocked && !showLocked) return;
+    const pos = p.pos ?? auto[i];
+    nodes.push({ id: p.id, name: p.unlocked || isGM ? (p.name || "(unnamed)") : "Unknown", x: pos.x, y: pos.y, unlocked: p.unlocked, placed: !!p.pos, here: p.id === here });
+  });
+  const shown = new Map(nodes.map(n => [n.id, n]));
+  const edges = net.routes.filter(r => shown.has(r.from) && shown.has(r.to) && r.from !== r.to)
+    .map(r => ({ id: r.id, from: r.from, to: r.to, twoWay: r.twoWay, free: r.free, hours: r.hours, fareCp: r.fareCp, open: shown.get(r.from).unlocked && shown.get(r.to).unlocked }));
+  // Players don't learn fares or hours of routes they can't fly yet.
+  if (!isGM) for (const e of edges) if (!e.open) { e.hours = null; e.fareCp = null; }
+  return { nodes, edges };
+}
+
+/** Points unlocked in `next` that weren't unlocked in `prev` (matched by id): [{ id, name }]. Nothing when `prev` had no points. */
+export function newlyUnlocked(prev, next) {
+  const before = new Map((prev?.points ?? []).map(p => [p.id, p]));
+  if (!before.size) return [];
+  return (next?.points ?? []).filter(p => p.unlocked && p.name && !before.get(p.id)?.unlocked).map(p => ({ id: p.id, name: p.name }));
+}
+
+/** The network with new map positions: `positions` { pointId: { x, y } }; unknown ids are ignored. */
+export function withPositions(net, positions = {}) {
+  return { ...net, points: net.points.map(p => { const pos = cleanPos(positions[p.id]); return pos ? { ...p, pos } : p; }) };
+}
