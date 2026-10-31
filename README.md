@@ -2,7 +2,7 @@
 
 A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
 
-The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world under **Choose features**.
+The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
 
 What changed in each version: [CHANGELOG](CHANGELOG.md).
 
@@ -45,13 +45,13 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 ## Setup
 
-Enable the module in your world, then open **Game Settings → Configure Settings → Wayfarer's Toolkit → Run setup**. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, and the macros in a *Wayfarer's Toolkit* macro folder) and never overwrites existing documents. It never puts macros on anyone's hotbar and never removes ones already there: drag the macros you want from the *Wayfarer's Toolkit* macro folder or the **Wayfarer's Toolkit Macros** compendium onto your hotbar.
+Enable the module in your world. The first time a GM loads it, the [welcome wizard](#control-panel) offers to pick the tools and run setup. Any time after, open the [control panel](#control-panel) and click **Run setup** on its Overview tab. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, and the macros in a *Wayfarer's Toolkit* macro folder) and never overwrites existing documents. It never puts macros on anyone's hotbar and never removes ones already there: drag the macros you want from the *Wayfarer's Toolkit* macro folder or the **Wayfarer's Toolkit Macros** compendium onto your hotbar.
 
 **Setup reminder.** After each module update, the first time the world loads the GM gets a whisper if Run setup would add anything for the features turned on ("Wayfarer's Toolkit 1.14.0: Run setup to add: …") with a **Run setup** button. It's sent once per version, not on every load.
 
 ### Health check
 
-**Health check** (in the module settings, the **Toolkit Health Check** macro, or `api.health()`) whispers the GM a report with ✓ / ⚠ / ✗ lines. It changes nothing. It covers:
+**Health check** (the control panel's Overview tab sums it up; **Full health report**, the **Toolkit Health Check** macro or `api.health()` post it) whispers the GM a report with ✓ / ⚠ / ✗ lines. It changes nothing. It covers:
 
 - which features are on;
 - dependencies: Item Piles and Item Piles: D&D 5e, the vendor-trash compendiums, and whether the coins match the Coin system setting (and Item Piles' currencies in three-coin mode);
@@ -59,12 +59,12 @@ Enable the module in your world, then open **Game Settings → Configure Setting
 - boss loot: the party size and what it does to boss loot, every actor and token with a table linked, whether the table exists, how many results resolve to items, the draws and coin adjusted for the party size, and whether there are more draws than usable results. Links that would fall back to vendor trash are flagged. Creatures with a table named for them but not linked get a **Link boss tables by name** button;
 - how many actors and tokens are marked **No loot**;
 - problems on the Vendor Trash Rules page, scenes marked Dungeon, Flight Master points whose scene is missing (✗) or not set (⚠ "no scene: flying there won't open a scene", still allowed), routes naming an unknown point, and malformed Flight Routes rows (named by table, row and column);
-- the Encounter zones setting: invalid JSON (with where the problem is) and zones whose roll table doesn't exist;
+- encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
 - the active GM and how many GMs are online.
 
 ### Remove toolkit data
 
-**Remove toolkit data** (a button in the module settings, GM only) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
+**Remove toolkit data** (a button on the control panel's Overview tab, GM only; also `api.cleanup.open()`) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
 - toolkit flags (`flags.wayfarers-toolkit`) on actors, on tokens on every scene, on scenes (Dungeon), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
@@ -75,7 +75,7 @@ Type **REMOVE** and click **Remove** (or **Cancel** to close without changes). N
 
 ### Debug logging
 
-**General settings… → General: Debug logging** (off by default) writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM's client ran an automatic step, the creature kind, CR band and items rolled, boss loot draws, and how each loot roll was settled. With it off nothing is logged.
+**Debug logging** (control panel › Loot › Advanced, off by default) writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM's client ran an automatic step, the creature kind, CR band and items rolled, boss loot draws, and how each loot roll was settled. With it off nothing is logged.
 
 ### Several GMs
 
@@ -85,45 +85,72 @@ A world can have more than one GM logged in. Everything the toolkit does on its 
 
 The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel and Flight Master (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), and Toolkit Health Check (*Toolkit*). Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
-Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've turned off under **Choose features** are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
+Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
-## Choosing features
+## Control panel
 
-Every tool is optional. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Choose features** and tick the ones this world uses: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Loot rolls and Boss loot. All are on by default. Saving reloads Foundry.
+All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Quest tracker: Show on screen**, which each player sets for themselves.
 
-A tool that's turned off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included), and its settings drop out of the settings list. **Run setup** skips its macros and items. Nothing already in your world is deleted, so turning a tool back on picks up where it left off. Calling a turned-off tool from a macro just shows a warning. The three-coin economy has its own **Coin system** setting.
+The panel has six tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
-## Configure
+**A quick walkthrough for a new world**
 
-The module's settings list shows **Choose features**, **Health check**, **Run setup**, **Remove toolkit data**, **Party size**, **Coin system** and **Campaign name**, and a button per group that opens that group's settings:
+1. The first time a GM opens a new world with the toolkit, the **welcome wizard** asks three things: a style (which tools to switch on), the party size, and the coins and campaign name. Finish it and it offers to **Run setup**. Skip it if you'd rather set things up yourself; it won't come back on its own (rerun it from the Overview tab).
+2. Open the control panel. **Overview** says "Everything looks good" or lists what needs attention, each with a button that fixes it.
+3. On **Features**, switch off anything you won't use and click **Save features** (Foundry reloads).
+4. Go through **Travel**, **Loot**, **Boss & Combat** and **Quests**, change what you need and click **Save changes**.
 
-| Button | Settings |
+The settings kept their keys from earlier versions, so anything you set before is still set, and macros and the API work as before.
+
+### Overview tab
+
+A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, or opening the Flight Routes or Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard** and **Remove toolkit data…**.
+
+### Features tab
+
+One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
+
+A tool that's switched off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included). Its settings stay in the other tabs, greyed out with a note, so you can see them. **Run setup** skips its macros and items. Nothing already in your world is deleted, so switching a tool back on picks up where it left off. Calling a switched-off tool from a macro just shows a warning.
+
+### Travel tab
+
+| | Settings |
 | --- | --- |
-| **General settings…** | Tracker journal, Party actor, Set Item Piles coins for three coins, Debug logging |
-| **Travel settings…** | Hex Travel (encounter zones, encounter die, off-road and mounted multipliers, paces), Flight Master (players can book, fare unit, sound, volume), Session Start (hidden scenes), Riding Training (feat name) |
-| **Vendor Trash settings…** | Compendiums, Use Item Piles, roll on placement, lootable on death, the dungeon settings |
-| **Boss loot & frames settings…** | Drop automatically on death, Extra drop for parties above 4, what players see on boss frames, treat tokens with boss loot as bosses; and a **Link boss tables by name** button |
-| **Loot rolls settings…** | Time to choose |
-| **Quest log settings…** | Quest folder, objectives in chat, sounds, volume |
+| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), **Scenes left out of Session Start** (tick the scenes), **Campaign name** (the "Previously, in …" recap heading) |
+| **Advanced** | Encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
 
-Each setting is labelled "Feature: setting". A group whose features are all turned off has no button, and settings of a turned-off feature aren't listed. (The settings kept their keys from earlier versions, so nothing you set before is lost.)
+If an earlier version's **Scenes hidden from Session Start** held a hand-written pattern, it's shown in Advanced as a text field with a note; ticking scenes replaces it.
 
-- **Party size** (1–8, default 4): how many characters the party has. Boss loot uses it (see [Boss loot](#boss-loot)).
-- **Campaign name**: used in the session recap heading.
-- **Tracker journal / Party actor**: document names the tools look for.
-- **Encounter zones**: JSON mapping a zone name to an encounter roll table, e.g. `{"Forest": "Encounters · Forest"}`. If it isn't valid JSON, the GM gets a notification naming the setting and where the problem is ("invalid JSON at line 1, column 11"); zones naming a table that doesn't exist are listed too (also in the health check).
-- **Encounter die, off-road multiplier, mounted multiplier, pace speeds**.
-- **Scenes hidden from Session Start**: a regular expression.
+### Loot tab
 
-### Flight routes
+| | Settings |
+| --- | --- |
+| **Basics** | **Roll loot when creatures are placed**, **Bodies can be looted when they die**, **Items you give a creature count as loot**, **Party size** (1–8, see [Boss loot](#boss-loot)), **Seconds to choose Need / Greed / Pass** |
+| **Advanced** | Unconscious creatures can be looted, loot stays on the body (Item Piles), the three dungeon settings, **Where junk loot comes from** (tick item compendiums by name), keep Item Piles' coins in step (three-coin economy), [debug logging](#debug-logging) |
+
+### Boss & Combat tab
+
+| | Settings |
+| --- | --- |
+| **Basics** | **Boss health players see** (bar only, bar and percentage, exact HP), **Boss loot drops on death**, **Creatures with boss loot get a boss frame**; and a **Link boss tables by name** button |
+| **Advanced** | Extra boss drop for parties over 4 |
+
+### Quests tab
+
+| | Settings |
+| --- | --- |
+| **Basics** | **Show the quest tracker on my screen** (just for you), **Announce objectives in chat**, sounds when a quest is given and completed |
+| **Advanced** | Quest sound volume, quest folder |
+
+## Flight routes
 
 The tracker journal's **Flight Routes** page holds two tables: flight points (name, scene to open on arrival, unlocked yes/no) and routes (from, to, fare per passenger, hours). Write fares with coins, like `2s`, `1g 20s` or `75c`; a plain number such as `2` is read in the *Fare unit* setting (gold by default). Edit the tables directly; Flight Master reads the page each time. When a row is malformed (missing columns, an empty name, a fare or hours that can't be read, a point listed twice), the GM gets a warning naming the table, row and column ("Routes row 2, Fare: "x2" isn't a fare"), and the health check lists them all. A flight point with no scene is allowed; flying there just doesn't open a scene.
 
-**Players and Flight Master.** With *Flight Master: Players can book flights* on (the default, in Travel settings…), players get a feather button in the token controls, and can drag the **Flight Master** macro onto their own hotbar from the *Wayfarer's Toolkit Macros* compendium (or the shared world copy in the macro folder). A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be connected ("A GM needs to be connected to fly."). Players see a copy of the flight points and routes, never the GM journal itself.
+**Players and Flight Master.** With *Players can book flights* on (the default, control panel › Travel), players get a feather button in the token controls, and can drag the **Flight Master** macro onto their own hotbar from the *Wayfarer's Toolkit Macros* compendium (or the shared world copy in the macro folder). A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be connected ("A GM needs to be connected to fly."). Players see a copy of the flight points and routes, never the GM journal itself.
 
 **Checks before a flight.** Before anyone confirms, Flight Master shows the route, the fare per passenger × passengers = total, the party purse and the flight time. A flight is refused (a window with an **OK** button), with nothing charged, when the party can't afford it ("needs X, has Y (short Z)"), when the destination's scene doesn't exist, or when a route names a flight point that isn't in the Flight Points table. The active GM's client checks everything again before charging; if the destination scene then can't be opened, the fare is refunded and the GM (and the player who booked) is told.
 
-**Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in the *Flight Master: Departure sound* setting, or clear it for silence.
+**Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in *Departure sound* (control panel › Travel › Advanced), or clear it for silence.
 
 ## Vendor Trash
 
@@ -149,7 +176,7 @@ Every item is priced at its vendor value and marked as vendor trash. Each token 
 | **Items the GM adds to an NPC count as loot** | on | A weapon, armour, consumable, tool, loot item or container a GM adds to an NPC is marked *Lootable* and shows in its body's pile. See [Adding your own loot](#adding-your-own-loot). |
 | **Unconscious bodies become lootable** | off | The Unconscious condition also makes an unlinked NPC's body lootable, as if it had died. No loot and one-loot-per-body still apply. |
 
-All of these are in **Vendor Trash settings…**, which only shows when Vendor Trash is turned on. The rolling and looting happen on the active GM's client, so a GM has to be logged in.
+All of these are on the control panel's **Loot** tab (greyed out while Vendor Trash is switched off). The rolling and looting happen on the active GM's client, so a GM has to be logged in.
 
 **Several deaths at once.** When several bodies become lootable within about a second and a half of each other (an area spell), the GM gets **one** summary card instead of one per creature: a Vendor Trash section and a Boss loot section, a line per creature and the totals. The Give to Party and per-item **Start loot roll** buttons are on it as usual.
 
@@ -165,7 +192,7 @@ When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is acti
 
 1. Install and enable **Item Piles** and its system add-on: for dnd5e that's **Item Piles: D&D 5e** (`itempilesdnd5e`). Item Piles 3 has no system settings of its own; without the add-on it doesn't know item quantities or coins, and Vendor Trash falls back to the Give to Party card with a warning.
 2. Reload. Item Piles applies the dnd5e settings the first time it sees the add-on.
-3. **Three-coin economy:** the dnd5e add-on sets up five coins at 10 to 1. With *Coin system* on *Three coins* and *Set Item Piles coins for three coins* on (the default), this module replaces them each time the world loads with copper (×0.0001), silver (×0.01) and gold (primary), in that order, and whispers the GM when it changes them. To do it by hand instead, turn that setting off and in **Item Piles → Module Settings → System → Currencies** keep three attribute currencies, in this order: `system.currency.cp` (0.0001), `system.currency.sp` (0.01) and `system.currency.gp` (exchange rate 1, primary), and delete platinum and electrum.
+3. **Three-coin economy:** the dnd5e add-on sets up five coins at 10 to 1. With the three-coin economy on and *Keep Item Piles' coins in step* on (the default, control panel › Loot › Advanced), this module replaces them each time the world loads with copper (×0.0001), silver (×0.01) and gold (primary), in that order, and whispers the GM when it changes them. To do it by hand instead, turn that setting off and in **Item Piles → Module Settings → System → Currencies** keep three attribute currencies, in this order: `system.currency.cp` (0.0001), `system.currency.sp` (0.01) and `system.currency.gp` (exchange rate 1, primary), and delete platinum and electrum.
 
 ### Without Item Piles: Give to Party
 
@@ -331,9 +358,9 @@ Quests stay narrative: each one has a few objectives written as things to do ("H
 
 ### Setup
 
-1. Make sure **Quest log** (and, if you want it, **Quest tracker**) is ticked in **Choose features**.
+1. Make sure **Quest log** (and, if you want it, **Quest tracker**) is switched on in the control panel's Features tab.
 2. Run setup to add a **Quest Log** macro (shared with players). Everyone can also open the log with the scroll button in the token controls or the **L** key (change it under **Configure Controls**).
-3. Optional settings: **Quest folder** (the journal folder quests live in, default *Quest Log*), **Quest objectives in chat**, and **Quest accepted / complete sound** with a volume (blank by default; pick your own audio files).
+3. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Quest objectives in chat**, and **Quest accepted / complete sound** with a volume (blank by default; pick your own audio files).
 
 ### Making quests (GM)
 
@@ -406,7 +433,7 @@ Frames show only for the combat on the scene you're viewing, and a frame disappe
 Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without it the feature just adds nothing.
 
 1. Open an Item Piles pile or lootable body as the GM. Each item row has a **dice** button (*Roll for this*), next to *Take*. From a macro: `game.modules.get("wayfarers-toolkit").api.lootRoll.start(itemOrUuid, { seconds })`.
-2. A **Loot roll** chat card shows the item's name, icon and rarity colour, with **Need**, **Greed** and **Pass** buttons and a countdown (**Loot rolls: time to choose** in Loot rolls settings…, default 60 seconds). Every logged-in player who has a character can choose once; the GM can **Close the roll now**.
+2. A **Loot roll** chat card shows the item's name, icon and rarity colour, with **Need**, **Greed** and **Pass** buttons and a countdown (**Seconds to choose Need / Greed / Pass**, control panel › Loot, default 60 seconds). Every logged-in player who has a character can choose once; the GM can **Close the roll now**.
 3. Each choice goes to the GM's client, which rolls a d100 for Need and Greed and writes it on the card, so everyone sees every roll and nobody can set their own.
 4. When everyone has chosen or time runs out: the highest Need wins; if nobody chose Need, the highest Greed. Ties reroll among the tied players. The item (the whole stack) moves from the pile to the winner's assigned character (or the first character they own) through Item Piles, and the result is posted to chat. If everyone passes or nobody answers, the item stays in the pile.
 
@@ -429,7 +456,7 @@ Hand-picked drops for named creatures, alongside (or instead of) vendor trash. W
 
 **Party size.** Boss coin is scaled by the **Party size** setting: `coinCp × party size / 4`, rounded to the copper (a 1,000c boss drops 1,250c for five). The flag itself is not changed. With **Boss loot: extra drop for parties above 4** on (the default), a boss with 3 or more draws draws one more for a party of 5 or more, never more than its table's usable results. Preview Boss Loot and the health check show the adjusted coin and draws next to the ones set.
 
-**Link boss tables by name.** If your tables are named after their creatures, link them all at once: **Boss loot & frames settings… → Link boss tables by name**, the button in the health check, or `api.bossLoot.autoLink({ folder, overwrite })`. Every world NPC actor without a boss loot link gets the world roll table named exactly "*Actor name* · Loot" (also "*Actor name* - Loot" or "Loot: *Actor name*"), with 1 draw and no coin, unless the table says otherwise: a table flag `flags.wayfarers-toolkit.bossLootDefaults = { draws, coinCp, note }`, or "draws: 2" / "coin: 1500" (copper) in the table's description. Existing links are never changed unless `overwrite: true`. `folder` (a folder, its id or name) limits it to actors in that folder. You get a notification and a whisper listing what was linked and skipped.
+**Link boss tables by name.** If your tables are named after their creatures, link them all at once: **Link boss tables by name** (control panel › Boss & Combat, or the Overview tab when it applies), the button in the health check, or `api.bossLoot.autoLink({ folder, overwrite })`. Every world NPC actor without a boss loot link gets the world roll table named exactly "*Actor name* · Loot" (also "*Actor name* - Loot" or "Loot: *Actor name*"), with 1 draw and no coin, unless the table says otherwise: a table flag `flags.wayfarers-toolkit.bossLootDefaults = { draws, coinCp, note }`, or "draws: 2" / "coin: 1500" (copper) in the table's description. Existing links are never changed unless `overwrite: true`. `folder` (a folder, its id or name) limits it to actors in that folder. You get a notification and a whisper listing what was linked and skipped.
 
 **Fallback.** If the linked table has been deleted, has no results that can drop, or the draw finds none of the items its results point at, the body gets the normal vendor-trash drop instead (unless it's marked No loot) and the GM is whispered which creature, why and what happened: "vendor trash dropped instead", "no vendor trash rolled for it either", "its vendor trash is already on the body", or why there's none (Vendor Trash off, No loot, no compendium). A linked boss has no pre-rolled trash, so its fallback drop is rolled then (up to three tries before it counts as empty). The health check lists these links in advance.
 
@@ -474,11 +501,11 @@ An optional classic-MMO-style economy: no electrum or platinum, and **100 copper
 ### Setup
 
 1. **Platinum and electrum are converted for you.** Each time the world loads in three-coin mode (and when you **Run setup**), the GM's client turns any pp or ep left on actors, containers and unlinked tokens into the new coins: **1 pp = 10 gold** and **1 ep = 50 silver** (half a gold piece, its standard 5e value), and whispers the GM who was changed. If you'd rather decide yourself, convert or remove them while you're still on Standard.
-2. Open **Game Settings → Configure Settings → Wayfarer's Toolkit** and set **Coin system** to *Three coins: copper, silver, gold (100 to 1)*. Save; Foundry reloads.
-3. Set **Flight Master: Fare unit** (Travel settings…) to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
+2. In the control panel's **Features** tab, switch on **Three-coin economy** and click **Save features**; Foundry reloads.
+3. Set **Fares without a coin are in** (control panel › Travel) to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
 4. Check a sheet: the currency block should show only copper, silver and gold, left to right.
 
-To switch back, set **Coin system** to *Standard 5e*. Coin amounts stay as they are; they're just read at 5e rates again.
+To switch back, switch **Three-coin economy** off again. Coin amounts stay as they are; they're just read at 5e rates again.
 
 ### What it doesn't change
 

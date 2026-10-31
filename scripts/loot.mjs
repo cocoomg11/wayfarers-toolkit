@@ -280,12 +280,16 @@ function addPileButton(element, item) {
   take ? take.before(btn) : element.append(btn);
 }
 
-/** Called from the module's init hook when the feature is on: its setting and the chat and Item Piles hooks. */
-export function init() {
+/** Called from the module's init hook whatever the feature toggle (the control panel shows a turned-off feature's settings greyed out). */
+export function registerSettings() {
   game.settings.register(ID, "lootRollSeconds", {
     name: "Loot rolls: time to choose (seconds)", hint: "How long players have to pick Need, Greed or Pass. The GM can close a roll early from its chat card.",
     scope: "world", config: false, type: Number, default: 60, range: { min: 10, max: 300, step: 5 }
   });
+}
+
+/** Called from the module's init hook when the feature is on: the chat and Item Piles hooks. */
+export function init() {
   Hooks.on("renderChatMessageHTML", onRender);
   Hooks.on("item-piles-renderPileItem", addPileButton);
   // Players' Need / Greed / Pass buttons follow whether a GM is connected. activeGM() reads user.active, which Foundry updates

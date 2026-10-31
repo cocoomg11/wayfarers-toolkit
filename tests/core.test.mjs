@@ -6,7 +6,7 @@ const Flight = await import("../scripts/flight.mjs");
 const { resolveBoss, computeLayout, findSnap, detach, prune, defaultTop, TOP } = await import("../scripts/bosses.mjs");
 const { rankChoices, gmOnline, winnerRecipients } = await import("../scripts/loot.mjs");
 const { mergeParts } = await import("../scripts/summary.mjs");
-const { MENUS, menuKeys, menuOn } = await import("../scripts/settings.mjs");
+const { TABS, tabKeys, condOn } = await import("../scripts/panel-model.mjs");
 const { MACROS } = await import("../scripts/macros.mjs");
 
 const u = (id, isGM, active) => ({ id, isGM, active });
@@ -124,16 +124,17 @@ test("mass deaths: one merged summary", () => {
   assert.equal(mergeParts([]).trash, null);
 });
 
-test("settings submenus follow the feature toggles", () => {
-  const all = () => true, none = () => false;
-  for (const m of MENUS) assert.ok(menuOn(m, all));
-  assert.deepEqual(MENUS.filter(m => menuOn(m, none)).map(m => m.key), ["menuGeneral"]);
-  const boss = MENUS.find(m => m.key === "menuBoss");
-  assert.deepEqual(menuKeys(boss, id => id === "bossFrames"), ["bossHpDisplay"], "bossAutoFromLoot needs both features");
-  const keys = MENUS.flatMap(m => m.settings.map(([k]) => k));
-  assert.equal(new Set(keys).size, keys.length, "each setting in one submenu");
-  // The pre-1.14 setting keys are all still listed (no data loss).
-  for (const k of ["zones", "encounterDie", "offroadMult", "mountMult", "paceSlow", "paceNormal", "paceFast", "hiddenScenes", "playerFlights", "flightSound", "flightVolume", "fareUnit", "riderFeat", "trashItemPiles", "itemPilesCoins", "dungeonCoinMult", "dungeonDropBonus", "dungeonExtraRoll", "trashAutoRoll", "trashAutoLoot", "trashPacks", "bossLootAuto", "bossHpDisplay", "bossAutoFromLoot", "lootRollSeconds", "trackerJournal", "partyActor", "questFolder"]) assert.ok(keys.includes(k), k);
+test("control panel tabs list every setting once and follow the feature toggles", () => {
+  const keys = TABS.flatMap(tabKeys);
+  assert.equal(new Set(keys).size, keys.length, "each setting on one tab");
+  // The pre-1.15 setting keys are all still shown (no data loss).
+  for (const k of ["zones", "encounterDie", "offroadMult", "mountMult", "paceSlow", "paceNormal", "paceFast", "hiddenScenes", "playerFlights", "flightSound", "flightVolume", "fareUnit", "riderFeat", "trashItemPiles", "itemPilesCoins", "dungeonCoinMult", "dungeonDropBonus", "dungeonExtraRoll", "trashAutoRoll", "trashAutoLoot", "trashGmAddedLoot", "trashUnconscious", "trashPacks", "bossLootAuto", "bossLootExtraDraw", "bossHpDisplay", "bossAutoFromLoot", "lootRollSeconds", "trackerJournal", "partyActor", "questFolder", "questObjectiveChat", "questSoundAccept", "questSoundComplete", "questVolume", "partySize", "campaignName", "debugLog", "questTracker"]) assert.ok(keys.includes(k), k);
+  const boss = TABS.find(t => t.id === "boss");
+  const row = boss.basic.find(([k]) => k === "bossAutoFromLoot");
+  assert.equal(condOn(row[1], id => id === "bossFrames"), false, "bossAutoFromLoot needs both features");
+  assert.equal(condOn(row[1], () => true), true);
+  assert.equal(condOn(null, () => false), true);
+  for (const t of TABS.filter(t => t.basic)) assert.ok(t.basic.length >= 3 && t.basic.length <= 5, `${t.id} has 3–5 basics`);
 });
 
 test("macro list ids are stable 16-character ids", () => {

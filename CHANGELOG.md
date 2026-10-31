@@ -2,6 +2,22 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.15.0
+
+**New**
+- **Control panel.** One button in the module settings, *Wayfarer's Toolkit → Open the control panel*, opens a single window with tabs: Overview, Features, Travel, Loot, Boss & Combat and Quests. It replaces the *Choose features*, *Health check*, *Run setup*, *Remove toolkit data*, *Party size*, *Coin system*, *Campaign name* entries and the six "… settings" submenus. The main settings list keeps only the panel button and each user's *Quest tracker: Show on screen*. Also `api.panel(tab)`.
+- **Overview tab:** "Everything looks good" or "N things need attention", built from the health check, with a fix-it button per problem where there's a quick fix (Run setup, Link boss tables by name, open the right tab, open the Flight Routes or Vendor Trash Rules page). Buttons for Run setup, Full health report (the chat card), Check again, the welcome wizard and Remove toolkit data.
+- **Features tab:** a card per tool with an icon, a one-line description and a switch, including the three-coin economy. Saving reloads Foundry (the button says so). A switched-off tool's settings stay visible in the other tabs, greyed out with a note.
+- **Basics and Advanced:** each settings tab shows the few settings most GMs change; the rest sit in a collapsed *Advanced* section. Labels and hints are rewritten to say what each setting does at the table.
+- **No typing code:** Encounter zones is a table (zone name, roll table dropdown, remove, *Add zone*) with problems shown under it; Scenes hidden from Session Start is a scene checklist; Vendor trash compendiums is a checklist of item compendiums by name; tracker journal, party actor and quest folder suggest your existing documents. A hand-written scene pattern from an earlier version is kept and shown in Advanced.
+- **Help and reset:** each tab links to its README section and has *Reset this tab to defaults* (asks first; not on Features).
+- **Welcome wizard** for new worlds: pick a style (Minimal, Classic MMO or Everything), the party size, the coins and the campaign name, then Run setup. Shown once, to the active GM, only when the world doesn't use the toolkit yet; rerun it from the Overview tab or with `api.wizard()`.
+
+**Changes**
+- No setting keys changed: everything you set before carries over, and macros and the API are unchanged.
+- Settings of switched-off features are now always registered (so the panel can show them); switched-off tools still register no hooks, buttons or macros.
+- Worlds that already used the toolkit (any setting changed, anything setup makes, or an earlier version loaded) are marked as having seen the wizard on their first 1.15.0 load and never see it.
+
 ## 1.14.4
 
 **Fixes**

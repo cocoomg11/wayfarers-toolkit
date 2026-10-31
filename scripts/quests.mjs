@@ -566,15 +566,19 @@ export const api = {
 };
 
 // ---------------------------------------------------------------- setup
-export function registerSettings() {
-  // World settings are shown in the "Quest log settings…" submenu (settings.mjs), so they stay out of the main list.
+/**
+ * Called from the module's init hook whatever the feature toggle (the control panel shows a turned-off feature's settings greyed out).
+ * World settings live in the control panel's Quests tab. `tracker`: the per-user "Show on screen" setting, registered (and listed in
+ * the main settings list, so players can use it) only when the quest log and the tracker are both on.
+ */
+export function registerSettings({ tracker = false } = {}) {
   const w = (key, name, hint, type, def, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: def, ...extra });
   w("questFolder", "Quest log: Quest folder", "Journal folder that holds the quests. Created when the first quest is made.", String, "Quest Log");
   w("questObjectiveChat", "Quest log: Objectives in chat", "Post a short chat line when an objective is ticked off or revealed. Off: a notification for everyone instead.", Boolean, true);
   w("questSoundAccept", "Quest log: Quest accepted sound", "Audio file played for everyone when a quest is given. Leave blank for none.", String, "", { filePicker: "audio" });
   w("questSoundComplete", "Quest log: Quest complete sound", "Audio file played for everyone when a quest is completed. Leave blank for none.", String, "", { filePicker: "audio" });
   w("questVolume", "Quest log: Sound volume", "", Number, 0.8, { range: { min: 0, max: 1, step: 0.05 } });
-  if (TRACKER) game.settings.register(ID, "questTracker", { name: "Quest tracker: Show on screen", hint: "Show tracked quests and their open objectives on screen. Tick Track on a quest in the quest log to follow it.", scope: "client", config: true, type: Boolean, default: true, onChange: () => renderTracker() });
+  if (tracker) game.settings.register(ID, "questTracker", { name: "Quest tracker: Show on screen", hint: "Show tracked quests and their open objectives on screen. Tick Track on a quest in the quest log to follow it.", scope: "client", config: true, type: Boolean, default: true, onChange: () => renderTracker() });
   game.settings.register(ID, "trackedQuests", { scope: "client", config: false, type: String, default: "[]" });
   game.settings.register(ID, "trackerCollapsed", { scope: "client", config: false, type: Boolean, default: false });
 }
@@ -585,7 +589,6 @@ function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (L
 /** Called from the module's init hook when the quest log is on: settings, key binding, scene control, chat and document hooks. `tracker`: the Quest tracker feature. */
 export function init(wct, { tracker = true } = {}) {
   WCT = wct; TRACKER = !!tracker;
-  registerSettings();
   try {
     game.keybindings.register(ID, "questLog", { name: "Open quest log", hint: "Opens or closes the Wayfarer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
   } catch (e) { console.warn(`${ID} | quest log key binding not registered`, e); }

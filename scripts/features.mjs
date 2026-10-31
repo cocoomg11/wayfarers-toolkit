@@ -37,27 +37,4 @@ export function need(id) {
 
 export function registerSettings() {
   for (const f of FEATURES) game.settings.register(ID, f.key, { name: `Feature: ${f.label}`, hint: f.hint, scope: "world", config: false, type: Boolean, default: f.default, requiresReload: true });
-  game.settings.registerMenu(ID, "features", { name: "Features", label: "Choose features", hint: "Turn each of the toolkit's tools on or off for this world. Turned-off tools add nothing to Foundry. Reloads Foundry.", icon: "fas fa-toggle-on", type: FeaturesApp, restricted: true });
-}
-
-export class FeaturesApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-features`, classes: ["wct-features", "wct-window"], window: { title: "Wayfarer's Toolkit · Features", icon: "fa-solid fa-toggle-on" }, position: { width: 480 } };
-  async _renderHTML() {
-    const form = document.createElement("form");
-    form.innerHTML = `<p class="hint">Turned-off tools add no buttons, macros, hooks or chat cards. Nothing in your world is deleted; turn a tool back on and it picks up where it left off. Saving reloads Foundry for everyone.</p>
-      ${FEATURES.map(f => `<div class="form-group"><label for="wct-f-${f.id}">${f.label}</label><input type="checkbox" id="wct-f-${f.id}" name="${f.id}" ${on(f.id) ? "checked" : ""}><p class="hint">${f.hint}</p></div>`).join("")}
-      <footer class="form-footer"><button type="submit"><i class="fa-solid fa-floppy-disk"></i> Save and reload</button></footer>`;
-    form.addEventListener("submit", async ev => {
-      ev.preventDefault();
-      let changed = false;
-      for (const f of FEATURES) { const v = form.elements[f.id].checked; if (v !== on(f.id)) { await game.settings.set(ID, f.key, v); changed = true; } }
-      await this.close();
-      if (!changed) return;
-      const SC = foundry.applications?.settings?.SettingsConfig;
-      if (SC?.reloadConfirm) return SC.reloadConfirm({ world: true });
-      foundry.utils.debouncedReload?.() ?? location.reload();
-    });
-    return form;
-  }
-  _replaceHTML(result, content) { content.replaceChildren(result); }
 }

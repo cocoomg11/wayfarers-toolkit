@@ -1,6 +1,6 @@
 /**
  * Health check and the Run setup reminder. The health check reads the world and reports; it never changes anything and never throws
- * (each check is wrapped, and a check that fails shows as its own ✗ line). The GM opens it from the module settings (Health check),
+ * (each check is wrapped, and a check that fails shows as its own ✗ line). The GM sees it summed up in the control panel's Overview tab, or posts it from there (Full health report),
  * the Toolkit Health Check macro or api.health(). The setup reminder runs once per module version on the active GM's client.
  */
 import * as F from "./features.mjs";
@@ -42,7 +42,7 @@ function dependencies(api) {
   if (F.on("vendorTrash")) {
     const ids = Trash.packIds(); const found = ids.filter(id => game.packs.get(id)?.documentName === "Item"); const lost = ids.filter(id => !found.includes(id));
     if (modActive("wow-classic-items")) out.push(ok("wow-classic-items is active."));
-    if (!ids.length) out.push(bad("Vendor Trash has no item compendium: install the wow-classic-items module or set Vendor trash compendiums."));
+    if (!ids.length) out.push(bad("Vendor Trash has no item compendium: install the wow-classic-items module or pick compendiums in the control panel (Loot › Advanced)."));
     else if (!found.length) out.push(bad(`Vendor trash compendiums not found: ${listNames(lost)}.`));
     else out.push(lost.length ? warn(`Vendor trash compendiums: ${listNames(found)} found; missing ${listNames(lost)}.`) : ok(`Vendor trash compendiums: ${listNames(found)}.`));
   } else out.push(off("Vendor trash compendiums: Vendor Trash is off."));
@@ -167,7 +167,7 @@ function zones(api) {
   const r = api.internals.checkZones();
   if (r.error) return [bad(`Hex Travel: Encounter zones setting: ${esc(r.error)}.`)];
   const n = Object.keys(r.zones).length;
-  const out = [n ? ok(`${plural(n, "encounter zone")}: ${listNames(Object.keys(r.zones))}.`) : warn("No encounter zones set (Hex Travel › Encounter zones).")];
+  const out = [n ? ok(`${plural(n, "encounter zone")}: ${listNames(Object.keys(r.zones))}.`) : warn("No encounter zones set (control panel › Travel › Encounter zones).")];
   for (const u of r.unknown) out.push(warn(`Zone ${esc(u.zone)}: no roll table named "${esc(u.table)}" (encounters there are rolled without a table).`));
   return out;
 }
@@ -212,7 +212,7 @@ export async function post(api, { window = false } = {}) {
 }
 
 let API = null;
-/** The settings menu's window: the same report, with Post to chat and Run setup. */
+/** The report in a window (api.health({ window: true })), with Post to chat and Run setup. */
 export class HealthApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window"], window: { title: "Wayfarer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
   async _renderHTML() {

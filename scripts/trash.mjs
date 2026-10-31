@@ -170,7 +170,7 @@ export async function showPreview(api, tokens = null, n = 12) {
   tokens ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [...game.user.targets];
   const docs = tokens.map(tokenDoc).filter(d => d?.actor);
   if (!docs.length) return ui.notifications.warn("Vendor Trash: select (or target) a token to preview.");
-  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or set Vendor trash compendiums in the module settings.");
+  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or pick compendiums in the control panel (Loot › Advanced) in the module settings.");
   const items = await pool(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1; const money = c => api.fmtMoney(c * cpVal);
   const list = (arr, empty = "none") => arr.length ? arr.map(esc).join(", ") : `<span class="hint">${empty}</span>`;
   const fold = (label, rows) => rows.length ? `<details><summary>${label}</summary><ul style="margin:0.2em 0;padding-left:1.2em;">${rows.join("")}</ul></details>` : `<p class="hint">${label}</p>`;
@@ -652,7 +652,7 @@ export async function onDeath(doc, api, { defeated = false } = {}) {
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
 export async function vendorTrash(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
-  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or set Vendor trash compendiums in the module settings.");
+  if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or pick compendiums in the control panel (Loot › Advanced) in the module settings.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
   if (!tokens.length) return ui.notifications.warn("Vendor Trash: select (or target) the defeated creatures first.");
   if (!(await pool()).length) return ui.notifications.warn("Vendor Trash: no grey items found in the configured compendiums.");

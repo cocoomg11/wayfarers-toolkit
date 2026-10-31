@@ -1,0 +1,146 @@
+/* Wayfarer's Toolkit: the control panel and the welcome wizard. Colours come from Foundry's theme variables (v13/v14, dark and light),
+   with plain fallbacks. No backdrop blur (the shared wct-window rule in pane.css turns it off). */
+.wct-panel, .wct-wizard {
+  --wct-fg: var(--color-text-primary, var(--color-text-light-highlight, #e8e4dc));
+  --wct-muted: var(--color-text-secondary, var(--color-text-light-6, #a8a29a));
+  --wct-line: var(--color-border, var(--color-border-light-tertiary, rgba(128, 128, 128, 0.35)));
+  --wct-card: var(--color-cool-4, rgba(128, 128, 128, 0.08));
+  --wct-hover: rgba(128, 128, 128, 0.14);
+  --wct-accent: var(--color-warm-1, var(--color-text-hyperlink, #ee9b3a));
+  --wct-ok: #3fa34d; --wct-warn: #d39b14; --wct-bad: #d0453a;
+}
+.theme-light .wct-panel, .theme-light .wct-wizard, .wct-panel.theme-light, .wct-wizard.theme-light {
+  --wct-card: rgba(0, 0, 0, 0.04); --wct-hover: rgba(0, 0, 0, 0.07); --wct-ok: #2b7a37; --wct-warn: #9a6c00; --wct-bad: #a8261c;
+}
+.wct-panel .window-content { padding: 0; overflow: hidden; }
+.wct-panel-body { flex: 1; display: grid; grid-template-columns: 168px 1fr; grid-template-rows: 1fr auto; height: 100%; min-height: 0; color: var(--wct-fg); }
+.wct-pad { padding: 1rem; }
+
+/* Tabs down the left. */
+.wct-tabs { grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; border-right: 1px solid var(--wct-line); overflow-y: auto; }
+.wct-tabs button { display: flex; align-items: center; gap: 10px; justify-content: flex-start; width: 100%; margin: 0; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--wct-muted); font-size: var(--font-size-14, 14px); text-align: left; line-height: 1.2; box-shadow: none; }
+.wct-tabs button i { width: 1.2em; text-align: center; }
+.wct-tabs button:hover { background: var(--wct-hover); color: var(--wct-fg); }
+.wct-tabs button.active { background: var(--wct-hover); color: var(--wct-fg); font-weight: 600; box-shadow: inset 3px 0 0 var(--wct-accent); }
+
+.wct-main { overflow-y: auto; min-height: 0; padding: 14px 18px 8px; }
+.wct-tab-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.wct-tab-head h2 { flex: 1; margin: 0; border: 0; font-size: 1.35em; display: flex; align-items: center; gap: 8px; }
+.wct-help { color: var(--wct-muted); font-size: 1.15em; }
+.wct-help:hover { color: var(--wct-accent); text-shadow: none; }
+.wct-panel .hint, .wct-wizard .hint { color: var(--wct-muted); font-size: var(--font-size-12, 12px); margin: 2px 0 0; line-height: 1.35; }
+
+/* Setting rows. */
+.wct-rows { display: flex; flex-direction: column; }
+.wct-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 40%); gap: 6px 16px; align-items: center; padding: 10px 2px; border-bottom: 1px solid var(--wct-line); }
+.wct-row:last-child { border-bottom: 0; }
+.wct-row.wide { grid-template-columns: 1fr; }
+.wct-row-text label { font-weight: 600; font-size: var(--font-size-14, 14px); }
+.wct-row-control { display: flex; justify-content: flex-end; min-width: 0; }
+.wct-row.wide .wct-row-control { justify-content: stretch; display: block; }
+.wct-row-control > input[type=text], .wct-row-control > input[type=number], .wct-row-control > select, .wct-row-control > file-picker { width: 100%; }
+.wct-row.wct-off { opacity: 0.5; }
+.wct-row.wct-off .wct-row-control { pointer-events: none; }
+.wct-offnote { margin: 3px 0 0; font-size: var(--font-size-12, 12px); color: var(--wct-muted); font-style: italic; }
+.wct-range { display: flex; align-items: center; gap: 8px; width: 100%; }
+.wct-range input { flex: 1; }
+.wct-range output { min-width: 2.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.wct-range.big { margin: 12px 0; font-size: 1.4em; }
+
+/* Toggle switch. */
+.wct-switch { position: relative; display: inline-flex; width: 40px; height: 22px; flex: 0 0 40px; cursor: pointer; }
+.wct-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.wct-track { position: absolute; inset: 0; border-radius: 11px; background: rgba(128, 128, 128, 0.45); transition: background-color 0.15s; }
+.wct-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); transition: transform 0.15s; }
+.wct-switch input:checked + .wct-track { background: var(--wct-ok); }
+.wct-switch input:checked + .wct-track::after { transform: translateX(18px); }
+.wct-switch input:focus-visible + .wct-track { outline: 2px solid var(--wct-accent); outline-offset: 2px; }
+.wct-switch input:disabled { cursor: default; }
+
+/* Feature cards. */
+.wct-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 10px 0; }
+.wct-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--wct-line); border-radius: 8px; background: var(--wct-card); }
+.wct-card.on { border-color: color-mix(in srgb, var(--wct-ok) 55%, transparent); }
+.wct-card-icon { flex: 0 0 28px; font-size: 1.5em; text-align: center; color: var(--wct-muted); padding-top: 2px; }
+.wct-card.on .wct-card-icon { color: var(--wct-accent); }
+.wct-card-text { flex: 1; min-width: 0; }
+.wct-card-text strong { font-size: var(--font-size-14, 14px); }
+.wct-card-text p { margin: 3px 0 0; font-size: var(--font-size-12, 12px); color: var(--wct-muted); line-height: 1.35; }
+.wct-card.wct-needs { opacity: 0.55; }
+.wct-card.wct-needs .wct-card-text p::after { content: " (switch the quest log on first)"; font-style: italic; }
+
+/* Buttons and actions. */
+.wct-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+.wct-actions.wrap { flex-wrap: wrap; }
+.wct-actions.wrap button { flex: 0 1 auto; width: auto; }
+.wct-actions.sticky { position: sticky; bottom: -8px; padding: 8px 0; background: var(--color-cool-5, var(--background, transparent)); justify-content: flex-end; }
+.wct-actions button { width: auto; flex: 0 0 auto; white-space: nowrap; }
+.wct-panel button.wct-primary, .wct-wizard button.wct-primary { font-weight: 600; border-color: var(--wct-accent); }
+.wct-panel button.wct-danger { color: var(--wct-bad); }
+.wct-reset { margin: 14px 0 6px; text-align: right; }
+.wct-reset button { width: auto; font-size: var(--font-size-12, 12px); color: var(--wct-muted); }
+.wct-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 8px 18px; border-top: 1px solid var(--wct-line); }
+.wct-footer[hidden] { display: none; }
+.wct-footer .hint { flex: 1; margin: 0; }
+.wct-footer button { width: auto; flex: 0 0 auto; }
+.wct-icon-btn { width: 30px; height: 28px; padding: 0; margin: 0; }
+
+/* Advanced. */
+.wct-advanced { margin-top: 12px; border: 1px solid var(--wct-line); border-radius: 8px; padding: 0 12px; }
+.wct-advanced > summary { cursor: pointer; padding: 9px 0; font-weight: 600; color: var(--wct-muted); list-style: revert; }
+.wct-advanced[open] > summary { border-bottom: 1px solid var(--wct-line); }
+
+/* Overview. */
+.wct-banner { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--wct-line); background: var(--wct-card); }
+.wct-banner > i { font-size: 2em; }
+.wct-banner strong { font-size: 1.2em; }
+.wct-banner p { margin: 2px 0 0; color: var(--wct-muted); }
+.wct-banner.ok > i { color: var(--wct-ok); }
+.wct-banner.warn > i { color: var(--wct-warn); }
+.wct-issues { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wct-issues li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 6px; background: var(--wct-card); border-left: 3px solid var(--wct-warn); }
+.wct-issues li.bad { border-left-color: var(--wct-bad); }
+.wct-issue-text { flex: 1; min-width: 0; line-height: 1.35; }
+.wct-issues button { width: auto; flex: 0 0 auto; white-space: nowrap; }
+.wct-note { margin: 4px 0 8px; padding: 6px 10px; border-radius: 6px; background: var(--wct-card); font-size: var(--font-size-12, 12px); }
+.wct-note.warn { border-left: 3px solid var(--wct-warn); }
+
+/* Pickers. */
+.wct-zones table { width: 100%; margin: 6px 0; border-collapse: collapse; background: transparent; border: 0; }
+.wct-zones th { text-align: left; font-weight: 600; font-size: var(--font-size-12, 12px); color: var(--wct-muted); padding: 2px 4px; background: transparent; border: 0; }
+.wct-zones td { padding: 3px 4px; border: 0; }
+.wct-zones td:last-child { width: 36px; }
+.wct-zones tr:nth-child(even), .wct-zones tr:nth-child(odd) { background: transparent; }
+.wct-zones tr.error input, .wct-zones tr.error select { outline: 2px solid var(--wct-bad); outline-offset: -1px; }
+.wct-zones tr.warn select { outline: 1px dashed var(--wct-warn); outline-offset: -1px; }
+.wct-zones button[data-zone-add] { width: auto; }
+.wct-problems { list-style: none; margin: 4px 0 0; padding: 0; font-size: var(--font-size-12, 12px); }
+.wct-problems li.error { color: var(--wct-bad); }
+.wct-problems li.warn { color: var(--wct-warn); }
+.wct-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 12px; max-height: 220px; overflow-y: auto; padding: 6px 8px; border: 1px solid var(--wct-line); border-radius: 6px; }
+.wct-check { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: var(--font-size-13, 13px); cursor: pointer; }
+.wct-check input { margin: 0; flex: 0 0 auto; }
+.wct-check .hint { margin: 0; }
+
+/* Welcome wizard. */
+.wct-wizard .window-content { padding: 16px 20px; }
+.wct-wizard-body { color: var(--wct-fg); }
+.wct-wizard h2 { border: 0; margin: 8px 0 4px; }
+.wct-steps { display: flex; align-items: center; gap: 6px; }
+.wct-steps > span:not(.hint) { width: 28px; height: 5px; border-radius: 3px; background: rgba(128, 128, 128, 0.35); }
+.wct-steps > span.done { background: color-mix(in srgb, var(--wct-accent) 55%, transparent); }
+.wct-steps > span.on { background: var(--wct-accent); }
+.wct-steps .hint { margin-left: 6px; }
+.wct-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+.wct-presets.two { grid-template-columns: repeat(2, 1fr); }
+.wct-preset { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--wct-line); border-radius: 8px; background: var(--wct-card); cursor: pointer; }
+.wct-preset:hover { background: var(--wct-hover); }
+.wct-preset.on { border-color: var(--wct-accent); box-shadow: 0 0 0 1px var(--wct-accent); }
+.wct-preset input { position: absolute; opacity: 0; pointer-events: none; }
+.wct-preset i { font-size: 1.5em; color: var(--wct-accent); }
+.wct-preset span { font-size: var(--font-size-12, 12px); color: var(--wct-muted); line-height: 1.35; }
+.wct-wizard .wct-footer { padding: 12px 0 0; margin-top: 12px; }
+.wct-wizard .wct-footer .spacer { flex: 1; }
+
+@media (max-width: 900px) { .wct-panel-body { grid-template-columns: 54px 1fr; } .wct-tabs button span { display: none; } .wct-row { grid-template-columns: 1fr; } .wct-row-control { justify-content: flex-start; } }
+.wct-tab[hidden] { display: none; }

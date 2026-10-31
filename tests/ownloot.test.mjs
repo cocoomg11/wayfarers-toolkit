@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ID, Actor, Item, Doc, settings } from "./_globals.mjs";
 const Trash = await import("../scripts/trash.mjs");
-const { MENUS } = await import("../scripts/settings.mjs");
+const { TABS } = await import("../scripts/panel-model.mjs");
 
 const it = (id, type, f) => new Item({ id, type, flags: f ? { [ID]: f } : {} });
 
@@ -64,7 +64,7 @@ test("reset keeps hand-added loot unless asked", async () => {
   assert.deepEqual(a2.items.map(i => i.id), ["own"]); assert.equal(out[0].hand, 1);
 });
 
-test("new settings live in the Vendor Trash submenu", () => {
-  const keys = MENUS.find(m => m.key === "menuVendorTrash").settings.map(([k]) => k);
+test("own-loot settings live on the Loot tab", () => {
+  const t = TABS.find(t => t.id === "loot"); const keys = [...t.basic, ...t.advanced].map(([k]) => k);
   for (const k of ["trashGmAddedLoot", "trashUnconscious"]) assert.ok(keys.includes(k), k);
 });

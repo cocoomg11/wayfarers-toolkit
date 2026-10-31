@@ -14,8 +14,8 @@ import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
-import { MACROS, MACRO_HINT, macroData } from "./macros.mjs";
-import * as Menus from "./settings.mjs";
+import { MACROS, macroData } from "./macros.mjs";
+import * as Panel from "./panel.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import { log } from "./log.mjs";
 
@@ -145,13 +145,13 @@ async function syncItemPilesCoins() {
 
 function registerSettings() {
   F.registerSettings();
-  // Shown in the main settings list: Choose features, Health check, Remove toolkit data, Run setup, Party size, Coin system, Campaign name
-  // and one "… settings" button per feature group. Everything else is registered with config: false (same keys as before, so nothing
-  // stored is lost) and shown in its group's submenu (settings.mjs). Settings of a turned-off feature stay registered but aren't shown.
-  const s = (key, name, hint, type, extra = {}, config = false) => game.settings.register(ID, key, { name, hint, scope: "world", config, type, default: DEFAULTS[key], ...extra });
-  s("partySize", "Party size", "How many characters the party has (1 to 8). Boss loot coin scales with it (× party size / 4) and, above 4, bosses with 3 or more draws get one more (see Boss loot settings).", Number, { range: { min: 1, max: 8, step: 1 } }, true);
-  s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true }, true);
-  s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String, {}, true);
+  // The main settings list shows one button, "Wayfarer's Toolkit", opening the control panel (panel.mjs), plus each user's own
+  // "Quest tracker: Show on screen". Every other setting is registered with config: false (same keys as before, so nothing stored is
+  // lost) and shown in the panel. Settings of a turned-off feature stay registered and show greyed out there.
+  const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: DEFAULTS[key], ...extra });
+  s("partySize", "Party size", "How many characters the party has (1 to 8). Boss loot coin scales with it (× party size / 4) and, above 4, bosses with 3 or more draws get one more (see Boss loot settings).", Number, { range: { min: 1, max: 8, step: 1 } });
+  s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
+  s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
   // General
   s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log, Flight Routes and Session Recap pages.", String);
   s("partyActor", "General: Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
@@ -183,9 +183,11 @@ function registerSettings() {
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
-  game.settings.registerMenu(ID, "health", { name: "Health check", label: "Health check", hint: "Checks features, dependencies, setup, boss loot links, the Vendor Trash Rules page, dungeon scenes, flight routes, encounter zones and connected GMs. Changes nothing.", icon: "fas fa-stethoscope", type: Health.HealthApp, restricted: true });
-  game.settings.registerMenu(ID, "setup", { name: "Set up this world", label: "Run setup", hint: "Creates the tracker journal, party actor and macros (in the Wayfarer's Toolkit macro folder) if they don't exist yet. Never touches anyone's hotbar. Safe to run again.", icon: "fas fa-hammer", type: SetupApp, restricted: true });
-  game.settings.registerMenu(ID, "cleanup", { name: "Remove toolkit data", label: "Remove toolkit data", hint: "Counts, then removes the toolkit's flags, its vendor trash and boss loot items, setup macros or settings from this world (you pick). Asks before changing anything.", icon: "fas fa-broom", type: Cleanup.CleanupApp, restricted: true });
+  game.settings.register(ID, "wizardDone", { scope: "world", config: false, type: Boolean, default: false });
+  // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
+  Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings();
+  Quests.registerSettings({ tracker: F.on("questLog") && F.on("questTracker") });
+  game.settings.registerMenu(ID, "panel", { name: "Wayfarer's Toolkit", label: "Open the control panel", hint: "Everything in one window: what needs attention, which tools are on, and each tool's settings. Run setup, the health check and Remove toolkit data are in its Overview tab.", icon: "fas fa-toolbox", type: Panel.ControlPanel, restricted: true });
 }
 
 /**
@@ -200,17 +202,6 @@ function checkZones(text = setting("zones"), { notify = false } = {}) {
     else if (unknown.length) ui.notifications.warn(`Wayfarer's Toolkit › Hex Travel: Encounter zones: no roll table named ${unknown.map(u => `"${u.table}" (zone ${u.zone})`).join(", ")}.`);
   }
   return { ...r, unknown };
-}
-
-class SetupApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-setup`, classes: ["wct-window"], window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
-  async _renderHTML() {
-    const div = document.createElement("div");
-    div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder with the macros (nothing is put on any hotbar: drag them from the folder or the <em>Wayfarer's Toolkit Macros</em> compendium)</li>${F.on("riderFeat") ? `<li>the ${esc(riderName())} feat</li>` : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
-    div.querySelector("[data-action=run]").addEventListener("click", async () => { const r = await WCT.setup(); ui.notifications.info(`Wayfarer's Toolkit: ${r.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`); this.close(); });
-    return div;
-  }
-  _replaceHTML(result, content) { content.replaceChildren(result); }
 }
 
 const RIDER_FEAT = name => ({
@@ -242,7 +233,7 @@ export const WCT = {
   get ENC_DIE() { return setting("encounterDie"); },
 
   // ------------------------------------------------------------ helpers
-  tracker() { const j = game.journal.getName(this.JOURNAL); if (!j) throw new Error(`Wayfarer's Toolkit: journal "${this.JOURNAL}" not found. Run setup from the module settings.`); return j; },
+  tracker() { const j = game.journal.getName(this.JOURNAL); if (!j) throw new Error(`Wayfarer's Toolkit: journal "${this.JOURNAL}" not found. Run setup from the control panel (Game Settings › Wayfarer's Toolkit).`); return j; },
   state() { return foundry.utils.duplicate(this.tracker().getFlag("world", "trackers") ?? {}); },
   async setState(patch) { const s = { ...this.state(), ...patch }; await this.tracker().setFlag("world", "trackers", s); return s; },
   stamp(t = game.time.worldTime) { const d = Math.floor(t / 86400) + 1, h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60); return `Day ${d}, ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; },
@@ -571,6 +562,10 @@ export const WCT = {
   features: F,
   /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
   cleanup: { plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) },
+  /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, quests). */
+  panel(tab) { return this.gmOnly() ? Panel.open(tab) : undefined; },
+  /** GM: opens the welcome wizard. */
+  wizard() { return this.gmOnly() ? new Panel.WelcomeWizard().render({ force: true }) : undefined; },
   log,
 
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
@@ -634,7 +629,7 @@ export const WCT = {
 
 Hooks.once("init", () => {
   registerSettings(); applyCoinSystem();
-  Health.init(WCT);
+  Health.init(WCT); Panel.init(WCT);
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
@@ -643,8 +638,6 @@ Hooks.once("init", () => {
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
   if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
-  // Feature settings submenus last, once every setting they list is registered.
-  Menus.registerMenus();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -667,7 +660,9 @@ Hooks.once("ready", () => {
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
   convertOldCoins();
-  Health.remindSetup(WCT).catch(e => console.warn(`${ID} | setup reminder`, e));
+  // The welcome wizard (fresh worlds only) comes first; while it's open the setup reminder waits for the next load.
+  Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })
+    .then(shown => shown ? null : Health.remindSetup(WCT)).catch(e => console.warn(`${ID} | setup reminder`, e));
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 

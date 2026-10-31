@@ -350,20 +350,25 @@ function addHudButton(hud, html) {
   col.append(btn);
 }
 
-/** Called from the module's init hook when the feature is on: its setting, the token HUD button and the document hooks. */
-export function init() {
+/** Called from the module's init hook whatever the feature toggle (the control panel shows a turned-off feature's settings greyed out). */
+export function registerSettings() {
+  const live = () => { if (featureOn("bossFrames")) refresh(); };
   game.settings.register(ID, "bossHpDisplay", {
     name: "Boss frames: what players see", hint: "How much of a boss's health players see on its frame. The GM always sees exact hit points.",
-    scope: "world", config: false, type: String, default: "bar", choices: HP_MODES, onChange: refresh
+    scope: "world", config: false, type: String, default: "bar", choices: HP_MODES, onChange: live
   });
   // Each user's own frame layout on this browser. Replaces the older single-stack "bossFramePos", read once to carry it over.
-  game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag) applyLayout(); } });
+  game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag && featureOn("bossFrames")) applyLayout(); } });
   game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {} });
-  window.addEventListener("resize", () => { if (!drag) applyLayout(); });
   game.settings.register(ID, "bossAutoFromLoot", {
     name: "Boss frames: treat tokens with boss loot as bosses", hint: "A token whose creature has a boss loot table shows a boss frame in combat without the crown. Turning the crown off on such a token hides its frame. Only with Boss loot turned on.",
-    scope: "world", config: false, type: Boolean, default: true, onChange: refresh
+    scope: "world", config: false, type: Boolean, default: true, onChange: live
   });
+}
+
+/** Called from the module's init hook when the feature is on: the token HUD button and the document hooks. */
+export function init() {
+  window.addEventListener("resize", () => { if (!drag) applyLayout(); });
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.

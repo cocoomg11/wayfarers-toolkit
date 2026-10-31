@@ -450,8 +450,8 @@ function onRenderCard(message, html, api) {
   });
 }
 
-/** Called from the module's init hook when the feature is on: its setting and hooks. */
-export function init(api, { vendorTrash = true } = {}) {
+/** Called from the module's init hook whatever the feature toggle (the control panel shows a turned-off feature's settings greyed out). */
+export function registerSettings() {
   game.settings.register(ID, "bossLootAuto", {
     name: "Boss loot: drop automatically on death", hint: "When a creature with a boss loot table drops to 0 HP or is marked defeated, its loot is drawn once and put on the body (an Item Piles pile, or a Give to Party card without Item Piles). Off: use api.bossLoot.drop(tokens).",
     scope: "world", config: false, type: Boolean, default: true
@@ -460,6 +460,10 @@ export function init(api, { vendorTrash = true } = {}) {
     name: "Boss loot: extra drop for parties above 4", hint: "With Party size above 4, a boss with 3 or more draws draws one more (never more than its table's usable results). Boss coin always scales with Party size.",
     scope: "world", config: false, type: Boolean, default: true
   });
+}
+
+/** Called from the module's init hook when the feature is on: its hooks. */
+export function init(api, { vendorTrash = true } = {}) {
   const hpChanged = c => foundry.utils.hasProperty(c ?? {}, "system.attributes.hp");
   const each = (actor, opts) => { for (const t of tokensFor(actor)) onDeath(t, api, opts); };
   Hooks.on("updateActor", (actor, changes) => { if (hpChanged(changes)) each(actor); });
