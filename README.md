@@ -139,7 +139,7 @@ A tool that's switched off adds nothing: no buttons, macros, key bindings, chat 
 | | Settings |
 | --- | --- |
 | **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes) |
-| **Advanced** | **Announce new flight points** (on), **Flights advance world time** (off), **Locked flight points on players' map** (hidden or greyed), **Players can ask for a travel pace** (on), encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
+| **Advanced** | **Announce new flight points** (on), **Flights advance world time** (off), **Locked flight points on players' map** (hidden or greyed), **Zoom and pan the route map** (on), **Players can ask for a travel pace** (on), encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
 
 With the route map and travel pace on, the tab also has **Flight route map…** and **Travel pace…** buttons.
 
@@ -172,7 +172,7 @@ Greyed out while the character pane is switched off. See [Weapon sets](#weapon-s
 | | Settings |
 | --- | --- |
 | **Basics** | **Title cards show** (when a scene is activated, or every time a scene is viewed), **Title cards are seen by** (everyone, or players only), **"Everyone's here" counts** (players with an assigned character by default), **Room price per person per night** (5s by default), **Rested gives** (Heroic Inspiration by default); and **Preview title card**, **Who's online…** and **Rent rooms…** buttons |
-| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on) |
+| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, Who's online panel can be moved (on), rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on) |
 
 See [Zone title cards](#zone-title-cards), [Who's online](#whos-online) and [Rested at the inn](#rested-at-the-inn).
 
@@ -232,6 +232,7 @@ With **Flight route map** on (Features tab), the token controls get a map button
 
 - **Players** see the unlocked points and the routes between them. *Locked flight points on players' map* (Travel › Advanced) decides the rest: **Hidden** (default) leaves locked points off the map; **Greyed out, unnamed** shows them as *Unknown*, greyed, with their routes dashed and no fare or hours.
 - **The GM** sees every point (locked ones marked) and can drag points around; **Save layout** stores the positions in the flight network (each point's `pos`, 0 to 1), so players see the same map. **Arrange in a circle** spreads every point evenly. Points never placed are laid out on a circle.
+- **Zoom and pan** (everyone; *Zoom and pan the route map*, Travel › Advanced, on): the mouse wheel zooms around the cursor (half size to four times) and dragging the empty map moves it; **Reset view** goes back. The GM can still drag points at any zoom, and **Save layout** stores the same 0-to-1 positions. Only that window's view changes; nothing is saved, and the background picture zooms with the points.
 
 ### Discoveries and time
 
@@ -415,7 +416,9 @@ With **Zone title cards** on, activating a scene shows its title over the map on
 
 ## Who's online
 
-With **Who's online** on, tick **Hub scene (show who's online)** in a scene's configuration (Basics) and everyone on that scene sees a small panel (*Who's online panel position*, Places › Advanced) with each connected user: their assigned character's portrait and name, or their user name and colour when they have none. It updates as people join and leave. The **Who's Online** macro (shared with players) and `api.whosOnline()` open the same board in a window; `api.online.read()` returns the numbers.
+With **Who's online** on, tick **Hub scene (show who's online)** in a scene's configuration (Basics) and everyone on that scene sees a small panel with each connected user: their assigned character's portrait and name, or their user name and colour when they have none. It updates as people join and leave. The **Who's Online** macro (shared with players) and `api.whosOnline()` open the same board in a window; `api.online.read()` returns the numbers.
+
+**Moving the panel.** *Who's online panel position* (Places › Advanced) is where it starts; *Top left* (default) sits just right of Foundry's scene navigation. Anyone can drag the panel by its title to a spot of their own (kept for that browser in the client setting `onlineHudPos`, and always pulled back on screen when the window is resized); double-click the title, or run `api.online.resetPosition()`, to put it back. Switch dragging off with *Who's online panel can be moved*.
 
 **"Everyone's here."** When every user who counts is connected, the board says *Everyone's here*. Who counts (*"Everyone's here" counts*): every player user, players with an assigned character (default), or only the user names you list. GMs never count unless listed.
 
@@ -761,7 +764,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online`, `rentRooms`, `inn`, `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
+| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online` (+ `resetPosition`), `rentRooms`, `inn`, `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Hooks the module fires (with `Hooks.callAll`, on every client, after the world is ready):

@@ -328,6 +328,51 @@ export function mapBackground({ on = true, src = "", fit = "contain", opacity = 
   };
 }
 
+// ---------------------------------------------------------------- 1.25: route map zoom and pan (view only, never saved)
+/**
+ * The route map's view: { k, tx, ty }, a zoom k and a shift (tx, ty) in the SVG's own units, applied to everything drawn (background,
+ * routes, points) as `translate(tx ty) scale(k)`. Points stay stored in their 0–1 `pos`; a screen point converts back through
+ * `viewToMap` before it becomes a position, so drags and Save layout work the same at any zoom.
+ */
+export const MAP_ZOOM = { min: 0.5, max: 4 };
+export const VIEW_IDENTITY = Object.freeze({ k: 1, tx: 0, ty: 0 });
+const view0 = v => ({ k: clampNum(v?.k, MAP_ZOOM.min, MAP_ZOOM.max, 1), tx: Number.isFinite(+v?.tx) ? +v.tx : 0, ty: Number.isFinite(+v?.ty) ? +v.ty : 0 });
+
+/** Keeps at least a quarter of the map's width and height on screen: `size` is { width, height } of the SVG's viewBox. */
+export function clampView(view, size) {
+  const v = view0(view); const W = +size?.width || 1, H = +size?.height || 1;
+  const one = (t, len) => Math.min(len * 0.75, Math.max(len * 0.25 - len * v.k, t));
+  return { k: v.k, tx: one(v.tx, W), ty: one(v.ty, H) };
+}
+
+/** Zooms by `factor` around `at` (a point in viewBox units, e.g. the cursor), so the map point under it stays under it. */
+export function zoomAt(view, factor, at, size) {
+  const v = view0(view); const f = +factor;
+  if (!Number.isFinite(f) || f <= 0) return clampView(v, size);
+  const k = clampNum(v.k * f, MAP_ZOOM.min, MAP_ZOOM.max, v.k); const r = k / v.k;
+  const ax = +at?.x || 0, ay = +at?.y || 0;
+  return clampView({ k, tx: ax - (ax - v.tx) * r, ty: ay - (ay - v.ty) * r }, size);
+}
+
+/** Moves the view by (dx, dy) viewBox units. */
+export function panBy(view, dx, dy, size) { const v = view0(view); return clampView({ k: v.k, tx: v.tx + (+dx || 0), ty: v.ty + (+dy || 0) }, size); }
+
+/** A point in viewBox units (what the SVG's screen matrix gives) → the map's own units (where points are drawn). */
+export function viewToMap(view, p) { const v = view0(view); return { x: (p.x - v.tx) / v.k, y: (p.y - v.ty) / v.k }; }
+/** The map's own units → viewBox units. */
+export function mapToView(view, p) { const v = view0(view); return { x: p.x * v.k + v.tx, y: p.y * v.k + v.ty }; }
+
+/** A wheel event's zoom factor: wheel up zooms in. `deltaMode` 1 = lines, 2 = pages. One event changes zoom by at most 2×. */
+export function wheelFactor(deltaY, deltaMode = 0) {
+  const d = (+deltaY || 0) * (deltaMode === 1 ? 33 : deltaMode === 2 ? 400 : 1);
+  return Math.min(2, Math.max(0.5, Math.exp(-d * 0.0015)));
+}
+
+/** Whether the view differs from the plain one (Reset view enabled). */
+export const isZoomed = view => { const v = view0(view); return Math.abs(v.k - 1) > 1e-6 || Math.abs(v.tx) > 0.01 || Math.abs(v.ty) > 0.01; };
+/** The SVG transform attribute for a view. */
+export const viewTransform = view => { const v = view0(view); const r = n => Math.round(n * 1000) / 1000; return `translate(${r(v.tx)} ${r(v.ty)}) scale(${r(v.k)})`; };
+
 /** Points unlocked in `next` that weren't unlocked in `prev` (matched by id): [{ id, name }]. Nothing when `prev` had no points. */
 export function newlyUnlocked(prev, next) {
   const before = new Map((prev?.points ?? []).map(p => [p.id, p]));

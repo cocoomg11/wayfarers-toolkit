@@ -22,6 +22,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.25.0",
+    changes: [
+      { feature: "whosOnline", text: "Who's online: the panel now starts just right of the scene navigation instead of on top of it. Anyone can drag it by its title to a spot of their own (remembered in their browser, always kept on screen); double-click the title to put it back. Switch moving off under control panel › Places › Advanced." },
+      { feature: "flightMap", text: "Flight route map: scroll the mouse wheel to zoom in and out around the cursor, and drag the empty map to move around; Reset view goes back to the whole map. Works for players too, and the background picture zooms with the points. GMs can still drag points and Save layout at any zoom. Switch it off under control panel › Travel › Advanced." }
+    ]
+  },
+  {
     version: "1.24.0",
     changes: [
       "Remove toolkit data now also clears the Rested status icon, Hex Travel's trip counter on the tracker journal, and (a new box, unticked by default) the toolkit's flags on chat messages. The cards stay; their buttons stop working.",

@@ -24,10 +24,11 @@
   background: rgba(15, 12, 8, 0.82); border: 1px solid rgba(201, 162, 39, 0.55); border-radius: 6px; color: #e8dcc0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); font-size: 0.9em;
 }
-.wct-online-hud.pos-top-left { top: 12px; left: 120px; }
-.wct-online-hud.pos-top-centre { top: 12px; left: 50%; transform: translateX(-50%); }
-.wct-online-hud.pos-bottom-left { bottom: 140px; left: 12px; }
-.wct-online-hud.pos-bottom-centre { bottom: 110px; left: 50%; transform: translateX(-50%); }
+/* 1.25: placed with inline left/top by online.mjs (clear of the v14 scene navigation, kept on screen); movable by its title. */
+.wct-online-hud { top: 12px; left: 320px; }
+.wct-online-hud.movable h3 { cursor: grab; touch-action: none; user-select: none; }
+.wct-online-hud.dragging { opacity: 0.85; }
+.wct-online-hud.dragging h3 { cursor: grabbing; }
 .wct-online-hud.all { border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.55); }
 .wct-online-hud h3 { margin: 0 0 3px; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); color: #ffd100; font-size: 1.1em; }
 .wct-online-list { list-style: none; margin: 4px 0 0; padding: 0; }

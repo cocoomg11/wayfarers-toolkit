@@ -42,7 +42,7 @@ export const TABS = [
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
     basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"]],
-    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
+    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapZoom", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
   {
@@ -64,7 +64,7 @@ export const TABS = [
     id: "places", label: "Places", icon: "fa-solid fa-signs-post", anchor: "places-tab",
     basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["onlineCount", "whosOnline"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
     advanced: [["zoneTitleAll", "zoneTitles"], ["zoneTitleSeconds", "zoneTitles"], ["zoneTitleStyle", "zoneTitles"], ["zoneTitleSound", "zoneTitles"], ["zoneTitleVolume", "zoneTitles"], ["zoneTitleOnLoad", "zoneTitles"],
-      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"]]
+      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["onlineDrag", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -121,6 +121,7 @@ export const LABELS = {
   paceRequests: ["Players can ask for a travel pace", "Players get a Travel Pace window to ask for fast, normal or slow pace. You get a whisper with a button to accept. You always set the pace yourself."],
   flightDiscovered: ["Announce new flight points", "When you unlock a flight point (in the flight network editor or from a macro), chat says \"Discovered! New flight point: …\" for everyone."],
   flightMapLocked: ["Locked flight points on players' map", "Hidden: players' route map shows only unlocked points and the routes between them. Greyed: locked points show as Unknown, greyed out, with their routes dashed."],
+  flightMapZoom: ["Zoom and pan the route map", "Mouse wheel zooms the flight route map around the cursor (half size to four times); drag the empty map to move it; Reset view goes back. For everyone; only the view changes, nothing is saved."],
   flightMapImage: ["Flight map background image", "A picture from your world's files (for example a map of the continent) drawn behind the flight route map for everyone. Blank: no picture. Use your own art."],
   flightMapFit: ["Background fit", "How the picture fills the map area: fit inside shows all of it, fill may crop its edges, stretch ignores its shape."],
   flightMapOpacity: ["Background opacity", "1 is the full picture; lower it so routes and names stand out."],
@@ -141,7 +142,8 @@ export const LABELS = {
   zoneTitleOnLoad: ["Show a card when the world loads", "Also show the card for the scene that's already active when someone joins. Off: only a scene change shows one."],
   onlineCount: ["\"Everyone's here\" counts", "Who has to be connected: every player user, only players with an assigned character, or the users you list (Advanced)."],
   onlineList: ["Users who count", "User names, separated by commas, for \"Only the users listed\"."],
-  onlinePosition: ["Who's online panel position", "Where the panel sits on Hub scenes."],
+  onlinePosition: ["Who's online panel position", "Where the panel starts on Hub scenes (top left sits right of the scene navigation). Each user can drag it elsewhere."],
+  onlineDrag: ["Who's online panel can be moved", "Everyone can drag the panel by its title to a spot of their own (kept for that browser, always on screen); double-click the title to put it back."],
   innDefaultPrice: ["Room price per person per night", "Used by Inn scenes that don't set their own price. Type coins like 5s or 1g 20s; a plain number is read in the fare unit."],
   innBenefit: ["Rested gives", "What a Rested character gets at the end of their next long rest: Heroic Inspiration, one extra Hit Die back, or temporary hit points equal to their level."],
   innPayFrom: ["Rooms are paid from", "The party actor's coin, or each character pays for their own room."],
@@ -246,7 +248,7 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

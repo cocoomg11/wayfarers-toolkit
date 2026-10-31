@@ -3,7 +3,9 @@
  * name and colour), updated live. Shown as a small HUD panel on scenes flagged Hub (flags.wayfarers-toolkit.hub) and in a window
  * (api.whosOnline()). When every user who counts is online the board says "Everyone's here" and the hook
  * `wayfarers-toolkit.allPlayersOnline` fires; `wayfarers-toolkit.playerCountChanged` fires whenever the count changes. The hooks run on
- * every client (a world script that writes documents in them should check `game.users.activeGM?.isSelf`). Writes nothing.
+ * every client (a world script that writes documents in them should check `game.users.activeGM?.isSelf`). Writes no documents.
+ * 1.25: the HUD can be dragged by its title (world setting onlineDrag); each user's spot is their own client setting onlineHudPos,
+ * kept on screen on load and resize (M.placePanel); double-click the title to go back to the position choice.
  */
 import * as M from "./online-model.mjs";
 
@@ -17,6 +19,9 @@ export function registerSettings() {
   s("onlineCount", "Who's online: who counts", "Who has to be online for \"Everyone's here\".", String, "characters", { choices: M.COUNTS, onChange: () => refresh() });
   s("onlineList", "Who's online: users who count", "User names separated by commas (with Only the users listed).", String, "", { onChange: () => refresh() });
   s("onlinePosition", "Who's online: panel position", "", String, "top-left", { choices: M.POSITIONS, onChange: () => refresh() });
+  // 1.25: the panel can be dragged by its title; where each user put it is their own (client scope), never the world's.
+  s("onlineDrag", "Who's online: players can move the panel", "Drag the panel by its title to move it; double-click the title to put it back.", Boolean, true, { onChange: () => refresh() });
+  game.settings.register(ID, "onlineHudPos", { scope: "client", config: false, type: Object, default: {} });
 }
 
 /** The world's users as plain objects for the model. */
@@ -36,13 +41,59 @@ function boardHTML(r, { compact = false } = {}) {
 
 function hubScene() { const s = canvas?.scene; return !!s?.getFlag?.(ID, "hub"); }
 
+/** Foundry's own UI the panel keeps clear of (v14: scene navigation is a column right of the scene controls). */
+function uiRects() {
+  const r = sel => { const e = document.querySelector(sel); if (!e || e.offsetParent === null && getComputedStyle(e).position !== "fixed") return null; return e.getBoundingClientRect(); };
+  return { nav: r("#scene-navigation"), controls: r("#scene-controls"), players: r("#players") };
+}
+const view = () => ({ width: window.innerWidth, height: window.innerHeight });
+let dragging = false;
+
+/** Puts the HUD where it belongs: this user's dragged spot (kept on screen) or the world's position choice. */
+function place(el = document.getElementById("wct-online-hud")) {
+  if (!el || dragging) return;
+  const b = el.getBoundingClientRect();
+  const p = M.placePanel({ anchor: get("onlinePosition", "top-left"), saved: get("onlineHudPos", {}), drag: get("onlineDrag", true) }, view(), { width: b.width, height: b.height }, uiRects());
+  el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
+}
+
+/** Drag by the title (pointer events); double-click the title to go back to the default spot. */
+function wireDrag(el) {
+  const h = el.querySelector("h3"); if (!h || !get("onlineDrag", true)) return;
+  h.title = "Drag to move · double-click to put back";
+  let start = null;
+  h.addEventListener("pointerdown", ev => {
+    if (ev.button !== 0) return;
+    const b = el.getBoundingClientRect(); start = { x: ev.clientX - b.left, y: ev.clientY - b.top, w: b.width, h: b.height };
+    dragging = true; el.classList.add("dragging"); h.setPointerCapture?.(ev.pointerId); ev.preventDefault();
+  });
+  h.addEventListener("pointermove", ev => {
+    if (!start) return;
+    const p = M.clampPos({ left: ev.clientX - start.x, top: ev.clientY - start.y }, view(), { width: start.w, height: start.h });
+    el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
+  });
+  const end = () => {
+    if (!start) return; start = null; dragging = false; el.classList.remove("dragging");
+    const pos = { left: parseFloat(el.style.left), top: parseFloat(el.style.top) };
+    game.settings.set(ID, "onlineHudPos", pos).catch(e => console.warn(`${ID} | who's online position`, e));
+  };
+  h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+  h.addEventListener("dblclick", ev => { ev.preventDefault(); game.settings.set(ID, "onlineHudPos", {}).then(() => place()).catch(() => { }); });
+}
+
 function renderHud(r) {
   let el = document.getElementById("wct-online-hud");
   if (!hubScene()) { el?.remove(); return; }
   if (!el) { el = document.createElement("aside"); el.id = "wct-online-hud"; el.setAttribute("aria-label", "Who's online"); document.body.append(el); }
-  el.className = `wct-online-hud pos-${get("onlinePosition", "top-left")}${r.all ? " all" : ""}`;
+  if (dragging) return;
+  const drag = get("onlineDrag", true);
+  el.className = `wct-online-hud${drag ? " movable" : ""}${r.all ? " all" : ""}`;
   el.innerHTML = `<h3>Who's online</h3>${boardHTML(r, { compact: true })}`;
+  wireDrag(el); place(el);
 }
+
+/** Resets this user's dragged position (the panel goes back to the world's position choice). */
+export function resetPosition() { return game.settings.set(ID, "onlineHudPos", {}).then(() => place()); }
 
 /** Re-reads the board, redraws the HUD and window, and fires the hooks when something changed. */
 export function refresh() {
@@ -80,5 +131,7 @@ export function init() {
   Hooks.on("createUser", () => refresh()); Hooks.on("deleteUser", () => refresh());
   Hooks.on("updateActor", (a, changes) => { if (("name" in (changes ?? {}) || "img" in (changes ?? {})) && game.users.some(u => u.character?.id === a.id)) refresh(); });
   Hooks.on("canvasReady", () => refresh());
+  // Keep the panel on screen when the window changes size (bails at once with no panel showing).
+  let t = null; window.addEventListener("resize", () => { if (!document.getElementById("wct-online-hud")) return; clearTimeout(t); t = setTimeout(() => place(), 100); });
   Hooks.on("updateScene", (s, changes) => { if (s.id === canvas?.scene?.id && foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`)) refresh(); });
 }

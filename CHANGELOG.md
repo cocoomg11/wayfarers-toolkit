@@ -2,6 +2,18 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.25.0
+
+**New**
+- **Who's online panel can be moved.** The HUD panel (Hub scenes) is dragged by its title; each user's spot is stored in a new client-scope setting `onlineHudPos` (`{ left, top }`, that browser only, not exported or imported) and clamped to the window on render, on load and on window resize (`M.clampPos`, 8 px margin), so it can't end up off screen. Double-click the title (or `api.online.resetPosition()`) to go back to the default. New world setting `onlineDrag` (*Who's online panel can be moved*, on; Places › Advanced); off ignores saved spots and the title isn't a handle.
+- **New default position.** In Foundry v14 the scene navigation is a column right of the scene controls (about 104–304 px from the left), and the old *Top left* (fixed 120 px) sat on top of it. Positions are now computed in `online-model.mjs` (`anchorPos` / `placePanel`) from the measured `#scene-navigation`, `#scene-controls` and `#players` rectangles: *Top left* starts 8 px right of the navigation (falls back to the controls, then 320 px), *Top centre* never overlaps it, *Bottom left* sits right of it, level with the top of the players list. The panel is positioned with inline `left` / `top`; the `pos-*` CSS classes are gone.
+- **Flight route map zoom and pan.** Mouse wheel zooms around the cursor (0.5× to 4×, `Flight.MAP_ZOOM`; at most 2× per wheel event, line and page wheel modes handled), dragging the empty map pans (an invisible `rect.wct-fm-pan` under the drawing; pointerdown on a point still starts the GM's point drag, buttons are outside the SVG), **Reset view** button (disabled at the plain view). Background picture, routes and points share one `<g class="wct-fm-view">` transform, so the 1.23 background stays lined up. Point drags convert the cursor through `Flight.viewToMap`, so `pos` stays in the same 0–1 space and Save layout is unchanged at any zoom. The view lives on the window only (reset on close, kept across redraws while open), never written to the world. Pans are clamped so at least a quarter of the map stays in view. New world setting `flightMapZoom` (*Zoom and pan the route map*, on; Travel › Advanced). Players get it too. Pure maths in `flight.mjs`: `zoomAt`, `panBy`, `clampView`, `viewToMap`, `mapToView`, `wheelFactor`, `isZoomed`, `viewTransform`.
+- API: `api.online.resetPosition()` (experimental).
+
+**Tests**: `tests/v125.test.mjs` (anchor positions clear the nav column, clamping on small and resized windows, saved-position handling and the drag toggle; zoom around the cursor keeps the point under it, min/max, pan clamping, view ↔ map round trips, a dragged point's `pos` matches at any zoom, wheel factors; settings rows, labels, SKIP/WIZARD_IGNORE, update note).
+
+**Untested in Foundry** (needs a live world): dragging the panel by its title with pointer capture and the double-click reset, the saved spot after reload and after a window resize, the default spot on a player client and with the sidebar collapsed or the scene navigation hidden; wheel zoom and empty-map panning on GM and player clients (including trackpads), point dragging and Save layout while zoomed, the background picture following the zoom, Reset view, and that a click on a point name or the Flight Master button isn't taken as a pan.
+
 ## 1.24.0
 
 **Changes**

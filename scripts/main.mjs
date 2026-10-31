@@ -81,6 +81,7 @@ const DEFAULTS = {
   flightMapScale: 1,
   flightMapOffsetX: 0,
   flightMapOffsetY: 0,
+  flightMapZoom: true,
   // Off by default from 1.20 (earlier versions always advanced time); the 1.20.0 update notes offer a button to turn it back on.
   flightAdvanceTime: false,
   goldAct: 1,
@@ -230,6 +231,7 @@ function registerSettings() {
   s("flightMapScale", "Flight route map: background scale", "", Number, { range: { min: 0.25, max: 4, step: 0.05 }, ...bg });
   s("flightMapOffsetX", "Flight route map: background offset across", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
   s("flightMapOffsetY", "Flight route map: background offset down", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
+  s("flightMapZoom", "Flight route map: mouse-wheel zoom and pan", "Everyone can zoom the route map with the mouse wheel and drag the empty map to move it; Reset view goes back. Only the view changes.", Boolean, { onChange: () => FlightMap.refresh() });
   s("flightAdvanceTime", "Flight Master: flights advance world time", "On arrival, world time advances by the flight's hours (game.time.advance, which calendar modules follow).", Boolean);
   // Party gold tracker.
   s("goldAct", "Party gold: current act / tier", "", Number, { range: { min: 1, max: 20, step: 1 }, onChange: () => Gold.refresh() });
@@ -719,8 +721,8 @@ export const WCT = {
   get zoneTitles() { return F.on("zoneTitles") ? { show: what => ZoneTitles.show(what), config: scene => ZoneTitles.configFor(scene ?? canvas?.scene) } : undefined; },
   /** Opens the Who's online window (everyone). */
   whosOnline() { return F.need("whosOnline") ? Online.open() : undefined; },
-  /** Who's online numbers: read() → { entries, expected, present, all, missing }; undefined when the feature is off. */
-  get online() { return F.on("whosOnline") ? { read: () => Online.read(), open: () => Online.open(), refresh: () => Online.refresh() } : undefined; },
+  /** Who's online numbers: read() → { entries, expected, present, all, missing }; resetPosition() puts this user's panel back (1.25); undefined when the feature is off. */
+  get online() { return F.on("whosOnline") ? { read: () => Online.read(), open: () => Online.open(), refresh: () => Online.refresh(), resetPosition: () => Online.resetPosition() } : undefined; },
   /** GM: the Rent rooms dialog for a scene (default the one you're viewing), optionally for given actors. Players: ask the GM. */
   rentRooms(opts = {}) { return F.need("restedInn") ? Inn.rentRooms(opts) : undefined; },
   /** Rested at the inn: inn(scene), rested(actor), clear(actors) (GM), candidates(scene); undefined when the feature is off. */

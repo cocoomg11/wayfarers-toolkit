@@ -200,3 +200,7 @@
 /* Flight map background (feature flightMapBackground): the picture never takes pointer events, so points stay draggable. */
 .wct-fm-bg { pointer-events: none; }
 .wct-fm-svg.has-bg .wct-fm-node text { stroke: rgba(0, 0, 0, 0.8); stroke-width: 4px; }
+/* 1.25: route map zoom and pan. The pan surface is an invisible rect under everything; points and lines stay on top. */
+.wct-fm-pan { fill: transparent; }
+.wct-fm-svg { touch-action: none; }
+.wct-fm-svg.panning { cursor: grabbing; }

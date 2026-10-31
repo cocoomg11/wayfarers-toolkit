@@ -4,7 +4,7 @@
  */
 
 export const COUNTS = { players: "Every player user", characters: "Players with an assigned character", list: "Only the users listed below" };
-export const POSITIONS = { "top-left": "Top left", "top-centre": "Top centre", "bottom-left": "Bottom left, above the players list", "bottom-centre": "Bottom centre" };
+export const POSITIONS = { "top-left": "Top left", "top-centre": "Top centre", "bottom-left": "Bottom left, right of the scene navigation", "bottom-centre": "Bottom centre" };
 
 /** "Ann, Bob; Cy" → lower-case names. */
 export const listNames = text => [...new Set(String(text ?? "").split(/[,;\n]+/).map(s => s.trim().toLowerCase()).filter(Boolean))];
@@ -53,4 +53,54 @@ export function changes(prev, next) {
 /** The data the hooks pass: { online, expected, all, missing, users: [{ id, name, label, active, counts }] }. */
 export function hookPayload(r, extra = {}) {
   return { online: r.present, expected: r.expected, all: r.all, missing: [...r.missing], users: r.entries.map(e => ({ id: e.id, name: e.name, label: e.label, active: e.active, counts: e.counts })), ...extra };
+}
+
+// ---------------------------------------------------------------- 1.25: panel placement (pure; the HUD measures, this decides)
+/** Gap kept between the panel and the screen edges or Foundry's own UI, in pixels. */
+export const EDGE = 8;
+
+/** A rectangle as { left, top, right, bottom } (from getBoundingClientRect), or null when absent or empty. */
+const rect = r => r && Number.isFinite(+r.right) && +r.right > +r.left ? { left: +r.left, top: +r.top, right: +r.right, bottom: +r.bottom } : null;
+
+/**
+ * Where the panel goes for a position choice (world setting onlinePosition), as { left, top } in pixels. `view`: { width, height }
+ * of the window; `size`: { width, height } of the panel; `ui`: rectangles of Foundry's scene navigation (`nav`), scene controls
+ * (`controls`) and players list (`players`), any of which may be missing. Top left starts to the right of the scene navigation (in
+ * v14 it is a full-height column next to the scene controls, so a fixed left offset sat on top of it); without one, right of the
+ * controls. Every choice stays right of that column; bottom left sits level with the top of the players list.
+ */
+export function anchorPos(anchor, view, size, ui = {}) {
+  const vw = +view?.width || 0, vh = +view?.height || 0, w = +size?.width || 0, h = +size?.height || 0;
+  const nav = rect(ui.nav), controls = rect(ui.controls), players = rect(ui.players);
+  const leftOfUi = Math.max(nav?.right ?? 0, controls?.right ?? 0, 0) + EDGE;
+  const clearLeft = nav || controls ? leftOfUi : 320;
+  let p;
+  if (anchor === "top-centre") p = { left: Math.max(clearLeft, (vw - w) / 2), top: EDGE * 1.5 };
+  else if (anchor === "bottom-left") p = { left: clearLeft, top: (players?.top ?? vh - 140) - h - EDGE };
+  else if (anchor === "bottom-centre") p = { left: Math.max(clearLeft, (vw - w) / 2), top: vh - 110 - h };
+  else p = { left: clearLeft, top: EDGE * 1.5 };
+  return clampPos(p, view, size);
+}
+
+/**
+ * Keeps the panel inside the window: { left, top } moved so the whole panel shows with EDGE pixels to spare (or, when the panel
+ * is bigger than the window, its top-left corner shows). Bad numbers become EDGE.
+ */
+export function clampPos(pos, view, size) {
+  const vw = +view?.width || 0, vh = +view?.height || 0, w = +size?.width || 0, h = +size?.height || 0;
+  const one = (v, span, len) => { v = +v; if (!Number.isFinite(v)) v = EDGE; return Math.round(Math.max(EDGE, Math.min(v, span - len - EDGE))); };
+  return { left: one(pos?.left, vw, w), top: one(pos?.top, vh, h) };
+}
+
+/** A saved drag position (client setting onlineHudPos) as { left, top }, or null when none or unreadable (use the anchor). */
+export function savedPos(v) {
+  if (!v || typeof v !== "object") return null;
+  const left = +v.left, top = +v.top;
+  return Number.isFinite(left) && Number.isFinite(top) ? { left, top } : null;
+}
+
+/** Where the panel sits: the saved drag position when dragging is on and one is saved, else the anchor; always on screen. */
+export function placePanel({ anchor = "top-left", saved = null, drag = true } = {}, view, size, ui = {}) {
+  const s = drag ? savedPos(saved) : null;
+  return s ? clampPos(s, view, size) : anchorPos(anchor, view, size, ui);
 }
