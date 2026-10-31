@@ -47,7 +47,7 @@ export const TABS = [
   {
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
-    advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
+    advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashWeight", "vendorTrash"], ["trashWeightMult", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
       ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null]]
   },
   {
@@ -103,6 +103,8 @@ export const LABELS = {
   dungeonCoinMult: ["Dungeon coin multiplier", "Creatures in scenes you mark as dungeons (Scene settings) drop this many times more coin."],
   dungeonDropBonus: ["Dungeon drop bonus (%)", "Extra chance for each item to drop in dungeon scenes (70% becomes 95% at +25)."],
   dungeonExtraRoll: ["Dungeons roll items twice", "Creatures in dungeon scenes roll their item drops a second time."],
+  trashWeight: ["Vendor trash has weight", "Junk loot with no weight gets one from what it is (bones and teeth a fraction of a pound, hides a few pounds), so it counts against carrying capacity. Items that already have a weight are never changed. To fix junk already on characters or bodies, run game.modules.get(\"wayfarers-toolkit\").api.trash.applyWeights(actor)."],
+  trashWeightMult: ["Weight multiplier", "Scales the weight given to junk loot: 1 is as listed, 0.5 half, 2 double."],
   trashPacks: ["Where junk loot comes from", "The item compendiums junk loot is drawn from. Tick none to use the default item compendium when its module is installed (see the README)."],
   itemPilesCoins: ["Keep Item Piles' coins in step", "With the three-coin economy, Item Piles is set to copper, silver and gold each time the world loads. Turn off to manage Item Piles' coins yourself."],
   debugLog: ["Debug logging", "Writes why the toolkit did what it did (loot chosen, which GM ran it) to the browser console (F12). For troubleshooting."],

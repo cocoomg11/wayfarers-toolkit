@@ -336,3 +336,65 @@ export function parseRules(rows = []) {
   });
   return { rules, errors };
 }
+
+// ---------------------------------------------------------------- weights
+/**
+ * Vendor trash comes with no weight, so a party could carry unlimited junk. These rules give a trash item a sensible weight in pounds
+ * from its name (and its document type / subtype). First rule with a matching word wins, so small made objects ("Leather Pouch") come
+ * before materials. Items that already have a weight are never changed. Pure; units and the weight multiplier are applied by `weightData`.
+ */
+export const WEIGHT_RULES = [
+  { lb: 0.1, why: "coins, rings and small trinkets", words: ["coin", "ring", "bauble", "key", "token", "button", "badge", "insignia", "pendant", "locket", "necklace", "amulet", "charm", "watch", "pearl", "dice", "idol", "figurine", "buckle"] },
+  { lb: 0.1, why: "cloth, paper and feathers", words: ["cloth", "rag", "bandana", "thread", "feather", "plume", "quill", "paper", "page", "note", "letter", "map", "diary", "scroll", "petal", "pollen", "silk", "web", "webbing", "spore", "seed", "leaf", "leaves", "hair", "whisker", "stinger", "mote", "cinder", "ember", "ash", "dust", "sand", "wax"] },
+  { lb: 0.5, why: "flasks, vials and small containers", words: ["flask", "vial", "bottle", "jug", "cup", "mug", "spoon", "comb", "mirror", "pouch", "sack", "mask", "tobacco"] },
+  { lb: 0.25, why: "pipes and candles", words: ["pipe", "candle"] },
+  { lb: 1, why: "skulls", words: ["skull"] },
+  { lb: 3, why: "hides and pelts", words: ["hide", "pelt", "leather"] },
+  { lb: 1, why: "meat and flesh", words: ["meat", "flesh", "flank", "haunch", "steak", "tail", "gut", "intestine", "heart", "liver", "kidney", "lung", "brain", "tongue", "blubber", "wool", "fur", "furry"] },
+  { lb: 1.5, why: "ore and stone chunks", words: ["ore", "stone", "rock", "slag", "coal", "magma", "molten", "ingot", "nugget", "chunk"] },
+  { lb: 0.5, why: "crystals, shards and pebbles", words: ["crystal", "shard", "pebble", "essence"] },
+  { lb: 0.3, why: "bones", words: ["bone", "jawbone", "femur", "rib", "marrow", "carapace", "shell", "chitin", "chitinous", "mandible"] },
+  { lb: 0.25, why: "teeth, fangs, claws and talons", words: ["tooth", "teeth", "fang", "claw", "talon", "beak", "tusk", "scale", "scaly", "mane", "paw", "hoof", "hooves", "snout", "antenna", "thorn"] },
+  { lb: 1, why: "horns, antlers and wings", words: ["horn", "antler", "wing", "thorax", "larva", "cocoon"] },
+  { lb: 0.5, why: "glands, eggs, slime and small plants", words: ["gland", "eye", "ear", "blood", "sinew", "tendon", "egg", "yolk", "slime", "goo", "ooze", "gelatin", "residue", "sludge", "jelly", "ichor", "venom", "poison", "toxin", "fin", "gill", "flipper", "membrane", "root", "bark", "vine", "sap", "moss", "husk", "bloom", "blossom", "fungus", "fungal", "mushroom", "kelp", "seaweed", "twig", "branch"] }
+];
+export const WEIGHT_DEFAULT_LB = 0.5;
+/** Broken weapons and armour pieces: by document type, and by dnd5e armour subtype for equipment. */
+export const GEAR_WEIGHT_LB = { weapon: 3, light: 2, medium: 3, heavy: 5, shield: 3, other: 1 };
+const WEIGHT_WORD = new Map(); for (const r of WEIGHT_RULES) for (const k of r.words) if (!WEIGHT_WORD.has(normWord(k))) WEIGHT_WORD.set(normWord(k), WEIGHT_RULES.indexOf(r));
+WEIGHT_WORD.set("leave", WEIGHT_RULES.findIndex(r => r.words.includes("leaves")));
+
+/** Weight in pounds for a trash item from its name, document type and subtype (`system.type.value`). */
+export function weightFor({ name = "", type = "loot", subtype = "" } = {}) {
+  let best = Infinity; for (const w of words(name)) { const i = WEIGHT_WORD.get(w); if (i !== undefined && i < best) best = i; }
+  if (isGearType(type)) {
+    // Jewellery and the like are tiny whatever their slot; everything else is a broken piece of the gear type.
+    if (best === 0) return WEIGHT_RULES[0].lb;
+    if (type === "weapon") return GEAR_WEIGHT_LB.weapon;
+    const sub = String(subtype ?? "").toLowerCase();
+    return GEAR_WEIGHT_LB[sub] ?? GEAR_WEIGHT_LB.other;
+  }
+  if (best !== Infinity) return WEIGHT_RULES[best].lb;
+  return WEIGHT_DEFAULT_LB;
+}
+/** True when an item's `system` already carries a positive weight (a plain number on older dnd5e, `{ value, units }` on 4.x and later). */
+export function hasWeight(system) {
+  const w = system?.weight; const v = typeof w === "object" && w !== null ? Number(w.value) : Number(w);
+  return Number.isFinite(v) && v > 0;
+}
+/** Pounds per one unit of each dnd5e weight unit (`CONFIG.DND5E.weightUnits[unit].conversion`); used when the live config isn't given. */
+export const WEIGHT_UNIT_LB = { lb: 1, tn: 2000, kg: 2.5, Mg: 2500 };
+/**
+ * The `system.weight` to give a trash item, `{ value, units }`, or null when it should be left alone (it already has a weight, the
+ * multiplier is 0 or the unit is unknown). `units` is the item's own unit when it has one, else `defaultUnits` ("kg" in a metric world).
+ * `conversion` optionally maps units to pounds from the live dnd5e config.
+ */
+export function weightData(item, { multiplier = 1, defaultUnits = "lb", conversion = WEIGHT_UNIT_LB } = {}) {
+  if (hasWeight(item?.system)) return null;
+  const m = Number(multiplier); if (!Number.isFinite(m) || m <= 0) return null;
+  const w = item?.system?.weight; const own = typeof w === "object" && w !== null ? w.units : null;
+  const units = own || defaultUnits || "lb"; const per = Number(conversion?.[units] ?? WEIGHT_UNIT_LB[units]);
+  if (!(per > 0)) return null;
+  const lb = weightFor({ name: item?.name, type: item?.type, subtype: item?.system?.type?.value }) * m;
+  return { value: Math.max(0.001, Math.round((lb / per) * 1000) / 1000), units };
+}

@@ -164,7 +164,7 @@ test("1.22 features, macros, panel and notes", () => {
   assert.ok(places.basic.length <= 5);
   for (const [k] of [...places.basic, ...places.advanced]) assert.ok(LABELS[k]?.[0], k);
   assert.equal(NOTES[0].version, "1.22.0");
-  assert.deepEqual(NOTES[0].changes.filter(c => c.feature).map(c => c.feature), ["zoneTitles", "whosOnline", "restedInn"]);
+  assert.deepEqual(NOTES[0].changes.filter(c => c.feature).map(c => c.feature), ["zoneTitles", "whosOnline", "restedInn", "vendorTrash"]);
 });
 
 test("permission checks know the 1.22 tools", () => {

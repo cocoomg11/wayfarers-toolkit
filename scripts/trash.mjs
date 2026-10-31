@@ -240,7 +240,39 @@ async function trashItemData(uuid, value, cpVal) {
   o.system.quantity = 1;
   o.system.price = { value: Math.max(0, Math.round(value / cpVal)), denomination: "cp" };
   o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { trash: true, source: uuid } });
+  const w = weightUpdate(o); if (w) o.system.weight = w;
   return o;
+}
+
+// ---------------------------------------------------------------- weight
+/** The world's default weight unit and the live pounds-per-unit table from dnd5e (metric worlds use kg). */
+function weightEnv() {
+  let defaultUnits = "lb"; try { if (game.settings.get("dnd5e", "metricWeightUnits")) defaultUnits = "kg"; } catch { /* not dnd5e or no setting */ }
+  const conversion = { ...R.WEIGHT_UNIT_LB };
+  for (const [k, v] of Object.entries(globalThis.CONFIG?.DND5E?.weightUnits ?? {})) if (Number(v?.conversion) > 0) conversion[k] = Number(v.conversion);
+  return { defaultUnits, conversion };
+}
+/** `system.weight` for a trash item that has none (item data or document), or null: the setting is off, it already weighs something, or nothing applies. */
+function weightUpdate(item) {
+  if (!S("trashWeight", true)) return null;
+  return R.weightData(item, { multiplier: S("trashWeightMult", 1), ...weightEnv() });
+}
+/**
+ * Backfills weights on vendor trash already sitting on actors or piles. Takes an actor, a token (document) or an array of them; with
+ * nothing, the controlled tokens. Only items flagged as vendor trash (`flags.wayfarers-toolkit.trash`) with no weight change; an item
+ * that already has a weight is never touched. Works whether or not "Vendor trash has weight" is on. GM only. Returns { items, actors }.
+ */
+export async function applyWeights(target) {
+  if (!game.user.isGM) { ui.notifications.warn("Only a GM can add weights to vendor trash."); return { items: 0, actors: 0 }; }
+  const list = [].concat(target ?? canvas.tokens?.controlled ?? []); const seen = new Set(); let items = 0; let actors = 0;
+  for (const t of list) {
+    const actor = t?.actor ?? t?.document?.actor ?? t; if (!actor?.items || seen.has(actor)) continue; seen.add(actor);
+    const env = weightEnv(); const mult = S("trashWeightMult", 1);
+    const upd = []; for (const i of trashItems(actor)) { const w = R.weightData(i, { multiplier: mult, ...env }); if (w) upd.push({ _id: i.id, "system.weight": w }); }
+    if (upd.length) { await actor.updateEmbeddedDocuments("Item", upd); items += upd.length; actors++; }
+  }
+  log(`Vendor Trash: weights added to ${items} item(s) on ${actors} actor(s)`);
+  return { items, actors };
 }
 
 const tokenDoc = t => t?.document ?? t;

@@ -64,6 +64,8 @@ const DEFAULTS = {
   junkSellButton: true,
   itemCompare: true,
   trashUnconscious: false,
+  trashWeight: true,
+  trashWeightMult: 1,
   partySize: 4,
   debugLog: false,
   weaponSets: true,
@@ -199,6 +201,8 @@ function registerSettings() {
   s("trashAutoLoot", "Vendor Trash: Make bodies lootable on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
   s("trashGmAddedLoot", "Vendor Trash: Items the GM adds to an NPC count as loot", "When a GM adds a weapon, armour, consumable, tool, loot or container to an NPC (dragged onto its sheet or created there), the item is marked Lootable and shows in the body's loot pile. Items that came with the stat block are never marked. Change the mark on the item sheet or the inventory context menu.", Boolean);
   s("trashUnconscious", "Vendor Trash: Unconscious bodies become lootable", "An unlinked NPC token that gets the Unconscious condition becomes lootable as if it had died (No loot and one-loot-per-body still apply).", Boolean);
+  s("trashWeight", "Vendor Trash: Vendor trash has weight", "Vendor trash items that come with no weight get a sensible one (bones and teeth a fraction of a pound, hides a few pounds), so junk can't be carried without limit. Items that already have a weight are never changed. Existing trash: api.trash.applyWeights(actor).", Boolean);
+  s("trashWeightMult", "Vendor Trash: Weight multiplier", "Scales the weights given to vendor trash (1 = as listed, 0.5 = half, 2 = double).", Number, { range: { min: 0.25, max: 5, step: 0.25 } });
   s("junkSellButton", "Vendor Trash: Sell all junk button", "A Sell all junk button on Item Piles merchant windows: sells every grey item the character carries at the merchant's prices, after a confirm. Equipped items, favourites and items in a weapon set are never sold.", Boolean);
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   // Character pane: weapon sets
@@ -637,6 +641,8 @@ export const WCT = {
     reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
     showPreview(tokens, n = 12) { return F.need("vendorTrash") ? Trash.showPreview(WCT, tokens, n) : undefined; },
     preview(target, n = 20) { return F.need("vendorTrash") ? Trash.preview(target ?? canvas.tokens?.controlled?.[0], n) : undefined; },
+    /** Gives weights to vendor trash on actors or piles that has none: applyWeights(actorOrTokenOrArray). GM only. Returns { items, actors }. */
+    applyWeights(target) { return F.need("vendorTrash") ? Trash.applyWeights(target ?? canvas.tokens?.controlled) : undefined; },
     /** Marks items (documents or UUIDs) Lootable (true), not lootable (false) or clears the mark (null). GM only. */
     setLootable(items, on = true) { return F.need("vendorTrash") ? Trash.setLootable(items, on) : undefined; },
     /** Everything is lootable on an actor or token (every physical item shows in its pile). GM only. */
