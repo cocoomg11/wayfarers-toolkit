@@ -2,7 +2,7 @@
 
 A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
 
-The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
+The module supplies only the logic. Your own campaign content (encounter tables, flight points, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
 
 What changed in each version: [CHANGELOG](CHANGELOG.md).
 
@@ -12,7 +12,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | --- | --- |
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are set up in a flight network editor inside the module; a point opens a scene only if you give it one. The GM can also fly the party for free. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
-| **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
+| **Session Start** | Pick a scene, activate it for players and unpause; the start is written to the Travel Log. |
 | **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in, and **Sell all junk** sells a character's grey items to an Item Piles merchant. |
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Melee, Ranged and Utility weapon sets with a one-click swap (only the set in hand is equipped), a relic slot for chosen classes, and comparison tooltips against what you have on. Players can use it for their own characters. |
@@ -112,7 +112,7 @@ The panel has seven tabs down the left. Each settings tab shows the few settings
 
 **A quick walkthrough for a new world**
 
-1. The first time a GM opens a new world with the toolkit, the **welcome wizard** asks three things: a style (which tools to switch on), the party size, and the coins and campaign name. Finish it and it offers to **Run setup**. Skip it if you'd rather set things up yourself; it won't come back on its own (rerun it from the Overview tab).
+1. The first time a GM opens a new world with the toolkit, the **welcome wizard** asks three things: a style (which tools to switch on), the party size, and the coin system. Finish it and it offers to **Run setup**. Skip it if you'd rather set things up yourself; it won't come back on its own (rerun it from the Overview tab).
 2. Open the control panel. **Overview** says "Everything looks good" or lists what needs attention, each with a button that fixes it.
 3. On **Features**, switch off anything you won't use and click **Save features** (Foundry reloads).
 4. Go through **Travel**, **Loot**, **Boss & Combat** and **Quests**, change what you need and click **Save changes**.
@@ -133,7 +133,7 @@ A tool that's switched off adds nothing: no buttons, macros, key bindings, chat 
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes), **Campaign name** (the "Previously, in …" recap heading) |
+| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes) |
 | **Advanced** | **Announce new flight points** (on), **Flights advance world time** (off), **Locked flight points on players' map** (hidden or greyed), **Players can ask for a travel pace** (on), encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
 
 With the route map and travel pace on, the tab also has **Flight route map…** and **Travel pace…** buttons.

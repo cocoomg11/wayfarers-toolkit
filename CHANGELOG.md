@@ -2,6 +2,20 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.21.0
+
+**Changes**
+- **Session Start: recap removed.** The Session Start window now only picks the scene, activates it for players (tick) and unpauses (tick), and still writes "Session started" to the Travel Log. Gone: the recap text box, *Post recap to chat*, the "Previously, in …" chat message and the edits to the tracker's *Session Recap* page.
+- Run setup no longer creates a *Session Recap* tracker page, so the health check and Run setup no longer report it missing. Existing *Session Recap* pages are never touched or deleted; the 1.21.0 update notes tell the GM they can delete it.
+- **Campaign name** (`campaignName`) was only used in the recap. It no longer shows on the Travel tab or in the welcome wizard (step 3 is now just the coin system). The setting stays registered under the same key so stored values are kept and settings files still import.
+- Feature hint, feature card, tracker journal hint and README updated to match.
+
+**Checked in a live world (v14 build 369, dnd5e 6.0.6, Item Piles 3.3.4)**
+- Item Piles hook names used by Sell all junk (`item-piles-openInterface`, `renderMerchantApp`, `app.merchant`, `app.recipient`) and the comparison tooltips (`item-piles-mouseHoverPileItem` / `MerchantItem` / `VaultGridItem` and their `mouseLeave` pairs, called with the row element and the item) match Item Piles 3.3.4. No change needed.
+- Flight route map, Travel pace, Party gold, Loot history, character pane, settings import preview and the health check open and close with no toolkit console errors.
+
+**Untested in Foundry**: the new Session Start window itself (run it once after updating).
+
 ## 1.20.0
 
 **New**

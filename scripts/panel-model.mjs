@@ -11,7 +11,7 @@ export const README = "https://github.com/cocoomg11/wayfarers-toolkit";
 export const FEATURE_CARDS = [
   { id: "hexTravel", icon: "fa-solid fa-map", text: "Travel overland hex by hex. Off-road hexes can turn up random encounters; time passes and the trip is logged." },
   { id: "flightMaster", icon: "fa-solid fa-feather-pointed", text: "Fly the party between flight points you unlock, paying fares from the party purse. Players can book flights too." },
-  { id: "sessionStart", icon: "fa-solid fa-flag-checkered", text: "Start a session in one step: pick the scene, post a \"Previously…\" recap and unpause." },
+  { id: "sessionStart", icon: "fa-solid fa-flag-checkered", text: "Start a session in one step: pick the scene, activate it and unpause." },
   { id: "vendorTrash", icon: "fa-solid fa-sack-dollar", text: "Defeated creatures carry grey junk loot and coin to match what they are, ready for the party to loot." },
   { id: "riderFeat", icon: "fa-solid fa-horse", text: "A riding feat for your world. When everyone in the party has it, Hex Travel goes at mounted speed." },
   { id: "characterPane", icon: "fa-solid fa-shirt", text: "An equipment frame around the character portrait. Drop gear in a slot to equip it; swap between melee, ranged and utility weapon sets." },
@@ -37,7 +37,7 @@ export const TABS = [
   { id: "features", label: "Features", icon: "fa-solid fa-toggle-on", anchor: "features-tab" },
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
-    basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"], ["campaignName", "sessionStart"]],
+    basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"]],
     advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
@@ -70,7 +70,7 @@ export const LABELS = {
   playerFlights: ["Players can book flights", "Players get a Flight Master button and can fly the party themselves. A GM has to be logged in; the fare comes out of the party purse."],
   fareUnit: ["Fares without a coin are in", "In the flight network editor, a fare typed as a plain number (like 2) is read in this coin. Fares like 1g 20s always work."],
   hiddenScenes: ["Scenes left out of Session Start", "Tick the scenes you never start a session on (test maps, galleries). They won't be offered in the Session Start list."],
-  campaignName: ["Campaign name", "Shown in the session recap: \"Previously, in …\". Leave blank to use the world's title."],
+  campaignName: ["Campaign name", "No longer used: Session Start doesn't post a recap any more."],
   encounterDie: ["Encounter die", "Each off-road hex rolls this die; a 1 means an encounter. Bigger die, fewer encounters."],
   offroadMult: ["Off-road hexes take", "How many times longer an off-road hex takes than a road hex."],
   mountMult: ["Riding speeds travel up by", "Travel speed is multiplied by this when the party is mounted."],
@@ -80,7 +80,7 @@ export const LABELS = {
   flightSound: ["Departure sound", "Played for everyone when a flight takes off. Clear it for no sound."],
   flightVolume: ["Departure sound volume", ""],
   riderFeat: ["Riding feat name", "The name of the riding feat. Run setup creates a feat with this name; Hex Travel looks for it on each party member."],
-  trackerJournal: ["Tracker journal", "The GM journal that holds the travel log and session recap. Run setup creates it if it's missing."],
+  trackerJournal: ["Tracker journal", "The GM journal that holds the travel log. Run setup creates it if it's missing."],
   partyActor: ["Party actor", "The group actor whose purse pays for flights and whose members are the party. Run setup creates it if it's missing."],
   trashAutoRoll: ["Roll loot when creatures are placed", "When you place a creature on a scene, what it drops is decided straight away and waits hidden on it. Reroll from the dice button on its token."],
   trashAutoLoot: ["Bodies can be looted when they die", "At 0 HP (or marked defeated) a creature's body becomes something players can loot. Off: use the Vendor Trash macro yourself."],

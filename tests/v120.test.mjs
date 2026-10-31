@@ -253,7 +253,7 @@ test("1.20 tools are features with cards, settings rows and gated macros", () =>
   assert.equal(macroOn(map, () => true), true);
   assert.equal(macroOn(pace, id => id === "hexTravel"), false);
   assert.equal(macroOn({}, () => false), true, "no feature = always");
-  assert.equal(NOTES[0].version, "1.20.0");
+  assert.ok(NOTES.some(n => n.version === "1.20.0"));
 });
 
 test("public repo: no publisher names in the 1.20 user-facing text", async () => {
@@ -262,4 +262,15 @@ test("public repo: no publisher names in the 1.20 user-facing text", async () =>
     const src = await readFile(new URL(`../scripts/${f}.mjs`, import.meta.url), "utf8");
     assert.doesNotMatch(src, /warcraft|blizzard|\bwow\b|azeroth/i, f);
   }
+});
+
+test("1.21: Session Start has no recap, and campaign name is no longer shown", () => {
+  const keys = TABS.flatMap(tabKeys);
+  assert.ok(!keys.includes("campaignName"), "campaignName is not on a tab");
+  assert.ok(keys.includes("hiddenScenes"), "Session Start's scene setting stays");
+  const n = NOTES.find(x => x.version === "1.21.0"); assert.ok(n, "1.21.0 update note");
+  assert.equal(NOTES[0].version, "1.21.0");
+  assert.ok(n.changes.some(c => /delete/i.test(c.text ?? c)), "tells the GM they can delete the old page");
+  assert.ok(!/recap/i.test(FEATURES.find(f => f.id === "sessionStart").hint));
+  assert.ok(!/recap/i.test(FEATURE_CARDS.find(c => c.id === "sessionStart").text));
 });

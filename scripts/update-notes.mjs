@@ -22,6 +22,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.21.0",
+    changes: [
+      { feature: "sessionStart", text: "Session Start no longer has a recap: its window now picks the scene, activates it for players and unpauses, and writes the start to the Travel Log as before. It no longer posts a \"Previously, in …\" message or edits a recap page, and the Campaign name setting is gone from the control panel and the welcome wizard." },
+      { feature: "sessionStart", text: "Your tracker journal's Session Recap page is left as it is, and Run setup no longer creates one. If you don't need it any more, you can delete that page yourself." }
+    ]
+  },
+  {
     version: "1.20.0",
     changes: [
       { feature: "flightMap", text: "Flight route map: the flight network drawn as a map (map button in the token controls, the Flight Route Map macro, or control panel › Travel). Players see the flight points they've unlocked and the routes between them; drag points to arrange it and Save layout." },

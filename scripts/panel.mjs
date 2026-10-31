@@ -405,11 +405,11 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
     position: { width: 620, height: "auto" }
   };
   step = 0;
-  data = { preset: "classic", partySize: null, coinSystem: null, campaignName: null };
+  data = { preset: "classic", partySize: null, coinSystem: null };
 
   async _renderHTML() {
     const d = this.data;
-    d.partySize ??= get("partySize") ?? 4; d.coinSystem ??= get("coinSystem") ?? "standard"; d.campaignName ??= get("campaignName") ?? "";
+    d.partySize ??= get("partySize") ?? 4; d.coinSystem ??= get("coinSystem") ?? "standard";
     const div = document.createElement("div"); div.className = "wct-wizard-body";
     const dots = [0, 1, 2].map(i => `<span class="${i === this.step ? "on" : i < this.step ? "done" : ""}"></span>`).join("");
     let body = "";
@@ -417,10 +417,9 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
       <div class="wct-presets">${Object.entries(M.PRESETS).map(([k, p]) => `<label class="wct-preset ${d.preset === k ? "on" : ""}"><input type="radio" name="preset" value="${k}" ${d.preset === k ? "checked" : ""}><i class="${p.icon}"></i><strong>${esc(p.label)}</strong><span>${esc(p.text)}</span></label>`).join("")}</div>`;
     else if (this.step === 1) body = `<h2>How big is the party?</h2><p class="hint">How many player characters. Boss loot coin grows with the party, and parties over four get an extra boss drop.</p>
       <div class="wct-range big"><input type="range" name="partySize" min="1" max="8" step="1" value="${esc(d.partySize)}"><output>${esc(d.partySize)}</output></div>`;
-    else body = `<h2>Coins and campaign</h2>
+    else body = `<h2>Coins</h2>
       <div class="wct-presets two">${[["standard", "Standard 5e coins", "Copper, silver, electrum, gold and platinum, as in the rules."], ["threeCoin", "Three coins", "Copper, silver and gold only, 100 to 1. Item prices aren't changed; see the README."]].map(([k, l, t]) => `<label class="wct-preset ${d.coinSystem === k ? "on" : ""}"><input type="radio" name="coinSystem" value="${k}" ${d.coinSystem === k ? "checked" : ""}><i class="fa-solid fa-coins"></i><strong>${l}</strong><span>${t}</span></label>`).join("")}</div>
-      ${M.PRESETS[d.preset]?.suggestCoins === "threeCoin" && d.coinSystem !== "threeCoin" ? `<p class="hint">Tip: the Classic MMO style pairs well with three coins.</p>` : ""}
-      <div class="wct-row"><div class="wct-row-text"><label>Campaign name</label><p class="hint">Shown in the session recap: "Previously, in …". Leave blank to use the world's title.</p></div><div class="wct-row-control"><input type="text" name="campaignName" value="${esc(d.campaignName)}" placeholder="${esc(game.world?.title ?? "")}"></div></div>`;
+      ${M.PRESETS[d.preset]?.suggestCoins === "threeCoin" && d.coinSystem !== "threeCoin" ? `<p class="hint">Tip: the Classic MMO style pairs well with three coins.</p>` : ""}`;
     div.innerHTML = `<div class="wct-steps">${dots}<span class="hint">Step ${this.step + 1} of 3</span></div>${body}
       <footer class="wct-footer"><button type="button" data-w="skip">Skip, I'll set it up myself</button><span class="spacer"></span>
       ${this.step ? `<button type="button" data-w="back"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ""}
@@ -434,7 +433,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
       const q = n => result.querySelector(`[name="${n}"]:checked`)?.value ?? result.querySelector(`[name="${n}"]`)?.value;
       if (this.step === 0) this.data.preset = q("preset") ?? this.data.preset;
       if (this.step === 1) this.data.partySize = Math.min(8, Math.max(1, Math.round(+q("partySize") || 4)));
-      if (this.step === 2) { this.data.coinSystem = q("coinSystem") ?? this.data.coinSystem; this.data.campaignName = String(q("campaignName") ?? ""); }
+      if (this.step === 2) this.data.coinSystem = q("coinSystem") ?? this.data.coinSystem;
     };
     result.querySelectorAll(".wct-range input").forEach(r => r.addEventListener("input", () => { r.nextElementSibling.value = r.value; }));
     result.querySelectorAll(".wct-preset input").forEach(i => i.addEventListener("change", () => { read(); this.render(); }));
@@ -456,7 +455,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
 
   async finish() {
     const d = this.data; const writes = Object.entries(M.presetSettings(d.preset));
-    writes.push(["partySize", d.partySize], ["coinSystem", d.coinSystem], ["campaignName", d.campaignName], ["wizardDone", true]);
+    writes.push(["partySize", d.partySize], ["coinSystem", d.coinSystem], ["wizardDone", true]);
     let reloadNeeded = false;
     for (const [k, v] of writes) if (JSON.stringify(get(k)) !== JSON.stringify(v)) { await game.settings.set(ID, k, v); if (cfgOf(k)?.requiresReload) reloadNeeded = true; }
     await this.close();

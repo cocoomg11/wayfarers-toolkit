@@ -3,7 +3,7 @@
  * character with a player owner) and the party group actor, coins in their containers included, and optionally the price of
  * their mundane gear, then compares that with the wealth curve (gold per character per act) × the Party size setting. Nothing in
  * the world is changed, except the snapshot list (hidden world setting goldSnapshots) when the GM clicks Take snapshot. There's no
- * automatic snapshot at Session Start: Session Start has no hook to listen to, and its recap is left as it is. Maths: gold-model.mjs.
+ * automatic snapshot at Session Start: Session Start has no hook to listen to. Maths: gold-model.mjs.
  */
 import * as G from "./gold-model.mjs";
 

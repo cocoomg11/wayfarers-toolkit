@@ -166,9 +166,10 @@ function registerSettings() {
   const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: DEFAULTS[key], ...extra });
   s("partySize", "Party size", "How many characters the party has (1 to 8). Boss loot coin scales with it (× party size / 4) and, above 4, bosses with 3 or more draws get one more (see Boss loot settings).", Number, { range: { min: 1, max: 8, step: 1 } });
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
-  s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
+  // Kept registered (no longer shown) so worlds that set it keep their value; Session Start no longer posts a recap (1.21).
+  s("campaignName", "Campaign name", "No longer used since 1.21 (Session Start no longer posts a recap). Kept so stored values aren't lost.", String);
   // General
-  s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log and Session Recap pages.", String);
+  s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log page.", String);
   s("partyActor", "General: Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
   s("itemPilesCoins", "General: Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
   s("debugLog", "General: Debug logging", "Writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM ran an automatic step, the items and CR bands chosen, how loot rolls were settled. Off: nothing is logged.", Boolean);
@@ -254,8 +255,7 @@ const RIDER_FEAT = name => ({
 });
 
 const TRACKER_PAGES = {
-  "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`,
-  "Session Recap": `<h2>Last Session Recap</h2><p><em>Write a short recap here after each session. The Session Start macro offers it as the opening recap.</em></p>`
+  "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`
 };
 
 export const WCT = {
@@ -739,20 +739,13 @@ export const WCT = {
   // ------------------------------------------------------------ session
   async sessionStart() {
     if (!F.need("sessionStart") || !this.gmOnly()) return;
-    const recapPage = this.page("Session Recap");
-    const recapText = new DOMParser().parseFromString(recapPage.text.content || "", "text/html").body.textContent.replace(/^\s*Last Session Recap\s*/, "").replace(/Write a short recap here[^.]*\.[^.]*\./, "").trim();
     let hide; try { hide = new RegExp(setting("hiddenScenes") || "(?!)"); } catch { hide = /(?!)/; }
     const scenes = game.scenes.filter(s => !hide.test(s.name)).sort((a, b) => a.name.localeCompare(b.name));
     const content = `<div class="form-group"><label>Scene</label><select name="scene">${scenes.map(s => this.opt(s.id, s.name, s.id === canvas.scene?.id)).join("")}</select></div>
       <div class="form-group"><label>Activate it for players</label><input type="checkbox" name="activate" checked></div>
-      <div class="form-group stacked"><label>Recap ("Previously…")</label><textarea name="recap" rows="6">${esc(recapText)}</textarea></div>
-      <div class="form-group"><label>Post recap to chat</label><input type="checkbox" name="post" checked></div>
       <div class="form-group"><label>Unpause the game</label><input type="checkbox" name="unpause" checked></div>`;
     const f = await this.form("Session Start", content, "Start session"); if (!f) return;
-    const recap = (f.recap || "").trim();
-    if (recap && recap !== recapText) await recapPage.update({ "text.content": `<h2>Last Session Recap</h2>${recap.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join("")}` });
     const s = game.scenes.get(f.scene); if (f.activate && s) await s.activate();
-    if (f.post && recap) await this.say(`<h3>Previously, in ${esc(this.campaign())}…</h3>${recap.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join("")}`, "Narrator");
     if (f.unpause && game.paused) game.togglePause(false, { broadcast: true });
     await this.appendPage("Travel Log", `<p><strong>Session started</strong> at ${this.stamp()}${s ? ` on ${esc(s.name)}` : ""}.</p>`);
   }
