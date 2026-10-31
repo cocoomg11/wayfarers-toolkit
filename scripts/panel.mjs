@@ -1,6 +1,7 @@
 /**
  * The control panel (one button in the module settings: "Wayfarer's Toolkit") and the welcome wizard.
- * Tabs: Overview (health in plain words, with fix-it buttons), Features (one switch per tool), Travel, Loot, Boss & Combat, Quests.
+ * Tabs: Overview (health in plain words, with fix-it buttons), Features (one switch per tool), Travel, Loot, Boss & Combat, Character,
+ * Quests.
  * Every setting keeps its key from earlier versions; the panel only shows them in a friendlier way. What goes where, the labels and
  * the value converters are in panel-model.mjs (tested in Node).
  */
@@ -51,6 +52,7 @@ function rowHTML([key, cond, kind]) {
   else if (kind === "zones") { wide = true; control = zonesEditor(v, off); }
   else if (kind === "scenes") { wide = true; control = scenesPicker(v, off); }
   else if (kind === "packs") { wide = true; control = packsPicker(v, off); }
+  else if (kind === "classes") { wide = true; control = classesPicker(v, off); }
   else if (kind === "journal" || kind === "groupActor" || kind === "journalFolder") {
     const names = kind === "journal" ? game.journal.map(j => j.name) : kind === "groupActor" ? game.actors.filter(a => a.type === "group").map(a => a.name) : game.folders.filter(f => f.type === "JournalEntry").map(f => f.name);
     const lid = `wct-dl-${key}`;
@@ -99,6 +101,22 @@ function packsPicker(v, off) {
   let fallback = ""; try { fallback = !set.size ? Trash.packIds().map(id => game.packs.get(id)?.metadata?.label ?? id).join(", ") : ""; } catch { }
   return `<div class="wct-checklist">${!set.size ? `<p class="wct-note"><i class="fa-solid fa-circle-info"></i> None ticked: ${fallback ? `using ${esc(fallback)}.` : "no default compendium is installed, so nothing drops until you tick one."}</p>` : ""}
     <div class="wct-checks">${packs.map(p => box(p.id, p.label, p.src)).join("")}${gone.map(id => box(id, id, "not found")).join("")}</div></div>`;
+}
+/** The classes in this world (class items in the sidebar, on actors and in class compendiums) and the core ones: [{ id, label }]. */
+function worldClasses() {
+  const out = new Map(); const add = (id, label) => { id = String(id ?? "").toLowerCase(); if (id && !out.has(id)) out.set(id, label || id[0].toUpperCase() + id.slice(1)); };
+  const ofItem = i => { if (i?.type === "class") add(i.system?.identifier || i.name?.slugify?.() || i.name, i.name); };
+  for (const i of game.items ?? []) ofItem(i);
+  for (const a of game.actors ?? []) for (const i of a.items ?? []) ofItem(i);
+  for (const p of game.packs ?? []) if (p.documentName === "Item") for (const e of p.index ?? []) if (e.type === "class") add(e.system?.identifier || e.name?.slugify?.() || e.name, e.name);
+  for (const id of ["artificer", "barbarian", "bard", "cleric", "druid", "fighter", "monk", "paladin", "ranger", "rogue", "sorcerer", "warlock", "wizard"]) add(id);
+  return [...out].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
+}
+function classesPicker(v, off) {
+  const set = new Set(M.classesToList(v)); const list = worldClasses();
+  const gone = [...set].filter(id => !list.some(c => c.id === id));
+  const box = (id, label, note) => `<label class="wct-check"><input type="checkbox" data-class value="${esc(id)}" ${set.has(id) ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)} <span class="hint">${esc(note)}</span></label>`;
+  return `<div class="wct-checklist"><div class="wct-checks">${list.map(c => box(c.id, c.label, c.label.toLowerCase() === c.id ? "" : c.id)).join("")}${gone.map(id => box(id, id, "not in this world")).join("")}</div></div>`;
 }
 /** Advanced raw field for a hand-written hidden-scenes pattern. */
 function rawScenesRow(off) {
@@ -311,6 +329,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
         continue;
       }
       if (kind === "packs") { if (dirty) changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))); continue; }
+      if (kind === "classes") { if (dirty) changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))); continue; }
       const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) continue;
       if (c.type === Boolean) changed(key, !!el.checked);
       else if (c.type === Number) { const n = Number(el.value); if (Number.isFinite(n) && String(el.value).trim() !== "") changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n); }

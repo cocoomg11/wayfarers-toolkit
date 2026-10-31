@@ -182,6 +182,21 @@ function gms() {
   return out;
 }
 
+function characterPane() {
+  if (!F.on("characterPane")) return [off("Character pane: off.")];
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  if (!get("weaponSets")) return [off("Weapon sets: off (the pane shows one Main Hand, Off Hand and Ranged slot).")];
+  const cost = { free: "free", attack: "part of an attack", object: "an object interaction", bonus: "a bonus action", action: "an action" }[get("weaponSwapCost")] ?? "part of an attack";
+  const classes = String(get("relicClasses") ?? "").split(/[,\s]+/).filter(Boolean);
+  const pcs = game.actors.filter(a => a.type === "character");
+  const set = pcs.filter(a => a.getFlag(ID, "weaponSets")).length;
+  return [
+    ok(`Weapon sets: on; a swap in combat costs ${esc(cost)} (shown in chat, not enforced).`),
+    classes.length ? ok(`Relic slot for: ${listNames(classes)}.`) : off("Relic slot: no classes ticked (control panel › Character)."),
+    off(`${plural(set, "character")} of ${pcs.length} ${set === 1 ? "has" : "have"} weapon sets stored (the rest get them the first time their pane opens).`)
+  ];
+}
+
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
@@ -189,7 +204,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

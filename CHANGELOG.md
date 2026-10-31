@@ -2,6 +2,21 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.18.0
+
+**New**
+- **Weapon sets in the character pane.** Three sets, one in hand: **Melee** (main and off hand), **Ranged** (the ranged slot and an off hand) and **Utility** (main and off hand, for a weapon with a torch, lantern, instrument or held focus). Only the set in hand is equipped on the dnd5e sheet (`system.equipped`), so only its items count for attacks, AC, bonuses and the pane's stats. The other sets stay visible, dimmed and marked *Stowed*. A tab per set swaps them and writes the sheet's equipped flags. Stored on the actor in `flags.wayfarers-toolkit.weaponSets`.
+- **Hands rule.** A set that would use a two-handed weapon (or an ammunition weapon, or a second off-hand item) while a shield is on can't be made active: the pane says why and offers **Stow shield**, which only unequips the shield. Swaps never take a shield off by themselves. **Bucklers** (shields with *buckler* in the name, or **Buckler** ticked by a GM on the item sheet, `flags.wayfarers-toolkit.buckler`) leave the hand free for a one-handed ranged weapon or a weapon in each hand; two-handed weapons are still blocked. Versatile weapons with the off hand empty show their two-handed damage. Thrown weapons fit in the Melee or Ranged set. A Ranged set with no ammunition carried gets a warning, not a block.
+- **Swap cost in combat.** Setting **Weapon swap cost**: Free, Part of an attack (default), Object interaction, Bonus action or Action. A swap by a combatant in a started combat posts a short public chat line with the cost; nothing is enforced. **Stow shield** in combat posts a line noting the Utilize action. Outside combat swaps are free and silent.
+- **Relic slot.** A worn slot (no hand, never part of a set) for the classes in **Classes with a relic slot** (dnd5e class identifiers, default Paladin, Druid, Cleric; a checklist in the control panel). Takes spellcasting foci and relics (*libram*, *idol*, *totem*, *relic* or *sigil* in the name, or **Relic** ticked by a GM on the item sheet, `flags.wayfarers-toolkit.relic`).
+- **Control panel: Character tab** with Weapon sets (on by default), Weapon swap cost and Classes with a relic slot. Health check: a *Character pane* section.
+- API: `api.pane.activateSet`, `assignWeapon`, `unassignWeapon`, `stowShield`, `weaponState`.
+
+**Changes**
+- Existing characters are migrated the first time their pane opens with weapon sets on: Main Hand and Off Hand become the Melee set, Ranged the Ranged set, Melee in hand (an equipped ranged weapon becomes stowed and unequipped). The set in hand stays recorded in the old slot flags, so switching **Weapon sets** off gives back the old single slots.
+- Equipping or unequipping a set's item outside the pane (the sheet, a macro) so that it disagrees with its set takes it out of the set.
+- Remove toolkit data also clears weapon sets and the Buckler and Relic marks.
+
 ## 1.17.0
 
 **New**

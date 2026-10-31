@@ -218,3 +218,36 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 
 /* Header button on the sheet */
 .window-header .wct-pane-btn { flex: 0 0 auto; }
+
+/* Weapon sets: three small groups (tab + two hands) under the paper doll; the set in hand is lit, the others dimmed and marked Stowed. */
+.wct-pane .wct-row.bottom.wct-sets { grid-area: auto; grid-column: 1 / -1; grid-row: 2; gap: 8px; flex-wrap: nowrap; align-items: flex-end; }
+.wct-pane .wct-set-notes { grid-row: 3; }
+.wct-pane .wct-set { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px 3px 3px; border-radius: 4px; border: 1px solid transparent; }
+.wct-pane .wct-set.active { border-color: rgba(201, 162, 39, 0.55); background: rgba(255, 209, 0, 0.06); }
+.wct-pane .wct-set.stowed .wct-set-hands { opacity: 0.45; filter: grayscale(0.7); }
+.wct-pane .wct-set.stowed .wct-set-hands .worn { opacity: 1; filter: none; }
+.wct-pane .wct-set-hands { display: flex; gap: 4px; }
+.wct-pane .wct-set-tab {
+  display: inline-flex; align-items: center; gap: 4px; position: relative;
+  width: auto; height: 18px; margin: 0; padding: 0 6px;
+  font-size: 11px; line-height: 16px; white-space: nowrap;
+  color: var(--wct-muted); background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--wct-slot-edge); border-radius: 3px; cursor: pointer;
+}
+.wct-pane .wct-set-tab:hover { color: var(--wct-gold); border-color: var(--wct-gold-dim); }
+.wct-pane .wct-set.active .wct-set-tab { color: var(--wct-gold); border-color: var(--wct-gold-dim); background: linear-gradient(#5a1a12, #2c0c08); cursor: default; }
+.wct-pane .wct-set-tab.static { cursor: default; }
+.wct-pane .wct-set-tab .fa-lock { color: #ff8a7a; font-size: 9px; }
+.wct-pane .wct-stowed { font-size: 9px; line-height: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wct-muted); opacity: 0.85; }
+.wct-pane .wct-set.active .wct-stowed { color: var(--wct-gold-dim); }
+.wct-pane .wct-slot.worn { box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--wct-gold-dim); }
+.wct-pane .wct-set-notes { list-style: none; margin: 4px 0 0; padding: 0; grid-column: 1 / -1; font-size: 0.82em; color: var(--wct-muted); }
+.wct-pane .wct-set-notes li { margin: 1px 0; text-align: center; }
+.wct-pane .wct-set-notes li.bad { color: #ff9a8a; }
+.wct-pane .wct-set-notes li.warn { color: #f0c060; }
+.wct-pane .wct-set-notes button {
+  display: inline-block; width: auto; height: auto; margin-left: 4px; padding: 0 8px; font-size: 0.95em; line-height: 1.5;
+  color: var(--wct-gold); background: linear-gradient(#5a1a12, #2c0c08); border: 1px solid var(--wct-gold-dim); border-radius: 3px;
+}
+.wct-pane .wct-set-notes button:hover { filter: brightness(1.25); }
+.chat-message .wct-swap { margin: 0; font-style: italic; }

@@ -54,7 +54,10 @@ const DEFAULTS = {
   trashGmAddedLoot: true,
   trashUnconscious: false,
   partySize: 4,
-  debugLog: false
+  debugLog: false,
+  weaponSets: true,
+  weaponSwapCost: "attack",
+  relicClasses: "paladin, druid, cleric"
 };
 /** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
 const OLD_RIDER = "Trained Rider";
@@ -176,6 +179,10 @@ function registerSettings() {
   s("trashGmAddedLoot", "Vendor Trash: Items the GM adds to an NPC count as loot", "When a GM adds a weapon, armour, consumable, tool, loot or container to an NPC (dragged onto its sheet or created there), the item is marked Lootable and shows in the body's loot pile. Items that came with the stat block are never marked. Change the mark on the item sheet or the inventory context menu.", Boolean);
   s("trashUnconscious", "Vendor Trash: Unconscious bodies become lootable", "An unlinked NPC token that gets the Unconscious condition becomes lootable as if it had died (No loot and one-loot-per-body still apply).", Boolean);
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
+  // Character pane: weapon sets
+  s("weaponSets", "Character pane: Weapon sets", "Melee, Ranged and Utility weapon sets in the character pane; only the set in hand is equipped on the sheet. Off: one Main Hand, Off Hand and Ranged slot, all equipped at once.", Boolean, { onChange: () => Pane.refreshOpen?.() });
+  s("weaponSwapCost", "Character pane: Weapon swap cost", "What a weapon-set swap costs in combat. Shown in a chat line when a character in an active combat swaps; nothing is enforced. Outside combat swapping is free and silent.", String, { choices: { free: "Free", attack: "Part of an attack", object: "Object interaction", bonus: "Bonus action", action: "Action" } });
+  s("relicClasses", "Character pane: Classes with a relic slot", "dnd5e class identifiers, separated by commas, whose characters get a relic slot in the character pane (for a spellcasting focus or a relic).", String, { onChange: () => Pane.refreshOpen?.() });
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
@@ -597,7 +604,7 @@ export const WCT = {
   features: F,
   /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
   cleanup: { plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) },
-  /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, quests). */
+  /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, pane, quests). */
   panel(tab) { return this.gmOnly() ? Panel.open(tab) : undefined; },
   /** GM: opens the welcome wizard. */
   wizard() { return this.gmOnly() ? new Panel.WelcomeWizard().render({ force: true }) : undefined; },

@@ -14,7 +14,7 @@ export const FEATURE_CARDS = [
   { id: "sessionStart", icon: "fa-solid fa-flag-checkered", text: "Start a session in one step: pick the scene, post a \"Previously…\" recap and unpause." },
   { id: "vendorTrash", icon: "fa-solid fa-sack-dollar", text: "Defeated creatures carry grey junk loot and coin to match what they are, ready for the party to loot." },
   { id: "riderFeat", icon: "fa-solid fa-horse", text: "A riding feat for your world. When everyone in the party has it, Hex Travel goes at mounted speed." },
-  { id: "characterPane", icon: "fa-solid fa-shirt", text: "An equipment frame around the character portrait. Drop gear in a slot to equip it." },
+  { id: "characterPane", icon: "fa-solid fa-shirt", text: "An equipment frame around the character portrait. Drop gear in a slot to equip it; swap between melee, ranged and utility weapon sets." },
   { id: "questLog", icon: "fa-solid fa-scroll", text: "A quest log with story objectives you tick off. Players open it with the L key." },
   { id: "questTracker", icon: "fa-solid fa-location-crosshairs", text: "Shows tracked quests and their open objectives on screen. Needs the quest log." },
   { id: "bossFrames", icon: "fa-solid fa-crown", text: "Big health bars at the top of the screen for creatures you mark as bosses, while they're in combat." },
@@ -46,6 +46,10 @@ export const TABS = [
     id: "boss", label: "Boss & Combat", icon: "fa-solid fa-crown", anchor: "boss--combat-tab",
     basic: [["bossHpDisplay", "bossFrames"], ["bossLootAuto", "bossLoot"], ["bossAutoFromLoot", "bossFrames:bossLoot"]],
     advanced: [["bossLootExtraDraw", "bossLoot"]]
+  },
+  {
+    id: "pane", label: "Character", icon: "fa-solid fa-shirt", anchor: "character-tab",
+    basic: [["weaponSets", "characterPane"], ["weaponSwapCost", "characterPane"], ["relicClasses", "characterPane", "classes"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -90,6 +94,9 @@ export const LABELS = {
   bossLootAuto: ["Boss loot drops on death", "When a creature with boss loot dies, its drops are drawn and put on its body. Off: drop it yourself from a macro."],
   bossAutoFromLoot: ["Creatures with boss loot get a boss frame", "No need to mark them with the crown: in combat they get a frame anyway. Turning the crown off on one hides it."],
   bossLootExtraDraw: ["Extra boss drop for parties over 4", "With more than four players, bosses that drop three or more items drop one more."],
+  weaponSets: ["Weapon sets", "Melee, Ranged and Utility sets in the character pane. Only the set in hand is equipped on the sheet, so only it counts for attacks and AC. Off: the single Main Hand, Off Hand and Ranged slots, all equipped at once."],
+  weaponSwapCost: ["Weapon swap cost", "What swapping sets costs during combat. A character in an active combat who swaps gets a short chat line saying so; nothing is enforced. Outside combat swapping is free and silent."],
+  relicClasses: ["Classes with a relic slot", "Characters of the ticked classes get a relic slot in the character pane, for a spellcasting focus or a relic (worn, no hand needed)."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
@@ -164,6 +171,12 @@ export function regexToScenes(re) {
 export const packsToList = s => String(s ?? "").split(/[,\s]+/).filter(Boolean);
 /** List → stored value. */
 export const listToPacks = ids => [...new Set(ids ?? [])].join(", ");
+
+// ---------------------------------------------------------------- relic classes: checklist ↔ stored list
+/** Stored class identifiers ("paladin, druid") → list, lower case. */
+export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().split(/[,\s]+/).filter(Boolean))];
+/** List → stored value. */
+export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
 export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"];

@@ -22,6 +22,16 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.18.0",
+    changes: [
+      { feature: "characterPane", text: "Weapon sets in the character pane: Melee, Ranged and Utility. Only the set in hand is equipped on the character sheet, so only its weapons count for attacks, AC and bonuses. The others stay visible, dimmed and marked Stowed." },
+      { feature: "characterPane", text: "Click a set's tab to swap. A two-handed weapon can't be used while a shield is on: the pane says why and offers a Stow shield button. Bucklers (shields with Buckler ticked, or with buckler in the name) leave the hand free." },
+      { feature: "characterPane", text: "During combat, a swap posts a short chat line with its cost (control panel › Character › Weapon swap cost; Part of an attack by default). Nothing is enforced; outside combat swaps are free and silent." },
+      { feature: "characterPane", text: "A relic slot for a spellcasting focus or a relic, for the classes you tick (Paladin, Druid and Cleric to start with)." },
+      { feature: "characterPane", text: "Existing characters keep their gear: what was in the main and off hand becomes the Melee set, the ranged slot the Ranged set, and Melee is in hand. Switch weapon sets off on the control panel's new Character tab to go back to the old slots." }
+    ]
+  },
+  {
     version: "1.17.0",
     changes: [
       "Update notes in chat: after an update, the GM gets one whispered card saying what changed since the version this world last ran, with a button for anything that needs doing. Buttons that are already done show as done.",
