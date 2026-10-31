@@ -2,7 +2,7 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
-## Unreleased
+## 1.24.0
 
 **Changes**
 - **Remove toolkit data** now also removes the *Rested* status icon Rent rooms adds (with Actors ticked), Hex Travel's trip counter on the tracker journal (with Journals ticked), and, in a new unticked-by-default category, toolkit flags on chat messages (loot, loot roll, quest, health and update cards; the cards stay, their buttons stop working). `api.cleanup.remove({ messages: true })`.

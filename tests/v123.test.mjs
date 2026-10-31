@@ -64,13 +64,14 @@ test("1.23 feature, settings rows, labels and notes", () => {
     assert.equal(condOn(row[1], id => id !== "flightMapBackground"), false, `${k} hidden when the background is off`);
     assert.equal(condOn(row[1], id => id !== "flightMap"), false, `${k} needs the route map`);
   }
-  assert.equal(NOTES[0].version, "1.23.0");
-  assert.deepEqual(NOTES[0].changes.map(c => c.feature), ["flightMapBackground"]);
+  const n123 = NOTES.find(n => n.version === "1.23.0");
+  assert.ok(n123);
+  assert.deepEqual(n123.changes.map(c => c.feature), ["flightMapBackground"]);
 });
 
 test("no publisher names in 1.23 strings", async () => {
   const { readFile } = await import("node:fs/promises");
   const src = await readFile(new URL("../scripts/flight-map.mjs", import.meta.url), "utf8");
-  const all = JSON.stringify([NOTES[0], FEATURES.find(x => x.id === "flightMapBackground"), FEATURE_CARDS, LABELS, Flight.MAP_FITS]) + src;
+  const all = JSON.stringify([NOTES.find(n => n.version === "1.23.0"), FEATURES.find(x => x.id === "flightMapBackground"), FEATURE_CARDS, LABELS, Flight.MAP_FITS]) + src;
   assert.doesNotMatch(all, /warcraft|blizzard|azeroth|\bwow\b/i);
 });

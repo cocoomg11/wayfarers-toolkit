@@ -22,6 +22,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.24.0",
+    changes: [
+      "Remove toolkit data now also clears the Rested status icon, Hex Travel's trip counter on the tracker journal, and (a new box, unticked by default) the toolkit's flags on chat messages. The cards stay; their buttons stop working.",
+      "Boss frames and boss loot do less work in the background when nothing relevant changed. Nothing looks different."
+    ]
+  },
+  {
     version: "1.23.0",
     changes: [
       { feature: "flightMapBackground", text: "Flight map background: put a picture of your own (a map of your continent or region, from your world's files) behind the flight route map. Pick it under control panel › Travel › Advanced (or Background… on the map), with fit, scale, offset and opacity, then drag the flight points onto it and Save layout. Players see the same picture. No picture picked: the map looks as before." }
