@@ -2,7 +2,7 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
-## Unreleased (1.23.0)
+## 1.23.0
 
 **New**
 - **Flight map background** (new feature *Flight map background*, on by default, needs the Flight route map and Flight Master). A picture from the world's files (for example a continent or region map; nothing is bundled) is drawn behind the route map's routes and points, for the GM and for players. World settings (control panel › Travel › Advanced, shown while the feature is on): `flightMapImage` (Foundry file picker, images; blank = no picture), `flightMapFit` (`contain` fit inside / `cover` fill, may crop / `stretch`), `flightMapOpacity` (0.1–1, default 1), `flightMapScale` (0.25–4, default 1, around the centre), `flightMapOffsetX` / `flightMapOffsetY` (−1 to 1, share of the map's width / height). The picture fills the same box the points' saved `pos` (0 to 1) span, so the GM drags points onto it and **Save layout** as before; players see the same positions. Changing a setting redraws an open map (unless the GM has unsaved drags). A GM-only **Background…** button on the map opens the Travel tab. Pure placement maths: `Flight.mapBackground` / `Flight.MAP_FITS`. Off, or no image: the map is unchanged.
