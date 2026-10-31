@@ -10,6 +10,7 @@ import { activeGM, onlineGMs } from "./gm.mjs";
 import { MACROS } from "./macros.mjs";
 import * as Updates from "./updates.mjs";
 import * as Flight from "./flight.mjs";
+import * as Ring from "./ring.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -175,6 +176,20 @@ function zones(api) {
   return out;
 }
 
+function tokenRing() {
+  if (!F.on("tokenRing")) return [off("Custom token ring is off.")];
+  const st = Ring.status();
+  if (!st.image) return [warn("Custom token ring: no ring image chosen yet (control panel › Tokens).")];
+  const out = [];
+  if (st.error) out.push(bad(`Custom token ring: the image ${esc(st.image)} couldn't be loaded (${esc(st.error)}).`));
+  else if (!st.registered) out.push(bad("Custom token ring: the ring isn't registered with Foundry yet. Reload Foundry."));
+  else out.push(st.active ? ok(`Custom token ring: ${esc(st.image)} on ${st.mode === "all" ? "every token" : "NPC tokens"}, token art at ${st.scale}×.`) : warn("Custom token ring is registered but not in use on this canvas. Reload Foundry."));
+  let p = null; try { p = Ring.plan(); } catch { }
+  if (p && p.count) out.push(warn(`Custom token ring: ${plural(p.actors.length, "actor prototype token")} and ${plural(p.tokens, "placed token")} don't have the ring yet. Apply ring to existing tokens (control panel › Tokens).`));
+  else if (p) out.push(ok("Custom token ring: every matching token has the ring."));
+  return out;
+}
+
 function gms() {
   const gm = activeGM(); const online = onlineGMs();
   const out = [gm ? ok(`Active GM: ${esc(gm.name)}${gm.isSelf ? " (you)" : ""}.`) : bad("No GM is connected.")];
@@ -189,7 +204,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Custom token ring", tokenRing], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

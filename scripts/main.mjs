@@ -19,6 +19,7 @@ import { MACROS, macroData } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
+import * as Ring from "./ring.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -185,7 +186,7 @@ function registerSettings() {
   Updates.registerSettings();
   game.settings.register(ID, "wizardDone", { scope: "world", config: false, type: Boolean, default: false });
   // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
-  Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings();
+  Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings(); Ring.registerSettings();
   Quests.registerSettings({ tracker: F.on("questLog") && F.on("questTracker") });
   game.settings.registerMenu(ID, "panel", { name: "Wayfarer's Toolkit", label: "Open the control panel", hint: "Everything in one window: what needs attention, which tools are on, and each tool's settings. Run setup, the health check and Remove toolkit data are in its Overview tab.", icon: "fas fa-toolbox", type: Panel.ControlPanel, restricted: true });
 }
@@ -662,6 +663,15 @@ export const WCT = {
   }
 };
 
+// api.ring: the custom token ring (undefined while the feature is off). applyAll({ npcOnly }) and remove() are active GM only.
+Object.defineProperty(WCT, "ring", {
+  enumerable: true,
+  get() {
+    if (!F.on("tokenRing")) return undefined;
+    return { applyAll: (opts = {}) => Ring.applyAll(opts), remove: () => Ring.remove(), plan: (opts = {}) => { const p = Ring.plan(opts); return { actors: p.actors.length, tokens: p.tokens }; }, status: () => Ring.status(), id: Ring.RING_ID };
+  }
+});
+
 // api.updateNotes.show(fromVersion?) posts the update notes card again.
 WCT.updateNotes = { show: from => Updates.show(from), build: from => Updates.build(from) };
 
@@ -686,6 +696,7 @@ Hooks.once("init", () => {
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
   if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
+  if (F.on("tokenRing")) Ring.init();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -706,6 +717,7 @@ Hooks.once("ready", () => {
   }
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
+  if (F.on("tokenRing")) Ring.ready();
   if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
   convertOldCoins();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the

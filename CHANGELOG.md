@@ -2,6 +2,21 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.18.0
+
+**New**
+- **Custom token ring** (a new tool, off by default). Pick your own ring image (*control panel › Tokens › Ring image*) and Foundry's dynamic token rings draw it: the module registers it as a ring style with Foundry's token ring system and each client builds the ring's texture from your single image when the world loads (one shared texture, no overlay drawn per token).
+- **Which tokens get the ring**: NPCs only (default) or every token. **New tokens get the ring** (on by default) turns the ring on as tokens are created; player characters' tokens are left alone in NPCs-only mode.
+- **Apply ring to existing tokens** (Tokens tab, also a fix-it on the Overview and a to-do on the update card when there are tokens to ring) turns the ring on for matching actors' prototype tokens and the tokens already placed on every scene, in batches, on the active GM's client. **Remove the toolkit's ring** puts back what each token had.
+- **Token art size inside the ring** sets Foundry's ring subject scale on the tokens the toolkit rings (0.85 by default; a scale you set yourself is kept). **Keep existing tokens ringed** (Advanced) re-checks on every load.
+- Only the ring switch and subject scale change: token images, subject images and actor portraits are never touched.
+- API: `api.ring.applyAll({ npcOnly })`, `api.ring.remove()`, `api.ring.plan()`, `api.ring.status()`.
+- Health check: a *Custom token ring* section (image chosen and loading, ring in use, matching tokens still without it).
+
+**Changes**
+- The control panel has a seventh tab, **Tokens**. The *Everything* preset of the welcome wizard leaves the token ring off (it needs an image first).
+- The release zip includes a new `assets` folder (the ring's spritesheet description).
+
 ## 1.17.0
 
 **New**

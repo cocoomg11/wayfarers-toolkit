@@ -61,7 +61,8 @@ test("presets → feature settings", () => {
   const classic = M.presetSettings("classic");
   assert.equal(classic["feature-hexTravel"], false); assert.equal(classic["feature-riderFeat"], false);
   for (const id of ["flightMaster", "sessionStart", "vendorTrash", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"]) assert.equal(classic[`feature-${id}`], true, id);
-  assert.ok(Object.values(M.presetSettings("everything")).every(Boolean));
+  const all = M.presetSettings("everything");
+  assert.ok(Object.entries(all).every(([k, v]) => v === (k !== "feature-tokenRing")), "everything on except the token ring, which needs an image first");
   assert.throws(() => M.presetSettings("nope"));
 });
 

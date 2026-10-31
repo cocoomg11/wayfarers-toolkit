@@ -47,7 +47,7 @@ jobs:
 
       - name: Build module.zip
         run: |
-          zip -r module.zip module.json scripts styles lang sounds packs README.md LICENSE
+          zip -r module.zip module.json scripts styles lang sounds assets packs README.md LICENSE
           for p in $(jq -r '.packs[].path' module.json); do
             unzip -l module.zip | grep -q " $p/" || { echo "module.zip is missing $p"; exit 1; }
           done

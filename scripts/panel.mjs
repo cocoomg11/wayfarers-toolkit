@@ -1,6 +1,6 @@
 /**
  * The control panel (one button in the module settings: "Wayfarer's Toolkit") and the welcome wizard.
- * Tabs: Overview (health in plain words, with fix-it buttons), Features (one switch per tool), Travel, Loot, Boss & Combat, Quests.
+ * Tabs: Overview (health in plain words, with fix-it buttons), Features (one switch per tool), Travel, Loot, Boss & Combat, Quests, Tokens.
  * Every setting keeps its key from earlier versions; the panel only shows them in a friendlier way. What goes where, the labels and
  * the value converters are in panel-model.mjs (tested in Node).
  */
@@ -111,9 +111,10 @@ function rawScenesRow(off) {
 function settingsTab(tab) {
   const advanced = [...(tab.advanced ?? []).map(rowHTML), tab.id === "travel" ? rawScenesRow(!isOn("sessionStart")) : ""].join("");
   const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>` : "";
+  const ringBtns = tab.id === "tokens" ? `<div class="wct-actions"><button type="button" data-act="ring-apply" ${F.on("tokenRing") ? "" : "disabled"}><i class="fa-solid fa-circle-notch"></i> Apply ring to existing tokens</button><button type="button" data-act="ring-remove" ${F.on("tokenRing") ? "" : "disabled"}><i class="fa-solid fa-eraser"></i> Remove the toolkit's ring</button><span class="hint">Apply turns the ring on for the prototype tokens of matching actors and every matching token on every scene. Remove puts back what each token had before. Token art and portraits aren't changed. Save your changes on this tab first.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
-    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${actions}
+    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${ringBtns}${actions}
     ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
     <p class="wct-reset"><button type="button" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
@@ -277,6 +278,8 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
       if (act === "flight-editor") return API.flightEditor();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
+      if (act === "ring-apply") return await ringApply(btn, () => this.loadOverview());
+      if (act === "ring-remove") return await ringRemove(btn, () => this.loadOverview());
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
   }
@@ -288,6 +291,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     if (fix.action === "reload") return foundry.utils.debouncedReload?.() ?? location.reload();
     if (fix.action === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); return this.loadOverview(); }
     if (fix.action === "flights") return API.flightEditor();
+    if (fix.action === "ringApply") return ringApply(btn, () => this.loadOverview());
     if (fix.action === "flightImport") { if (await FlightEditor.importFlow(API)) this.loadOverview(); return; }
     if (fix.action === "rules") {
       const j = game.journal.getName(API.JOURNAL); if (!j) return runSetup(() => this.loadOverview());
@@ -355,6 +359,25 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     ui.notifications.info(`Wayfarer's Toolkit: ${tab.label} reset (${n} setting${n === 1 ? "" : "s"} changed).`);
     await this.render();
   }
+}
+
+/** Asks, then rings the existing tokens (active GM). */
+async function ringApply(btn, after) {
+  const r = API.ring; if (!r) return;
+  const p = r.plan(); if (!p.actors && !p.tokens) return ui.notifications.info("Custom token ring: every matching token already has the ring.");
+  const ok = await confirm("Apply ring to existing tokens", `<p>Turn on the custom ring for <strong>${p.actors}</strong> actor prototype token${p.actors === 1 ? "" : "s"} and <strong>${p.tokens}</strong> placed token${p.tokens === 1 ? "" : "s"}?</p><p class="hint">Only the ring setting changes; token images and portraits stay as they are. <em>Remove the toolkit's ring</em> undoes it.</p>`);
+  if (!ok) return;
+  if (btn) btn.disabled = true;
+  try { await r.applyAll(); } finally { if (btn) btn.disabled = false; }
+  await after?.();
+}
+async function ringRemove(btn, after) {
+  const r = API.ring; if (!r) return;
+  const ok = await confirm("Remove the toolkit's ring", `<p>Put every token and prototype token the toolkit ringed back the way it was?</p><p class="hint">Tokens whose ring you turned on yourself aren't touched.</p>`);
+  if (!ok) return;
+  if (btn) btn.disabled = true;
+  try { await r.remove(); } finally { if (btn) btn.disabled = false; }
+  await after?.();
 }
 
 async function runSetup(after) {

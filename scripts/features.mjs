@@ -17,7 +17,8 @@ export const FEATURES = [
   { id: "questTracker", label: "Quest tracker", hint: "An on-screen list of tracked quests and their open objectives. Needs the quest log; each player can still hide it." },
   { id: "bossFrames", label: "Boss frames", hint: "Health frames at the top of every screen for tokens the GM marks as bosses (crown button in the token HUD) while they're in combat." },
   { id: "lootRolls", label: "Loot rolls", hint: "Need / Greed / Pass rolls for an item in an Item Piles pile: a dice button on the item's row starts one; the winner's character gets the item. Needs Item Piles." },
-  { id: "bossLoot", label: "Boss loot", hint: "Link a roll table of hand-picked drops to a creature (gem button in the token HUD). When it dies, the table is drawn and the items go on its body (an Item Piles pile, or a Give to Party card), with a Start loot roll button per item." }
+  { id: "bossLoot", label: "Boss loot", hint: "Link a roll table of hand-picked drops to a creature (gem button in the token HUD). When it dies, the table is drawn and the items go on its body (an Item Piles pile, or a Give to Party card), with a Start loot roll button per item." },
+  { id: "tokenRing", label: "Custom token ring", default: false, hint: "Your own ring image through Foundry's dynamic token rings, turned on for NPC tokens (or every token) as they're placed, and for existing ones with one button. Token art and portraits aren't changed." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 const byId = id => FEATURES.find(f => f.id === id);

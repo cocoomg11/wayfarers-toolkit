@@ -22,6 +22,21 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.18.0",
+    changes: [
+      "Custom token ring (a new tool, off until you switch it on in the Features tab): pick your own ring image and Foundry's dynamic token rings use it. NPC tokens (or every token) get the ring as they're placed; token art and portraits aren't changed.",
+      { feature: "tokenRing", text: "Apply ring to existing tokens (control panel › Tokens) rings the prototype tokens of matching actors and the tokens already on your scenes; Remove the toolkit's ring puts them back." }
+    ],
+    actions: [
+      {
+        id: "ringApply", feature: "tokenRing", label: "Apply ring to existing tokens", icon: "fa-solid fa-circle-notch",
+        hint: "Turns the custom ring on for matching actors' prototype tokens and the tokens already placed. Only the ring setting changes, not the art.",
+        check: ({ api }) => { const p = api.ring?.plan?.(); return !!(api.ring?.status?.().image && p && (p.actors || p.tokens)); },
+        run: ({ api }) => api.ring?.applyAll()
+      }
+    ]
+  },
+  {
     version: "1.17.0",
     changes: [
       "Update notes in chat: after an update, the GM gets one whispered card saying what changed since the version this world last ran, with a button for anything that needs doing. Buttons that are already done show as done.",
