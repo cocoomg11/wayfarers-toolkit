@@ -1,13 +1,14 @@
 /**
- * Health check and the Run setup reminder. The health check reads the world and reports; it never changes anything and never throws
+ * Health check. The health check reads the world and reports; it never changes anything and never throws
  * (each check is wrapped, and a check that fails shows as its own ✗ line). The GM sees it summed up in the control panel's Overview tab, or posts it from there (Full health report),
- * the Toolkit Health Check macro or api.health(). The setup reminder runs once per module version on the active GM's client.
+ * the Toolkit Health Check macro or api.health(). (The once-per-version setup reminder is now part of the update notes, updates.mjs.)
  */
 import * as F from "./features.mjs";
 import * as Trash from "./trash.mjs";
 import * as BossLoot from "./bossloot.mjs";
-import { activeGM, isActiveGM, onlineGMs } from "./gm.mjs";
-import { MACROS, MACRO_HINT } from "./macros.mjs";
+import { activeGM, onlineGMs } from "./gm.mjs";
+import { MACROS } from "./macros.mjs";
+import * as Updates from "./updates.mjs";
 import * as Flight from "./flight.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -181,9 +182,14 @@ function gms() {
   return out;
 }
 
+function updateNotes() {
+  const u = Updates.status();
+  return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
+}
+
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */
@@ -239,23 +245,7 @@ async function runSetup(after) {
   after?.();
 }
 
-/**
- * Ready, active GM only: once per module version, compares what Run setup would create with the world and, when something is
- * missing, whispers the GMs a card with a Run setup button. The version is stored in a world setting, so it doesn't repeat each load.
- */
-export async function remindSetup(api) {
-  if (!isActiveGM()) return;
-  const ver = api.version ?? ""; if (game.settings.get(ID, "setupReminded") === ver) return;
-  const missing = api.setupPlan().filter(p => !p.ok).map(p => p.label);
-  await game.settings.set(ID, "setupReminded", ver);
-  if (!missing.length) return;
-  await ChatMessage.create({
-    whisper: gmIds(), speaker: { alias: "Wayfarer's Toolkit" }, flags: { [ID]: { setupReminder: ver } },
-    content: `<p><strong>Wayfarer's Toolkit ${esc(ver)}:</strong> Run setup to add: ${missing.map(esc).join(", ")}.</p>${missing.some(l => l.startsWith("macro ")) ? `<p>${esc(MACRO_HINT)}</p>` : ""}<p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>`
-  });
-}
-
-/** Called from the module's init hook: the Run setup button on health and reminder cards. */
+/** Called from the module's init hook: the Run setup button on health cards (and on setup reminder cards posted before 1.17). */
 export function init(api) {
   API = api;
   Hooks.on("renderChatMessageHTML", (message, el) => {

@@ -47,7 +47,16 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 Enable the module in your world. The first time a GM loads it, the [welcome wizard](#control-panel) offers to pick the tools and run setup. Any time after, open the [control panel](#control-panel) and click **Run setup** on its Overview tab. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, and the macros in a *Wayfarer's Toolkit* macro folder) and never overwrites existing documents. It never puts macros on anyone's hotbar and never removes ones already there: drag the macros you want from the *Wayfarer's Toolkit* macro folder or the **Wayfarer's Toolkit Macros** compendium onto your hotbar.
 
-**Setup reminder.** After each module update, the first time the world loads the GM gets a whisper if Run setup would add anything for the features turned on ("Wayfarer's Toolkit 1.14.0: Run setup to add: …") with a **Run setup** button. It's sent once per version, not on every load.
+### Update notes
+
+After the module is updated, the first time the world loads the GMs get one whispered chat card (players never see it): **Wayfarer's Toolkit updated: 1.14.4 → 1.17.0**, a short plain list of what's new in the newest version, the versions in between collapsed underneath, and a **To do** list with a button for each thing that still needs doing, plus an **Open the control panel** link. It's posted once, by the active GM, and only when there's something to say: a small patch with no notes and nothing to do posts nothing. The buttons work after a reload, only for GMs, and show as done once done (also when you did it some other way).
+
+What can be on the to-do list:
+
+- **Run setup**, when setup hasn't made everything the tools turned on need. It never touches a hotbar.
+- **Import flight network from the old Flight Routes page** (Flight Master, coming from 1.15 or earlier), while the flight network is empty and the old page has flight points. It asks first and doesn't change the page.
+
+Things for a tool that's switched off aren't listed. New worlds get no card (the welcome wizard covers them). The world remembers the last version it ran in a hidden setting; worlds updated from before 1.17 are recognised from the old setup reminder's record. Switch the card off with **Show update notes after updating** on the control panel's Overview tab; **Show update notes** there (or `api.updateNotes.show()`, or `api.updateNotes.show("1.15.0")` for everything since 1.15.0) posts it again. This card replaces the setup reminder of earlier versions.
 
 ### Health check
 
@@ -60,6 +69,7 @@ Enable the module in your world. The first time a GM loads it, the [welcome wiza
 - how many actors and tokens are marked **No loot**;
 - problems on the Vendor Trash Rules page, scenes marked Dungeon, the flight network's size, flight points with no scene (⚠, information only: flying there still works) or a deleted scene, routes into locked points, routes naming a point that doesn't exist (✗), and an old Flight Routes journal page waiting to be imported;
 - encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
+- whether update notes are on, and the last version this world ran;
 - the active GM and how many GMs are online.
 
 ### Remove toolkit data
@@ -79,7 +89,7 @@ Type **REMOVE** and click **Remove** (or **Cancel** to close without changes). N
 
 ### Several GMs
 
-A world can have more than one GM logged in. Everything the toolkit does on its own (pre-rolling trash when a token is placed, making bodies lootable, drawing boss loot, settling loot rolls, carrying out players' flights, warnings about the rules page, coin conversion and the setup reminder) runs only on the **active GM**'s client: Foundry's active GM, or the connected GM with the lowest user id. Buttons and macros still run for whichever GM clicks them.
+A world can have more than one GM logged in. Everything the toolkit does on its own (pre-rolling trash when a token is placed, making bodies lootable, drawing boss loot, settling loot rolls, carrying out players' flights, warnings about the rules page, coin conversion and the update notes) runs only on the **active GM**'s client: Foundry's active GM, or the connected GM with the lowest user id. Buttons and macros still run for whichever GM clicks them.
 
 ## Macro compendium
 
@@ -104,7 +114,7 @@ The settings kept their keys from earlier versions, so anything you set before i
 
 ### Overview tab
 
-A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard** and **Remove toolkit data…**.
+A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard**, **Show update notes** and **Remove toolkit data…**, and the **Show update notes after updating** switch (saved as soon as you flip it; see [Update notes](#update-notes)).
 
 ### Features tab
 

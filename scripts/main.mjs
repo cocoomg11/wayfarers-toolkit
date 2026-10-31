@@ -14,6 +14,7 @@ import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
+import * as Updates from "./updates.mjs";
 import { MACROS, macroData } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
@@ -179,7 +180,9 @@ function registerSettings() {
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
   game.settings.register(ID, "flightNetwork", { scope: "world", config: false, type: Object, default: Flight.emptyNetwork(), onChange: () => FlightEditor.refresh() });
+  // The pre-1.17 setup reminder's version stamp: no longer written, only read to tell a world that ran an earlier version from a new one.
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
+  Updates.registerSettings();
   game.settings.register(ID, "wizardDone", { scope: "world", config: false, type: Boolean, default: false });
   // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
   Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings();
@@ -659,6 +662,9 @@ export const WCT = {
   }
 };
 
+// api.updateNotes.show(fromVersion?) posts the update notes card again.
+WCT.updateNotes = { show: from => Updates.show(from), build: from => Updates.build(from) };
+
 // api.flight() opens Flight Master; its helpers hang off the same function.
 Object.assign(WCT.flight, {
   network: () => WCT.flightNetwork(),
@@ -671,7 +677,7 @@ Object.assign(WCT.flight, {
 
 Hooks.once("init", () => {
   registerSettings(); applyCoinSystem();
-  Health.init(WCT); Panel.init(WCT);
+  Health.init(WCT); Panel.init(WCT); Updates.init(WCT);
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
@@ -702,9 +708,10 @@ Hooks.once("ready", () => {
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
   convertOldCoins();
-  // The welcome wizard (fresh worlds only) comes first; while it's open the setup reminder waits for the next load.
+  // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the
+  // update notes (an upgrade posts its card; a new world just stores the version).
   Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })
-    .then(shown => shown ? null : Health.remindSetup(WCT)).catch(e => console.warn(`${ID} | setup reminder`, e));
+    .then(() => Updates.onReady(WCT)).catch(e => console.warn(`${ID} | update notes`, e));
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 

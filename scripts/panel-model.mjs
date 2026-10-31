@@ -56,6 +56,7 @@ export const TABS = [
 
 /** Plain-language label and hint per setting (what it does at the table). */
 export const LABELS = {
+  updateNotes: ["Show update notes after updating", "After the module is updated, you get one whispered chat card saying what changed and what needs doing, with a button for each. Saved as soon as you switch it."],
   zones: ["Encounter zones", "Each zone the party can travel through, and the roll table its random encounters come from. Hex Travel offers these zones."],
   playerFlights: ["Players can book flights", "Players get a Flight Master button and can fly the party themselves. A GM has to be logged in; the fare comes out of the party purse."],
   fareUnit: ["Fares without a coin are in", "In the flight network editor, a fare typed as a plain number (like 2) is read in this coin. Fares like 1g 20s always work."],
@@ -181,15 +182,15 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
- * toolkit already loaded in this world (`remindedVersion`, the setupReminded setting, differs from `version`).
+ * toolkit already loaded in this world (`remindedVersion`: the pre-1.17 setupReminded setting or lastSeenVersion, differs from `version`).
  */
 export function worldConfigured({ settings = [], setupFound = false, remindedVersion = "", version = "" } = {}) {
   if (setupFound) return true;
-  // The setup reminder stores the version it last ran for: one from an earlier version means the toolkit ran here before.
+  // A stored version (setupReminded before 1.17, lastSeenVersion after) from an earlier version means the toolkit ran here before.
   if (remindedVersion && remindedVersion !== version) return true;
   return settings.some(s => s.scope === "world" && !WIZARD_IGNORE.has(s.key) && JSON.stringify(s.value ?? null) !== JSON.stringify(s.default ?? null));
 }

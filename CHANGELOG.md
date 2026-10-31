@@ -2,6 +2,18 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.17.0
+
+**New**
+- **Update notes in chat.** After an update, the first load whispers the GMs one card: what changed since the version this world last ran (the newest version open, the ones in between collapsed) and a **To do** list with a button for each thing that still needs doing, plus an *Open the control panel* link. Posted once, by the active GM, only when there's something to say (a patch with no notes and nothing to do posts nothing). Players never see it.
+- To-do buttons: **Run setup** (when setup hasn't made everything the tools turned on need; never touches a hotbar) and, for worlds coming from 1.15 or earlier, **Import flight network from the old Flight Routes page** (while the network is empty and Flight Master is on). Each is left out when already done or when its tool is off; buttons work after a reload, GM only, and show as done once done.
+- Setting **Show update notes after updating** (on by default) on the control panel's Overview tab, saved as soon as you switch it, and a **Show update notes** button there. API: `api.updateNotes.show(fromVersion?)`.
+- Health check: an *Update notes* line (on or off, and the last version seen in this world).
+
+**Changes**
+- The card replaces the once-per-version **setup reminder**: its Run setup prompt is now a to-do on the card, so you're never asked twice. Setup reminder cards already in chat keep working.
+- The last version a world ran is stored in a hidden world setting. New worlds store it without a card (the welcome wizard covers them). Worlds updated from an earlier version are recognised from the old setup reminder's record (so 1.14.4 → 1.17.0 shows 1.15.0, 1.16.0 and 1.17.0), or treated as coming from an unknown earlier version.
+
 ## 1.16.0
 
 **New**

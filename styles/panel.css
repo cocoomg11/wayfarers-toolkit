@@ -161,3 +161,14 @@
 .wct-grid tr.warn select { outline: 1px dashed var(--wct-warn); outline-offset: -1px; }
 .wct-fe button[data-do=add-point], .wct-fe button[data-do=add-route], .wct-fe .wct-banner button { width: auto; }
 .wct-fe .wct-banner { margin-bottom: 8px; }
+
+/* Update notes chat card */
+.wct-update h3 { margin: 0 0 4px; }
+.wct-update h4 { margin: 8px 0 2px; border-bottom: 1px solid currentColor; }
+.wct-update ul { margin: 2px 0; padding-left: 1.2em; }
+.wct-update details summary { cursor: pointer; margin-top: 4px; font-weight: bold; }
+.wct-update .wct-update-actions { list-style: none; padding: 0; }
+.wct-update .wct-update-actions li { margin: 4px 0; }
+.wct-update .wct-update-actions .hint { margin: 2px 0 0; font-size: 11px; opacity: 0.8; }
+.wct-update button.done { opacity: 0.7; }
+.wct-update a[data-wct-update] { cursor: pointer; }

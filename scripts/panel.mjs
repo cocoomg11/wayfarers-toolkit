@@ -141,8 +141,11 @@ function overviewTab() {
       <button type="button" data-act="health"><i class="fa-solid fa-stethoscope"></i> Full health report (to chat)</button>
       <button type="button" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
       <button type="button" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
+      <button type="button" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
       <button type="button" data-act="cleanup" class="wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
+    <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
+      <div class="wct-row-control">${switchHTML("updateNotes", get("updateNotes") !== false, false, 'data-instant')}</div></div></div>
     <p class="hint"><strong>Run setup</strong> creates what the tools need (tracker journal, party actor, macros in a <em>Wayfarer's Toolkit</em> macro folder) and never overwrites anything. Drag macros to your hotbar from that folder or the <em>Wayfarer's Toolkit Macros</em> compendium.</p>`;
 }
 
@@ -192,10 +195,15 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     root.addEventListener("click", ev => { const b = ev.target.closest("[data-act]"); if (b) { ev.preventDefault(); this.act(b.dataset.act, b); } });
     // Live bits: range values, dirty markers, the zones editor and the features page.
     root.querySelectorAll(".wct-range input").forEach(r => r.addEventListener("input", () => { r.nextElementSibling.value = r.value; }));
-    root.querySelectorAll(".wct-tab:not([data-tab=features]) .wct-row").forEach(row => {
+    root.querySelectorAll(".wct-tab:not([data-tab=features]) .wct-row:not(.wct-instant)").forEach(row => {
       const mark = () => { row.dataset.dirty = "1"; this.markDirty(); };
       row.addEventListener("input", mark); row.addEventListener("change", mark);
     });
+    // Overview switches save at once (that tab has no Save button).
+    root.querySelectorAll("input[data-instant]").forEach(i => i.addEventListener("change", async () => {
+      try { await game.settings.set(ID, i.name, i.checked); ui.notifications.info(`Wayfarer's Toolkit: ${M.LABELS[i.name]?.[0] ?? i.name}: ${i.checked ? "on" : "off"}.`); }
+      catch (e) { i.checked = !i.checked; ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
+    }));
     this.wireZones(root);
     root.querySelectorAll(".wct-card input").forEach(i => i.addEventListener("change", () => { i.closest(".wct-card").classList.toggle("on", i.checked); this.featureDeps(); }));
     this.featureDeps();
@@ -265,6 +273,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "health") return API.health();
       if (act === "recheck") return this.loadOverview();
       if (act === "wizard") return new WelcomeWizard().render({ force: true });
+      if (act === "update-notes") return API.updateNotes.show();
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
       if (act === "flight-editor") return API.flightEditor();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
@@ -290,7 +299,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
   /** Values to write from the setting tabs: [[key, value]] (only rows that changed; turned-off rows are skipped). */
   collect() {
     const root = this.element; const out = []; const changed = (k, v) => { if (JSON.stringify(v) !== JSON.stringify(get(k))) out.push([k, v]); };
-    for (const row of root.querySelectorAll(".wct-tab .wct-row:not(.wct-off)")) {
+    for (const row of root.querySelectorAll(".wct-tab .wct-row:not(.wct-off):not(.wct-instant)")) {
       const key = row.dataset.key; const kind = row.dataset.kind; const c = cfgOf(key); const dirty = !!row.dataset.dirty;
       if (key === "hiddenScenes__raw") continue;
       if (!c) continue;
@@ -427,7 +436,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
 
 /**
  * Ready, active GM only: shows the welcome wizard once on a fresh world. A world that already uses the toolkit (a setting changed,
- * anything setup makes, or an earlier version loaded here) is marked done without showing it. Call before the setup reminder runs.
+ * anything setup makes, or an earlier version loaded here) is marked done without showing it. Call before the update notes run.
  */
 export async function maybeWelcome(api) {
   if (!isActiveGM() || get("wizardDone")) return false;
@@ -435,7 +444,7 @@ export async function maybeWelcome(api) {
   for (const [, c] of game.settings.settings) if (c.namespace === ID && c.scope === "world") settings.push({ key: c.key, scope: c.scope, value: get(c.key), default: c.default });
   let setupFound = false;
   try { setupFound = api.setupPlan().some(p => p.ok) || !!game.folders.find(f => f.name === "Wayfarer's Toolkit") || !!game.journal.getName(api.JOURNAL) || !!api.partyActor(); } catch { }
-  if (M.worldConfigured({ settings, setupFound, remindedVersion: get("setupReminded") ?? "", version: api.version ?? "" })) { await game.settings.set(ID, "wizardDone", true); return false; }
+  if (M.worldConfigured({ settings, setupFound, remindedVersion: get("setupReminded") || get("lastSeenVersion") || "", version: api.version ?? "" })) { await game.settings.set(ID, "wizardDone", true); return false; }
   new WelcomeWizard().render({ force: true });
   return true;
 }
