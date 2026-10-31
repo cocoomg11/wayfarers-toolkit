@@ -35,6 +35,9 @@ body.theme-light .application.wct-pane:not(.theme-dark),
   min-height: 0;
   background: var(--wct-wood);
 }
+/* Opaque window: no frosted-glass backdrop blur (it re-blurs the game canvas behind the window every frame). */
+.application.wct-pane { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.application.wct-pane .window-content { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 .wct-pane .wct-frame {
   position: relative;
