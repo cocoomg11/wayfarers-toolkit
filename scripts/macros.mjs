@@ -12,7 +12,8 @@ export const MACRO_FOLDERS = [
   { id: "wctFolderSession", name: "Sessions and Quests", sort: 200000 },
   { id: "wctFolderVTrash0", name: "Vendor Trash", sort: 300000 },
   { id: "wctFolderBossLt0", name: "Boss Loot", sort: 400000 },
-  { id: "wctFolderToolkt0", name: "Toolkit", sort: 500000 }
+  { id: "wctFolderToolkt0", name: "Toolkit", sort: 500000 },
+  { id: "wctFolderLootRl0", name: "Loot Rolls", sort: 450000 }
 ];
 
 /**
@@ -28,6 +29,7 @@ export const MACROS = [
   { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctQuestLog00000", name: "Quest Log", fn: "questLog", img: "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp", feature: "questLog", shared: true, folder: "wctFolderSession" },
   { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", feature: "bossLoot", folder: "wctFolderBossLt0" },
+  { id: "wctLootHistory00", name: "Loot History", fn: "lootHistory", img: "icons/sundries/books/book-worn-brown.webp", feature: "lootRolls", folder: "wctFolderLootRl0" },
   { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", folder: "wctFolderToolkt0" }
 ];
 

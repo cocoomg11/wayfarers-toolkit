@@ -2,7 +2,7 @@
   "id": "wayfarers-toolkit",
   "title": "Wayfarer's Toolkit",
   "description": "GM tools for dnd5e: overland hex travel with off-road encounter rolls, flight routes with fares paid from a party purse (players can book flights too, with an optional departure sound), a session-start helper, MMO-style grey vendor-trash loot pre-rolled on every NPC and lootable when it dies, matched to the creature and scaled by CR (lootable bodies with Item Piles, richer drops in dungeon scenes), a riding feat, a classic-MMO-style character pane for equipping gear, a narrative quest log with an on-screen tracker, classic-MMO-style boss health frames, Need / Greed / Pass loot rolls for items in Item Piles piles, boss loot drawn from a roll table you link to a creature, and an optional three-coin economy (copper, silver, gold at 100 to 1). Your campaign content stays in your world; the module supplies the logic. Every tool can be turned on or off per world.",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "authors": [
     {
       "name": "cocoomg11"
@@ -79,7 +79,7 @@
   ],
   "url": "https://github.com/cocoomg11/wayfarers-toolkit",
   "manifest": "https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.json",
-  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v1.18.0/module.zip",
+  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v1.19.0/module.zip",
   "bugs": "https://github.com/cocoomg11/wayfarers-toolkit/issues",
   "license": "LICENSE",
   "readme": "README.md"

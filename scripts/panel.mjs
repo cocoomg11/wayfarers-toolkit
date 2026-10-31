@@ -129,9 +129,10 @@ function rawScenesRow(off) {
 function settingsTab(tab) {
   const advanced = [...(tab.advanced ?? []).map(rowHTML), tab.id === "travel" ? rawScenesRow(!isOn("sessionStart")) : ""].join("");
   const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>` : "";
+  const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
-    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${actions}
+    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${actions}
     ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
     <p class="wct-reset"><button type="button" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
@@ -294,6 +295,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "update-notes") return API.updateNotes.show();
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
       if (act === "flight-editor") return API.flightEditor();
+      if (act === "loot-history") return API.lootHistory();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }

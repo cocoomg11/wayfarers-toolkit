@@ -251,3 +251,17 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 }
 .wct-pane .wct-set-notes button:hover { filter: brightness(1.25); }
 .chat-message .wct-swap { margin: 0; font-style: italic; }
+
+/* Item comparison (inside the item tooltip): the hovered item's value, then what's there now. Green better, red worse, plain different. */
+.wct-tip .wct-compare { margin-top: 6px; padding-top: 5px; border-top: 1px solid #3a3a4a; font-size: 0.92em; }
+.wct-tip .wct-compare p { margin: 0 0 3px; }
+.wct-tip .wct-compare .head { color: #c8c2b0; }
+.wct-tip .wct-compare .head small, .wct-tip .wct-compare .same { color: #8a8678; }
+.wct-tip .wct-compare table { width: 100%; border-collapse: collapse; margin: 0; background: none; border: none; }
+.wct-tip .wct-compare th, .wct-tip .wct-compare td { padding: 1px 4px 1px 0; border: none; background: none; text-align: left; font-weight: normal; vertical-align: top; }
+.wct-tip .wct-compare th { color: #c8c2b0; white-space: nowrap; }
+.wct-tip .wct-compare td.was { color: #8a8678; }
+.wct-tip .wct-compare tr.better td:not(.was) { color: #3fdc4a; }
+.wct-tip .wct-compare tr.worse td:not(.was) { color: #ff5a4a; }
+.wct-tip .wct-compare tr.diff td:not(.was) { color: #fff; }
+.wct-tip .wct-compare .note { color: #f0c060; }

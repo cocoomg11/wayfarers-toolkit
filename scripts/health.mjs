@@ -10,6 +10,8 @@ import { activeGM, onlineGMs } from "./gm.mjs";
 import { MACROS } from "./macros.mjs";
 import * as Updates from "./updates.mjs";
 import * as Flight from "./flight.mjs";
+import * as History from "./history.mjs";
+import { phasesOf } from "./bosses.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -193,8 +195,30 @@ function characterPane() {
   return [
     ok(`Weapon sets: on; a swap in combat costs ${esc(cost)} (shown in chat, not enforced).`),
     classes.length ? ok(`Relic slot for: ${listNames(classes)}.`) : off("Relic slot: no classes ticked (control panel › Character)."),
-    off(`${plural(set, "character")} of ${pcs.length} ${set === 1 ? "has" : "have"} weapon sets stored (the rest get them the first time their pane opens).`)
+    off(`${plural(set, "character")} of ${pcs.length} ${set === 1 ? "has" : "have"} weapon sets stored (the rest get them the first time their pane opens).`),
+    get("itemCompare") ? ok("Item comparison tooltips: on.") : off("Item comparison tooltips: off (control panel › Character).")
   ];
+}
+
+/** Loot roll history, Sell all junk and boss phase marks. */
+function lootExtras() {
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  const out = [];
+  if (F.on("lootRolls")) {
+    const n = History.entries().length;
+    out.push(get("lootHistory") ? ok(`Loot roll history: on, ${plural(n, "roll")} recorded (control panel › Loot › Loot history…).`) : off(`Loot roll history: off${n ? ` (${plural(n, "older roll")} still stored)` : ""}.`));
+  } else out.push(off("Loot roll history: Loot rolls is off."));
+  if (F.on("vendorTrash")) {
+    if (!get("junkSellButton")) out.push(off("Sell all junk button: off (control panel › Loot)."));
+    else if (!modActive("item-piles")) out.push(warn("Sell all junk button: on, but Item Piles isn't active, so there are no merchant windows to put it on."));
+    else out.push(ok("Sell all junk button: on (Item Piles merchant windows; a GM must be connected for the sale)."));
+  }
+  if (F.on("bossFrames")) {
+    const marked = [];
+    for (const t of allTokens()) { try { if (phasesOf(t).length) marked.push(t.name); } catch { } }
+    out.push(off(`Boss phase marks: ${marked.length ? `${plural(marked.length, "token")} (${listNames([...new Set(marked)])})` : "none set (right-click a boss's crown button or frame)"}; players ${get("bossPhasePlayers") ? "see them" : "don't see them"}.`));
+  }
+  return out;
 }
 
 function updateNotes() {
@@ -204,7 +228,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

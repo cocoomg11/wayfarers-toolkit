@@ -8,6 +8,8 @@
 import { qualityColor } from "./pane.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
 import { log } from "./log.mjs";
+import * as History from "./history.mjs";
+import { makeEntry } from "./history-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const SOCKET = `module.${ID}`;
@@ -64,6 +66,11 @@ function cardHTML(st) {
 }
 
 // ---------------------------------------------------------------- GM side
+/** Records a finished roll in the loot history (when it's kept). Plain text only. */
+const plain = s => String(s ?? "").replace(/<[^>]*>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+function remember(st, outcome, who = null, note = "") {
+  try { History.record(makeEntry(st, { outcome, who, note: plain(note) })); } catch (e) { console.warn(`${ID} | loot history`, e); }
+}
 const queues = new Map();
 /** Runs GM changes to one roll one at a time, so choices arriving together don't overwrite each other. */
 function queue(messageId, fn) {
@@ -95,6 +102,8 @@ export async function start(itemRef, { seconds = null } = {}) {
     itemUuid: item.uuid, itemId: item.id, pileUuid: pile.uuid, pileName: pile.token?.name ?? pile.name,
     name: item.name, img: item.img, color: qualityColor(item), quantity: Number(foundry.utils.getProperty(item, itemPiles().ITEM_QUANTITY_ATTRIBUTE)) || 1,
     eligible: players.map(u => u.id), names: Object.fromEntries(players.map(u => [u.id, `${u.name} (${characterOf(u).name})`])),
+    people: Object.fromEntries(players.map(u => [u.id, { user: u.name, actor: characterOf(u).name }])),
+    sceneName: pile.token?.parent?.name ?? canvas?.scene?.name ?? "", rarity: item.system?.rarity ?? "",
     choices: {}, status: "open", ends: Date.now() + secs * 1000, winner: null, result: ""
   };
   // The countdown runs on the active GM's client, which picks the card up when it renders (see onRender).
@@ -152,7 +161,7 @@ async function resolve(messageId) {
   if (!tier) {
     st.result = entries.length ? "Everyone passed. The item stays where it is." : "Nobody rolled. The item stays where it is.";
     log("Loot roll:", st.name, st.result);
-    await save(message, st); return;
+    await save(message, st); remember(st, entries.length ? "passed" : "expired"); return;
   }
   // Ties at the top of each tier are rerolled now, so the ranking below is strict where it matters.
   const last = uid => { const c = st.choices[uid]; return c.rerolls?.length ? c.rerolls.at(-1) : c.roll; };
@@ -169,7 +178,7 @@ async function resolve(messageId) {
   if (!item || item.parent?.uuid !== st.pileUuid) {
     const w = ranked[0]; st.winner = w.uid;
     st.result = `${esc(st.names?.[w.uid] ?? game.users.get(w.uid)?.name)} won (${CHOICES[w.tier].label} ${w.roll}), but ${esc(st.name)} is no longer in the pile.`;
-    await save(message, st); return;
+    await save(message, st); remember(st, "unclaimed", { uid: w.uid, tier: w.tier, roll: w.roll }, "No longer in the pile."); return;
   }
   const notes = [];
   for (const r of ranked) {
@@ -182,12 +191,14 @@ async function resolve(messageId) {
     st.result = `<strong>${esc(actor.name)}</strong> wins ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} (${label}).${notes.length ? `<br><span class="hint">Passed on: ${notes.join("; ")}.</span>` : ""}`;
     log("Loot roll:", st.name, "→", actor.name, label, notes);
     await save(message, st);
+    remember(st, "won", { uid: r.uid, actor: actor.name, tier: r.tier, roll: r.roll }, notes.length ? `Passed on: ${notes.join("; ")}.` : "");
     await announce(actor, st); await tellWinner(actor, st, user);
     return;
   }
   st.result = `Nobody who rolled could receive ${esc(st.name)} (${notes.join("; ")}). It stays in the pile.`;
   log("Loot roll:", st.name, "no valid winner", notes);
   await save(message, st);
+  remember(st, "unclaimed", null, `Nobody who rolled could receive it (${notes.join("; ")}).`);
 }
 
 /** GM: ends an open roll and gives the item to `actorId` (a player character or the party actor). */
@@ -198,12 +209,13 @@ async function assign(messageId, actorId) {
   const actor = game.actors.get(actorId); if (!actor) return ui.notifications.warn("Loot roll: pick who gets it.");
   const item = await fromUuid(st.itemUuid);
   st.status = "done";
-  if (!item || item.parent?.uuid !== st.pileUuid) { st.result = `${esc(st.name)} is no longer in the pile.`; await save(message, st); return; }
+  if (!item || item.parent?.uuid !== st.pileUuid) { st.result = `${esc(st.name)} is no longer in the pile.`; await save(message, st); remember(st, "unclaimed", null, "No longer in the pile."); return; }
   try { await moveTo(item, actor); }
   catch (e) { st.status = "open"; await save(message, st); schedule(message); throw new Error(`couldn't give ${st.name} to ${actor.name} (${e.message})`); }
   st.result = `The GM gave ${esc(st.name)}${st.quantity > 1 ? ` ×${st.quantity}` : ""} to <strong>${esc(actor.name)}</strong>.`;
   log("Loot roll:", st.name, "assigned to", actor.name);
-  await save(message, st); await announce(actor, st);
+  await save(message, st); remember(st, "assigned", { actor: actor.name }, "Given by the GM.");
+  await announce(actor, st);
   await tellWinner(actor, st);
 }
 
@@ -286,6 +298,7 @@ export function registerSettings() {
     name: "Loot rolls: time to choose (seconds)", hint: "How long players have to pick Need, Greed or Pass. The GM can close a roll early from its chat card.",
     scope: "world", config: false, type: Number, default: 60, range: { min: 10, max: 300, step: 5 }
   });
+  History.registerSettings();
 }
 
 /** Called from the module's init hook when the feature is on: the chat and Item Piles hooks. */
@@ -315,5 +328,13 @@ export const api = {
   close: id => (game.user.isGM && isGMClient() ? queue(id, () => resolve(id)) : null),
   /** GM: ends an open roll and gives the item to an actor (player character or party actor). */
   assign: (id, actor) => (game.user.isGM && isGMClient() ? queue(id, () => assign(id, actor?.id ?? actor)) : null),
-  rankChoices
+  rankChoices,
+  /** GM: opens the Loot history window. */
+  history: () => History.open(),
+  /** The recorded rolls, newest first (plain objects). */
+  historyEntries: () => History.entries(),
+  /** GM: downloads the history as CSV. */
+  exportHistory: () => History.exportCSV(),
+  /** GM: empties the history; asks first unless { confirm: false }. */
+  clearHistory: (opts = {}) => History.clear(opts)
 };

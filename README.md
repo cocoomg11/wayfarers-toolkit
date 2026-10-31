@@ -13,12 +13,12 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are set up in a flight network editor inside the module; a point opens a scene only if you give it one. The GM can also fly the party for free. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
-| **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in. |
+| **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in, and **Sell all junk** sells a character's grey items to an Item Piles merchant. |
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
-| **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Melee, Ranged and Utility weapon sets with a one-click swap (only the set in hand is equipped), and a relic slot for chosen classes. Players can use it for their own characters. |
+| **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Melee, Ranged and Utility weapon sets with a one-click swap (only the set in hand is equipped), a relic slot for chosen classes, and comparison tooltips against what you have on. Players can use it for their own characters. |
 | **Quest log** | Narrative quests ("Deal with the bandit camp", not "collect 15 bandanas") with objectives the GM ticks off, grouped by zone in an MMO-style log (key **L**). Each quest is a journal entry. Chat cards when a quest is given or completed, a Pay rewards button, and an on-screen tracker. |
-| **Boss frames** | Mark a token as a boss (crown button in the token HUD). While it's in a running combat, everyone sees a classic-MMO-style frame for it at the top of the screen: portrait, name and health bar. Several bosses stack; defeated ones turn grey. |
-| **Loot rolls** | Need / Greed / Pass for an item lying in an Item Piles pile or body. Players roll from a chat card with a countdown; the GM's client makes every roll and moves the item to the winner's character. |
+| **Boss frames** | Mark a token as a boss (crown button in the token HUD). While it's in a running combat, everyone sees a classic-MMO-style frame for it at the top of the screen: portrait, name and health bar. Several bosses stack; defeated ones turn grey. Optional phase marks on the health bar, with a whisper to the GM as each is crossed. |
+| **Loot rolls** | Need / Greed / Pass for an item lying in an Item Piles pile or body. Players roll from a chat card with a countdown; the GM's client makes every roll and moves the item to the winner's character. A GM-only loot history keeps every result, with a per-player tally and CSV export. |
 | **Boss loot** | Link a roll table of hand-picked drops to a creature. When it dies, the table is drawn (weighted, no repeats) and the items go on its body next to any vendor trash, with a **Start loot roll** button per item on the GM's card. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
@@ -93,7 +93,7 @@ A world can have more than one GM logged in. Everything the toolkit does on its 
 
 ## Macro compendium
 
-The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel and Flight Master (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), and Toolkit Health Check (*Toolkit*). Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
+The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel and Flight Master (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Toolkit Health Check (*Toolkit*). Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
 Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
@@ -135,21 +135,21 @@ If an earlier version's **Scenes hidden from Session Start** held a hand-written
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Roll loot when creatures are placed**, **Bodies can be looted when they die**, **Items you give a creature count as loot**, **Party size** (1–8, see [Boss loot](#boss-loot)), **Seconds to choose Need / Greed / Pass** |
-| **Advanced** | Unconscious creatures can be looted, loot stays on the body (Item Piles), the three dungeon settings, **Where junk loot comes from** (tick item compendiums by name), keep Item Piles' coins in step (three-coin economy), [debug logging](#debug-logging) |
+| **Basics** | **Roll loot when creatures are placed**, **Bodies can be looted when they die**, **Items you give a creature count as loot**, **Party size** (1–8, see [Boss loot](#boss-loot)), **Seconds to choose Need / Greed / Pass**; and a **Loot history…** button (see [Loot history](#loot-history)) |
+| **Advanced** | **Keep a loot roll history** (on), **Sell all junk button** (on; see [Sell all junk](#sell-all-junk-at-a-merchant)), unconscious creatures can be looted, loot stays on the body (Item Piles), the three dungeon settings, **Where junk loot comes from** (tick item compendiums by name), keep Item Piles' coins in step (three-coin economy), [debug logging](#debug-logging) |
 
 ### Boss & Combat tab
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Boss health players see** (bar only, bar and percentage, exact HP), **Boss loot drops on death**, **Creatures with boss loot get a boss frame**; and a **Link boss tables by name** button |
+| **Basics** | **Boss health players see** (bar only, bar and percentage, exact HP), **Show phase marks to players** (off; see [Phase marks](#phase-marks)), **Boss loot drops on death**, **Creatures with boss loot get a boss frame**; and a **Link boss tables by name** button |
 | **Advanced** | Extra boss drop for parties over 4 |
 
 ### Character tab
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Weapon sets** (on by default), **Weapon swap cost** (Free, Part of an attack, Object interaction, Bonus action, Action; default Part of an attack), **Classes with a relic slot** (a checklist of the classes in your world; Paladin, Druid and Cleric to start with) |
+| **Basics** | **Weapon sets** (on by default), **Weapon swap cost** (Free, Part of an attack, Object interaction, Bonus action, Action; default Part of an attack), **Classes with a relic slot** (a checklist of the classes in your world; Paladin, Druid and Cleric to start with), **Item comparison tooltips** (on; see [Item comparison](#item-comparison)) |
 
 Greyed out while the character pane is switched off. See [Weapon sets](#weapon-sets).
 
@@ -232,6 +232,14 @@ Every item is priced at its vendor value and marked as vendor trash. Each token 
 All of these are on the control panel's **Loot** tab (greyed out while Vendor Trash is switched off). The rolling and looting happen on the active GM's client, so a GM has to be logged in.
 
 **Several deaths at once.** When several bodies become lootable within about a second and a half of each other (an area spell), the GM gets **one** summary card instead of one per creature: a Vendor Trash section and a Boss loot section, a line per creature and the totals. The Give to Party and per-item **Start loot roll** buttons are on it as usual.
+
+### Sell all junk at a merchant
+
+With Item Piles, a merchant window opened for a character (a player's own, or the GM's) gets a **Sell all junk** button in its title bar. It lists every grey item the character carries (anything Vendor Trash dropped, items whose MMO-style tooltip is grey, and items of *poor* rarity) with the price the merchant pays and the total, and sells them all when you confirm. The sale goes through Item Piles' own trade, so the merchant's buy and sell price modifiers, its coin and the [three-coin economy](#three-coin-economy-copper-silver-gold) all apply, and the coin lands on the character.
+
+Never sold: equipped items, items marked as favourites on the dnd5e sheet, items in any of the character's [weapon sets](#weapon-sets), containers, and anything the merchant would pay nothing for. The confirm says which junk was kept back and why. If the merchant won't buy one of the items, the rest are still sold, one by one, and you're told which wasn't. Merchants set to *purchase only* get no button. A GM has to be connected (Item Piles carries out trades on a GM's client).
+
+Switch it off with **Sell all junk button** (control panel › Loot › Advanced). From a macro: `api.sellJunk(character, merchantActorOrToken)`.
 
 ### With Item Piles: loot the bodies
 
@@ -429,6 +437,17 @@ You can't hold a sword, a shield and a longbow all at once, so the weapon slots 
 
 **Scripting.** `api.pane.activateSet(actor, "melee" | "ranged" | "utility")`, `api.pane.assignWeapon(actor, item, set, "main" | "off")`, `api.pane.unassignWeapon(item)`, `api.pane.stowShield(actor, shieldId)` and `api.pane.weaponState(actor)`.
 
+### Item comparison
+
+Hover an item in the pane's *Equippable items* list and its tooltip ends with a comparison against what you'd be swapping out: the item in the slot it would go in, or, for a weapon, shield or held item with weapon sets on, the matching hand of the matching set (a bow against the Ranged set's ranged weapon, a sword against the Melee set's main hand, a shield against the off hand, a torch against the Utility set's off hand). Each line shows the hovered item's value and, greyed, the current one's:
+
+- **Armor Class** (armour and shields, magic bonus included), **Damage** (dice and damage type, with the average roll), **Attack bonus**, **Magic bonus**
+- **Properties** gained (+) and lost (−), **Attunement** (needing it counts as worse, since it takes one of your three slots), **Value** and **Weight** (lighter is better)
+
+Green is better, red is worse, white is just different. Lines where both are the same are left out. An empty slot says so. A note follows the [hands rules](#weapon-sets): *Needs both hands: Kite Shield would have to be stowed*, *… Dagger would come out of the off hand*, or *Needs a free hand to load* for a crossbow with a shield (a buckler is fine).
+
+The same comparison shows when you hover an item in an Item Piles loot pile, body or merchant window, against your own character (your assigned character, else the selected token's). Items already in a slot or set aren't compared. Switch it off with **Item comparison tooltips** (control panel › Character).
+
 ### Items with MMO-style tooltips
 
 Items whose description holds an MMO-style item tooltip, like those in the optional `wow-classic-items` compendium, are placed by the tooltip's slot line: Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist, Hands, Waist, Legs, Feet, Finger, Trinket, Main Hand, One-Hand (either hand), Two-Hand, Off Hand / Held In Off-hand, and Ranged / Thrown / Relic in the Ranged slot. Their border uses the tooltip's quality colour, and hovering shows that tooltip. When a description has no slot line, the compendium folder the item came from decides (Head, Two-Hand, Finger, Wands…). Nothing from that module is bundled; icons come from the items.
@@ -509,6 +528,14 @@ Each user can arrange the frames on their own screen. Drag a group's top frame t
 
 **Boss frames: treat tokens with boss loot as bosses** (world setting, on by default, with Boss loot turned on): a creature with a boss loot table gets a frame in combat without the crown. Turning the crown off on such a token hides its frame (the token stores an explicit "not a boss").
 
+### Phase marks
+
+Give a boss phase marks to see its fight change at set health levels. **Right-click the crown button** in its token HUD (or, as the GM, right-click its frame) and enter percentages, highest first, such as `66, 33`. Tick *Every token of …* to store them on the creature itself so every token of it gets them; unticked, only this token. Blank removes them. From a macro: `api.bosses.setPhases(tokens, [66, 33])` (add `{ actor: true }` for every token of the creature; `[]` removes them) and `api.bosses.phases(token)`.
+
+- The frame's health bar gets a thin gold mark at each percentage. The GM always sees the marks; players only with **Show phase marks to players** (control panel › Boss & Combat; off by default).
+- When the boss's health drops below a mark during a started combat, the GMs get one whisper: *The Ogre reached phase 2 (below 66%).* A big hit that passes two marks says both. Each mark is told once; healed back to the mark or above, it resets, so the next drop tells you again.
+- The check runs on the active GM's client. Which marks a token has passed is kept on the token (`flags.wayfarers-toolkit.phasesPassed`); the marks themselves in `flags.wayfarers-toolkit.phases` on the token or its creature.
+
 Frames show only for the combat on the scene you're viewing, and a frame disappears straight away when its token, combatant or actor is deleted mid-combat.
 
 ## Loot rolls
@@ -527,6 +554,20 @@ Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without
 The players of the receiving character (everyone who owns it or has it as their character) get a whisper, "You won *item*", as well as the public line; the same goes for a GM Assign. Given to the party actor, its player owners get the whisper, if it has any.
 
 A GM must be connected for players' choices to count. While none is, players' Need / Greed / Pass buttons are disabled with "A GM needs to be connected." and come back when a GM connects. An open roll survives a GM reload and closes when its time is up.
+
+### Loot history
+
+With **Keep a loot roll history** on (control panel › Loot › Advanced; on by default), every finished roll is recorded: date and time, scene, the item (name, rarity colour, UUID, quantity), each player's choice (Need, Greed or Pass) and rolls, rerolls included, who received it, and how it ended: *Won*, *All passed*, *GM assigned* (Assign to…), *Expired* (nobody chose before the time ran out) or *Not handed out* (nobody who won could receive it, or it had left the pile). The active GM's client writes it to a hidden world setting, so it can't be deleted or edited by accident and players never see it. The last 500 rolls are kept; older ones drop off.
+
+Open the **Loot history** window (GM only) from **control panel › Loot › Loot history…**, the **Loot History** macro (compendium folder *Loot Rolls*) or `api.lootRoll.history()`:
+
+- **The list.** Click a column heading (Date, Scene, Item, How it ended, Received by) to sort by it; click again to reverse. Under each roll, everyone's choice and roll.
+- **Filters.** *Player* (anyone who chose, or received an item) and *Session date* (each day with rolls).
+- **Per player.** For each player: rolls taken part in, items received, Need wins, Greed wins and items the GM assigned. It follows the date filter.
+- **Export CSV** downloads what's shown, in the order shown (spreadsheet-safe: a value starting with `=`, `+`, `-` or `@` gets a leading apostrophe).
+- **Clear history…** deletes every recorded roll after asking. Export first if you want a copy.
+
+Scripting: `api.lootRoll.history()` opens the window, `api.lootRoll.historyEntries()` returns the entries (plain objects, newest first), `api.lootRoll.exportHistory()` and `api.lootRoll.clearHistory({ confirm: false })`.
 
 ## Boss loot
 

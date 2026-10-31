@@ -33,3 +33,33 @@
 .wct-loot-assign { display: flex; gap: 4px; margin-top: 4px; font-size: 0.85em; }
 .wct-loot-assign select { flex: 1; min-width: 0; }
 .wct-loot-assign button { flex: 0 0 auto; width: auto; margin: 0; }
+
+/* Loot history window (GM). Colours from Foundry's theme variables. */
+.wct-history .window-content { padding: 0; }
+.wct-history-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; height: 100%; min-height: 0; overflow: hidden;
+  --wct-muted: var(--color-text-secondary, #a8a29a); --wct-line: var(--color-border, rgba(128, 128, 128, 0.35)); }
+.wct-history-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.wct-history-filters label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.wct-history-filters select { width: auto; min-width: 140px; }
+.wct-history-filters .spacer { flex: 1; }
+.wct-history-filters button { width: auto; flex: 0 0 auto; }
+.wct-history-filters .wct-danger { color: #d0453a; }
+.wct-history-tally table, .wct-history-list table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+.wct-history-tally th, .wct-history-tally td, .wct-history-list th, .wct-history-list td { padding: 3px 6px; border-bottom: 1px solid var(--wct-line); text-align: left; }
+.wct-history-tally td:not(:first-child), .wct-history-tally th:not(:first-child) { text-align: right; }
+.wct-history-list { flex: 1; min-height: 0; overflow-y: auto; }
+.wct-history-list th { position: sticky; top: 0; background: var(--color-cool-5, #1e1e24); z-index: 1; }
+.wct-history-list th button { all: unset; cursor: pointer; font-weight: 600; }
+.wct-history-list th button.on { text-decoration: underline; }
+.wct-history-list td.when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wct-history-list td.item { display: flex; align-items: center; gap: 6px; color: var(--q); }
+.wct-history-list td.item img { width: 22px; height: 22px; flex: 0 0 22px; border: 1px solid var(--q); border-radius: 2px; }
+.wct-history-list td.outcome.passed, .wct-history-list td.outcome.expired, .wct-history-list td.outcome.unclaimed { color: var(--wct-muted); }
+.wct-history-list tr.detail td { border-bottom: 1px solid var(--wct-line); padding-top: 0; font-size: 0.85em; color: var(--wct-muted); }
+.wct-history-list tr:has(+ tr.detail) td { border-bottom: none; }
+.wct-history-list .note { display: block; font-style: italic; }
+.wct-history-body .wct-note.warn { margin: 0; color: #d39b14; }
+
+/* Sell all junk: the button in an Item Piles merchant window's header, and the confirm list. */
+.item-piles-merchant-sheet .window-header .wct-sell-junk { white-space: nowrap; }
+.wct-junk-list { max-height: 260px; overflow-y: auto; margin: 4px 0; padding-left: 1.2em; }

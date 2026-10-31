@@ -150,7 +150,7 @@ test("relic slot: eligible items and classes", () => {
 
 test("control panel: Character tab and the class checklist", () => {
   const tab = M.TABS.find(t => t.id === "pane");
-  assert.deepEqual(M.tabKeys(tab), ["weaponSets", "weaponSwapCost", "relicClasses"]);
+  assert.deepEqual(M.tabKeys(tab), ["weaponSets", "weaponSwapCost", "relicClasses", "itemCompare"]);
   assert.equal(tab.basic.find(([k]) => k === "relicClasses")[2], "classes");
   for (const k of M.tabKeys(tab)) assert.ok(M.LABELS[k]?.[1], k);
   assert.deepEqual(M.classesToList("paladin, Druid cleric"), ["paladin", "druid", "cleric"]);

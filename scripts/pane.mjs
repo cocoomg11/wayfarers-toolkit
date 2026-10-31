@@ -4,6 +4,7 @@
  * Items that carry an MMO-style item tooltip in their description (like those in the optional wow-classic-items module) are placed by their "Slot" line.
  */
 import * as WS from "./weapon-sets.mjs";
+import * as C from "./compare.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -433,6 +434,92 @@ function autoHand(actor, item) {
   return null;
 }
 
+// ---------------------------------------------------------------- item comparison
+/** Item comparison tooltips are on (the "Item comparison tooltips" setting under the character pane). */
+export const compareOn = () => !!setting("itemCompare", true);
+const labelOf = (cfg, k) => { const c = cfg?.[k]; return game.i18n?.localize?.(c?.label ?? c ?? k) ?? k; };
+const smallestOf = (value, denom) => {
+  const api = game.modules.get(ID)?.api; const rate = api?.coins ? Object.fromEntries(api.coins())[denom || "gp"] : null;
+  return rate ? Math.round((Number(value) || 0) * rate) : null;
+};
+/** A plain summary of an item for compare.mjs. */
+export function summarize(item) {
+  if (!item) return null;
+  const sys = item.system ?? {}; const t = sys.type?.value ?? "";
+  const kind = item.type === "weapon" ? "weapon" : isShield(item) ? "shield" : isBodyArmor(item) ? "armor" : "gear";
+  const damage = [];
+  if (item.type === "weapon") {
+    const b = sys.damage?.base;
+    let f = ""; try { f = b?.formula ?? ""; } catch { f = ""; }
+    if (!f && b?.number && b?.denomination) f = `${b.number}d${b.denomination}${b.bonus ? ` + ${b.bonus}` : ""}`;
+    const types = [...(b?.types ?? [])].map(k => labelOf(CONFIG.DND5E?.damageTypes, k));
+    if (f) damage.push({ formula: f, types });
+  }
+  const ac = kind === "armor" || kind === "shield" ? (Number(sys.armor?.value) || 0) + (Number(sys.armor?.magicalBonus) || 0) : null;
+  const magic = Number(sys.magicalBonus ?? sys.armor?.magicalBonus) || 0;
+  const attack = item.type === "weapon" ? (Number(String(sys.attack?.bonus ?? "").replace(/\s+/g, "")) || 0) : 0;
+  const propList = [...props(item)].filter(k => k !== "mgc").map(k => labelOf(CONFIG.DND5E?.itemProperties, k)).sort();
+  const w = sys.weight; const weight = typeof w === "object" ? Number(w?.value) : Number(w);
+  return {
+    name: item.name, kind, ac, damage, attack, magic: kind === "armor" || kind === "shield" ? 0 : magic, properties: propList,
+    attune: sys.attunement === "required", value: smallestOf(sys.price?.value, sys.price?.denomination),
+    weight: Number.isFinite(weight) ? weight : null, weightUnits: typeof w === "object" ? (w?.units ?? "lb") : "lb", type: t
+  };
+}
+
+/**
+ * What a hovered item (on `actor`, or from a pile or merchant) would be compared with: { current (Item or null), where (label),
+ * note } or null when there's nothing to compare (it can't be equipped, or it's what's already there).
+ */
+export function comparisonTarget(actor, item) {
+  if (!actor || !item || !("equipped" in (item.system ?? {}))) return null;
+  if (setsOn() && prefersHand(item)) {
+    const d = describeItem(item); const state = weaponState(actor);
+    const at = WS.locate(state, item.id);
+    if (at && item.parent === actor) return null;
+    const h = C.compareHand(d, state.active); if (!h || !WS.fitsHand(d, h.set, h.hand)) return null;
+    const cur = actor.items.get(state.sets[h.set][h.hand]) ?? null;
+    if (cur === item) return null;
+    const offId = state.sets[h.set].off; const off = offId && offId !== item.id ? describeItem(actor.items.get(offId)) : null;
+    const inSet = new Set([state.sets[h.set].main, state.sets[h.set].off]);
+    const worn = equippedShields(actor).filter(x => x && !inSet.has(x.id));
+    return { current: cur, where: `${WS.SETS[h.set].label} set, ${WS.handLabel(h.set, h.hand).toLowerCase()}`, note: C.handNote(d, { off, worn, hand: h.hand }) };
+  }
+  if (item.parent === actor && item.system.equipped && item.getFlag(ID, "slot")) return null;
+  const cur = slotted(actor); const f = fits(item); if (!f) return null;
+  const slot = (relicShown(actor) && canSlot(item, "relic")) ? "relic" : (f.prefer ?? f.slots).find(s => cur[s]) ?? autoSlot(actor, item, cur) ?? f.slots[0];
+  if (!slot || cur[slot] === item) return null;
+  const note = slot === "mainhand" && isTwo(item) && cur.offhand ? `Needs both hands: ${cur.offhand.name} would come out of the off hand.` : "";
+  return { current: cur[slot] ?? null, where: SLOTS[slot]?.label ?? slot, note };
+}
+
+const TONE = { better: "better", worse: "worse", different: "diff", same: "same" };
+/** The comparison block for a tooltip (HTML), or "". */
+export function comparisonHTML(actor, item) {
+  if (!compareOn()) return "";
+  let t; try { t = comparisonTarget(actor, item); } catch (e) { console.warn(`${ID} | item comparison`, e); return ""; }
+  if (!t) return "";
+  const api = game.modules.get(ID)?.api;
+  const a = summarize(item); const b = summarize(t.current);
+  const units = a?.weightUnits ?? "lb";
+  const { rows } = C.diffItems(a, b, { fmtMoney: n => api?.fmtMoney ? api.fmtMoney(n) : `${n}`, fmtWeight: n => `${Math.round(n * 100) / 100} ${units}` });
+  const shown = rows.filter(r => r.tone !== "same");
+  const head = t.current ? `Compared with <span style="color:${qualityColor(t.current)}">${esc(t.current.name)}</span> <small>(${esc(t.where)})</small>` : `${esc(t.where)} is empty`;
+  const body = shown.length ? `<table>${shown.map(r => `<tr class="${TONE[r.tone]}"><th>${esc(r.label)}</th><td>${esc(r.a)}</td><td class="was">${esc(r.b)}</td></tr>`).join("")}</table>` : `<p class="same">No differences.</p>`;
+  return `<div class="wct-compare"><p class="head">${head}</p>${body}${t.note ? `<p class="note"><i class="fa-solid fa-hand"></i> ${esc(t.note)}</p>` : ""}</div>`;
+}
+
+/** Tooltip for an item row in an Item Piles pile or merchant: the item compared with what the user's character has on. */
+async function pileRowTip(element, item) {
+  if (!compareOn() || !(element instanceof HTMLElement) || !(item instanceof Item)) return;
+  const actor = game.user.character ?? canvas?.tokens?.controlled?.[0]?.actor;
+  if (!actor || !actor.isOwner || item.parent === actor) return;
+  const cmp = comparisonHTML(actor, item); if (!cmp || !game.tooltip?.activate) return;
+  const tip = document.createElement("div"); tip.className = "wct-tip-body";
+  tip.innerHTML = `<h4 style="color:${qualityColor(item)}">${esc(item.name)}</h4><p class="type">For ${esc(actor.name)}</p>${cmp}`;
+  game.tooltip.activate(element, { html: tip, cssClass: "wct-tip", direction: "RIGHT" });
+}
+
 // ---------------------------------------------------------------- the pane
 const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
 const OPEN = new Map();
@@ -774,6 +861,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     else if (el.classList.contains("worn")) tip.insertAdjacentHTML("beforeend", `<p class="type">Still worn on the arm (shields stay on through a swap). Take it off from the pane's note, or unequip it on the sheet.</p>`);
     else if (el.dataset.set && el.closest(".wct-set.stowed")) tip.insertAdjacentHTML("beforeend", `<p class="type">Stowed: not equipped until you swap to the ${esc(WS.SETS[el.dataset.set].label)} set.</p>`);
     else if (el.classList.contains("wct-item") && item.system.equipped && !slot) tip.insertAdjacentHTML("beforeend", `<p class="type">Equipped, not in a slot.</p>`);
+    if (el.classList.contains("wct-item")) { const cmp = comparisonHTML(this.actor, item); if (cmp) tip.insertAdjacentHTML("beforeend", cmp); }
     game.tooltip.activate(el, { html: tip, cssClass: "wct-tip", direction: el.closest(".wct-col.right") ? "LEFT" : "RIGHT" });
   }
 
@@ -877,6 +965,11 @@ export function registerHooks() {
     st.sets[at.set][at.hand] = null;
     actor.update({ [SETS_FLAG]: st }).catch(() => { });
   });
+  // Item comparison on Item Piles pile and merchant rows (the user's character's gear).
+  for (const k of ["PileItem", "MerchantItem", "VaultGridItem"]) {
+    Hooks.on(`item-piles-mouseHover${k}`, (el, item) => { pileRowTip(el, item); });
+    Hooks.on(`item-piles-mouseLeave${k}`, () => game.tooltip?.deactivate?.());
+  }
   // Buckler and Relic checkboxes on item sheets (GM), like Vendor Trash's Lootable checkbox.
   Hooks.on("renderDocumentSheetV2", (app, element) => { if (app.document instanceof Item) addItemFlagBoxes(app, element); });
   // Unequipping an item anywhere (the dnd5e sheet, a macro) takes it out of its slot too.

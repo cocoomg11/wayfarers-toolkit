@@ -10,6 +10,8 @@ const S = key => game.settings.get(ID, key);
 export const HP_MODES = { bar: "Bar only", percent: "Bar and percentage", exact: "Exact HP" };
 
 import { on as featureOn } from "./features.mjs";
+import * as P from "./phases.mjs";
+import { isActiveGM } from "./gm.mjs";
 const tokenDoc = t => t?.document ?? t;
 
 /**
@@ -43,6 +45,87 @@ export async function toggle(tokens = null, on = null) {
     else await t.unsetFlag(ID, "boss");
   }
 }
+
+// ---------------------------------------------------------------- phase marks
+/** A token's phase thresholds: its own (flags.wayfarers-toolkit.phases), else its world actor's; [] for none. */
+export function phasesOf(t) {
+  const d = tokenDoc(t); if (!d) return [];
+  const own = d.getFlag?.(ID, "phases");
+  if (Array.isArray(own)) return P.parsePhases(own);
+  const world = d.actorId ? game.actors.get(d.actorId) : null;
+  const w = world?.getFlag?.(ID, "phases") ?? d.actor?.getFlag?.(ID, "phases");
+  return Array.isArray(w) ? P.parsePhases(w) : [];
+}
+
+/**
+ * Sets phase thresholds (GM only), e.g. setPhases(tokens, [66, 33]). An empty list removes them. `actor: true` stores them on each
+ * token's world actor (every token of it) instead of the token. Defaults to the controlled tokens.
+ */
+export async function setPhases(tokens = null, list = [], { actor = false } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn("GM only.");
+  tokens = (tokens ?? canvas.tokens?.controlled ?? []).map(tokenDoc).filter(Boolean);
+  if (!tokens.length) return ui.notifications.warn("Boss frames: select a token first.");
+  const want = P.parsePhases(list);
+  for (const t of tokens) {
+    const world = t.actorId ? game.actors.get(t.actorId) : null;
+    if (actor && world) {
+      await (want.length ? world.setFlag(ID, "phases", want) : world.unsetFlag(ID, "phases"));
+      if (t.getFlag(ID, "phases") !== undefined) await t.unsetFlag(ID, "phases");
+    } else await (want.length ? t.setFlag(ID, "phases", want) : t.unsetFlag(ID, "phases"));
+    if (t.getFlag(ID, "phasesPassed") !== undefined) await t.unsetFlag(ID, "phasesPassed");
+  }
+  refresh();
+  return want;
+}
+
+/** GM: a small form for a token's phase marks. */
+export async function phaseDialog(t) {
+  if (!game.user.isGM) return;
+  const doc = tokenDoc(t); if (!doc) return;
+  const world = doc.actorId ? game.actors.get(doc.actorId) : null;
+  const onWorld = !Array.isArray(doc.getFlag(ID, "phases")) && Array.isArray(world?.getFlag?.(ID, "phases"));
+  const content = `<p class="hint">Health percentages where the fight changes phase, highest first, e.g. <em>66, 33</em>. The boss frame shows a mark at each; you get a whisper when health drops below one. Leave blank for none.</p>
+    <div class="form-group"><label>Phase marks (%)</label><input type="text" name="phases" value="${esc(P.phasesText(phasesOf(doc)))}" placeholder="66, 33" autofocus></div>
+    ${world && !doc.actorLink ? `<div class="form-group"><label>Every token of ${esc(world.name)}</label><input type="checkbox" name="world" ${onWorld ? "checked" : ""}><p class="hint">Save on the creature itself, so every token of it gets the marks. Unticked: only this token.</p></div>` : ""}`;
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title: `Phase marks: ${doc.name}` }, content, position: { width: 420 },
+    ok: { label: "Save", icon: "fa-solid fa-floppy-disk", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false });
+  if (!f) return;
+  const list = P.parsePhases(f.phases);
+  if (String(f.phases ?? "").trim() && !list.length) return ui.notifications.warn("Phase marks: use whole percentages between 1 and 99, like 66, 33.");
+  await setPhases([doc], list, { actor: !!f.world || (doc.actorLink && !!world) });
+  ui.notifications.info(list.length ? `${doc.name}: phase marks at ${list.map(n => `${n}%`).join(", ")}.` : `${doc.name}: no phase marks.`);
+}
+
+const inStartedCombat = doc => (game.combats ?? []).some(c => c.started && c.combatants.some(cb => cb.tokenId === doc.id && cb.sceneId === doc.parent?.id));
+const phaseQueue = new Map();
+/** Active GM: after a boss's health changes, stores which marks it's below and whispers the GM for each newly crossed one (in combat). */
+function checkToken(doc) {
+  if (!doc?.actor || !isActiveGM() || !isBoss(doc)) return;
+  const list = phasesOf(doc);
+  if (!list.length && doc.getFlag(ID, "phasesPassed") === undefined) return;
+  const prev = phaseQueue.get(doc.uuid) ?? Promise.resolve();
+  const next = prev.then(async () => {
+    const pct = P.hpPercent(doc.actor.system?.attributes?.hp);
+    const r = P.checkPhases(pct, list, doc.getFlag(ID, "phasesPassed") ?? []);
+    if (!r.changed) return;
+    await doc.setFlag(ID, "phasesPassed", r.passed);
+    if (!r.crossed.length || !inStartedCombat(doc)) return;
+    const gms = game.users.filter(u => u.isGM).map(u => u.id);
+    const text = r.crossed.map(c => P.phaseLine(doc.name, c)).join(" ");
+    await ChatMessage.create({ whisper: gms, speaker: { alias: "Boss frames" }, content: `<p class="wct-phase"><i class="fa-solid fa-crown"></i> ${esc(text)}</p>` });
+  }).catch(e => console.warn(`${ID} | boss phases`, e));
+  phaseQueue.set(doc.uuid, next);
+}
+/** The boss tokens on any scene that show this actor (a linked actor's tokens, or an unlinked token's own actor). */
+function tokensOf(actor) {
+  if (actor?.isToken) return actor.token ? [actor.token] : [];
+  const out = [];
+  for (const s of game.scenes) for (const t of s.tokens) if (t.actorLink && t.actorId === actor?.id) out.push(t);
+  return out;
+}
+
+/** Players see phase marks only with "Show phase marks to players" on. */
+const showPhases = () => game.user.isGM || !!(() => { try { return game.settings.get(ID, "bossPhasePlayers"); } catch { return false; } })();
 
 /**
  * Boss combatants in the viewed combat, once it has started, whose tokens stand on the scene this user is viewing. Combatants whose
@@ -82,6 +165,7 @@ function frame(cb) {
       <div class="bar ${tone}" role="meter" aria-label="${esc(cb.token.name)} health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${dead ? 0 : Math.round(pct * 100)}">
         <div class="fill" style="width:${dead ? 0 : (pct * 100).toFixed(1)}%"></div>
         ${tempW ? `<div class="temp" style="width:${(tempW * 100).toFixed(1)}%"></div>` : ""}
+        ${showPhases() ? phasesOf(cb.token).map(t => `<span class="tick" style="left:${t}%" data-tooltip="Phase mark: ${t}%"></span>`).join("") : ""}
         ${text ? `<span class="txt">${text}</span>` : ""}
       </div></div>`;
   return { html, dead };
@@ -201,6 +285,7 @@ export function prune(layout, live) {
 
 /* ---------- DOM ---------- */
 const TIP = "Drag to move. Dragging a group's top frame moves the whole group; dragging any other frame pulls it out. Drop it next to another frame to snap them together. Double-click to reset.";
+const GM_TIP = `${TIP} Right-click to set phase marks.`;
 let el = null; let ghost = null; let timer = null; const nodes = new Map(); let drag = null;
 const keyOf = cb => cb.tokenId ?? cb.token?.id ?? cb.id;
 const getLayout = () => { const l = S("bossLayout"); return l && typeof l === "object" ? l : {}; };
@@ -211,6 +296,11 @@ function render() {
   if (!el) {
     el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health");
     el.addEventListener("pointerdown", dragStart); el.addEventListener("dblclick", resetPos);
+    el.addEventListener("contextmenu", ev => {
+      const n = ev.target.closest(".wct-boss"); if (!n || !game.user.isGM) return;
+      ev.preventDefault();
+      const cb = game.combat?.combatants.get(n.dataset.combatantId); if (cb?.token) phaseDialog(cb.token);
+    });
     document.body.append(el);
   }
   const keep = new Set();
@@ -219,7 +309,7 @@ function render() {
     let n = nodes.get(k);
     if (!n) {
       n = document.createElement("div"); n.className = "wct-boss"; n.dataset.tokenId = k;
-      n.dataset.tooltip = TIP; n.dataset.tooltipDirection = "DOWN"; nodes.set(k, n);
+      n.dataset.tooltip = game.user.isGM ? GM_TIP : TIP; n.dataset.tooltipDirection = "DOWN"; nodes.set(k, n);
     }
     n.dataset.combatantId = cb.id;
     let f; try { f = frame(cb); } catch (e) { keep.delete(k); continue; }
@@ -344,9 +434,12 @@ function addHudButton(hud, html) {
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = `control-icon wct-boss-toggle${isBoss(doc) ? " active" : ""}`;
   const crown = doc.getFlag(ID, "boss");
-  btn.dataset.tooltip = crown === false ? "Boss frame (off for this token; it has boss loot)" : crown ? "Boss frame" : isBoss(doc) ? "Boss frame (automatic: it has boss loot)" : "Boss frame"; btn.setAttribute("aria-label", "Toggle boss frame");
+  const tipBase = crown === false ? "Boss frame (off for this token; it has boss loot)" : crown ? "Boss frame" : isBoss(doc) ? "Boss frame (automatic: it has boss loot)" : "Boss frame";
+  const ph = phasesOf(doc);
+  btn.dataset.tooltip = `${tipBase}. Right-click: phase marks${ph.length ? ` (${ph.map(n => `${n}%`).join(", ")})` : ""}`; btn.setAttribute("aria-label", "Toggle boss frame");
   btn.innerHTML = '<i class="fa-solid fa-crown"></i>';
   btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await toggle([doc]); btn.classList.toggle("active", isBoss(doc)); });
+  btn.addEventListener("contextmenu", async ev => { ev.preventDefault(); ev.stopPropagation(); await phaseDialog(doc); hud.render?.(); });
   col.append(btn);
 }
 
@@ -360,6 +453,10 @@ export function registerSettings() {
   // Each user's own frame layout on this browser. Replaces the older single-stack "bossFramePos", read once to carry it over.
   game.settings.register(ID, "bossLayout", { scope: "client", config: false, type: Object, default: {}, onChange: () => { if (!drag && featureOn("bossFrames")) applyLayout(); } });
   game.settings.register(ID, "bossFramePos", { scope: "client", config: false, type: Object, default: {} });
+  game.settings.register(ID, "bossPhasePlayers", {
+    name: "Boss frames: show phase marks to players", hint: "Players see the phase marks on boss health bars too. The GM always sees them.",
+    scope: "world", config: false, type: Boolean, default: false, onChange: live
+  });
   game.settings.register(ID, "bossAutoFromLoot", {
     name: "Boss frames: treat tokens with boss loot as bosses", hint: "A token whose creature has a boss loot table shows a boss frame in combat without the crown. Turning the crown off on such a token hides its frame. Only with Boss loot turned on.",
     scope: "world", config: false, type: Boolean, default: true, onChange: live
@@ -372,7 +469,12 @@ export function init() {
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.
-  Hooks.on("updateToken", (t, changes) => { if (isBoss(t) || foundry.utils.hasProperty(changes, `flags.${ID}`)) refresh(); });
+  Hooks.on("updateToken", (t, changes) => {
+    if (isBoss(t) || foundry.utils.hasProperty(changes, `flags.${ID}`)) refresh();
+    if (foundry.utils.hasProperty(changes ?? {}, "delta.system.attributes.hp") || foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.phases`)) checkToken(t);
+  });
+  // Phase marks: a linked boss's health changes on its world actor.
+  Hooks.on("updateActor", (a, changes) => { if (foundry.utils.hasProperty(changes ?? {}, "system.attributes.hp")) for (const t of tokensOf(a)) checkToken(t); });
   // Linked bosses change through their actor; unlinked ones also fire updateToken (their actor delta) above.
   Hooks.on("updateActor", (a, changes) => { if (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`) || (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id))) refresh(); });
   // A token, actor or scene deleted mid-combat takes its frame with it.
@@ -388,4 +490,4 @@ export function init() {
   });
 }
 
-export const api = { toggle, isBoss, refresh };
+export const api = { toggle, isBoss, refresh, setPhases, phases: phasesOf, phaseDialog, phaseRules: P };

@@ -38,3 +38,6 @@
 #token-hud .control-icon.wct-boss-toggle.active { color: #ffd100; border-color: #ffd100; }
 #token-hud .control-icon.wct-bossloot.active { color: #a335ee; border-color: #a335ee; }
 #token-hud .control-icon.wct-noloot.active { color: #ff6b5b; border-color: #ff6b5b; }
+.wct-boss .bar .tick { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: #ffd100; box-shadow: 0 0 0 1px #000; z-index: 1; pointer-events: auto; }
+.wct-boss.dead .bar .tick { background: #777; }
+.wct-phase i { color: #ffd100; }

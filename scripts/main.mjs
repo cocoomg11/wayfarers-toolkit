@@ -19,6 +19,7 @@ import { MACROS, macroData } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
+import * as Merchant from "./merchant.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -52,6 +53,8 @@ const DEFAULTS = {
   trashAutoRoll: true,
   trashAutoLoot: true,
   trashGmAddedLoot: true,
+  junkSellButton: true,
+  itemCompare: true,
   trashUnconscious: false,
   partySize: 4,
   debugLog: false,
@@ -178,10 +181,12 @@ function registerSettings() {
   s("trashAutoLoot", "Vendor Trash: Make bodies lootable on death", "When an unlinked NPC token drops to 0 HP or is marked defeated, its body becomes lootable with its drop (an Item Piles pile, or a Give to Party card without Item Piles). Off: run the Vendor Trash macro yourself.", Boolean);
   s("trashGmAddedLoot", "Vendor Trash: Items the GM adds to an NPC count as loot", "When a GM adds a weapon, armour, consumable, tool, loot or container to an NPC (dragged onto its sheet or created there), the item is marked Lootable and shows in the body's loot pile. Items that came with the stat block are never marked. Change the mark on the item sheet or the inventory context menu.", Boolean);
   s("trashUnconscious", "Vendor Trash: Unconscious bodies become lootable", "An unlinked NPC token that gets the Unconscious condition becomes lootable as if it had died (No loot and one-loot-per-body still apply).", Boolean);
+  s("junkSellButton", "Vendor Trash: Sell all junk button", "A Sell all junk button on Item Piles merchant windows: sells every grey item the character carries at the merchant's prices, after a confirm. Equipped items, favourites and items in a weapon set are never sold.", Boolean);
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
   // Character pane: weapon sets
   s("weaponSets", "Character pane: Weapon sets", "Melee, Ranged and Utility weapon sets in the character pane; only the set in hand is equipped on the sheet. Off: one Main Hand, Off Hand and Ranged slot, all equipped at once.", Boolean, { onChange: () => Pane.refreshOpen?.() });
   s("weaponSwapCost", "Character pane: Weapon swap cost", "What a weapon-set swap costs in combat. Shown in a chat line when a character in an active combat swaps; nothing is enforced. Outside combat swapping is free and silent.", String, { choices: { free: "Free", attack: "Part of an attack", object: "Object interaction", bonus: "Bonus action", action: "Action" } });
+  s("itemCompare", "Character pane: Item comparison tooltips", "Hovering an item in the character pane (or in a loot pile or merchant, for your character) compares it with what's in its slot or weapon-set hand.", Boolean);
   s("relicClasses", "Character pane: Classes with a relic slot", "dnd5e class identifiers, separated by commas, whose characters get a relic slot in the character pane (for a spellcasting focus or a relic).", String, { onChange: () => Pane.refreshOpen?.() });
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
@@ -547,6 +552,8 @@ export const WCT = {
   // ------------------------------------------------------------ vendor trash
   vendorTrash(tokens) { return F.need("vendorTrash") ? Trash.vendorTrash(this, tokens) : undefined; },
   sellTrash(actor) { return F.need("vendorTrash") ? Trash.sellTrash(this, actor) : undefined; },
+  /** Sells a character's grey junk to an Item Piles merchant (actors or tokens), after a confirm. */
+  sellJunk(seller, merchant) { return F.need("vendorTrash") ? Merchant.sellJunk(seller ?? game.user.character, merchant) : undefined; },
   syncItemPilesCoins,
   /** Vendor Trash internals plus reroll(tokens), preview(tokenOrActor, n) and showPreview(tokens, n) for the GM. */
   trash: {
@@ -581,6 +588,8 @@ export const WCT = {
   get bosses() { return F.on("bossFrames") ? Bosses.api : undefined; },
   /** Loot roll API (start(itemOrUuid, { seconds }), close(messageId)); undefined when the feature is off. */
   get lootRoll() { return F.on("lootRolls") ? Loot.api : undefined; },
+  /** GM: opens the Loot history window (the Loot History macro). */
+  lootHistory() { return F.need("lootRolls") && this.gmOnly() ? Loot.api.history() : undefined; },
   /**
    * Boss loot API; undefined when the feature is off. set(actorOrToken, { table, draws, coinCp, note }, { world }), get(actorOrToken),
    * preview(actorOrToken | list) whispers the table's odds to the GM, drop(tokens) drops it now, reset(tokens, { clearCoin }) is Reset loot,
@@ -688,7 +697,7 @@ Hooks.once("init", () => {
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
   if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
   if (F.on("flightMaster")) registerFlightHooks();
-  if (F.on("vendorTrash")) registerTrashHooks();
+  if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
   if (F.on("bossFrames")) Bosses.init();
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.

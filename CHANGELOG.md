@@ -2,6 +2,18 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.19.0
+
+**New**
+- **Loot history** (part of Loot rolls; setting **Keep a loot roll history**, on by default, control panel › Loot › Advanced). Each finished loot roll is recorded by the active GM's client in a hidden world setting (`lootHistoryData`, newest first, the last 500 kept): date, scene, item (name, UUID, rarity colour, rarity, quantity), each player's choice and rolls, who received it and how it ended (won, all passed, GM assigned, expired, or not handed out). A GM-only **Loot history** window, opened from control panel › Loot › *Loot history…*, the new **Loot History** macro (compendium folder *Loot Rolls*) or `api.lootRoll.history()`: sortable columns, filters by player and session date, a per-player tally (rolls, items received, Need wins, Greed wins, GM assigned), **Export CSV** and **Clear history…** (asks first). API: `api.lootRoll.historyEntries()`, `exportHistory()`, `clearHistory({ confirm })`, and `api.lootHistory()`.
+- **Sell all junk** (part of Vendor Trash; setting **Sell all junk button**, on by default, control panel › Loot › Advanced). An Item Piles merchant window opened for a character gets a *Sell all junk* header button: it lists the character's grey items (Vendor Trash drops, grey MMO-style tooltips, *poor* rarity) with the merchant's price and the total, then sells them through Item Piles' `tradeItems`, so merchant prices and the coin setup apply. Equipped items, dnd5e favourites, items in a weapon set, containers and items worth nothing are never sold (the confirm says what was kept and why). If the batch fails, items are sold one at a time and the ones the merchant refused are named. Purchase-only merchants get no button. API: `api.sellJunk(seller, merchant)`.
+- **Boss phase marks** (Boss frames). Right-click the crown button in the token HUD, or (GM) a boss frame, to set phase marks such as `66, 33`, on the token or on its creature for every token. The frame's health bar shows a mark at each; the GM always sees them, players only with the new **Show phase marks to players** (off by default, control panel › Boss & Combat). When health drops below a mark in a started combat, the GMs get one whisper per mark ("… reached phase 2 (below 66%)"), reset when healed back to the mark. Run on the active GM's client. Stored in `flags.wayfarers-toolkit.phases` (token or actor) and `phasesPassed` (token). API: `api.bosses.setPhases(tokens, [66, 33], { actor })`, `api.bosses.phases(token)`, `api.bosses.phaseDialog(token)`.
+- **Item comparison tooltips** (Character pane; setting **Item comparison tooltips**, on by default, control panel › Character). Hovering an item in the pane's item list, or in an Item Piles pile, body or merchant window (for your character), compares it with what's in the slot it would go in or, with weapon sets, the matching hand of the matching set: Armor Class, damage (dice, type, average), attack and magic bonus, properties gained and lost, attunement, value and weight, green for better, red for worse. Notes follow the hands rules ("Needs both hands: … would have to be stowed", "… would come out of the off hand", "Needs a free hand to load").
+- Health check: a *Loot, junk and phases* section (history on or off and its size, the Sell all junk button and Item Piles, boss tokens with phase marks), and an *Item comparison tooltips* line under *Character pane*.
+
+**Changes**
+- Remove toolkit data's *Reset the module's settings* also empties the loot history; *flags on tokens/actors* also removes phase marks.
+
 ## 1.18.0
 
 **New**

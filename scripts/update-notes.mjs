@@ -22,6 +22,16 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.19.0",
+    changes: [
+      { feature: "lootRolls", text: "Loot history: every finished loot roll is recorded (item, each player's Need, Greed or Pass and roll, who got it, and how it ended). Open it from control panel › Loot › Loot history…, or the Loot History macro. Sort it, filter by player or session date, see a tally per player, export a CSV or clear it. Only GMs see it." },
+      { feature: "vendorTrash", text: "Sell all junk: Item Piles merchant windows get a Sell all junk button that sells every grey item a character carries at the merchant's prices, after showing the list and the total. Equipped items, favourites and weapon-set items are never sold." },
+      { feature: "bossFrames", text: "Boss phase marks: right-click a boss's crown button (token HUD) or its frame to set phase marks, like 66, 33. The health bar shows a mark at each, and you get a whisper when the boss drops below one. Players see the marks only if you turn on Show phase marks to players (control panel › Boss & Combat)." },
+      { feature: "characterPane", text: "Item comparison: hovering an item in the character pane, a loot pile or a merchant shows how it compares with what's in its slot or weapon-set hand (armour class, damage, bonuses, properties, attunement, value, weight), in green when better and red when worse, with a note when it would need both hands." },
+      "Each new part can be switched off on its own in the control panel: Keep a loot roll history and Sell all junk button (Loot › Advanced), Show phase marks to players (Boss & Combat) and Item comparison tooltips (Character)."
+    ]
+  },
+  {
     version: "1.18.0",
     changes: [
       { feature: "characterPane", text: "Weapon sets in the character pane: Melee, Ranged and Utility. Only the set in hand is equipped on the character sheet, so only its weapons count for attacks, AC and bonuses. The others stay visible, dimmed and marked Stowed." },

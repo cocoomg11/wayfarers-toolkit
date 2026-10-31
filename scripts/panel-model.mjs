@@ -39,17 +39,17 @@ export const TABS = [
   {
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
-    advanced: [["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
+    advanced: [["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
       ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null]]
   },
   {
     id: "boss", label: "Boss & Combat", icon: "fa-solid fa-crown", anchor: "boss--combat-tab",
-    basic: [["bossHpDisplay", "bossFrames"], ["bossLootAuto", "bossLoot"], ["bossAutoFromLoot", "bossFrames:bossLoot"]],
+    basic: [["bossHpDisplay", "bossFrames"], ["bossPhasePlayers", "bossFrames"], ["bossLootAuto", "bossLoot"], ["bossAutoFromLoot", "bossFrames:bossLoot"]],
     advanced: [["bossLootExtraDraw", "bossLoot"]]
   },
   {
     id: "pane", label: "Character", icon: "fa-solid fa-shirt", anchor: "character-tab",
-    basic: [["weaponSets", "characterPane"], ["weaponSwapCost", "characterPane"], ["relicClasses", "characterPane", "classes"]]
+    basic: [["weaponSets", "characterPane"], ["weaponSwapCost", "characterPane"], ["relicClasses", "characterPane", "classes"], ["itemCompare", "characterPane"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -82,6 +82,8 @@ export const LABELS = {
   trashGmAddedLoot: ["Items you give a creature count as loot", "Gear you drag onto a creature's sheet shows up in its loot when it dies. Its own stat-block gear never does."],
   partySize: ["Party size", "How many characters are in the party. Boss coin grows with it, and bigger parties get an extra boss drop."],
   lootRollSeconds: ["Seconds to choose Need / Greed / Pass", "How long players get to pick on a loot roll. You can always close a roll early."],
+  lootHistory: ["Keep a loot roll history", "Every finished loot roll is recorded: the item, who chose Need, Greed or Pass, the rolls and who got it. See it with the Loot history button below. Only GMs see it."],
+  junkSellButton: ["Sell all junk button", "Item Piles merchant windows get a Sell all junk button that sells every grey item the character carries at the merchant's prices, after asking. Equipped items, favourites and weapon-set items are never sold."],
   trashUnconscious: ["Unconscious creatures can be looted", "A creature knocked unconscious can be looted as if it had died."],
   trashItemPiles: ["Loot stays on the body (Item Piles)", "With the Item Piles module, players open the body and take the loot themselves. Off, or without Item Piles, you get a chat card with a Give to Party button."],
   dungeonCoinMult: ["Dungeon coin multiplier", "Creatures in scenes you mark as dungeons (Scene settings) drop this many times more coin."],
@@ -91,12 +93,14 @@ export const LABELS = {
   itemPilesCoins: ["Keep Item Piles' coins in step", "With the three-coin economy, Item Piles is set to copper, silver and gold each time the world loads. Turn off to manage Item Piles' coins yourself."],
   debugLog: ["Debug logging", "Writes why the toolkit did what it did (loot chosen, which GM ran it) to the browser console (F12). For troubleshooting."],
   bossHpDisplay: ["Boss health players see", "How much of a boss's health shows on its frame for players. You always see exact hit points."],
+  bossPhasePlayers: ["Show phase marks to players", "Players also see the phase marks on boss health bars. You always see them. Set a boss's marks by right-clicking its crown button or its frame."],
   bossLootAuto: ["Boss loot drops on death", "When a creature with boss loot dies, its drops are drawn and put on its body. Off: drop it yourself from a macro."],
   bossAutoFromLoot: ["Creatures with boss loot get a boss frame", "No need to mark them with the crown: in combat they get a frame anyway. Turning the crown off on one hides it."],
   bossLootExtraDraw: ["Extra boss drop for parties over 4", "With more than four players, bosses that drop three or more items drop one more."],
   weaponSets: ["Weapon sets", "Melee, Ranged and Utility sets in the character pane. Only the set in hand is equipped on the sheet, so only it counts for attacks and AC. Off: the single Main Hand, Off Hand and Ranged slots, all equipped at once."],
   weaponSwapCost: ["Weapon swap cost", "What swapping sets costs during combat. A character in an active combat who swaps gets a short chat line saying so; nothing is enforced. Outside combat swapping is free and silent."],
   relicClasses: ["Classes with a relic slot", "Characters of the ticked classes get a relic slot in the character pane, for a spellcasting focus or a relic (worn, no hand needed)."],
+  itemCompare: ["Item comparison tooltips", "Hovering an item in the character pane, or in a loot pile or merchant, shows how it compares with what's in its slot or weapon-set hand: armour class, damage, bonuses, properties, attunement, value and weight."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
@@ -195,7 +199,7 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
