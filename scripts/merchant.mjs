@@ -41,10 +41,10 @@ export function plan(seller, merchant) {
   return J.selectJunk(described);
 }
 
-/** The total in the smallest coin (for fmtMoney), from Item Piles' primary-currency totals. */
-function smallestTotal(IP, total) {
-  const rates = (IP.CURRENCIES ?? []).map(c => Number(c.exchangeRate)).filter(n => n > 0);
-  return rates.length ? J.toSmallest(total, Math.min(...rates)) : Math.round(total);
+/** One price (Item Piles' primary-currency total) as whole smallest coins, for fmtMoney. */
+function smallestOf(IP, price) {
+  const rate = J.smallestRate(IP.CURRENCIES);
+  return rate ? J.toSmallest(price, rate) : Math.round(Number(price) || 0);
 }
 
 /** Sells `seller`'s junk to `merchant` (actors or tokens) after a confirm. Returns the number of items sold. */
@@ -59,12 +59,13 @@ export async function sellJunk(sellerRef, merchantRef) {
   if (!sell.length) {
     return ui.notifications.info(`${seller.name} has no junk to sell${kept.length ? ` (kept: ${kept.map(k => `${k.name}, ${k.reasonText}`).join("; ")})` : ""}.`);
   }
-  const total = sell.reduce((t, d) => t + d.price, 0);
-  const line = d => `<li><img src="${esc(d.img)}" alt="" width="20" height="20" style="vertical-align:middle;border:none"> ${esc(d.name)}${d.quantity > 1 ? ` ×${d.quantity}` : ""}: ${esc(d.priceString || money(smallestTotal(IP, d.price)))}</li>`;
+  // Whole coins per item first, then added: the total shown is exactly the sum of the lines (no rounding coin from adding floats).
+  const total = sell.reduce((t, d) => t + smallestOf(IP, d.price), 0);
+  const line = d => `<li><img src="${esc(d.img)}" alt="" width="20" height="20" style="vertical-align:middle;border:none"> ${esc(d.name)}${d.quantity > 1 ? ` ×${d.quantity}` : ""}: ${esc(d.priceString || money(smallestOf(IP, d.price)))}</li>`;
   const ok = await foundry.applications.api.DialogV2.confirm({
     classes: ["wct-window"], window: { title: `Sell all junk to ${merchant.name}` }, rejectClose: false,
     content: `<p><strong>${esc(seller.name)}</strong> sells:</p><ul class="wct-junk-list">${sell.map(line).join("")}</ul>
-      <p>Total: <strong>${esc(money(smallestTotal(IP, total)))}</strong> (the merchant's prices).</p>
+      <p>Total: <strong>${esc(money(total))}</strong> (the merchant's prices).</p>
       ${kept.length ? `<p class="hint">Kept: ${kept.map(k => `${esc(k.name)} (${esc(k.reasonText)})`).join(", ")}.</p>` : ""}`
   });
   if (!ok) return 0;

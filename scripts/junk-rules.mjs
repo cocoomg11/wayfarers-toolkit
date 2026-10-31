@@ -51,3 +51,15 @@ export function isFavourite(favorites, itemId) {
  * (for example 0.01 for copper with gold primary). Rounded to a whole coin.
  */
 export const toSmallest = (total, smallestRate) => (Number(smallestRate) > 0 ? Math.round((Number(total) || 0) / Number(smallestRate)) : 0);
+
+/** The smallest coin's exchange rate from Item Piles' currency list (0 when there is none). */
+export const smallestRate = (currencies = []) => {
+  const rates = (Array.isArray(currencies) ? currencies : []).map(c => Number(c?.exchangeRate)).filter(n => n > 0);
+  return rates.length ? Math.min(...rates) : 0;
+};
+
+/**
+ * The total of several prices in whole smallest coins. Each price is rounded to a whole coin first (as it is shown on its line and
+ * paid), then the whole coins are added, so the total never differs from the sum of the lines by a rounding coin.
+ */
+export const totalSmallest = (prices = [], smallestRate) => prices.reduce((t, p) => t + toSmallest(p, smallestRate), 0);
