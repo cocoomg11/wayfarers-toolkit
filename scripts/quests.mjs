@@ -27,12 +27,19 @@ export const STATUS = {
 const uid = () => foundry.utils.randomID(8);
 const safeSync = uuid => { try { return fromUuidSync(uuid); } catch { return null; } };
 
+/**
+ * Schema version of flags.wayfarers-toolkit.quest. Older quests have no `v` (read as 0) and may store the giver as a plain name and
+ * objectives as strings; normalize() reads every version and always returns the current one. Bump it (and handle the old shape here)
+ * when the stored shape changes.
+ */
+export const QUEST_VERSION = 1;
 /** Cleans quest data into its full shape. Accepts shortcuts: objectives as strings, giver as a name, reward items as UUIDs. */
 export function normalize(raw = {}) {
   const q = foundry.utils.deepClone(raw ?? {});
   const giver = typeof q.giver === "string" ? { name: q.giver } : (q.giver ?? {});
   const r = q.rewards ?? {};
   return {
+    v: QUEST_VERSION,
     status: STATUS[q.status] ? q.status : "available",
     hidden: !!q.hidden,
     zone: String(q.zone ?? "").trim(),

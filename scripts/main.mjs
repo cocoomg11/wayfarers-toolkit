@@ -728,7 +728,7 @@ export const WCT = {
 
   // ------------------------------------------------------------ features
   features: F,
-  /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
+  /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, messages, macros, settings }) removes it (GM). Opens the window with no arguments. */
   cleanup: { plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) },
   /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, pane, quests). */
   panel(tab) { return this.gmOnly() ? Panel.open(tab) : undefined; },
@@ -893,7 +893,7 @@ function registerTrashHooks() {
   // Bodies become lootable at 0 HP (an unlinked token's HP lives in its actor delta) or when marked defeated.
   const hpChanged = c => foundry.utils.hasProperty(c ?? {}, "system.attributes.hp");
   Hooks.on("updateActor", (actor, changes) => { if (actor.isToken && hpChanged(changes)) Trash.onDeath(actor.token, WCT); });
-  Hooks.on("updateToken", (doc, changes) => { if (hpChanged(changes.delta)) Trash.onDeath(doc, WCT); });
+  Hooks.on("updateToken", (doc, changes) => { if (hpChanged(changes?.delta)) Trash.onDeath(doc, WCT); });
   Hooks.on("updateCombatant", (c, changes) => { if (changes.defeated === true) Trash.onDeath(c.token, WCT, { defeated: true }); });
   Hooks.on("createActiveEffect", effect => {
     const actor = effect.parent; const dead = CONFIG.specialStatusEffects?.DEFEATED ?? "dead";

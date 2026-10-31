@@ -53,6 +53,17 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `Flight.mapBackground(settings, box)` (pure) places the picture in the SVG's points box (`PAD`..`W−PAD`, `PAD`..`H−PAD`), the same box `pos` 0–1 maps to, so positions line up with the picture at any window size. `flight-map.mjs` `background()` reads the settings and draws an `<image class="wct-fm-bg">` (no pointer events) before the edges. Null (feature off, blank image) = 1.22 output.
 - No per-point or per-region images: one picture per world. Point positioning stays the existing GM drag + Save layout.
 
+## House practices
+- **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.
+- **Compatibility:** keep `module.json` `compatibility` (minimum 13, verified = newest Foundry checked live, no maximum unless something is known to break) and the dnd5e `relationships.systems` entry (`minimum`, `verified` = last dnd5e checked live, now 6.0.6) accurate. Optional integrations (Item Piles, itempilesdnd5e, …) go in `relationships.recommends`, never `requires`.
+- **Hot hooks** (`updateActor`, `updateToken`, `updateItem`, `renderChatMessageHTML`, canvas/refresh hooks, …) bail out in their first lines when the change isn't relevant: check `changes` (`foundry.utils.hasProperty`), our flag, `isActiveGM()` for writers, or whether the UI is even showing, before any loop over scenes/tokens.
+- **Record settings are capped** in their pure model (`HISTORY_MAX` 500 in history-model.mjs, `SNAPSHOTS_MAX` 50 in gold-model.mjs) with tests. A new list-like setting gets a cap the same way; don't move existing storage.
+- **Flags:** ours live only under `flags.wayfarers-toolkit.*` (plus the legacy `flags.world.trackers` on the tracker journal). Other modules read/change toolkit data through the API, and we never write another module's flags except through its API (Item Piles' own calls).
+- **Schema versions:** a stored shape that has changed before or is likely to carries a version and is read through one normalizer: `flightNetwork.version` (flight.mjs `VERSION`), `weaponSets.v`, `lootHistoryData.v`, `goldSnapshots.v`, `quest.v` (`QUEST_VERSION` in quests.mjs; missing = 0, old giver/objective shortcuts). Bump the version and handle the old shape in the normalizer when changing a shape. No migrations without something to migrate.
+- **Cleanup covers everything we write:** a new flag, setting, status effect or document must be found by `cleanup.mjs` `plan()` and removed by `remove()` (and listed in its `CATEGORIES` label).
+- **Docs:** README *Public API and hooks* lists every `api.*` entry and every hook we fire (`Hooks.callAll("wayfarers-toolkit.*")`), each marked stable or experimental. Update it with any API or hook change.
+- **End each release with a live checklist** in the changelog/handoff: what was not run in Foundry and needs checking in a live world.
+
 ## Tests
 - `npm test` = `node --test tests/*.test.mjs`; `npm run check` syntax-checks all scripts. CI runs them (`test.yml`).
 - Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`), title config, online roster, room costs and coin deduction, rested benefits (`tests/v122.test.mjs`), flight map background placement (`tests/v123.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.

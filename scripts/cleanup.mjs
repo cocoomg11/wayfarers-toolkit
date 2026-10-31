@@ -1,7 +1,8 @@
 /**
  * Remove toolkit data: a settings-menu window (GM only) that strips what the toolkit stored in a world. It first counts (a dry run),
  * lets the GM tick what goes, then asks to type REMOVE. Only the toolkit's own data is touched: `flags.wayfarers-toolkit` on
- * documents, items the toolkit created (vendor trash and boss loot, when ticked), macros Run setup made (when ticked) and the module's
+ * documents (chat messages only when ticked), items the toolkit created (vendor trash and boss loot, when ticked), the Rested status
+ * effect, Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
  * settings (when ticked). Other flags, items and documents are never changed. It doesn't need to be the active GM.
  */
 const ID = "wayfarers-toolkit";
@@ -9,13 +10,19 @@ const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").re
 const ours = doc => { const f = doc?._source?.flags?.[ID] ?? doc?.flags?.[ID]; return !!(f && typeof f === "object" && Object.keys(f).length); };
 /** Items the toolkit created on a body or the party: vendor trash and boss loot. */
 export const toolkitItem = i => !!(i?.flags?.[ID]?.trash || i?.flags?.[ID]?.bossLoot);
+/** The Rested status effect Rent rooms adds when "Rested token status" is on (an active effect, not a flag). */
+export const RESTED_STATUS = "wct-rested";
+export const restedEffect = e => !!(e?.statuses?.has?.(RESTED_STATUS) || (Array.isArray(e?.statuses) && e.statuses.includes(RESTED_STATUS)));
+/** Hex Travel's trip counter lives in flags.world.trackers on the tracker journal (kept there since the library version). */
+export const trackerFlag = (j, journalName) => !!(j && journalName && j.name === journalName && j.flags?.world?.trackers && typeof j.flags.world.trackers === "object");
 export const CATEGORIES = [
-  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested, …)"],
+  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested and its status icon, …)"],
   ["tokens", "Toolkit flags on tokens and their own actors, every scene (pre-rolled loot, looted, boss, phase marks, No loot, Everything is lootable, …)"],
   ["scenes", "Toolkit flags on scenes (Dungeon, Title card, Hub, Inn)"],
   ["items", "Toolkit flags on items (world items and items on actors; Lootable, Buckler and Relic marks too, the items themselves stay)"],
   ["deleteItems", "Also delete items created by the toolkit (vendor trash, boss loot) wherever they are"],
-  ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests)"],
+  ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests; the tracker journal's trip counter)"],
+  ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
   ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; reloads)"]
 ];
@@ -28,7 +35,7 @@ function* holders() {
 
 /** Counts what each category would remove. Nothing is changed. */
 export function plan() {
-  const p = { actors: [], tokens: [], tokenActors: [], scenes: [], items: [], deleteItems: [], journals: [], macros: [], settings: [] };
+  const p = { actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], items: [], deleteItems: [], journals: [], trackers: [], messages: [], macros: [], settings: [] };
   for (const a of game.actors) if (ours(a)) p.actors.push(a);
   for (const s of game.scenes) {
     if (ours(s)) p.scenes.push(s);
@@ -42,14 +49,19 @@ export function plan() {
     // An unlinked token's actor also shows its world actor's items; only the token's own (delta) items are counted for it.
     const own = a.isToken ? new Set((a.token?.delta?._source?.items ?? []).map(i => i._id)) : null;
     for (const i of a.items) { if (own && !own.has(i.id)) continue; if (toolkitItem(i)) p.deleteItems.push(i); else if (ours(i)) p.items.push(i); }
+    const ownFx = a.isToken ? new Set((a.token?.delta?._source?.effects ?? []).map(e => e._id)) : null;
+    for (const e of a.effects ?? []) { if (ownFx && !ownFx.has(e.id)) continue; if (restedEffect(e)) p.effects.push(e); }
   }
   for (const j of game.journal) { if (ours(j)) p.journals.push(j); for (const pg of j.pages) if (ours(pg)) p.journals.push(pg); }
   for (const t of game.tables) if (ours(t)) p.journals.push(t);
+  let tj = ""; try { tj = game.settings.get(ID, "trackerJournal"); } catch { }
+  for (const j of game.journal) if (trackerFlag(j, tj)) p.trackers.push(j);
+  for (const m of game.messages ?? []) if (ours(m)) p.messages.push(m);
   for (const m of game.macros) if (m.flags?.[ID]?.macro) p.macros.push(m);
   for (const [k, c] of game.settings.settings) if (c.namespace === ID && (c.scope === "world" ? game.user.isGM : true)) p.settings.push(c);
   return p;
 }
-const count = (p, k) => k === "tokens" ? p.tokens.length + p.tokenActors.length : p[k].length;
+const count = (p, k) => k === "tokens" ? p.tokens.length + p.tokenActors.length : k === "actors" ? p.actors.length + p.effects.length : k === "journals" ? p.journals.length + p.trackers.length : p[k].length;
 
 /** Removes every toolkit flag from one document, key by key (unsetFlag writes the deletion the way this Foundry version wants). */
 async function stripFlags(doc) {
@@ -77,10 +89,11 @@ export async function remove(pick = {}) {
     done.deleteItems = n;
   }
   if (pick.items) done.items = await each(pick.deleteItems ? p.items : [...p.items, ...p.deleteItems], stripFlags);
-  if (pick.actors) done.actors = await each(p.actors, stripFlags);
+  if (pick.actors) done.actors = (await each(p.actors, stripFlags)) + (await each(p.effects, async e => { await e.delete(); return 1; }));
   if (pick.tokens) done.tokens = (await each(p.tokens, stripFlags)) + (await each(p.tokenActors, stripDelta));
   if (pick.scenes) done.scenes = await each(p.scenes, stripFlags);
-  if (pick.journals) done.journals = await each(p.journals, stripFlags);
+  if (pick.journals) done.journals = (await each(p.journals, stripFlags)) + (await each(p.trackers, async j => { await j.unsetFlag("world", "trackers"); return 1; }));
+  if (pick.messages) done.messages = await each(p.messages, stripFlags);
   if (pick.macros && p.macros.length) {
     const folders = new Set(p.macros.map(m => m.folder).filter(Boolean));
     try { await Macro.deleteDocuments(p.macros.map(m => m.id)); done.macros = p.macros.length; } catch (e) { console.warn(`${ID} | remove data: macros`, e); done.macros = 0; }
@@ -102,7 +115,7 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
     const p = plan();
     div.innerHTML = `<p>Removes what Wayfarer's Toolkit stored in this world. Counts below are what would go now; nothing is changed until you confirm. Your own documents, other modules' data and items the toolkit didn't create are never touched. Item Piles piles stay piles (revert them with Reset loot first if you want normal tokens back).</p>
-      ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
+      ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "messages", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
       <div class="form-group"><label for="wct-cleanup-confirm">Type <strong>REMOVE</strong> to confirm</label><div class="form-fields"><input type="text" id="wct-cleanup-confirm" name="confirm" autocomplete="off"></div></div>
       <footer class="form-footer"><button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="submit" data-action="remove"><i class="fa-solid fa-broom"></i> Remove</button></footer>`;
     return div;

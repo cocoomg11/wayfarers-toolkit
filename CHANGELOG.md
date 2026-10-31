@@ -2,6 +2,20 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## Unreleased
+
+**Changes**
+- **Remove toolkit data** now also removes the *Rested* status icon Rent rooms adds (with Actors ticked), Hex Travel's trip counter on the tracker journal (with Journals ticked), and, in a new unticked-by-default category, toolkit flags on chat messages (loot, loot roll, quest, health and update cards; the cards stay, their buttons stop working). `api.cleanup.remove({ messages: true })`.
+- Boss frames: token and actor updates outside a started combat no longer queue a frame redraw, and phase-mark checks bail out on clients that aren't the active GM. Boss loot's actor-HP hook bails out on non-active-GM clients before walking the scenes' tokens. No change in behaviour.
+- Quest data (`flags.wayfarers-toolkit.quest`) now carries a schema version `v: 1`, written the next time a quest changes. Older quests (no `v`) are read as before.
+- `module.json`: dnd5e verified on 6.0.6. Gold snapshots cap is now a named constant (`SNAPSHOTS_MAX`, 50; unchanged); loot history stays capped at 500.
+- Release workflow: fails at once, with a clear error, if the release tag isn't `vMAJOR.MINOR.PATCH` (for example `v1.24.0`).
+- README: *Public API and hooks* section marking each API and hook stable or experimental.
+
+**Tests**: `tests/house.test.mjs` (snapshot and history caps, cleanup's Rested effect and tracker-flag matchers, quest schema version, module.json compatibility, tag format).
+
+**Untested in Foundry** (needs a live world): the new cleanup categories (deleting a Rested effect on a linked actor and on an unlinked token's own actor, unsetting `flags.world.trackers`, stripping chat message flags), and boss frames still redrawing when a boss is crowned or its HP changes during combat.
+
 ## 1.23.0
 
 **New**

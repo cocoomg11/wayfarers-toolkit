@@ -88,8 +88,10 @@ export function actRows({ curve = DEFAULT_CURVE, size = 4, wealth = 0, gpVal = 1
 /** The act setting clamped to the curve: 1 … curve length. */
 export const clampAct = (act, curve = DEFAULT_CURVE) => Math.min(Math.max(1, curve.length), Math.max(1, Math.floor(+act || 1)));
 
+/** Most snapshots kept in the goldSnapshots world setting (the oldest drop off). */
+export const SNAPSHOTS_MAX = 50;
 /** Adds a snapshot (newest first, at most `max`); bad stored lists are ignored. */
-export function addSnapshot(list, snap, max = 50) {
+export function addSnapshot(list, snap, max = SNAPSHOTS_MAX) {
   const clean = (Array.isArray(list) ? list : []).filter(s => s && typeof s === "object");
   return [snap, ...clean].slice(0, max);
 }

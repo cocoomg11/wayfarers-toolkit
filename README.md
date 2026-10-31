@@ -34,7 +34,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 ## Compatibility
 
 - **Foundry VTT** v13 and v14 (verified on v14).
-- **dnd5e** system 5.0 or later. The module is built for dnd5e and doesn't run on other systems.
+- **dnd5e** system 5.0 or later (verified on 6.0.6). The module is built for dnd5e and doesn't run on other systems.
 
 ## Optional integrations
 
@@ -87,7 +87,8 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 
 **Remove toolkit data** (a button on the control panel's Overview tab, GM only; also `api.cleanup.open()`) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
-- toolkit flags (`flags.wayfarers-toolkit`) on actors, on tokens on every scene, on scenes (Dungeon), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests);
+- toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, Hub, Inn), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal;
+- optionally, toolkit flags on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
 - optionally, the **world macros Run setup made** (macros carrying the toolkit's macro flag);
 - optionally, **reset the module's settings** to their defaults (feature toggles included; Foundry offers to reload).
@@ -752,6 +753,25 @@ To switch back, switch **Three-coin economy** off again. Coin amounts stay as th
 ## Macros and scripting
 
 Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash, `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+
+### Public API and hooks: what's stable
+
+`game.modules.get("wayfarers-toolkit").api` is available from the `ready` hook. Getters for a tool return `undefined` while that tool is turned off. **Stable** means the name, arguments and result shape are kept across minor versions (a change goes through a deprecation note in the changelog first); **experimental** may still change in a minor version.
+
+| API | Status |
+|---|---|
+| `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
+| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online`, `rentRooms`, `inn`, `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
+| `internals`, `log`, anything not listed here | internal: don't rely on it |
+
+Hooks the module fires (with `Hooks.callAll`, on every client, after the world is ready):
+
+| Hook | Payload | When | Status |
+|---|---|---|---|
+| `wayfarers-toolkit.playerCountChanged` | `{ online, expected, all, missing, users }` | the Who's online count changes (and once when the world loads) | experimental |
+| `wayfarers-toolkit.allPlayersOnline` | same | the last missing user connects | experimental |
+
+The module fires no other hooks. Other modules should read and change toolkit data through this API rather than writing `flags.wayfarers-toolkit.*` directly; flag shapes are documented for reading, and may gain fields.
 
 ## License
 

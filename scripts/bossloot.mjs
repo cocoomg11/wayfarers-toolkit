@@ -466,8 +466,9 @@ export function registerSettings() {
 export function init(api, { vendorTrash = true } = {}) {
   const hpChanged = c => foundry.utils.hasProperty(c ?? {}, "system.attributes.hp");
   const each = (actor, opts) => { for (const t of tokensFor(actor)) onDeath(t, api, opts); };
-  Hooks.on("updateActor", (actor, changes) => { if (hpChanged(changes)) each(actor); });
-  Hooks.on("updateToken", (doc, changes) => { if (hpChanged(changes.delta)) onDeath(doc, api); });
+  // Only the active GM drops loot (onDeath checks again); bail before walking the scenes' tokens on every other client.
+  Hooks.on("updateActor", (actor, changes) => { if (hpChanged(changes) && isActiveGM()) each(actor); });
+  Hooks.on("updateToken", (doc, changes) => { if (hpChanged(changes?.delta)) onDeath(doc, api); });
   Hooks.on("updateCombatant", (c, changes) => { if (changes.defeated === true) onDeath(c.token, api, { defeated: true }); });
   Hooks.on("createActiveEffect", effect => {
     const actor = effect.parent; const dead = CONFIG.specialStatusEffects?.DEFEATED ?? "dead";

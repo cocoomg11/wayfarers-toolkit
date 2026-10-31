@@ -469,14 +469,16 @@ export function init() {
   Hooks.on("renderTokenHUD", addHudButton);
   for (const h of ["combatStart", "updateCombat", "deleteCombat", "createCombat", "createCombatant", "updateCombatant", "deleteCombatant", "canvasReady"]) Hooks.on(h, refresh);
   // Only redraw for documents that can change what a frame shows.
+  // Frames exist only during a started combat (or while one is still on screen): outside that, a token or actor update has nothing to redraw.
+  const framesLive = () => !!el || !!game.combat?.started;
   Hooks.on("updateToken", (t, changes) => {
-    if (isBoss(t) || foundry.utils.hasProperty(changes, `flags.${ID}`)) refresh();
-    if (foundry.utils.hasProperty(changes ?? {}, "delta.system.attributes.hp") || foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.phases`)) checkToken(t);
+    if (framesLive() && (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`) || isBoss(t))) refresh();
+    if (isActiveGM() && (foundry.utils.hasProperty(changes ?? {}, "delta.system.attributes.hp") || foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.phases`))) checkToken(t);
   });
-  // Phase marks: a linked boss's health changes on its world actor.
-  Hooks.on("updateActor", (a, changes) => { if (foundry.utils.hasProperty(changes ?? {}, "system.attributes.hp")) for (const t of tokensOf(a)) checkToken(t); });
+  // Phase marks: a linked boss's health changes on its world actor (only the active GM writes them).
+  Hooks.on("updateActor", (a, changes) => { if (isActiveGM() && foundry.utils.hasProperty(changes ?? {}, "system.attributes.hp")) for (const t of tokensOf(a)) checkToken(t); });
   // Linked bosses change through their actor; unlinked ones also fire updateToken (their actor delta) above.
-  Hooks.on("updateActor", (a, changes) => { if (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`) || (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id))) refresh(); });
+  Hooks.on("updateActor", (a, changes) => { if (framesLive() && (foundry.utils.hasProperty(changes ?? {}, `flags.${ID}`) || (el && bosses().some(cb => cb.actor === a || cb.actor?.uuid === a.uuid || cb.actorId === a.id)))) refresh(); });
   // A token, actor or scene deleted mid-combat takes its frame with it.
   for (const h of ["deleteToken", "deleteActor", "deleteScene", "createToken"]) Hooks.on(h, refresh);
   Hooks.on("deleteCombat", pruneLayout);
