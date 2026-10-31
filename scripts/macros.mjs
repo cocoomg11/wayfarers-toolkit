@@ -32,7 +32,7 @@ export const MACROS = [
   { id: "wctPreviewBoss00", name: "Preview Boss Loot", fn: "previewBossLoot", img: "icons/commodities/gems/gem-faceted-round-white.webp", feature: "bossLoot", folder: "wctFolderBossLt0" },
   { id: "wctLootHistory00", name: "Loot History", fn: "lootHistory", img: "icons/sundries/books/book-worn-brown.webp", feature: "lootRolls", folder: "wctFolderLootRl0" },
   { id: "wctFlightMap0000", name: "Flight Route Map", fn: "flightMap", img: "icons/tools/navigation/map-chart-tan.webp", feature: "flightMaster:flightMap", shared: true, folder: "wctFolderTravel0" },
-  { id: "wctTravelPace000", name: "Travel Pace", fn: "travelPace", img: "icons/environment/settlement/signpost.webp", feature: "hexTravel:travelPace", shared: true, folder: "wctFolderTravel0" },
+  { id: "wctTravelPace000", name: "Travel Pace", fn: "travelPace", img: "icons/skills/movement/feet-winged-boots-brown.webp", feature: "hexTravel:travelPace", shared: true, folder: "wctFolderTravel0" },
   { id: "wctPartyGold0000", name: "Party Gold", fn: "partyGold", img: "icons/commodities/currency/coins-stitched-pouch-brown.webp", feature: "partyGold", folder: "wctFolderToolkt0" },
   { id: "wctRentRooms0000", name: "Rent Rooms", fn: "rentRooms", img: "icons/environment/settlement/house-cottage.webp", feature: "restedInn", shared: true, folder: "wctFolderPlaces0" },
   { id: "wctWhosOnline000", name: "Who's Online", fn: "whosOnline", img: "icons/environment/people/group.webp", feature: "whosOnline", shared: true, folder: "wctFolderPlaces0" },

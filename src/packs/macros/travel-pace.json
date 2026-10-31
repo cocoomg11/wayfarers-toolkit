@@ -2,7 +2,7 @@
   "_id": "wctTravelPace000",
   "name": "Travel Pace",
   "type": "script",
-  "img": "icons/environment/settlement/signpost.webp",
+  "img": "icons/skills/movement/feet-winged-boots-brown.webp",
   "command": "// Travel Pace: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.travelPace();",
   "flags": {
     "wayfarers-toolkit": {
