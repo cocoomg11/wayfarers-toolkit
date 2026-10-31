@@ -20,7 +20,6 @@ export const FEATURE_CARDS = [
   { id: "bossFrames", icon: "fa-solid fa-crown", text: "Big health bars at the top of the screen for creatures you mark as bosses, while they're in combat." },
   { id: "bossLoot", icon: "fa-solid fa-gem", text: "Hand-picked drops for named creatures, drawn from a roll table you link to them." },
   { id: "lootRolls", icon: "fa-solid fa-dice", text: "Need / Greed / Pass rolls for items on a defeated creature. Needs the Item Piles module." },
-  { id: "tokenRing", icon: "fa-solid fa-circle-notch", text: "Your own ring image around NPC tokens (or every token), drawn by Foundry's dynamic token rings. Off by default; token art isn't changed." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -52,11 +51,6 @@ export const TABS = [
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
     basic: [["questTracker", "questLog:questTracker"], ["questObjectiveChat", "questLog"], ["questSoundAccept", "questLog"], ["questSoundComplete", "questLog"]],
     advanced: [["questVolume", "questLog"], ["questFolder", "questLog", "journalFolder"]]
-  },
-  {
-    id: "tokens", label: "Tokens", icon: "fa-solid fa-circle-notch", anchor: "tokens-tab",
-    basic: [["ringImage", "tokenRing"], ["ringTargets", "tokenRing"], ["ringNewTokens", "tokenRing"], ["ringSubjectScale", "tokenRing"]],
-    advanced: [["ringExisting", "tokenRing"]]
   }
 ];
 
@@ -101,12 +95,7 @@ export const LABELS = {
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
   questSoundComplete: ["Sound when a quest is completed", "Played for everyone. Leave blank for none."],
   questVolume: ["Quest sound volume", ""],
-  questFolder: ["Quest folder", "The journal folder your quests are kept in. Created with the first quest."],
-  ringImage: ["Ring image", "A square image of the ring with a transparent middle (256 × 256 or bigger). Every token with Foundry's dynamic ring on uses it. Changing it reloads Foundry."],
-  ringTargets: ["Which tokens get the ring", "NPCs only leaves player characters' tokens alone. Every token rings them too."],
-  ringNewTokens: ["New tokens get the ring", "Tokens you place from now on get the ring straight away. Existing tokens: use Apply ring to existing tokens below."],
-  ringSubjectScale: ["Token art size inside the ring", "How big the token art is next to the ring (Foundry's ring subject scale). The token art sits on top of the ring, so below 1 keeps the ring outside the art; 0.85 suits a ring drawn near the image's edge. Applies to tokens as they're ringed."],
-  ringExisting: ["Keep existing tokens ringed", "Each time the world loads, the active GM rings any token or actor that should have the ring and doesn't. Off: only new tokens and the Apply button."]
+  questFolder: ["Quest folder", "The journal folder your quests are kept in. Created with the first quest."]
 };
 
 /** Every setting key a tab shows. */
@@ -177,15 +166,15 @@ export const packsToList = s => String(s ?? "").split(/[,\s]+/).filter(Boolean);
 export const listToPacks = ids => [...new Set(ids ?? [])].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "tokenRing"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
  */
 export const PRESETS = {
   minimal: { label: "Minimal", icon: "fa-solid fa-feather", text: "Just the quest log, the on-screen quest tracker and the character pane. Add more any time.", on: ["questLog", "questTracker", "characterPane"] },
-  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights, junk loot on every creature, boss frames and boss loot, loot rolls, quests and the character pane. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "tokenRing"].includes(id)), suggestCoins: "threeCoin" },
-  everything: { label: "Everything", icon: "fa-solid fa-layer-group", text: "Every tool on, including hex travel and the riding feat (the custom token ring stays off until you pick a ring image).", on: FEATURE_IDS.filter(id => id !== "tokenRing") }
+  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights, junk loot on every creature, boss frames and boss loot, loot rolls, quests and the character pane. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat"].includes(id)), suggestCoins: "threeCoin" },
+  everything: { label: "Everything", icon: "fa-solid fa-layer-group", text: "Every tool on, including hex travel and the riding feat.", on: FEATURE_IDS }
 };
 /** A preset → the feature settings it writes: { "feature-<id>": boolean }. */
 export function presetSettings(preset) {
@@ -208,7 +197,7 @@ export function worldConfigured({ settings = [], setupFound = false, remindedVer
 
 // ---------------------------------------------------------------- overview: health lines → plain issues with fixes
 /**
- * A health line's fix: { action, label, tab? } or null. Actions: setup, tab, autolink, flights, flightImport, rules, reload, ringApply.
+ * A health line's fix: { action, label, tab? } or null. Actions: setup, tab, autolink, flights, flightImport, rules, reload.
  * `section` is the health check's section title; `text` the line as plain text.
  */
 export function issueFix(section, text, { hasAutolink = false } = {}) {
@@ -223,8 +212,6 @@ export function issueFix(section, text, { hasAutolink = false } = {}) {
   if (section === "Flight Master" && /Flight Routes journal page/.test(t)) return { action: "flightImport", label: "Import from the Flight Routes journal page" };
   if (section === "Flight Master") return { action: "flights", label: "Open the flight network" };
   if (section === "Vendor Trash Rules page") return { action: "rules", label: "Open the rules page" };
-  if (section === "Custom token ring" && /Apply ring/.test(t)) return { action: "ringApply", label: "Apply ring to existing tokens" };
-  if (section === "Custom token ring") return { action: "tab", tab: "tokens", label: "Open Tokens settings" };
   return null;
 }
 

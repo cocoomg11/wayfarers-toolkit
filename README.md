@@ -1,6 +1,6 @@
 # Wayfarer's Toolkit
 
-A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables, an optional custom token ring and an optional three-coin economy.
+A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
 
 The module supplies only the logic. Your own campaign content (encounter tables, flight points, recaps, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
 
@@ -20,7 +20,6 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Boss frames** | Mark a token as a boss (crown button in the token HUD). While it's in a running combat, everyone sees a classic-MMO-style frame for it at the top of the screen: portrait, name and health bar. Several bosses stack; defeated ones turn grey. |
 | **Loot rolls** | Need / Greed / Pass for an item lying in an Item Piles pile or body. Players roll from a chat card with a countdown; the GM's client makes every roll and moves the item to the winner's character. |
 | **Boss loot** | Link a roll table of hand-picked drops to a creature. When it dies, the table is drawn (weighted, no repeats) and the items go on its body next to any vendor trash, with a **Start loot roll** button per item on the GM's card. |
-| **Custom token ring** | Optional, off by default: your own ring image around NPC tokens (or every token), drawn by Foundry's dynamic token rings. New tokens get it as they're placed; one button rings the ones you already have. Token art and portraits aren't changed. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Compatibility
@@ -70,7 +69,6 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 - how many actors and tokens are marked **No loot**;
 - problems on the Vendor Trash Rules page, scenes marked Dungeon, the flight network's size, flight points with no scene (⚠, information only: flying there still works) or a deleted scene, routes into locked points, routes naming a point that doesn't exist (✗), and an old Flight Routes journal page waiting to be imported;
 - encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
-- the custom token ring: whether an image is chosen and loads, whether Foundry is using it, and how many matching tokens don't have it yet;
 - whether update notes are on, and the last version this world ran;
 - the active GM and how many GMs are online.
 
@@ -103,7 +101,7 @@ Players can see the compendium (Observer), so they can drag out **Flight Master*
 
 All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Quest tracker: Show on screen**, which each player sets for themselves.
 
-The panel has seven tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
+The panel has six tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
 **A quick walkthrough for a new world**
 
@@ -120,7 +118,7 @@ A plain-language health summary built from the [health check](#health-check): "E
 
 ### Features tab
 
-One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Custom token ring and the Three-coin economy. All tools are on by default except the custom token ring (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
+One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
 
 A tool that's switched off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included). Its settings stay in the other tabs, greyed out with a note, so you can see them. **Run setup** skips its macros and items. Nothing already in your world is deleted, so switching a tool back on picks up where it left off. Calling a switched-off tool from a macro just shows a warning.
 
@@ -153,15 +151,6 @@ If an earlier version's **Scenes hidden from Session Start** held a hand-written
 | --- | --- |
 | **Basics** | **Show the quest tracker on my screen** (just for you), **Announce objectives in chat**, sounds when a quest is given and completed |
 | **Advanced** | Quest sound volume, quest folder |
-
-### Tokens tab
-
-| | Settings |
-| --- | --- |
-| **Basics** | **Ring image**, **Which tokens get the ring** (NPCs only, or every token), **New tokens get the ring**, **Token art size inside the ring**; and the **Apply ring to existing tokens** and **Remove the toolkit's ring** buttons |
-| **Advanced** | Keep existing tokens ringed (checked each time the world loads) |
-
-See [Custom token ring](#custom-token-ring).
 
 ## Flight Master
 
@@ -549,24 +538,6 @@ api.bossLoot.preview(token);     // GM card with the odds
 api.bossLoot.drop([token]);      // drop now (skipped if it already dropped)
 await api.bossLoot.autoLink();   // link tables named "<creature> · Loot"; { folder, overwrite }
 ```
-
-## Custom token ring
-
-Use your own ring image for Foundry's **dynamic token rings** (the ring Foundry draws around a token's art when *Dynamic ring* is ticked in the token's settings). It's off by default: switch on **Custom token ring** in the Features tab, then on the **Tokens** tab:
-
-1. **Ring image**: a square image of the ring with a transparent middle, 256 × 256 or bigger (PNG or WebP with transparency). Upload it to your world's folder with the file picker. Foundry reloads when you change it.
-2. **Which tokens get the ring**: *NPCs only* (the default) never touches player characters' tokens; *Every token* rings them too.
-3. **New tokens get the ring** (on by default): tokens you place from now on get the ring as they're created.
-4. **Token art size inside the ring**: Foundry's ring *subject scale* for the tokens the toolkit rings. Foundry draws the token art on top of the ring, so for a ring drawn near the edge of its image keep this below 1 (0.85 by default) to keep the ring outside round token art. A scale you set yourself on a token is kept.
-5. Click **Apply ring to existing tokens**. It asks first, then turns the ring on for the prototype token of every matching actor and every matching token already on your scenes (in batches, by the active GM).
-
-What it changes: only each token's *Dynamic ring* switch and its subject scale. The token image, its subject image and the actor's portrait are never changed. The toolkit records what each token had, so **Remove the toolkit's ring** puts every token it ringed back the way it was (tokens you ringed yourself aren't touched).
-
-While the tool is on, your image is the ring for **every** token with a dynamic ring in the world (Foundry has one ring style per world), including tokens that had the ring on before. Ring colours and effects from the token's settings still work; the image keeps its own colours. Switch the tool off and Foundry's own ring comes back.
-
-How it works: the module registers a ring style with Foundry's dynamic token ring system. Each client draws your image into one shared texture when the world loads, so there's no extra drawing per token and nothing to install or convert. **Keep existing tokens ringed** (Advanced) has the active GM ring any matching token that's missing it each time the world loads.
-
-From a macro: `api.ring.applyAll({ npcOnly: true })`, `api.ring.remove()`, `api.ring.plan()` (counts without changing anything) and `api.ring.status()`.
 
 ## Three-coin economy (copper, silver, gold)
 
