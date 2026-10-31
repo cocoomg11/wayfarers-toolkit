@@ -1,0 +1,18 @@
+{
+  "_id": "wctRentRooms0000",
+  "name": "Rent Rooms",
+  "type": "script",
+  "img": "icons/environment/settlement/house-cottage.webp",
+  "command": "// Rent Rooms: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.rentRooms();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "rentRooms"
+    }
+  },
+  "folder": "wctFolderPlaces0",
+  "sort": 1300000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctRentRooms0000"
+}

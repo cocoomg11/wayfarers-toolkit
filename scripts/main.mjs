@@ -26,6 +26,9 @@ import * as FlightMap from "./flight-map.mjs";
 import * as Gold from "./gold.mjs";
 import * as SettingsIO from "./settings-io.mjs";
 import { DEFAULT_CURVE, curveText } from "./gold-model.mjs";
+import * as ZoneTitles from "./zone-titles.mjs";
+import * as Online from "./online.mjs";
+import * as Inn from "./inn.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -215,6 +218,8 @@ function registerSettings() {
   s("goldCurve", "Party gold: wealth curve", "Gold per character for each act or tier, separated by commas (Act/Tier 1 first).", String, { onChange: () => Gold.refresh() });
   s("goldIncludeGear", "Party gold: count mundane gear", "Adds the price of the party's non-magical, no-rarity gear to their coin.", Boolean, { onChange: () => Gold.refresh() });
   Gold.registerSettings();
+  // 1.22: zone title cards, who's online, rested at the inn (registered whether the feature is on or not, like every feature's settings).
+  ZoneTitles.registerSettings(); Online.registerSettings(); Inn.registerSettings();
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
@@ -689,6 +694,18 @@ export const WCT = {
   /** Settings export / import (GM): export() downloads the file, import() opens the import window, read(text) checks a file's text. */
   get settingsIO() { return F.on("settingsIO") ? { export: () => SettingsIO.exportFile(this), import: () => SettingsIO.openImport(this), read: text => SettingsIO.readText(text), apply: rows => SettingsIO.apply(rows) } : undefined; },
 
+  // ------------------------------------------------------------ 1.22: zone titles, who's online, rested at the inn
+  /** Zone title cards: show(scene | { title, subtitle, sound }) on this client, config(scene); undefined when the feature is off. */
+  get zoneTitles() { return F.on("zoneTitles") ? { show: what => ZoneTitles.show(what), config: scene => ZoneTitles.configFor(scene ?? canvas?.scene) } : undefined; },
+  /** Opens the Who's online window (everyone). */
+  whosOnline() { return F.need("whosOnline") ? Online.open() : undefined; },
+  /** Who's online numbers: read() → { entries, expected, present, all, missing }; undefined when the feature is off. */
+  get online() { return F.on("whosOnline") ? { read: () => Online.read(), open: () => Online.open(), refresh: () => Online.refresh() } : undefined; },
+  /** GM: the Rent rooms dialog for a scene (default the one you're viewing), optionally for given actors. Players: ask the GM. */
+  rentRooms(opts = {}) { return F.need("restedInn") ? Inn.rentRooms(opts) : undefined; },
+  /** Rested at the inn: inn(scene), rested(actor), clear(actors) (GM), candidates(scene); undefined when the feature is off. */
+  get inn() { return F.on("restedInn") ? { inn: scene => Inn.innFor(scene ?? canvas?.scene), rested: Inn.rested, clear: actors => Inn.clearRested(actors), candidates: scene => Inn.candidates(scene ?? canvas?.scene), rent: opts => Inn.rentRooms(opts) } : undefined; },
+
   // ------------------------------------------------------------ features
   features: F,
   /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, macros, settings }) removes it (GM). Opens the window with no arguments. */
@@ -777,6 +794,9 @@ Hooks.once("init", () => {
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
   if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
+  if (F.on("zoneTitles")) ZoneTitles.init();
+  if (F.on("whosOnline")) Online.init();
+  if (F.on("restedInn")) Inn.init(WCT);
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -798,6 +818,8 @@ Hooks.once("ready", () => {
   }
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
+  if (F.on("restedInn")) Inn.ready();
+  if (F.on("whosOnline")) Online.refresh();
   if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
   convertOldCoins();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the

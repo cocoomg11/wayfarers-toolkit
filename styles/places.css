@@ -1,0 +1,42 @@
+/* Wayfarer's Toolkit 1.22: zone title cards, the Who's online panel and window. No backdrop blur (it tanks FPS in v14). */
+.wct-zone-title {
+  position: fixed; left: 0; right: 0; top: 18vh; z-index: 60; pointer-events: none;
+  display: flex; justify-content: center; opacity: 0; transition: opacity var(--wct-zt-in, 900ms) ease-out;
+}
+.wct-zone-title.shown { opacity: 1; }
+.wct-zone-title.leaving { opacity: 0; transition: opacity var(--wct-zt-out, 1200ms) ease-in; }
+.wct-zone-title .wct-zt-inner { text-align: center; max-width: 80vw; }
+.wct-zone-title h1 {
+  margin: 0; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); font-weight: 700;
+  font-size: clamp(2.2rem, 5vw, 4.2rem); line-height: 1.05; letter-spacing: 0.04em; color: #ffd100;
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, 0.9), 0 0 2px #000;
+}
+.wct-zone-title p { margin: 0.25em 0 0; font-family: var(--font-primary, serif); font-size: clamp(1rem, 1.8vw, 1.5rem); color: #f3e7c4; text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, 0.9); }
+.wct-zone-title .wct-zt-orn { display: flex; align-items: center; justify-content: center; gap: 0.6em; margin: 0.35em auto 0; width: min(28rem, 60vw); }
+.wct-zone-title .wct-zt-orn span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 209, 0, 0.85), transparent); }
+.wct-zone-title .wct-zt-orn i { width: 0.5em; height: 0.5em; transform: rotate(45deg); border: 1px solid rgba(255, 209, 0, 0.9); background: rgba(0, 0, 0, 0.5); }
+.wct-zone-title.style-plain h1 { color: #fff; font-family: var(--font-primary, sans-serif); }
+.wct-zone-title.style-plain .wct-zt-orn { display: none; }
+@media (prefers-reduced-motion: reduce) { .wct-zone-title, .wct-zone-title.leaving { transition: none; } }
+
+.wct-online-hud {
+  position: fixed; z-index: 40; min-width: 170px; max-width: 240px; padding: 6px 10px 8px;
+  background: rgba(15, 12, 8, 0.82); border: 1px solid rgba(201, 162, 39, 0.55); border-radius: 6px; color: #e8dcc0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); font-size: 0.9em;
+}
+.wct-online-hud.pos-top-left { top: 12px; left: 120px; }
+.wct-online-hud.pos-top-centre { top: 12px; left: 50%; transform: translateX(-50%); }
+.wct-online-hud.pos-bottom-left { bottom: 140px; left: 12px; }
+.wct-online-hud.pos-bottom-centre { bottom: 110px; left: 50%; transform: translateX(-50%); }
+.wct-online-hud.all { border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.55); }
+.wct-online-hud h3 { margin: 0 0 3px; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); color: #ffd100; font-size: 1.1em; }
+.wct-online-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.wct-online-list li { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.wct-online-list li img { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(201, 162, 39, 0.7); object-fit: cover; }
+.wct-online-list li .dot { width: 14px; height: 14px; border-radius: 50%; margin: 0 6px; border: 1px solid #000; }
+.wct-online-list li.off { opacity: 0.45; filter: grayscale(1); }
+.wct-online-list li.extra { font-style: italic; }
+.wct-online-list li small { opacity: 0.75; }
+.wct-online-all { margin: 0; color: #7fdc82; font-weight: bold; }
+.wct-online-count { margin: 0; opacity: 0.85; }
+.wct-online-board { padding: 8px; }

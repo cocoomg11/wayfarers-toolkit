@@ -20,6 +20,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `gold.mjs` / `gold-model.mjs` party gold tracker (UI / pure curve, coin, gear and status maths).
 - `settings-io.mjs` / `settings-io-model.mjs` settings export/import (UI / pure file format and validation).
 - `permissions.mjs` pure permission checks; `health.mjs` gathers the facts (`permissionFacts`) for its *Permissions* section.
+- `zone-titles.mjs` / `zone-titles-model.mjs` zone title cards (UI / pure config and show rules); `online.mjs` / `online-model.mjs` who's online (UI / pure roster); `inn.mjs` / `inn-model.mjs` rested at the inn (UI, socket, rest hook / pure price, pay, benefit rules).
 - `quests.mjs` quest log + tracker. Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
 
 ## Key patterns
@@ -28,7 +29,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - **Health check:** `health.mjs`, `api.health()`; each check is wrapped, never throws, never changes anything. Add a line when adding a feature with setup needs.
 - **Update notes:** each user-visible release gets an entry at the top of `NOTES` in `update-notes.mjs` (plain-words changes, optional `actions` with `check()`/`run()`). Patch releases without an entry post nothing.
 - **Active-GM writes:** anything that writes documents automatically runs only when `isActiveGM()` (`gm.mjs`) so multi-GM worlds don't double-write. Players send choices over the socket; the active GM acts.
-- **API surface:** `api.quests`, `bosses`, `lootRoll`, `trash`, `bossLoot`, `flight` (+ `flight.map()`), `flightMap()`, `travelPace()`, `setTravelPace()`, `partyGold()`, `gold`, `settingsIO`, `pane`, `panel(tab)`, `wizard()`, `health()`, `setup()`, `setupPlan()`, `updateNotes`, `cleanup`. Macros only call the API.
+- **API surface:** `api.quests`, `bosses`, `lootRoll`, `trash`, `bossLoot`, `flight` (+ `flight.map()`), `flightMap()`, `travelPace()`, `setTravelPace()`, `partyGold()`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline()`, `online`, `rentRooms()`, `inn`, `pane`, `panel(tab)`, `wizard()`, `health()`, `setup()`, `setupPlan()`, `updateNotes`, `cleanup`. Macros only call the API.
 - Flags live under `flags.wayfarers-toolkit.*`. Windows use the `wct-window` class (backdrop blur is disabled on purpose: it tanks FPS in v14).
 - Pure logic goes in files with no Foundry calls at import time so it can be tested in Node.
 
@@ -40,9 +41,16 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - Settings IO: `SKIP` in settings-io-model.mjs lists record-type settings never exported/imported; add new record settings there (and to `WIZARD_IGNORE`).
 - Health: *Permissions* lines come from `Perm.featureChecks(facts)`; add a need there when a tool starts relying on a player permission.
 
+## 1.22 notes
+- New features `zoneTitles`, `whosOnline`, `restedInn`; settings on the control panel's **Places** tab (`zoneTitle*`, `online*`, `inn*`).
+- Scene flags (added to the scene config's Basics tab by `renderSceneConfig`): `zoneTitle = { show, title, subtitle, sound }`, `hub`, `inn = { on, name, price }`. Actor flag `rested = { scene, inn, at }`.
+- Zone titles write nothing; each client decides (`updateScene` active → shown on that client's next `canvasReady` for the scene; the first draw after load is "load" and shows nothing unless `zoneTitleOnLoad`).
+- Who's online writes nothing; it fires `wayfarers-toolkit.allPlayersOnline` and `wayfarers-toolkit.playerCountChanged` on every client (documented in the README; never edit world tiles from the module).
+- Inn: renting is a GM action; `dnd5e.restCompleted(actor, result, config)` (`result.longRest`) on the resting client → active GM applies (socket `restedRest`, owner-checked). Socket `roomRequest` from players → GM whisper with a Rent rooms button. Coin maths in `inn-model.mjs` (`spend`, `payPlan`) mirrors `api.pay`.
+
 ## Tests
 - `npm test` = `node --test tests/*.test.mjs`; `npm run check` syntax-checks all scripts. CI runs them (`test.yml`).
-- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.
+- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`), title config, online roster, room costs and coin deduction, rested benefits (`tests/v122.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.
 - Not testable in Node (needs a live world): hooks, ApplicationV2 windows, Item Piles integration, sockets, chat cards. Say what is untested in the changelog/handoff.
 
 ## Release process

@@ -10,9 +10,9 @@ const ours = doc => { const f = doc?._source?.flags?.[ID] ?? doc?.flags?.[ID]; r
 /** Items the toolkit created on a body or the party: vendor trash and boss loot. */
 export const toolkitItem = i => !!(i?.flags?.[ID]?.trash || i?.flags?.[ID]?.bossLoot);
 export const CATEGORIES = [
-  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, …)"],
+  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested, …)"],
   ["tokens", "Toolkit flags on tokens and their own actors, every scene (pre-rolled loot, looted, boss, phase marks, No loot, Everything is lootable, …)"],
-  ["scenes", "Toolkit flags on scenes (Dungeon)"],
+  ["scenes", "Toolkit flags on scenes (Dungeon, Title card, Hub, Inn)"],
   ["items", "Toolkit flags on items (world items and items on actors; Lootable, Buckler and Relic marks too, the items themselves stay)"],
   ["deleteItems", "Also delete items created by the toolkit (vendor trash, boss loot) wherever they are"],
   ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests)"],

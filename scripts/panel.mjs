@@ -133,9 +133,12 @@ function settingsTab(tab) {
     ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
   const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
     ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
+  const places = tab.id === "places" ? `<div class="wct-actions"><button type="button" data-act="zone-preview" ${F.on("zoneTitles") ? "" : "disabled"}><i class="fa-solid fa-signs-post"></i> Preview title card</button><span class="hint">Shows this scene's card on your screen only. Set each scene's title, subtitle and sound in its configuration.</span></div>
+    <div class="wct-actions"><button type="button" data-act="whos-online" ${F.on("whosOnline") ? "" : "disabled"}><i class="fa-solid fa-users"></i> Who's online…</button><span class="hint">Tick <em>Hub scene</em> in a scene's configuration to show the board there for everyone.</span></div>
+    <div class="wct-actions"><button type="button" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Mark inns (name and room price) in the scene configuration.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
-    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${actions}
+    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${places}${actions}
     ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
     <p class="wct-reset"><button type="button" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
@@ -305,6 +308,9 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "flight-map") return API.flightMap();
       if (act === "travel-pace") return API.travelPace();
       if (act === "party-gold") return API.partyGold();
+      if (act === "zone-preview") return API.zoneTitles?.show(canvas?.scene);
+      if (act === "whos-online") return API.whosOnline();
+      if (act === "rent-rooms") return API.rentRooms();
       if (act === "settings-export") return API.settingsIO?.export();
       if (act === "settings-import") return API.settingsIO?.import();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }

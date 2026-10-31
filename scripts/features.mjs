@@ -22,7 +22,10 @@ export const FEATURES = [
   { id: "travelPace", label: "Travel pace", hint: "Fast, normal or slow (careful) pace for Hex Travel, with each pace's effect on Perception, Survival and Stealth checks. The GM sets the party's pace; players can ask for one. Needs Hex Travel." },
   { id: "partyGold", label: "Party gold tracker", hint: "GM only, read-only: the coin the player characters and the party actor carry (optionally their mundane gear too), compared with a wealth curve per act × party size." },
   { id: "settingsIO", label: "Settings export / import", hint: "Save every toolkit setting (world and this browser's) to a JSON file and load them back, with a preview before anything changes." },
-  { id: "permissionChecks", label: "Permission checks", hint: "The health check also checks the permissions each tool turned on relies on (characters players own, script macros, the party actor, quest journals, the module socket) and says how to fix what's missing." }
+  { id: "permissionChecks", label: "Permission checks", hint: "The health check also checks the permissions each tool turned on relies on (characters players own, script macros, the party actor, quest journals, the module socket) and says how to fix what's missing." },
+  { id: "zoneTitles", label: "Zone title cards", hint: "A title card (the scene's title, an optional subtitle and sound) fades in over the map when a scene is activated, or each time one is viewed. Per-scene title, subtitle and sound in the scene configuration." },
+  { id: "whosOnline", label: "Who's online", hint: "A board of who's connected, with their character's portrait and name: a small panel on scenes marked Hub, and a window. Says \"Everyone's here\" and fires a hook world tiles and macros can listen to." },
+  { id: "restedInn", label: "Rested at the inn", hint: "Scenes marked as an Inn with a room price. Rent rooms (GM; players can ask) and the characters are Rested: their next long rest grants Heroic Inspiration (or an extra Hit Die, or temporary hit points), then Rested clears." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 const byId = id => FEATURES.find(f => f.id === id);

@@ -25,6 +25,9 @@ export const FEATURE_CARDS = [
   { id: "partyGold", icon: "fa-solid fa-scale-balanced", text: "GM only: how much coin the party carries, against a wealth curve per act that you can edit." },
   { id: "settingsIO", icon: "fa-solid fa-file-export", text: "Save the toolkit's settings to a file and load them into another world, with a preview first." },
   { id: "permissionChecks", icon: "fa-solid fa-user-shield", text: "The health check also checks the permissions your players need for the tools turned on, with a fix for each." },
+  { id: "zoneTitles", icon: "fa-solid fa-signs-post", text: "The scene's name fades in over the map when you activate it, with an optional subtitle and sound." },
+  { id: "whosOnline", icon: "fa-solid fa-users", text: "Who's connected, with their character's portrait, on scenes you mark Hub. Says \"Everyone's here\" when the party is complete." },
+  { id: "restedInn", icon: "fa-solid fa-bed", text: "Rent rooms at an inn scene; the characters wake from their next long rest with Heroic Inspiration (or an extra Hit Die, or temporary hit points)." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -55,6 +58,12 @@ export const TABS = [
   {
     id: "pane", label: "Character", icon: "fa-solid fa-shirt", anchor: "character-tab",
     basic: [["weaponSets", "characterPane"], ["weaponSwapCost", "characterPane"], ["relicClasses", "characterPane", "classes"], ["itemCompare", "characterPane"]]
+  },
+  {
+    id: "places", label: "Places", icon: "fa-solid fa-signs-post", anchor: "places-tab",
+    basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["onlineCount", "whosOnline"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
+    advanced: [["zoneTitleAll", "zoneTitles"], ["zoneTitleSeconds", "zoneTitles"], ["zoneTitleStyle", "zoneTitles"], ["zoneTitleSound", "zoneTitles"], ["zoneTitleVolume", "zoneTitles"], ["zoneTitleOnLoad", "zoneTitles"],
+      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -113,6 +122,23 @@ export const LABELS = {
   goldAct: ["Party is in act / tier", "Which act (or tier) of the wealth curve the party is in now. The tracker highlights it."],
   goldCurve: ["Wealth curve (gold per character)", "Gold per character expected at each act or tier, in order, separated by commas: Act/Tier 1 first. The tracker multiplies it by the party size."],
   goldIncludeGear: ["Count mundane gear in party wealth", "Adds the price of the party's non-magical gear (items with no rarity) to their coin."],
+  zoneTitleTrigger: ["Title cards show", "When a scene is activated (everyone moves there), or also every time someone's view changes to a scene."],
+  zoneTitleAudience: ["Title cards are seen by", "Players only, or everyone including GMs."],
+  zoneTitleAll: ["Every scene gets a title card", "Scenes you haven't set up in their configuration show a card with the scene's name. Off: only scenes you tick in their configuration."],
+  zoneTitleSeconds: ["Seconds on screen", "How long the card stays before it fades out."],
+  zoneTitleStyle: ["Title card style", "Classic: gold serif lettering with an ornament line. Plain: white lettering, no ornament."],
+  zoneTitleSound: ["Default title card sound", "A short sound played with every card whose scene names none. Blank: no sound. Use your own audio."],
+  zoneTitleVolume: ["Title card sound volume", ""],
+  zoneTitleOnLoad: ["Show a card when the world loads", "Also show the card for the scene that's already active when someone joins. Off: only a scene change shows one."],
+  onlineCount: ["\"Everyone's here\" counts", "Who has to be connected: every player user, only players with an assigned character, or the users you list (Advanced)."],
+  onlineList: ["Users who count", "User names, separated by commas, for \"Only the users listed\"."],
+  onlinePosition: ["Who's online panel position", "Where the panel sits on Hub scenes."],
+  innDefaultPrice: ["Room price per person per night", "Used by Inn scenes that don't set their own price. Type coins like 5s or 1g 20s; a plain number is read in the fare unit."],
+  innBenefit: ["Rested gives", "What a Rested character gets at the end of their next long rest: Heroic Inspiration, one extra Hit Die back, or temporary hit points equal to their level."],
+  innPayFrom: ["Rooms are paid from", "The party actor's coin, or each character pays for their own room."],
+  innLastsAnywhere: ["Rested lasts until the next long rest anywhere", "Off: a Rested character who long-rests away from an Inn scene loses Rested without the benefit."],
+  innStatus: ["Rested icon on tokens", "Rested characters also get a Rested status effect (a sleep icon) on their token. Reloads Foundry."],
+  innRequests: ["Players can ask for rooms", "On an Inn scene, a player's Rent Rooms macro sends you a request with a button to rent."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
@@ -195,7 +221,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "travelPace", "partyGold", "settingsIO", "permissionChecks"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.

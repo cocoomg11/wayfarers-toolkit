@@ -25,6 +25,9 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Party gold tracker** | GM only, read-only: the coin the player characters and the party actor carry (optionally with their mundane gear), against an editable wealth curve per act or tier × party size, in green, amber or red. |
 | **Settings export / import** | Save every toolkit setting (world and this browser's) to a JSON file and load them back, with a preview of what changes. |
 | **Permission checks** | The health check also checks the permissions players need for each tool that's on, with a fix for each problem. |
+| **Zone title cards** | When a scene is activated, its title fades in over the map in classic-MMO style, with an optional subtitle ("Levels 1–3") and short sound. Per-scene title, subtitle, sound or off switch in the scene configuration. |
+| **Who's online** | A board of who's connected, with each player's character portrait and name: a small panel on scenes marked *Hub*, and a window. Says "Everyone's here" when the party is complete and fires a hook your own tiles and macros can use. |
+| **Rested at the inn** | Mark a scene as an Inn with a room price. Rent rooms for the party (players can ask); their next long rest gives Heroic Inspiration, an extra Hit Die or temporary hit points. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Compatibility
@@ -108,7 +111,7 @@ Players can see the compendium (Observer), so they can drag out **Flight Master*
 
 All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Quest tracker: Show on screen**, which each player sets for themselves.
 
-The panel has seven tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
+The panel has eight tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
 **A quick walkthrough for a new world**
 
@@ -125,7 +128,7 @@ A plain-language health summary built from the [health check](#health-check): "E
 
 ### Features tab
 
-One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Flight route map, Travel pace, Party gold tracker, Settings export / import, Permission checks and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
+One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Flight route map, Travel pace, Party gold tracker, Settings export / import, Permission checks, Zone title cards, Who's online, Rested at the inn and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
 
 A tool that's switched off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included). Its settings stay in the other tabs, greyed out with a note, so you can see them. **Run setup** skips its macros and items. Nothing already in your world is deleted, so switching a tool back on picks up where it left off. Calling a switched-off tool from a macro just shows a warning.
 
@@ -161,6 +164,15 @@ If an earlier version's **Scenes hidden from Session Start** held a hand-written
 | **Basics** | **Weapon sets** (on by default), **Weapon swap cost** (Free, Part of an attack, Object interaction, Bonus action, Action; default Part of an attack), **Classes with a relic slot** (a checklist of the classes in your world; Paladin, Druid and Cleric to start with), **Item comparison tooltips** (on; see [Item comparison](#item-comparison)) |
 
 Greyed out while the character pane is switched off. See [Weapon sets](#weapon-sets).
+
+### Places tab
+
+| | Settings |
+| --- | --- |
+| **Basics** | **Title cards show** (when a scene is activated, or every time a scene is viewed), **Title cards are seen by** (everyone, or players only), **"Everyone's here" counts** (players with an assigned character by default), **Room price per person per night** (5s by default), **Rested gives** (Heroic Inspiration by default); and **Preview title card**, **Who's online…** and **Rent rooms…** buttons |
+| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on) |
+
+See [Zone title cards](#zone-title-cards), [Who's online](#whos-online) and [Rested at the inn](#rested-at-the-inn).
 
 ### Quests tab
 
@@ -388,6 +400,49 @@ Hex Travel's speed still comes from the *Slow / Normal / Fast pace* settings (Tr
 - **Players** open the same window (the macro is shared with them) and **Ask the GM**: the GMs get a whisper with a **Set … pace** button. With *Players can ask for a travel pace* off, players just see the current pace.
 
 Without Travel pace, Hex Travel's pace list is as before. There's no hex trail.
+
+## Zone title cards
+
+With **Zone title cards** on, activating a scene shows its title over the map on every screen viewing it: large gold serif lettering in the upper third, a thin ornament line and an optional subtitle. It fades in, holds (*Seconds on screen*, 4 by default) and fades out, over the canvas without moving anything; with the browser's *reduce motion* preference it appears and disappears without fading.
+
+- **Per scene** (Scene configuration › Basics › *Title card*): **Show a title card**, **Title** (blank: the scene's name), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
+- **When** (*Title cards show*): when a scene is activated (default), or also every time someone's view moves to a scene (a player pulled to another scene, a GM looking around).
+- **World load**: the scene that's already active when someone joins shows no card, unless **Show a card when the world loads** is on.
+- **Who**: everyone (default) or players only. **Every scene gets a title card** off means only scenes you tick show one.
+- **Preview title card** (Places tab) shows the current scene's card on your screen only. Macros: `api.zoneTitles.show(scene)` or `api.zoneTitles.show({ title, subtitle, sound })` on the client running it.
+
+## Who's online
+
+With **Who's online** on, tick **Hub scene (show who's online)** in a scene's configuration (Basics) and everyone on that scene sees a small panel (*Who's online panel position*, Places › Advanced) with each connected user: their assigned character's portrait and name, or their user name and colour when they have none. It updates as people join and leave. The **Who's Online** macro (shared with players) and `api.whosOnline()` open the same board in a window; `api.online.read()` returns the numbers.
+
+**"Everyone's here."** When every user who counts is connected, the board says *Everyone's here*. Who counts (*"Everyone's here" counts*): every player user, players with an assigned character (default), or only the user names you list. GMs never count unless listed.
+
+**Hooks for your own tiles and macros.** On every client:
+
+- `Hooks.on("wayfarers-toolkit.allPlayersOnline", data => …)` fires when the last missing user connects;
+- `Hooks.on("wayfarers-toolkit.playerCountChanged", data => …)` fires whenever the count changes (also once when the world loads).
+
+`data` is `{ online, expected, all, missing: [user names], users: [{ id, name, label, active, counts }] }`. The module never changes your scene or tiles; a world script can, for example make your own "Let's begin" tile glow. Since the hooks run on everyone's client, have only one client write documents:
+
+```js
+Hooks.on("wayfarers-toolkit.allPlayersOnline", async () => {
+  if (!game.users.activeGM?.isSelf) return;            // one client writes
+  const tile = canvas.scene?.tiles.getName?.("Let's begin") ?? canvas.scene?.tiles.find(t => t.name === "Let's begin");
+  await tile?.update({ "texture.tint": "#ffd100" });   // your own effect
+});
+```
+
+## Rested at the inn
+
+With **Rested at the inn** on, tick **Inn** in a scene's configuration (Basics › *Inn*) and give it an **Inn name** (blank: the scene's name) and a **Room price** per person per night (like `5s` or `1g 20s`; blank: *Room price per person per night* on the Places tab, 5 silver to start; a plain number is read in *Fares without a coin are in*). Prices follow your coin system: 5s is 50 copper with standard coins and 500 with three coins.
+
+**Renting rooms** (GM): **Rent rooms…** on the Places tab, the **Rent Rooms** macro or `api.rentRooms({ scene, actors })`. The dialog lists the party's player characters (the party actor's members, or player-owned characters with a token on the scene) with a tick each, the price per person and the total. Payment comes from the party actor's coin (default) or each character's own (*Rooms are paid from*), smallest coins first with change, as flight fares are. If there isn't enough, nothing is charged and the dialog says who's short. On a scene that isn't an Inn you're asked first.
+
+The chosen characters become **Rested** (`flags.wayfarers-toolkit.rested = { scene, inn, at }`, shown as *zzz* by their name in the character pane, and optionally as a *Rested* status icon on their token) and chat says "The party takes rooms at *inn*. Rested."
+
+**The next long rest** (dnd5e's `dnd5e.restCompleted` hook) of a Rested character gives **Rested gives**: Heroic Inspiration (default; nothing if they already have it), one extra Hit Die back (their largest spent die), or temporary hit points equal to their character level (if more than they have). Then Rested clears and a chat line says what they got. A long rest away from an Inn scene still counts while **Rested lasts until the next long rest anywhere** is on (default); off, Rested is lost with no benefit. A player's own long rest is sent to the active GM, who applies it; with no GM connected, Rested waits for the next long rest.
+
+**Players can ask for rooms**: on an Inn scene a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
 
 ## Party gold tracker
 

@@ -4,7 +4,7 @@
  * health check gathers the facts (health.mjs) and nothing here touches Foundry.
  *
  * facts: {
- *   on(id) → feature on, settings: { playerFlights, paceRequests, trashItemPiles, junkSellButton },
+ *   on(id) → feature on, settings: { playerFlights, paceRequests, trashItemPiles, junkSellButton, innRequests },
  *   socket: the module's socket is on (module.json), itemPiles: Item Piles active,
  *   players: [{ name, active, character: name | null, characterOwned: bool, ownsAnyCharacter: bool, can: { MACRO_SCRIPT, ... } }],
  *   party: null | { name, playerLevel (lowest ownership any player has: 0 none … 3 owner) },
@@ -31,6 +31,7 @@ export function featureChecks(facts) {
   if (on("lootRolls")) socketUsers.push("Need / Greed / Pass choices");
   if (on("travelPace") && on("hexTravel") && s.paceRequests) socketUsers.push("travel pace requests");
   if (on("questLog")) socketUsers.push("quest notices");
+  if (on("restedInn")) socketUsers.push(s.innRequests ? "room requests and Rested long rests" : "Rested long rests");
 
   // Socket: the module's channel between players and the active GM.
   if (socketUsers.length) {
@@ -44,7 +45,7 @@ export function featureChecks(facts) {
   }
 
   // Characters: loot rolls, the character pane, looting bodies and Sell all junk act through the player's own character.
-  const needsChar = [on("lootRolls") && "loot rolls", on("characterPane") && "the character pane", on("vendorTrash") && s.trashItemPiles && facts.itemPiles && "looting bodies", on("vendorTrash") && s.junkSellButton && facts.itemPiles && "Sell all junk"].filter(Boolean);
+  const needsChar = [on("restedInn") && "Rested at the inn", on("lootRolls") && "loot rolls", on("characterPane") && "the character pane", on("vendorTrash") && s.trashItemPiles && facts.itemPiles && "looting bodies", on("vendorTrash") && s.junkSellButton && facts.itemPiles && "Sell all junk"].filter(Boolean);
   if (needsChar.length) {
     if (notOwned.length) out.push(L("characters", "bad", `Assigned a character they don't own: ${list(notOwned)}. ${needsChar.join(", ").replace(/^./, c => c.toUpperCase())} won't work for them.`, "Give each player Owner on their character (right-click the actor › Ownership), or assign them a character they own (Configure Player)."));
     if (noChar.length) out.push(L("characters", "warn", `No character to act with: ${list(noChar)}. They're left out of ${needsChar.join(", ")}.`, "Assign each player a character (User Configuration › Character), or give them Owner on one."));
@@ -57,6 +58,8 @@ export function featureChecks(facts) {
   if (on("questLog")) shared.push("Quest Log");
   if (on("travelPace") && on("hexTravel") && s.paceRequests) shared.push("Travel Pace");
   if (on("flightMap") && on("flightMaster")) shared.push("Flight Route Map");
+  if (on("restedInn") && s.innRequests) shared.push("Rent Rooms");
+  if (on("whosOnline")) shared.push("Who's Online");
   if (shared.length) {
     const cant = lacking(players, "MACRO_SCRIPT");
     out.push(cant.length ? L("macros", "warn", `Can't run script macros: ${list(cant)}. The ${list(shared)} macro${shared.length === 1 ? " does" : "s do"} nothing for them (the token-control buttons and keys still work).`, "Game Settings › Configure Permissions › Use Script Macros: tick the Player role (or Trusted, and make them Trusted).")

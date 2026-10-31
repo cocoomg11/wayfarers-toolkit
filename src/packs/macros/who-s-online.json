@@ -1,0 +1,18 @@
+{
+  "_id": "wctWhosOnline000",
+  "name": "Who's Online",
+  "type": "script",
+  "img": "icons/environment/people/group.webp",
+  "command": "// Who's Online: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.whosOnline();",
+  "flags": {
+    "wayfarers-toolkit": {
+      "macro": "whosOnline"
+    }
+  },
+  "folder": "wctFolderPlaces0",
+  "sort": 1400000,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!macros!wctWhosOnline000"
+}

@@ -246,7 +246,7 @@ function permissionFacts(api) {
   }
   return {
     on: F.on, socket: game.modules.get(ID)?.socket !== false, itemPiles: modActive("item-piles"),
-    settings: { playerFlights: !!get("playerFlights"), paceRequests: !!get("paceRequests"), trashItemPiles: !!get("trashItemPiles"), junkSellButton: !!get("junkSellButton") },
+    settings: { playerFlights: !!get("playerFlights"), paceRequests: !!get("paceRequests"), trashItemPiles: !!get("trashItemPiles"), junkSellButton: !!get("junkSellButton"), innRequests: !!get("innRequests") },
     players, party: party ? { name: party.name, playerLevel: lvl(party) } : null, macros, quests
   };
 }
@@ -273,6 +273,44 @@ function bundle2(api) {
   return out.length ? out : [off("None of the 1.20 tools is on.")];
 }
 
+/** Zone title cards, who's online and inns (1.22). */
+function places(api) {
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  const out = [];
+  if (F.on("zoneTitles")) {
+    const off = game.scenes.filter(s => s.getFlag(ID, "zoneTitle")?.show === false).length;
+    const set = game.scenes.filter(s => s.getFlag(ID, "zoneTitle")?.show === true).length;
+    out.push(ok(`Zone title cards: ${get("zoneTitleTrigger") === "view" ? "every view" : "on activation"}, ${get("zoneTitleAudience") === "players" ? "players only" : "everyone"}; ${get("zoneTitleAll") !== false ? `every scene${off ? ` except ${plural(off, "scene")} switched off` : ""}` : `${plural(set, "scene")} ticked`}.`));
+    if (get("zoneTitleAll") === false && !set) out.push(warn("Zone title cards: no scene is ticked and Every scene gets a title card is off, so no card ever shows (Scene configuration › Title card)."));
+  }
+  if (F.on("whosOnline")) {
+    const hubs = game.scenes.filter(s => s.getFlag(ID, "hub")).map(s => s.name);
+    out.push(hubs.length ? ok(`Who's online: ${plural(hubs.length, "Hub scene")} (${listNames(hubs)}).`) : off("Who's online: no scene is marked Hub (Scene configuration › Hub scene); the board is only in the window."));
+    try {
+      const r = api.online.read();
+      if (get("onlineCount") === "list" && !r.expected) out.push(warn("Who's online: Only the users listed is chosen, but the list names no user of this world (control panel › Places › Advanced)."));
+      else if (!r.expected) out.push(warn("Who's online: no user counts for \"Everyone's here\" yet (assign characters to your players, or change who counts)."));
+      else out.push(ok(`Who's online: ${r.present} of ${r.expected} here now.`));
+      if (r.unknown.length) out.push(warn(`Who's online: no user named ${listNames(r.unknown)}.`));
+    } catch (e) { out.push(warn(`Who's online: couldn't read (${esc(e.message)}).`)); }
+  }
+  if (F.on("restedInn")) {
+    const inns = game.scenes.filter(s => s.getFlag(ID, "inn")?.on === true);
+    if (!inns.length) out.push(off("Inns: no scene is marked Inn (Scene configuration › Inn)."));
+    else {
+      const noPrice = inns.filter(s => !String(s.getFlag(ID, "inn")?.price ?? "").trim()).map(s => s.name);
+      const badPrice = inns.filter(s => { try { return !api.inn.inn(s).priceOk; } catch { return true; } }).map(s => s.name);
+      out.push(ok(`Inns: ${listNames(inns.map(s => s.name))}.`));
+      if (noPrice.length) out.push(warn(`Inn${noPrice.length === 1 ? "" : "s"} with no room price of ${noPrice.length === 1 ? "its" : "their"} own (the default ${esc(get("innDefaultPrice") || "5s")} is used): ${listNames(noPrice)}.`));
+      if (badPrice.length) out.push(bad(`Inn room price can't be read (try 5s or 1g 20s): ${listNames(badPrice)}.`));
+    }
+    if (get("innPayFrom") !== "each" && !api.partyActor()) out.push(warn(`Inns: rooms are paid from the party actor, but there's no group actor named ${esc(api.PARTY)} (Run setup adds it).`));
+    const restedNames = game.actors.filter(a => a.getFlag(ID, "rested")).map(a => a.name);
+    out.push(off(`Rested now: ${restedNames.length ? listNames(restedNames) : "nobody"}; benefit: ${esc({ inspiration: "Heroic Inspiration", hitDie: "one extra Hit Die", tempHp: "temporary hit points" }[get("innBenefit")] ?? "Heroic Inspiration")}.`));
+  }
+  return out.length ? out : [off("None of the 1.22 tools is on.")];
+}
+
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
@@ -280,7 +318,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

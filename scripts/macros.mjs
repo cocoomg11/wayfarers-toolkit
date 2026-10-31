@@ -13,7 +13,8 @@ export const MACRO_FOLDERS = [
   { id: "wctFolderVTrash0", name: "Vendor Trash", sort: 300000 },
   { id: "wctFolderBossLt0", name: "Boss Loot", sort: 400000 },
   { id: "wctFolderToolkt0", name: "Toolkit", sort: 500000 },
-  { id: "wctFolderLootRl0", name: "Loot Rolls", sort: 450000 }
+  { id: "wctFolderLootRl0", name: "Loot Rolls", sort: 450000 },
+  { id: "wctFolderPlaces0", name: "Places", sort: 150000 }
 ];
 
 /**
@@ -33,6 +34,8 @@ export const MACROS = [
   { id: "wctFlightMap0000", name: "Flight Route Map", fn: "flightMap", img: "icons/tools/navigation/map-chart-tan.webp", feature: "flightMaster:flightMap", shared: true, folder: "wctFolderTravel0" },
   { id: "wctTravelPace000", name: "Travel Pace", fn: "travelPace", img: "icons/environment/settlement/signpost.webp", feature: "hexTravel:travelPace", shared: true, folder: "wctFolderTravel0" },
   { id: "wctPartyGold0000", name: "Party Gold", fn: "partyGold", img: "icons/commodities/currency/coins-stitched-pouch-brown.webp", feature: "partyGold", folder: "wctFolderToolkt0" },
+  { id: "wctRentRooms0000", name: "Rent Rooms", fn: "rentRooms", img: "icons/environment/settlement/house-cottage.webp", feature: "restedInn", shared: true, folder: "wctFolderPlaces0" },
+  { id: "wctWhosOnline000", name: "Who's Online", fn: "whosOnline", img: "icons/environment/people/group.webp", feature: "whosOnline", shared: true, folder: "wctFolderPlaces0" },
   { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", folder: "wctFolderToolkt0" }
 ];
 

@@ -269,7 +269,7 @@ test("1.21: Session Start has no recap, and campaign name is no longer shown", (
   assert.ok(!keys.includes("campaignName"), "campaignName is not on a tab");
   assert.ok(keys.includes("hiddenScenes"), "Session Start's scene setting stays");
   const n = NOTES.find(x => x.version === "1.21.0"); assert.ok(n, "1.21.0 update note");
-  assert.equal(NOTES[0].version, "1.21.0");
+  assert.ok(NOTES.findIndex(x => x.version === "1.21.0") <= 1, "1.21.0 is the newest note before 1.22.0");
   assert.ok(n.changes.some(c => /delete/i.test(c.text ?? c)), "tells the GM they can delete the old page");
   assert.ok(!/recap/i.test(FEATURES.find(f => f.id === "sessionStart").hint));
   assert.ok(!/recap/i.test(FEATURE_CARDS.find(c => c.id === "sessionStart").text));

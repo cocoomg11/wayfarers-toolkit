@@ -22,6 +22,15 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.22.0",
+    changes: [
+      { feature: "zoneTitles", text: "Zone title cards: when you activate a scene, its name fades in over the map for everyone, classic-MMO style. Give a scene its own title, a subtitle (like \"Levels 1–3\") and a sound, or switch its card off, in the scene's configuration (Title card). When and for whom: control panel › Places." },
+      { feature: "whosOnline", text: "Who's online: tick Hub scene in a scene's configuration and everyone there sees who's connected, with their character's portrait. It says \"Everyone's here\" when the party is complete, and fires a hook your own tiles or macros can listen to (see the README). Also a Who's Online macro." },
+      { feature: "restedInn", text: "Rested at the inn: mark a scene as an Inn with a room price (scene configuration › Inn). Rent rooms from control panel › Places or the Rent Rooms macro; the chosen characters are Rested, and their next long rest gives Heroic Inspiration (or an extra Hit Die, or temporary hit points; Places › Rested gives). Players on an Inn scene can ask you for rooms." },
+      "The three new tools are switches on the Features tab, on by default. Run setup adds the Rent Rooms and Who's Online macros to the macro folder; nothing goes on a hotbar."
+    ]
+  },
+  {
     version: "1.21.0",
     changes: [
       { feature: "sessionStart", text: "Session Start no longer has a recap: its window now picks the scene, activates it for players and unpauses, and writes the start to the Travel Log as before. It no longer posts a \"Previously, in …\" message or edits a recap page, and the Campaign name setting is gone from the control panel and the welcome wizard." },

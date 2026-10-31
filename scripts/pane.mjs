@@ -5,6 +5,7 @@
  */
 import * as WS from "./weapon-sets.mjs";
 import * as C from "./compare.mjs";
+import { on as featureOn } from "./features.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -633,7 +634,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const div = document.createElement("div");
     div.className = `wct-frame${sets ? " wct-with-sets" : ""}`;
     div.innerHTML = `
-      <header class="wct-head"><h2>${esc(a.name)}</h2>${sub ? `<p>${esc(sub)}</p>` : ""}</header>
+      <header class="wct-head"><h2>${esc(a.name)}${featureOn("restedInn") && a.getFlag?.(ID, "rested") ? ` <span class="wct-rested" data-tooltip="Rested at ${esc(a.getFlag(ID, "rested").inn ?? "the inn")}: the next long rest gives a bonus" aria-label="Rested">zzz</span>` : ""}</h2>${sub ? `<p>${esc(sub)}</p>` : ""}</header>
       <div class="wct-doll">
         <div class="wct-col left">${LEFT.map(s => this.slotHTML(s, cur)).join("")}</div>
         <div class="wct-centre">

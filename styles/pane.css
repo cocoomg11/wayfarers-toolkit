@@ -265,3 +265,4 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 .wct-tip .wct-compare tr.worse td:not(.was) { color: #ff5a4a; }
 .wct-tip .wct-compare tr.diff td:not(.was) { color: #fff; }
 .wct-tip .wct-compare .note { color: #f0c060; }
+.wct-pane .wct-head h2 .wct-rested { font-size: 0.55em; vertical-align: super; color: #9fc8ff; letter-spacing: 0.08em; font-style: italic; text-shadow: 0 0 4px rgba(120, 170, 255, 0.6); }
