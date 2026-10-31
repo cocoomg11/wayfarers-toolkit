@@ -618,7 +618,7 @@ const ownItem = (actor, i) => !actor?.isToken || !actor.token?.delta?._source?.i
 /** Asks the GM to confirm a reset, with "Also clear coin" and "Also remove hand-added loot" checkboxes. */
 export async function confirmReset(api, docs) {
   const names = docs.map(d => esc(d.name)).join(", ");
-  const opts = await foundry.applications.api.DialogV2.prompt({
+  const opts = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"],
     window: { title: "Reset loot" },
     content: `<p>Reset the loot on <strong>${names}</strong>? Vendor trash and boss loot items are removed and the token can be looted again; other items stay, including items marked Lootable.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div><div class="form-group"><label><input type="checkbox" name="removeHandAdded"> Also remove hand-added loot (items marked Lootable)</label></div>`,
     ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => ({ clearCoin: !!button.form.elements.clearCoin?.checked, removeHandAdded: !!button.form.elements.removeHandAdded?.checked }) },
@@ -848,7 +848,7 @@ export async function sellTrash(api, actor = null) {
   if (!trash.length) return ui.notifications.info(`${actor.name} has no vendor trash to sell.`);
   const each = trash.map(i => ({ i, v: Math.round((i.system.price?.value || 0) * (i.system.quantity || 1)) * cpVal }));
   const total = each.reduce((a, x) => a + x.v, 0);
-  const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
+  const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
   if (!ok) return;
   await actor.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
   await api.addMoney(actor, Math.round(total / cpVal) * cpVal, { consolidate: true });

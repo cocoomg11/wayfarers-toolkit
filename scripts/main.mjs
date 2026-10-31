@@ -203,7 +203,7 @@ function checkZones(text = setting("zones"), { notify = false } = {}) {
 }
 
 class SetupApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-setup`, window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
+  static DEFAULT_OPTIONS = { id: `${ID}-setup`, classes: ["wct-window"], window: { title: "Wayfarer's Toolkit · Setup" }, position: { width: 420 } };
   async _renderHTML() {
     const div = document.createElement("div");
     div.innerHTML = `<p>This creates anything that's missing for the features turned on:</p><ul><li>the tracker journal (<em>${esc(setting("trackerJournal"))}</em>)</li><li>the party actor (<em>${esc(setting("partyActor"))}</em>)</li><li>a <em>Wayfarer's Toolkit</em> macro folder with the macros (nothing is put on any hotbar: drag them from the folder or the <em>Wayfarer's Toolkit Macros</em> compendium)</li>${F.on("riderFeat") ? `<li>the ${esc(riderName())} feat</li>` : ""}</ul><p>Nothing existing is overwritten or deleted.</p><button type="button" data-action="run"><i class="fas fa-hammer"></i> Run setup</button>`;
@@ -252,9 +252,9 @@ export const WCT = {
   gmWhisper(content) { return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" } }); },
   say(content, alias = "Narrator") { return ChatMessage.create({ content, speaker: { alias } }); },
   /** An information or refusal window with a single OK button. */
-  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
-  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
-  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ window: { title }, content, rejectClose: false }); },
+  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
+  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
+  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title }, content, rejectClose: false }); },
   gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
   opt(v, label, sel) { return `<option value="${esc(v)}" ${sel ? "selected" : ""}>${esc(label ?? v)}</option>`; },
   campaign() { return setting("campaignName") || game.world.title; },

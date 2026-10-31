@@ -18,9 +18,6 @@
   --wctq-bad: #b3261e;
 }
 .application.wct-quests .window-content { padding: 0; background: var(--wctq-wood); }
-/* The windows paint an opaque background, so Foundry's frosted-glass backdrop blur only costs GPU time: with it the
-   browser re-blurs the game canvas behind the window on every frame. */
-.application.wct-quests, .application.wct-quests .window-content { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* The glyph: a bold yellow "!" or "?" with a black outline, as text. */
 .wct-glyph {

@@ -96,7 +96,7 @@ export async function remove(pick = {}) {
 }
 
 export class CleanupApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup"], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wayfarer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
+  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup", "wct-window"], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wayfarer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
   async _renderHTML() {
     const div = document.createElement("div");
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }

@@ -214,7 +214,7 @@ export async function post(api, { window = false } = {}) {
 let API = null;
 /** The settings menu's window: the same report, with Post to chat and Run setup. */
 export class HealthApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-health`, window: { title: "Wayfarer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
+  static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window"], window: { title: "Wayfarer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
   async _renderHTML() {
     const div = document.createElement("div"); div.style.overflowY = "auto";
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }

@@ -1,3 +1,15 @@
+/* Every toolkit window (class wct-window): no frosted-glass backdrop blur. Over the game canvas it makes the browser
+   re-blur everything behind the window on every frame (a large, steady FPS drop on big screens). !important so it wins
+   over core's theme selectors whatever their specificity. */
+.application.wct-window, .application.wct-window .window-content, .application.wct-window .window-header,
+.app.wct-window, .app.wct-window .window-content,
+.theme-dark .application.wct-window, .theme-dark .application.wct-window .window-content,
+.theme-light .application.wct-window, .theme-light .application.wct-window .window-content,
+.application.wct-quests, .application.wct-quests .window-content, .application.wct-pane, .application.wct-pane .window-content {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* Wayfarer's Toolkit: character pane (an MMO-style paper doll). The frame is an in-world panel, so it keeps its own
    dark stone look in both Foundry themes; the light theme gets warmer, lighter wood around it. */
 
@@ -35,9 +47,6 @@ body.theme-light .application.wct-pane:not(.theme-dark),
   min-height: 0;
   background: var(--wct-wood);
 }
-/* Opaque window: no frosted-glass backdrop blur (it re-blurs the game canvas behind the window every frame). */
-.application.wct-pane { -webkit-backdrop-filter: none; backdrop-filter: none; }
-.application.wct-pane .window-content { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 .wct-pane .wct-frame {
   position: relative;

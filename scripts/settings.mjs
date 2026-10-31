@@ -82,7 +82,7 @@ function readField(form, key) {
 /** Builds the ApplicationV2 class for one submenu. */
 export function menuApp(menu) {
   return class WctSettingsMenu extends foundry.applications.api.ApplicationV2 {
-    static DEFAULT_OPTIONS = { id: `${ID}-${menu.key}`, classes: ["wct-settings-menu"], tag: "form", form: { closeOnSubmit: false }, window: { title: `Wayfarer's Toolkit · ${menu.title}`, icon: menu.icon, resizable: true }, position: { width: 560, height: "auto" } };
+    static DEFAULT_OPTIONS = { id: `${ID}-${menu.key}`, classes: ["wct-settings-menu", "wct-window"], tag: "form", form: { closeOnSubmit: false }, window: { title: `Wayfarer's Toolkit · ${menu.title}`, icon: menu.icon, resizable: true }, position: { width: 560, height: "auto" } };
     async _renderHTML() {
       const div = document.createElement("div");
       const keys = menuKeys(menu);

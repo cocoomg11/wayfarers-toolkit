@@ -41,7 +41,7 @@ export function registerSettings() {
 }
 
 export class FeaturesApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-features`, classes: ["wct-features"], window: { title: "Wayfarer's Toolkit · Features", icon: "fa-solid fa-toggle-on" }, position: { width: 480 } };
+  static DEFAULT_OPTIONS = { id: `${ID}-features`, classes: ["wct-features", "wct-window"], window: { title: "Wayfarer's Toolkit · Features", icon: "fa-solid fa-toggle-on" }, position: { width: 480 } };
   async _renderHTML() {
     const form = document.createElement("form");
     form.innerHTML = `<p class="hint">Turned-off tools add no buttons, macros, hooks or chat cards. Nothing in your world is deleted; turn a tool back on and it picks up where it left off. Saving reloads Foundry for everyone.</p>

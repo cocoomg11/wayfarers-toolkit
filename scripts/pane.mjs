@@ -272,7 +272,7 @@ function defaultPosition() {
 
 export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    classes: ["wct-pane"],
+    classes: ["wct-pane", "wct-window"],
     window: { title: "Character", icon: "fa-solid fa-shirt", resizable: true },
     position: { width: DEF_W, height: DEF_H }
   };

@@ -292,7 +292,7 @@ const inTab = (q, tab) => tab === "completed" ? ["completed", "failed"].includes
 export class QuestLog extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
     id: "wct-quest-log",
-    classes: ["wct-quests"],
+    classes: ["wct-quests", "wct-window"],
     window: { title: "Quest Log", icon: "fa-solid fa-scroll", resizable: true },
     position: { width: 780, height: 580 }
   };
@@ -427,7 +427,7 @@ function toggle() { if (LOG?.rendered) LOG.close(); else open(); }
 // ---------------------------------------------------------------- the editor (GM)
 export class QuestEditor extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    classes: ["wct-quests", "wct-quest-edit"],
+    classes: ["wct-quests", "wct-quest-edit", "wct-window"],
     window: { title: "Quest", icon: "fa-solid fa-pen", resizable: true },
     position: { width: 600, height: 720 }
   };

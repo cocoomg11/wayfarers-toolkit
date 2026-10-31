@@ -376,7 +376,7 @@ export async function openDialog(api, target) {
 <div class="form-group"><label>Coin (copper)</label><input type="number" name="coinCp" min="0" step="1" value="${cur.coinCp ?? 0}"></div>
 <div class="form-group"><label>Note</label><input type="text" name="note" value="${esc(cur.note ?? "")}"></div>
 ${worldActor ? `<div class="form-group"><label>Every token of ${esc(worldActor.name)}</label><input type="checkbox" name="world" ${worldActor.getFlag(ID, "bossLoot") ? "checked" : ""}><p class="hint">Save on the world actor, so new tokens get it too. Unticked: only this token.</p></div>` : ""}`;
-  const f = await foundry.applications.api.DialogV2.prompt({
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"],
     window: { title: `Boss loot: ${doc?.name ?? actor.name}` }, content, position: { width: 480 },
     ok: { label: "Save", icon: "fa-solid fa-floppy-disk", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object },
     render: (ev, dialog) => {

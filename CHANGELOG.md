@@ -5,7 +5,7 @@ All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `mod
 ## 1.14.4
 
 **Fixes**
-- Quest log, quest editor and character pane: turned off Foundry's frosted-glass backdrop blur on these windows. Their backgrounds are opaque, so the blur was invisible, but it made the browser re-blur the game canvas behind the window on every frame, which could drop the frame rate badly while the window was open.
+- All toolkit windows and dialogs (quest log, quest editor, character pane, setup, health check, features, settings menus, data cleanup and the toolkit's prompts) turn off Foundry's frosted-glass backdrop blur. Their backgrounds are opaque, so the blur was invisible, but it made the browser re-blur the game canvas behind the window on every frame: opening the quest log could drop a large screen to under 20 FPS for as long as it stayed open.
 - On-screen quest tracker: dropped the hover background transition.
 
 ## 1.14.3
