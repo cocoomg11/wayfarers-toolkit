@@ -58,7 +58,7 @@ export const TABS = [
 export const LABELS = {
   zones: ["Encounter zones", "Each zone the party can travel through, and the roll table its random encounters come from. Hex Travel offers these zones."],
   playerFlights: ["Players can book flights", "Players get a Flight Master button and can fly the party themselves. A GM has to be logged in; the fare comes out of the party purse."],
-  fareUnit: ["Fares without a coin are in", "In your Flight Routes table, a fare written as a plain number (like 2) is read in this coin. Fares like 1g 20s always work."],
+  fareUnit: ["Fares without a coin are in", "In the flight network editor, a fare typed as a plain number (like 2) is read in this coin. Fares like 1g 20s always work."],
   hiddenScenes: ["Scenes left out of Session Start", "Tick the scenes you never start a session on (test maps, galleries). They won't be offered in the Session Start list."],
   campaignName: ["Campaign name", "Shown in the session recap: \"Previously, in …\". Leave blank to use the world's title."],
   encounterDie: ["Encounter die", "Each off-road hex rolls this die; a 1 means an encounter. Bigger die, fewer encounters."],
@@ -70,7 +70,7 @@ export const LABELS = {
   flightSound: ["Departure sound", "Played for everyone when a flight takes off. Clear it for no sound."],
   flightVolume: ["Departure sound volume", ""],
   riderFeat: ["Riding feat name", "The name of the riding feat. Run setup creates a feat with this name; Hex Travel looks for it on each party member."],
-  trackerJournal: ["Tracker journal", "The GM journal that holds the travel log, flight routes and session recap. Run setup creates it if it's missing."],
+  trackerJournal: ["Tracker journal", "The GM journal that holds the travel log and session recap. Run setup creates it if it's missing."],
   partyActor: ["Party actor", "The group actor whose purse pays for flights and whose members are the party. Run setup creates it if it's missing."],
   trashAutoRoll: ["Roll loot when creatures are placed", "When you place a creature on a scene, what it drops is decided straight away and waits hidden on it. Reroll from the dice button on its token."],
   trashAutoLoot: ["Bodies can be looted when they die", "At 0 HP (or marked defeated) a creature's body becomes something players can loot. Off: use the Vendor Trash macro yourself."],
@@ -196,7 +196,7 @@ export function worldConfigured({ settings = [], setupFound = false, remindedVer
 
 // ---------------------------------------------------------------- overview: health lines → plain issues with fixes
 /**
- * A health line's fix: { action, label, tab? } or null. Actions: setup, tab, autolink, routes, rules, reload.
+ * A health line's fix: { action, label, tab? } or null. Actions: setup, tab, autolink, flights, flightImport, rules, reload.
  * `section` is the health check's section title; `text` the line as plain text.
  */
 export function issueFix(section, text, { hasAutolink = false } = {}) {
@@ -208,7 +208,8 @@ export function issueFix(section, text, { hasAutolink = false } = {}) {
   if (/Vendor (trash compendiums|Trash has no item compendium)/i.test(t)) return { action: "tab", tab: "loot", label: "Choose compendiums" };
   if (/Item Piles' currencies/.test(t)) return { action: "tab", tab: "loot", label: "Open Loot settings" };
   if (/Reload Foundry/.test(t)) return { action: "reload", label: "Reload" };
-  if (section === "Flight Master") return { action: "routes", label: "Open Flight Routes" };
+  if (section === "Flight Master" && /Flight Routes journal page/.test(t)) return { action: "flightImport", label: "Import from the Flight Routes journal page" };
+  if (section === "Flight Master") return { action: "flights", label: "Open the flight network" };
   if (section === "Vendor Trash Rules page") return { action: "rules", label: "Open the rules page" };
   return null;
 }

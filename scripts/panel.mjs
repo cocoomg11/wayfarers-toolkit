@@ -11,6 +11,7 @@ import * as Cleanup from "./cleanup.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT } from "./macros.mjs";
 import * as M from "./panel-model.mjs";
+import * as FlightEditor from "./flight-editor.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -109,9 +110,10 @@ function rawScenesRow(off) {
 
 function settingsTab(tab) {
   const advanced = [...(tab.advanced ?? []).map(rowHTML), tab.id === "travel" ? rawScenesRow(!isOn("sessionStart")) : ""].join("");
+  const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
-    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${actions}
+    <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${actions}
     ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
     <p class="wct-reset"><button type="button" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
@@ -264,6 +266,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "recheck") return this.loadOverview();
       if (act === "wizard") return new WelcomeWizard().render({ force: true });
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
+      if (act === "flight-editor") return API.flightEditor();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
@@ -275,9 +278,11 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     if (fix.action === "tab") return this.show(fix.tab);
     if (fix.action === "reload") return foundry.utils.debouncedReload?.() ?? location.reload();
     if (fix.action === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); return this.loadOverview(); }
-    if (fix.action === "routes" || fix.action === "rules") {
+    if (fix.action === "flights") return API.flightEditor();
+    if (fix.action === "flightImport") { if (await FlightEditor.importFlow(API)) this.loadOverview(); return; }
+    if (fix.action === "rules") {
       const j = game.journal.getName(API.JOURNAL); if (!j) return runSetup(() => this.loadOverview());
-      const page = j.pages.getName(fix.action === "routes" ? "Flight Routes" : Trash.RULES_PAGE);
+      const page = j.pages.getName(Trash.RULES_PAGE);
       return j.sheet.render({ force: true, ...(page ? { pageId: page.id } : {}) });
     }
   }

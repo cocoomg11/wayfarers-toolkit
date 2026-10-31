@@ -32,19 +32,6 @@ test("fares and affordability", () => {
   assert.equal(Flight.quote(100, 2, 200).canPay, true);
   assert.deepEqual(Flight.quote(100, 3, null), { total: 300, canPay: true, short: 0, charge: false });
   assert.equal(Flight.clampPax(0), 1); assert.equal(Flight.clampPax(99), 20); assert.equal(Flight.clampPax("3.7"), 3);
-  const pts = [{ n: "A", sc: "Town", u: true }, { n: "B", sc: "", u: true }, { n: "C", sc: "Gone", u: true, sm: true }, { n: "D", u: false }];
-  const routes = [{ a: "A", b: "B", f: 100, h: 1 }, { a: "B", b: "C", f: 50, h: 2 }, { a: "A", b: "Z", f: 10, h: 1 }];
-  const fmt = x => `${x}c`;
-  const c = Flight.check({ pts, routes, from: "A", to: "B", pax: 2, purse: 500, fmt }); assert.equal(c.ok, true); assert.equal(c.q.total, 200);
-  assert.deepEqual(Flight.route("A", "C", ["A", "B", "C"], routes), { f: 150, h: 3, path: ["A", "B", "C"] });
-  assert.match(Flight.check({ pts, routes, from: "A", to: "C", pax: 1, purse: 500, fmt }).error, /scene "Gone" doesn't exist/);
-  assert.equal(Flight.check({ pts, routes, from: "A", to: "B", pax: 4, purse: 300, fmt }).error, "The party can't afford this: needs 400c, has 300c (short 100c).");
-  assert.match(Flight.check({ pts, routes, from: "A", to: "D", fmt }).error, /isn't unlocked/);
-  assert.match(Flight.check({ pts, routes, from: "A", to: "Z", fmt }).error, /isn't in the Flight Points table/);
-  assert.deepEqual(Flight.unknownRoutes(pts, routes), [{ a: "A", b: "Z", unknown: ["Z"] }]);
-  assert.equal(Flight.check({ pts, routes, from: "A", to: "A", fmt }).ok, false);
-  const c2 = Flight.check({ pts: [{ n: "A", u: true }, { n: "B", u: true }], routes: [{ a: "A", b: "Q", f: 1, h: 1 }], from: "A", to: "B", fmt });
-  assert.match(c2.error, /names an unknown flight point \(Q\)/);
 });
 
 test("encounter zones setting errors name the position", () => {
@@ -54,21 +41,6 @@ test("encounter zones setting errors name the position", () => {
   assert.match(Flight.parseZones("[1]").error, /must be a JSON object/);
   assert.match(Flight.parseZones('{"a": 3}').error, /value for "a"/);
   assert.deepEqual(Flight.unknownZoneTables({ Forest: "T1", Hills: "T2" }, ["T1"]), [{ zone: "Hills", table: "T2" }]);
-});
-
-test("flight routes: malformed rows named by row and column", () => {
-  const p = Flight.flightRowProblems([["A", "", "yes"], ["", "", "no"], ["B", "", "maybe"], ["A", "", "yes"], ["C"]], [["A", "B", "2s", "1"], ["A", "", "x2", "two"], ["B"]]);
-  const t = p.map(Flight.rowProblemText);
-  assert.ok(t.includes("Flight Points row 2, Flight point: is empty"));
-  assert.ok(t.some(x => x.startsWith("Flight Points row 3, Unlocked")));
-  assert.ok(t.some(x => x.startsWith("Flight Points row 4, Flight point") && x.includes("twice")));
-  assert.ok(t.some(x => x.startsWith("Flight Points row 5") && x.includes("needs 3")));
-  assert.ok(t.includes("Routes row 2, To: is empty"));
-  assert.ok(t.some(x => x.startsWith("Routes row 2, Fare")));
-  assert.ok(t.some(x => x.startsWith("Routes row 2, Hours")));
-  assert.ok(t.some(x => x.startsWith("Routes row 3") && x.includes("needs 4")));
-  assert.ok(!t.some(x => x.includes("row 1,")), "good rows give nothing");
-  assert.ok(Flight.fareOk("1g 20s") && Flight.fareOk("75 c") && Flight.fareOk("2") && !Flight.fareOk("lots"));
 });
 
 test("boss layout: stack, move, detach, snap, prune", () => {

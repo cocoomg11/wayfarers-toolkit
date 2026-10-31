@@ -11,7 +11,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | Tool | What it does |
 | --- | --- |
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
-| **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are an editable table in a journal page. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
+| **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are set up in a flight network editor inside the module; a point opens a scene only if you give it one. The GM can also fly the party for free. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
 | **Session Start** | Pick a scene, edit a "Previously…" recap, post it to chat, activate the scene and unpause. |
 | **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in. |
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
@@ -58,7 +58,7 @@ Enable the module in your world. The first time a GM loads it, the [welcome wiza
 - setup: each macro, the tracker journal and pages, the party actor, the Vendor Trash Rules page and the riding feat, for the features turned on, with a **Run setup** button when something's missing;
 - boss loot: the party size and what it does to boss loot, every actor and token with a table linked, whether the table exists, how many results resolve to items, the draws and coin adjusted for the party size, and whether there are more draws than usable results. Links that would fall back to vendor trash are flagged. Creatures with a table named for them but not linked get a **Link boss tables by name** button;
 - how many actors and tokens are marked **No loot**;
-- problems on the Vendor Trash Rules page, scenes marked Dungeon, Flight Master points whose scene is missing (✗) or not set (⚠ "no scene: flying there won't open a scene", still allowed), routes naming an unknown point, and malformed Flight Routes rows (named by table, row and column);
+- problems on the Vendor Trash Rules page, scenes marked Dungeon, the flight network's size, flight points with no scene (⚠, information only: flying there still works) or a deleted scene, routes into locked points, routes naming a point that doesn't exist (✗), and an old Flight Routes journal page waiting to be imported;
 - encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
 - the active GM and how many GMs are online.
 
@@ -104,7 +104,7 @@ The settings kept their keys from earlier versions, so anything you set before i
 
 ### Overview tab
 
-A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, or opening the Flight Routes or Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard** and **Remove toolkit data…**.
+A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard** and **Remove toolkit data…**.
 
 ### Features tab
 
@@ -116,7 +116,7 @@ A tool that's switched off adds nothing: no buttons, macros, key bindings, chat 
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), **Scenes left out of Session Start** (tick the scenes), **Campaign name** (the "Previously, in …" recap heading) |
+| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes), **Campaign name** (the "Previously, in …" recap heading) |
 | **Advanced** | Encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
 
 If an earlier version's **Scenes hidden from Session Start** held a hand-written pattern, it's shown in Advanced as a text field with a note; ticking scenes replaces it.
@@ -142,13 +142,48 @@ If an earlier version's **Scenes hidden from Session Start** held a hand-written
 | **Basics** | **Show the quest tracker on my screen** (just for you), **Announce objectives in chat**, sounds when a quest is given and completed |
 | **Advanced** | Quest sound volume, quest folder |
 
-## Flight routes
+## Flight Master
 
-The tracker journal's **Flight Routes** page holds two tables: flight points (name, scene to open on arrival, unlocked yes/no) and routes (from, to, fare per passenger, hours). Write fares with coins, like `2s`, `1g 20s` or `75c`; a plain number such as `2` is read in the *Fare unit* setting (gold by default). Edit the tables directly; Flight Master reads the page each time. When a row is malformed (missing columns, an empty name, a fare or hours that can't be read, a point listed twice), the GM gets a warning naming the table, row and column ("Routes row 2, Fare: "x2" isn't a fare"), and the health check lists them all. A flight point with no scene is allowed; flying there just doesn't open a scene.
+Flight Master flies the party between **flight points** along **routes** you set up in the module itself. Nothing is read from a journal page, and a flight point opens a scene only if you pick one for it.
 
-**Players and Flight Master.** With *Players can book flights* on (the default, control panel › Travel), players get a feather button in the token controls, and can drag the **Flight Master** macro onto their own hotbar from the *Wayfarer's Toolkit Macros* compendium (or the shared world copy in the macro folder). A player picks a route and confirms; the GM's client checks the route, takes the fare from the party purse, advances time, logs the trip and opens the destination scene. A GM must be connected ("A GM needs to be connected to fly."). Players see a copy of the flight points and routes, never the GM journal itself.
+### The flight network editor
 
-**Checks before a flight.** Before anyone confirms, Flight Master shows the route, the fare per passenger × passengers = total, the party purse and the flight time. A flight is refused (a window with an **OK** button), with nothing charged, when the party can't afford it ("needs X, has Y (short Z)"), when the destination's scene doesn't exist, or when a route names a flight point that isn't in the Flight Points table. The active GM's client checks everything again before charging; if the destination scene then can't be opened, the fare is refunded and the GM (and the player who booked) is told.
+Open **control panel › Travel › Flight network…** (or `api.flight.editor()`). It has two tables and **Save** / **Cancel**; nothing changes until you save.
+
+- **Flight points:** a name (for example *Harbor Town*), the **scene on arrival** (a dropdown of your scenes, or *No scene*), an **Unlocked** switch, an optional GM note, and a remove button. **Add flight point** adds a row. Only unlocked points can be flown from or to.
+- **Routes:** **From** and **To** (dropdowns of your flight points), the **fare** per passenger, the flight **hours**, a **Two-way** switch (off: the route only flies From → To) and a **Free** switch (nobody pays for this route, players included). Type fares with coins, like `2s`, `1g 20s` or `75c`; a plain number such as `2` is read in *Fares without a coin are in* (control panel › Travel, gold by default). The fare is shown back formatted when you leave the field.
+
+Problems show under the tables as you type, and the rows are outlined: a point with no name or the same name as another, a route from a point to itself, a route naming a point that no longer exists, or a fare that can't be read stop **Save**; a route listed twice is only a warning (the cheaper one is flown). Removing a flight point asks first and removes its routes too.
+
+Flight Master always takes the cheapest way through unlocked points, so the party can fly *Harbor Town → Hill Fort → River Camp* in one booking if each leg is a route.
+
+### Flying
+
+Open Flight Master from the feather button in the token controls or the **Flight Master** macro. Pick From, To and the number of passengers, then **Check route**: before anyone confirms, the window shows the route, the fare per passenger × passengers = total, the party purse and the flight time. Confirming charges the fare from the party group actor's purse (with change), plays the departure sound, advances the world time, writes the trip to the Travel Log and posts "The party flies from … The party lands at *Harbor Town*." to chat.
+
+- **A point with a scene:** that scene is activated on arrival (the GM can untick *Open destination scene for players*). If it can't be opened, the fare is refunded and the flight is called off.
+- **A point with no scene** (or a scene that has been deleted): the flight still happens, the fare is charged, time passes and the trip is logged, but the scene stays where it is. The GM gets a whisper saying the party landed there and may need moving.
+
+A flight is refused, with nothing charged, when the party can't afford it ("needs X, has Y (short Z)"), when a point isn't in the network or isn't unlocked, or when no route connects the two points.
+
+**Free flight (GM).** The GM's Flight Master window has a **Free flight (no fare)** checkbox (off by default). A free flight skips the purse check and charges nothing; everything else happens as usual and the chat card and Travel Log say "free flight". From a macro: `api.flight.fly("Harbor Town", "Hill Fort", { free: true })`. Players never see the checkbox, and the GM's client ignores a "free" request in a player's booking: players always pay unless the route itself is marked **Free**.
+
+**Players and Flight Master.** With *Players can book flights* on (the default, control panel › Travel), players get the feather button in the token controls and can drag the **Flight Master** macro onto their own hotbar from the *Wayfarer's Toolkit Macros* compendium (or the shared world copy in the macro folder). Players read the unlocked flight points and routes from the module's world setting (they never see your notes or a journal). A player picks a route and confirms; the active GM's client checks everything again (purse, points, routes), charges the fare and carries the flight out, and the player is told how it went. A GM must be connected ("A GM needs to be connected to fly.").
+
+### Upgrading from 1.15 or earlier: the Flight Routes journal page
+
+Earlier versions kept the network in two tables on the tracker journal's **Flight Routes** page. While the flight network is empty and that page has flight points, the editor and the Overview tab offer **Import from the Flight Routes journal page** (or `api.flight.importLegacy({ dryRun: true })` to see what would come in). It asks first and lists anything worth a look:
+
+- each point's scene is matched by its exact scene name; a name with no match (or more than one scene with that name) imports as *No scene*, to pick in the editor;
+- fares are read exactly as before (coins, or plain numbers in the fare unit);
+- every route imports as **Two-way**, because the old tables always flew both ways;
+- rows naming an unknown point, or a point to itself, are skipped and listed.
+
+The import never edits or deletes the page and never runs on its own. Once the flight network has flight points the page is ignored, and you may delete it.
+
+### Scripting
+
+`api.flight()` opens Flight Master. `api.flight.network()` returns the network (`{ version, points: [{ id, name, sceneUuid, unlocked, note }], routes: [{ id, from, to, fareCp, hours, twoWay, free }] }`; `from` / `to` are point ids and `fareCp` is in the smallest coin in use). GM only: `api.flight.setNetwork(obj)` replaces it (points may be named by name in routes; a network with errors is refused), `api.flight.unlock("Hill Fort")` unlocks a point by name or id (`unlock(name, false)` locks it), `api.flight.fly(from, to, { pax, free, scene })` flies now without the window, `api.flight.importLegacy({ dryRun })` and `api.flight.editor()`.
 
 **Flight sound.** A short bundled departure clip (`sounds/be-good.ogg`) plays for everyone when a flight departs. Pick a different file in *Departure sound* (control panel › Travel › Advanced), or clear it for silence.
 
@@ -502,7 +537,7 @@ An optional classic-MMO-style economy: no electrum or platinum, and **100 copper
 
 1. **Platinum and electrum are converted for you.** Each time the world loads in three-coin mode (and when you **Run setup**), the GM's client turns any pp or ep left on actors, containers and unlinked tokens into the new coins: **1 pp = 10 gold** and **1 ep = 50 silver** (half a gold piece, its standard 5e value), and whispers the GM who was changed. If you'd rather decide yourself, convert or remove them while you're still on Standard.
 2. In the control panel's **Features** tab, switch on **Three-coin economy** and click **Save features**; Foundry reloads.
-3. Set **Fares without a coin are in** (control panel › Travel) to the coin your Flight Routes table uses for plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
+3. Set **Fares without a coin are in** (control panel › Travel) to the coin your flight fares use when typed as plain numbers. For MMO-style prices that's usually *Silver*. Or write each fare with its coin (`2s`, `1g 20s`) and the setting doesn't matter.
 4. Check a sheet: the currency block should show only copper, silver and gold, left to right.
 
 To switch back, switch **Three-coin economy** off again. Coin amounts stay as they are; they're just read at 5e rates again.

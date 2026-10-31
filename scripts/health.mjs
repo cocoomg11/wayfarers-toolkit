@@ -148,16 +148,18 @@ function dungeons() {
 
 function flights(api) {
   if (!F.on("flightMaster")) return [off("Flight Master is off.")];
-  let data; try { data = api.flightData(); } catch (e) { return [warn(esc(e.message))]; }
-  const out = []; const open = data.pts.filter(p => p.u);
-  out.push(open.length >= 2 ? ok(`${plural(data.pts.length, "flight point")} (${open.length} unlocked), ${plural(data.routes.length, "route")}.`) : warn(`Only ${open.length} unlocked flight point${open.length === 1 ? "" : "s"}: Flight Master needs two.`));
-  for (const p of data.pts.filter(p => p.sm)) out.push(bad(`Flight point ${esc(p.n)}: scene "${esc(p.sc)}" doesn't exist (flights there are refused).`));
-  const noScene = data.pts.filter(p => p.n && !p.sc).map(p => p.n);
-  if (noScene.length) out.push(warn(`No scene: flying to ${listNames(noScene)} won't open a scene (still allowed).`));
-  let probs = []; try { probs = api.flightProblems(); } catch { }
-  for (const p of probs) out.push(warn(`Flight Routes: ${esc(Flight.rowProblemText(p))}.`));
-  const names = new Set(data.pts.map(p => p.n));
-  for (const r of data.routes) { const u = [r.a, r.b].filter(n => !names.has(n)); if (u.length) out.push(bad(`Route ${esc(r.a)} → ${esc(r.b)}: unknown flight point ${u.map(esc).join(", ")}.`)); }
+  const net = api.flightNetwork(); const out = [];
+  let legacy = false; try { legacy = api.canImportLegacyFlights(); } catch { }
+  if (legacy) out.push(warn("The flight network is empty but the old Flight Routes journal page has flight points: import them from the Flight Routes journal page (control panel › Travel › Flight network…)."));
+  if (!net.points.length) { if (!legacy) out.push(warn("No flight points yet: set them up in the flight network (control panel › Travel › Flight network…).")); return out; }
+  const open = net.points.filter(p => p.unlocked);
+  out.push(open.length >= 2 ? ok(`${plural(net.points.length, "flight point")} (${open.length} unlocked), ${plural(net.routes.length, "route")}.`) : warn(`Only ${open.length} unlocked flight point${open.length === 1 ? "" : "s"}: Flight Master needs two.`));
+  const facts = Flight.networkFacts(net, u => api.sceneExists(u));
+  if (facts.noScene.length) out.push(warn(`No scene (info): flying to ${listNames(facts.noScene)} lands the party without changing the scene.`));
+  for (const n of facts.missingScene) out.push(warn(`Flight point ${esc(n)}: its scene was deleted, so flying there won't change the scene. Pick one in the flight network.`));
+  if (facts.toLocked.length) out.push(warn(`Route${facts.toLocked.length === 1 ? "" : "s"} into a locked flight point (not flown until it's unlocked): ${listNames(facts.toLocked)}.`));
+  for (const r of facts.unknown) out.push(bad(`Route ${esc(r)}: names a flight point that doesn't exist. Fix or remove it in the flight network.`));
+  for (const p of Flight.validateNetwork(net).filter(p => p.level === "error" && p.where === "point")) out.push(bad(`${esc(Flight.problemText(p))}.`));
   if (!api.partyActor()) out.push(warn(`No group actor named ${esc(api.PARTY)}: fares aren't charged.`));
   return out;
 }

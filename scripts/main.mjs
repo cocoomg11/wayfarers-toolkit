@@ -16,6 +16,7 @@ import * as Health from "./health.mjs";
 import { isActiveGM, activeGM } from "./gm.mjs";
 import { MACROS, macroData } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
+import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import { log } from "./log.mjs";
 
@@ -107,18 +108,11 @@ function coins() {
 const COIN_ALIAS = { g: "gp", gold: "gp", s: "sp", silver: "sp", c: "cp", copper: "cp", p: "pp", platinum: "pp", e: "ep", electrum: "ep" };
 const coinKey = s => { s = String(s).toLowerCase().replace(/\.$/, ""); if (CONFIG.DND5E.currencies[s]) return s; for (const [k, c] of Object.entries(CONFIG.DND5E.currencies)) if (String(c.abbreviation).toLowerCase() === s) return k; return COIN_ALIAS[s] ?? COIN_ALIAS[s.replace(/s$/, "")] ?? null; };
 /** "1g 20s", "2 gp", "50c" or a plain number (read in the Fare unit setting) → amount in the smallest coin. */
-function parseMoney(text, unit = setting("fareUnit")) {
-  const val = Object.fromEntries(coins()); const str = String(text ?? "").trim(); if (!str) return 0;
-  if (/^\d+(\.\d+)?$/.test(str)) return Math.round(+str * (val[unit] ?? val.gp ?? 1));
-  let total = 0, hit = false;
-  for (const [, n, u] of str.matchAll(/(\d+(?:\.\d+)?)\s*([a-z]+)/gi)) { const k = coinKey(u); if (k && val[k]) { total += +n * val[k]; hit = true; } }
-  return Math.round(hit ? total : (parseFloat(str) || 0) * (val[unit] ?? 1));
-}
+function parseMoney(text, unit = setting("fareUnit")) { return Flight.parseCoins(text, Object.fromEntries(coins()), unit, coinKey); }
 /** Amount in the smallest coin → "1g 20s 5c" (three-coin) or "1 gp 2 sp" (standard). Electrum is never used for change. */
 function fmtMoney(amount) {
-  amount = Math.max(0, Math.round(amount)); const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; const parts = [];
-  for (const [k, v] of coins()) { if (k === "ep") continue; const n = Math.floor(amount / v); if (n) { parts.push(`${n}${tight ? "" : " "}${C[k].abbreviation}`); amount -= n * v; } }
-  return parts.join(" ") || `0${tight ? "" : " "}${C[coins().at(-1)[0]].abbreviation}`;
+  const C = CONFIG.DND5E.currencies;
+  return Flight.formatCoins(amount, coins(), Object.fromEntries(Object.entries(C).map(([k, c]) => [k, c.abbreviation])), setting("coinSystem") === "threeCoin");
 }
 
 /** Item Piles' currency list for the three-coin economy, copper first: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
@@ -153,7 +147,7 @@ function registerSettings() {
   s("coinSystem", "Coin system", "Three coins replaces dnd5e's five with copper, silver and gold at 100 to 1, as in classic MMOs. Reloads Foundry. Item prices are not changed. See the README before switching.", String, { choices: { standard: "Standard 5e (cp, sp, ep, gp, pp)", threeCoin: "Three coins: copper, silver, gold (100 to 1)" }, requiresReload: true });
   s("campaignName", "Campaign name", "Used in the Session Start recap (\"Previously, in …\"). Leave blank to use the world title.", String);
   // General
-  s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log, Flight Routes and Session Recap pages.", String);
+  s("trackerJournal", "General: Tracker journal", "Journal holding the Travel Log and Session Recap pages.", String);
   s("partyActor", "General: Party actor", "Group actor whose purse pays flight fares and whose members count as passengers.", String);
   s("itemPilesCoins", "General: Set Item Piles coins for three coins", "With the three-coin economy on, sets Item Piles' currencies to gold, silver and copper at 100 to 1 (no platinum or electrum) each time the world loads. Turn off to manage Item Piles' currencies yourself.", Boolean);
   s("debugLog", "General: Debug logging", "Writes the toolkit's automatic decisions to the browser console (F12): why a body got no loot, which GM ran an automatic step, the items and CR bands chosen, how loot rolls were settled. Off: nothing is logged.", Boolean);
@@ -169,7 +163,7 @@ function registerSettings() {
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
-  s("fareUnit", "Flight Master: Fare unit", "Coin used for fares written as plain numbers in the Flight Routes table. Fares can also be written with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
+  s("fareUnit", "Flight Master: Fare unit", "Coin used for fares typed as plain numbers in the flight network editor. Fares can also be typed with coins, like 1g 20s or 50c.", String, { choices: { gp: "Gold", sp: "Silver", cp: "Copper" } });
   s("riderFeat", "Riding Training: Feat name", "Hex Travel ticks Mounted automatically when every party member has this feat (Long Road). Setup creates a feat with this name (Riding Training by default).", String);
   // Vendor Trash
   s("trashItemPiles", "Vendor Trash: Use Item Piles", "When Item Piles is active and set up for your system, Vendor Trash puts the loot on each defeated creature and turns its token into a lootable pile. Off, or without Item Piles, the GM gets a loot card with a Give to Party button.", Boolean);
@@ -181,7 +175,10 @@ function registerSettings() {
   s("trashGmAddedLoot", "Vendor Trash: Items the GM adds to an NPC count as loot", "When a GM adds a weapon, armour, consumable, tool, loot or container to an NPC (dragged onto its sheet or created there), the item is marked Lootable and shows in the body's loot pile. Items that came with the stat block are never marked. Change the mark on the item sheet or the inventory context menu.", Boolean);
   s("trashUnconscious", "Vendor Trash: Unconscious bodies become lootable", "An unlinked NPC token that gets the Unconscious condition becomes lootable as if it had died (No loot and one-loot-per-body still apply).", Boolean);
   s("trashPacks", "Vendor Trash: Compendiums", "Item compendium IDs to draw vendor trash from, separated by commas. Leave blank to use the wow-classic-items module's compendium (wow-classic-items.items) when it's installed. Grey items are trash; in other compendiums, loot items with no rarity are.", String, { onChange: () => Trash.resetPool() });
+  // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
+  // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
+  game.settings.register(ID, "flightNetwork", { scope: "world", config: false, type: Object, default: Flight.emptyNetwork(), onChange: () => FlightEditor.refresh() });
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
   game.settings.register(ID, "wizardDone", { scope: "world", config: false, type: Boolean, default: false });
   // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
@@ -217,7 +214,6 @@ const RIDER_FEAT = name => ({
 
 const TRACKER_PAGES = {
   "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`,
-  "Flight Routes": `<h2>Flight Points</h2><p>Only points marked <strong>yes</strong> appear in Flight Master. <em>Scene</em> is opened on arrival (optional).</p><table><thead><tr><th>Flight point</th><th>Scene</th><th>Unlocked</th></tr></thead><tbody><tr><td>Example Town</td><td></td><td>yes</td></tr><tr><td>Example Outpost</td><td></td><td>no</td></tr></tbody></table><h2>Routes</h2><p>Direct flights, both directions. Fare per passenger, written like <em>2s</em> or <em>1g 20s</em> (a plain number uses the Fare unit setting); hours of flight.</p><table><thead><tr><th>From</th><th>To</th><th>Fare</th><th>Hours</th></tr></thead><tbody><tr><td>Example Town</td><td>Example Outpost</td><td>2</td><td>1</td></tr></tbody></table>`,
   "Session Recap": `<h2>Last Session Recap</h2><p><em>Write a short recap here after each session. The Session Start macro offers it as the opening recap.</em></p>`
 };
 
@@ -270,7 +266,7 @@ export const WCT = {
   /** GM: checks the world and whispers the report (also the Health check button in the settings and the Toolkit Health Check macro). */
   health(opts = {}) { if (!this.gmOnly()) return; return Health.post(this, opts); },
   /** For the health check: coin settings, Item Piles' currencies and the active GM helpers. */
-  internals: { ipCoinsMatch, riderName, activeGM, isActiveGM, checkZones, flightProblems: () => WCT.flightProblems() },
+  internals: { ipCoinsMatch, riderName, activeGM, isActiveGM, checkZones },
   /** Party size (1–8) from the world setting. */
   get partySize() { return BossLoot.clampParty(setting("partySize")); },
 
@@ -376,36 +372,52 @@ export const WCT = {
     await this.say(`<p><em>The party travels ${road + off} miles through ${esc(f.zone)} (${hours.toFixed(1)} hours).</em></p>`, "Travel");
     return { hours, enc };
   },
-  /** Flight points and routes. The GM reads the tracker journal; players read a copy the GM keeps in a world setting, since they can't open the GM journal. */
-  flightData() {
-    if (!game.user.isGM) return game.settings.get(ID, "flightCache") ?? { pts: [], routes: [] };
-    const html = this.page("Flight Routes").text.content;
-    // sm: the point names a scene that doesn't exist (players can't look scenes up themselves, so the GM's copy says).
-    const pts = this.parseTable(html, 0).map(([n, sc, u]) => ({ n, sc, u: /^y/i.test(u || ""), sm: !!sc && !game.scenes.getName(sc) }));
-    const routes = this.parseTable(html, 1).map(([a, b, f, h]) => ({ a, b, f: parseMoney(f), h: +h || 0 }));
-    return { pts, routes };
+  // ------------------------------------------------------------ flight network (the flightNetwork world setting; everyone can read it)
+  /** The flight network, cleaned up (see flight.mjs). */
+  flightNetwork() { let raw; try { raw = game.settings.get(ID, "flightNetwork"); } catch { raw = null; } return Flight.normalizeNetwork(raw); },
+  /** GM: replaces the network. Refuses one with errors (empty or repeated names, routes to unknown points or to themselves). */
+  async setFlightNetwork(obj) {
+    if (!game.user.isGM) throw new Error("Only a GM can change the flight network.");
+    const net = Flight.normalizeNetwork(obj); const errors = Flight.validateNetwork(net).filter(p => p.level === "error");
+    if (errors.length) throw new Error(`Flight network not saved: ${errors.slice(0, 4).map(Flight.problemText).join("; ")}${errors.length > 4 ? "; …" : ""}.`);
+    await game.settings.set(ID, "flightNetwork", net);
+    return net;
   },
-  /** Malformed rows in the Flight Routes tables (GM): [{ table, row, column, text }]. */
-  flightProblems() {
-    if (!game.user.isGM) return [];
-    const html = this.page("Flight Routes").text.content;
-    return Flight.flightRowProblems(this.parseTable(html, 0), this.parseTable(html, 1));
+  sceneExists(uuid) { return !!uuid && !!fromUuidSync(uuid, { strict: false }); },
+  sceneName(uuid) { try { return fromUuidSync(uuid, { strict: false })?.name ?? null; } catch { return null; } },
+  /** The pre-1.16 Flight Routes page's tables (GM): { pointRows, routeRows } or null when there's no such page or it's empty. */
+  legacyFlightRows() {
+    if (!game.user.isGM) return null;
+    const p = game.journal.getName(this.JOURNAL)?.pages.getName("Flight Routes"); if (!p) return null;
+    const html = p.text?.content ?? ""; const pointRows = this.parseTable(html, 0), routeRows = this.parseTable(html, 1);
+    return Flight.legacyHasRows(pointRows) ? { pointRows, routeRows } : null;
   },
-  /** Active GM: warns once per change about malformed Flight Routes rows. */
-  warnFlightRows() {
-    if (!isActiveGM()) return;
-    let probs; try { probs = this.flightProblems(); } catch { return; }
-    const key = JSON.stringify(probs); if (key === this._flightWarned) return; this._flightWarned = key;
-    if (probs.length) ui.notifications.warn(`Flight Master: ${probs.length} problem${probs.length === 1 ? "" : "s"} in ${this.JOURNAL} › Flight Routes: ${probs.slice(0, 3).map(Flight.rowProblemText).join("; ")}${probs.length > 3 ? "; …(see the health check)" : ""}.`);
+  /** Whether the editor and the health check should offer the import: the network is empty and the old page has rows. */
+  canImportLegacyFlights() { return !this.flightNetwork().points.length && !!this.legacyFlightRows(); },
+  /**
+   * GM: imports the old Flight Routes page into the flight network. `dryRun` only reports. Never edits or deletes the page, and refuses
+   * when the network already has flight points. Returns { network, report, counts, saved }.
+   */
+  async importLegacyFlights({ dryRun = false } = {}) {
+    if (!game.user.isGM) throw new Error("GM only.");
+    const rows = this.legacyFlightRows(); if (!rows) throw new Error(`No Flight Routes page with flight points in "${this.JOURNAL}".`);
+    if (this.flightNetwork().points.length) throw new Error("The flight network already has flight points; the journal page isn't imported over it.");
+    const res = Flight.importLegacy({ ...rows, scenes: game.scenes.map(s => ({ name: s.name, uuid: s.uuid })), parse: f => parseMoney(f) });
+    if (dryRun) return { ...res, saved: false };
+    await this.setFlightNetwork(res.network);
+    await this.gmWhisper(`<p><strong>Flight Master:</strong> imported ${res.counts.points} flight point${res.counts.points === 1 ? "" : "s"} and ${res.counts.routes} route${res.counts.routes === 1 ? "" : "s"} from ${esc(this.JOURNAL)} › Flight Routes. The page wasn't changed and is no longer read; you may delete it.</p>${res.report.length ? `<ul>${res.report.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}`);
+    return { ...res, saved: true };
   },
-  async syncFlightCache() {
-    if (!isActiveGM()) return;
-    let data; try { data = this.flightData(); } catch { return; }
-    const old = game.settings.get(ID, "flightCache");
-    if (JSON.stringify(old) !== JSON.stringify(data)) await game.settings.set(ID, "flightCache", data);
-    this.warnFlightRows();
+  /** GM: unlocks (or with on = false locks) a flight point by name or id. Returns the point. */
+  async unlockFlightPoint(nameOrId, on = true) {
+    if (!game.user.isGM) throw new Error("GM only.");
+    const net = this.flightNetwork(); const p = Flight.findPoint(net, nameOrId); if (!p) throw new Error(`No flight point "${nameOrId}".`);
+    if (p.unlocked !== !!on) { p.unlocked = !!on; await this.setFlightNetwork(net); }
+    return { ...p };
   },
-  route(from, to, open, routes) { return Flight.route(from, to, open, routes); },
+  /** Opens the flight network editor (GM). */
+  flightEditor() { return this.gmOnly() ? FlightEditor.open(this) : undefined; },
+  route(net, from, to) { return Flight.route(net, from, to); },
   partyActor() { return game.actors.find(a => a.type === "group" && a.name === this.PARTY); },
   playFlightSound() {
     const src = setting("flightSound"); if (!src) return;
@@ -414,37 +426,43 @@ export const WCT = {
   /**
    * Opens Flight Master. The GM flies the party directly; a player's booking is sent to the active GM's client, which checks it again
    * and carries it out. Before confirming, both see the route, fare per passenger × passengers = total, the party purse and the hours.
-   * A flight the party can't afford, to a scene that doesn't exist or over an unknown flight point is refused and nothing is charged.
+   * A flight the party can't afford or over an unknown flight point is refused and nothing is charged. The GM can tick Free flight.
    */
   async flight() {
     if (!F.need("flightMaster")) return;
     const gm = game.user.isGM;
     if (!gm && !setting("playerFlights")) return ui.notifications.warn("Flight Master is GM only in this world.");
     if (!gm && !activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
-    let data; try { data = this.flightData(); } catch (e) { return ui.notifications.error(e.message); }
-    const { pts, routes } = data; const open = pts.filter(p => p.u).map(p => p.n);
-    if (open.length < 2) return ui.notifications.warn(gm ? `Fewer than two flight points are unlocked. Mark them yes in ${this.JOURNAL} › Flight Routes.` : "There are no flight paths open yet.");
+    const net = this.flightNetwork(); const open = net.points.filter(p => p.unlocked && p.name);
+    if (open.length < 2) {
+      if (!gm) return ui.notifications.warn("There are no flight paths open yet.");
+      ui.notifications.warn(this.canImportLegacyFlights() ? "Flight Master: import your Flight Routes journal page in the flight network editor first." : "Flight Master: fewer than two flight points are unlocked. Set them up in the flight network editor.");
+      return this.flightEditor();
+    }
     let party = this.partyActor();
     const members = party?.system.members?.length || 0;
-    const here = pts.find(p => p.u && p.sc && p.sc === canvas.scene?.name)?.n ?? open[0];
-    const content = `<div class="form-group"><label>From</label><select name="from">${open.map(n => this.opt(n, n, n === here)).join("")}</select></div>
-      <div class="form-group"><label>To</label><select name="to">${open.map(n => this.opt(n, n, n !== here && n === open.find(x => x !== here))).join("")}</select></div>
+    const here = open.find(p => p.sceneUuid && p.sceneUuid === canvas.scene?.uuid)?.id ?? open[0].id;
+    const other = open.find(p => p.id !== here)?.id;
+    const content = `<div class="form-group"><label>From</label><select name="from">${open.map(p => this.opt(p.id, p.name, p.id === here)).join("")}</select></div>
+      <div class="form-group"><label>To</label><select name="to">${open.map(p => this.opt(p.id, p.name, p.id === other)).join("")}</select></div>
       <div class="form-group"><label>Passengers</label><input type="number" name="pax" min="1" max="20" value="${members || 4}"></div>
-      ${gm ? `<div class="form-group"><label>Open destination scene for players</label><input type="checkbox" name="scene" checked></div>` : ""}
-      <p class="hint">${gm ? `Fares and routes come from ${esc(this.JOURNAL)} › Flight Routes. ` : "Fares are paid from the party purse. "}${party ? `Party purse: ${this.purse(party)}.` : gm ? `No group actor named ${esc(this.PARTY)}; fares won't be deducted.` : ""}</p>`;
+      ${gm ? `<div class="form-group"><label>Open destination scene for players</label><input type="checkbox" name="scene" checked></div>
+      <div class="form-group"><label>Free flight (no fare)</label><input type="checkbox" name="free"></div><p class="hint">GM only: a free flight skips the purse check and charges nothing; players never see this.</p>` : ""}
+      <p class="hint">${gm ? "Flight points and routes come from the flight network (control panel › Travel). " : "Fares are paid from the party purse. "}${party ? `Party purse: ${this.purse(party)}.` : gm ? `No group actor named ${esc(this.PARTY)}; fares won't be deducted.` : ""}</p>`;
     const f = await this.form("Flight Master", content, "Check route"); if (!f) return;
-    party = this.partyActor(); const pax = Flight.clampPax(f.pax);
-    const c = Flight.check({ pts, routes, from: f.from, to: f.to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney });
-    const path = r => `<p><strong>${r.path.map(esc).join(" → ")}</strong></p>`;
+    party = this.partyActor(); const pax = Flight.clampPax(f.pax); const free = gm && !!f.free;
+    const c = Flight.check({ net, from: f.from, to: f.to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney, free, sceneExists: gm ? u => this.sceneExists(u) : undefined });
+    const path = r => `<p><strong>${r.names.map(esc).join(" → ")}</strong></p>`;
     if (!c.ok) {
       if (!c.r) return ui.notifications.warn(c.error);
       return this.info("Flight Master", `${path(c.r)}<p><strong>${esc(c.error)}</strong></p>`);
     }
     const { r, q } = c;
-    const summary = `${path(r)}<p>Fare: ${fmtMoney(r.f)} per passenger × ${pax} passenger${pax === 1 ? "" : "s"} = <strong>${fmtMoney(q.total)}</strong></p>
-      <p>${party ? `Party purse: ${this.purse(party)} (${fmtMoney(q.have)}; ${fmtMoney(q.have - q.total)} left after the flight)` : `No group actor named ${esc(this.PARTY)}: no fare is charged`}.</p>
-      <p>Flight time: ${r.h} hour${r.h === 1 ? "" : "s"}.</p>`;
-    const go = await this.confirm("Flight Master", `${summary}<p>${gm ? "Fly now?" : "Book this flight?"}</p>`);
+    const fare = free ? `<p><strong>Free flight</strong>: no fare is charged (the route's fare is ${fmtMoney(r.f)} per passenger).</p>`
+      : `<p>Fare: ${fmtMoney(r.f)} per passenger × ${pax} passenger${pax === 1 ? "" : "s"} = <strong>${fmtMoney(q.total)}</strong></p>
+      <p>${party ? `Party purse: ${this.purse(party)} (${fmtMoney(q.have)}; ${fmtMoney(q.have - q.total)} left after the flight)` : `No group actor named ${esc(this.PARTY)}: no fare is charged`}.</p>`;
+    const land = gm && c.land.reason !== "ok" ? `<p class="hint">${esc(c.dest.name)} has ${c.land.reason === "missing" ? "a scene that no longer exists" : "no scene"}: the party lands there but the scene doesn't change.</p>` : "";
+    const go = await this.confirm("Flight Master", `${path(r)}${fare}<p>Flight time: ${r.h} hour${r.h === 1 ? "" : "s"}.</p>${land}<p>${gm ? "Fly now?" : "Book this flight?"}</p>`);
     if (!go) return;
     if (!gm) {
       if (!activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
@@ -452,44 +470,58 @@ export const WCT = {
       ui.notifications.info("Booking sent to the flight master…");
       return r;
     }
-    return this.doFlight({ from: f.from, to: f.to, pax, scene: !!f.scene });
+    return this.doFlight({ from: f.from, to: f.to, pax, scene: !!f.scene, free });
+  },
+  /** GM, no dialog: flies the party now. `opts`: { pax, free, scene }. From and to are flight point names or ids. */
+  async flyNow(from, to, { pax, free = false, scene = true } = {}) {
+    if (!F.need("flightMaster") || !this.gmOnly()) return null;
+    pax ??= this.partyActor()?.system.members?.length || 4;
+    return this.doFlight({ from, to, pax, free: !!free, scene });
   },
   /** Tells a player how their booking went (the player's client shows it). */
   tellFlight(userId, ok, text) { if (userId && userId !== game.user.id) game.socket.emit(SOCKET, { action: "flightResult", userId, ok, text }); },
   /**
-   * Carries out a flight on the GM's client: checks everything again (a player's request can't set its own price), charges the fare,
-   * opens the destination scene (refunding the fare if that fails), then sound, time, log and chat.
+   * Carries out a flight on the GM's client: checks everything again (a player's request can't set its own price or ask for a free
+   * flight), charges the fare, opens the destination scene when the point has one (refunding the fare if that fails), then sound,
+   * time, log and chat. A point with no scene (or a deleted one) is still flown to; the scene just stays put and the GM is told.
    */
-  async doFlight({ from, to, pax, scene = true, userId = null }) {
+  async doFlight({ from, to, pax, scene = true, userId = null, free = false }) {
     const by = userId ? game.users.get(userId) : null;
     const fail = async error => {
-      if (by) { await this.gmWhisper(`<p>${esc(by.name)}'s flight ${esc(from)} → ${esc(to)} didn't go: ${esc(error)}</p>`); this.tellFlight(userId, false, error); }
+      if (by) { await this.gmWhisper(`<p>${esc(by.name)}'s flight didn't go: ${esc(error)}</p>`); this.tellFlight(userId, false, error); }
       else ui.notifications.warn(`Flight Master: ${error}`);
       return null;
     };
-    let data; try { data = this.flightData(); } catch (e) { return fail(e.message); }
+    const net = this.flightNetwork();
     pax = Flight.clampPax(pax);
     const party = this.partyActor();
-    const c = Flight.check({ pts: data.pts, routes: data.routes, from, to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney });
+    // A booking that came over the socket (userId set) is a player's: `free` is ignored there, whoever sent it.
+    const c = Flight.decide({ net, from, to, pax, purse: party ? this.totalMoney(party) : null, fmt: fmtMoney, free, byPlayer: !!userId, wantScene: scene, sceneExists: u => this.sceneExists(u) });
     if (!c.ok) return fail(c.error);
-    const { r, q } = c; const sc = c.dest?.sc ? game.scenes.getName(c.dest.sc) : null;
+    const { r, q, dest, land, charge } = c; free = c.free;
+    const sc = c.changeScene ? fromUuidSync(land.sceneUuid, { strict: false }) : null;
     const before = party ? foundry.utils.deepClone(party.system.currency ?? {}) : null;
-    if (party && q.total) await this.pay(party, q.total);
-    if (scene && sc) {
+    if (charge) await this.pay(party, charge);
+    if (sc) {
       try { await sc.activate(); }
       catch (e) {
-        let refunded = false; if (party && q.total) { try { await party.update({ "system.currency": before }); refunded = true; } catch (e2) { console.error(`${ID} | flight refund failed`, e2); } }
-        return fail(`the scene "${sc.name}" couldn't be opened (${e.message}). ${refunded ? "The fare was refunded." : party && q.total ? `Refund failed: give the party ${fmtMoney(q.total)} back by hand.` : ""}`.trim());
+        let refunded = false; if (charge) { try { await party.update({ "system.currency": before }); refunded = true; } catch (e2) { console.error(`${ID} | flight refund failed`, e2); } }
+        return fail(`the scene "${sc.name}" couldn't be opened (${e.message}). ${refunded ? "The fare was refunded." : charge ? `Refund failed: give the party ${fmtMoney(charge)} back by hand.` : ""}`.trim());
       }
     }
     this.playFlightSound();
     await game.time.advance(Math.round(r.h * 3600));
+    const fareText = free ? "free flight" : `${fmtMoney(q.total)}${charge || !q.total ? "" : " (not charged)"}`;
     // The flight has happened by now; a missing Travel Log page only costs the log line.
-    try { await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.path.map(esc).join(" → ")}, ${r.h} h, ${fmtMoney(q.total)}${party ? "" : " (not charged)"}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`); }
+    try { await this.appendPage("Travel Log", `<p><strong>Flight.</strong> ${r.names.map(esc).join(" → ")}, ${r.h} h, ${fareText}${by ? `, booked by ${esc(by.name)}` : ""}. Arrived ${this.stamp()}.</p>`); }
     catch (e) { console.warn(`${ID} | flight not logged`, e); }
-    await this.say(`<p><em>The party flies from ${esc(from)} to ${esc(to)}${r.path.length > 2 ? ` by way of ${r.path.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>Fare: ${fmtMoney(q.total)}.</p>`, "Flight Master");
-    if (by) this.tellFlight(userId, true, `Flight booked: ${from} → ${to}. Mount up!`);
-    return r;
+    await this.say(`<p><em>The party flies from ${esc(c.from.name)} to ${esc(dest.name)}${r.names.length > 2 ? ` by way of ${r.names.slice(1, -1).map(esc).join(", ")}` : ""}. ${r.h} hours in the air.</em></p><p>${free ? "Free flight: no fare." : `Fare: ${fmtMoney(q.total)}.`}</p><p>The party lands at ${esc(dest.name)}.</p>`, "Flight Master");
+    if (!sc) {
+      const why = land.reason === "missing" ? `${esc(dest.name)}'s scene no longer exists (pick another in the flight network editor)` : land.reason === "none" ? `${esc(dest.name)} has no scene` : "you chose not to open the destination scene";
+      await this.gmWhisper(`<p><strong>Flight Master:</strong> the party landed at ${esc(dest.name)}, but ${why}, so the scene didn't change. You may want to move the party.</p>`);
+    }
+    if (by) this.tellFlight(userId, true, `Flight booked: ${c.from.name} → ${dest.name}. The party lands at ${dest.name}.`);
+    return { ...r, free, charged: charge, sceneChanged: !!sc, landing: land.reason };
   },
   /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
   riders() {
@@ -627,6 +659,16 @@ export const WCT = {
   }
 };
 
+// api.flight() opens Flight Master; its helpers hang off the same function.
+Object.assign(WCT.flight, {
+  network: () => WCT.flightNetwork(),
+  setNetwork: obj => WCT.setFlightNetwork(obj),
+  unlock: (nameOrId, on = true) => WCT.unlockFlightPoint(nameOrId, on),
+  importLegacy: (opts = {}) => WCT.importLegacyFlights(opts),
+  fly: (from, to, opts = {}) => WCT.flyNow(from, to, opts),
+  editor: () => WCT.flightEditor()
+});
+
 Hooks.once("init", () => {
   registerSettings(); applyCoinSystem();
   Health.init(WCT); Panel.init(WCT);
@@ -651,10 +693,10 @@ Hooks.once("ready", () => {
       if (msg?.action !== "flight" || !isActiveGM()) return;
       const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
       if (!setting("playerFlights")) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
-      try { await WCT.doFlight({ from: msg.from, to: msg.to, pax: msg.pax, userId: uid, scene: true }); }
+      // A player's booking: always charged, always changes the scene when the point has one (a "free" field is ignored).
+      try { await WCT.doFlight({ ...Flight.socketBooking(msg), userId: uid }); }
       catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); WCT.tellFlight(uid, false, `the flight failed (${e.message}).`); }
     });
-    WCT.syncFlightCache();
   }
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
@@ -670,14 +712,6 @@ Hooks.once("ready", () => {
 Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000));
 
 function registerFlightHooks() {
-  // Keep the players' copy of the flight routes current whenever the GM edits the Flight Routes page.
-  const routesPage = p => p?.name === "Flight Routes" && p.parent?.name === WCT.JOURNAL;
-  Hooks.on("updateJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
-  Hooks.on("createJournalEntryPage", p => { if (routesPage(p)) WCT.syncFlightCache(); });
-  // Flight points name scenes; keep the players' copy right about which ones exist.
-  Hooks.on("createScene", () => WCT.syncFlightCache());
-  Hooks.on("deleteScene", () => WCT.syncFlightCache());
-  Hooks.on("updateScene", (s, changes) => { if ("name" in (changes ?? {})) WCT.syncFlightCache(); });
   // Flight Master button in the token controls, for the GM and (when allowed) players.
   Hooks.on("getSceneControlButtons", controls => {
     const tokens = controls.tokens ?? controls.token; if (!tokens?.tools) return;

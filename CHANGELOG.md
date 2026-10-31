@@ -2,6 +2,20 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.16.0
+
+**New**
+- **Flight network editor.** Flight Master's points and routes now live in the module (a world setting), set up in a window: *control panel › Travel › Flight network…* (or `api.flight.editor()`). Flight points: name, scene on arrival (or *No scene*), Unlocked switch, note. Routes: from, to, fare (type `2s`, `1g 20s`, `75c` or a plain number in the fare unit), hours, Two-way and Free switches. Problems (repeated or empty names, a route to itself, an unknown point, an unreadable fare) show inline and block Save. Save / Cancel; nothing changes until you save.
+- **Flight points without a scene.** A flight to a point with no scene (or a deleted one) still happens: the fare is charged, time passes, the trip is logged and chat says "The party lands at …"; the scene stays put and the GM gets a whisper suggesting moving the party.
+- **Free flight (GM).** A GM-only *Free flight (no fare)* checkbox in Flight Master skips the purse check and charges nothing; the chat card and log say "free flight". Players never see it, and the GM's client ignores a free request in a player's booking. A route can also be marked Free for everyone.
+- **API:** `api.flight.network()`, `api.flight.setNetwork(obj)`, `api.flight.unlock(nameOrId, on = true)`, `api.flight.fly(from, to, { pax, free, scene })`, `api.flight.importLegacy({ dryRun })`, `api.flight.editor()`.
+- **Health check / Overview:** network size, points without a scene (information), deleted scenes, routes into locked points and unknown points, with a fix-it that opens the editor.
+
+**Changes**
+- **The Flight Routes journal page is no longer read.** While the new network is empty and the old page has flight points, the editor and the Overview offer *Import from the Flight Routes journal page* (asks first, with a report). Scene names match scenes exactly (otherwise *No scene*), fares are read as before, and every route imports as two-way, as the old tables flew. The page is never edited or deleted; once the network has points it's ignored and you may delete it. Run setup no longer creates it.
+- Players read the flight network from the world setting, so the hidden players' copy the GM kept in sync (and its journal and scene hooks) is gone. Player bookings are still carried out by the active GM's client with every check (purse with shortfall, unknown or locked points, GM online, refund if the scene can't be opened).
+- The health check no longer lists malformed Flight Routes rows (the tables aren't read).
+
 ## 1.15.0
 
 **New**

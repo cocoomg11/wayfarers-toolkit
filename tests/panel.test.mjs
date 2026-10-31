@@ -83,7 +83,8 @@ test("overview issues get fix buttons", () => {
   assert.equal(M.issueFix("Encounter zones", "Zone A: no roll table").tab, "travel");
   assert.equal(M.issueFix("Dependencies", "Vendor trash compendiums not found: x.").tab, "loot");
   assert.equal(M.issueFix("Boss loot", "2 creatures …", { hasAutolink: true }).action, "autolink");
-  assert.equal(M.issueFix("Flight Master", "Only 1 unlocked flight point").action, "routes");
+  assert.equal(M.issueFix("Flight Master", "Only 1 unlocked flight point").action, "flights");
+  assert.equal(M.issueFix("Flight Master", "The flight network is empty but the old Flight Routes journal page has flight points: import them from the Flight Routes journal page").action, "flightImport");
   assert.equal(M.issueFix("Vendor Trash Rules page", "No Vendor Trash Rules page (Run setup adds it).").action, "setup");
   assert.equal(M.issueFix("GMs", "No GM is connected."), null);
 });
