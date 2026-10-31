@@ -75,6 +75,12 @@ const DEFAULTS = {
   travelPaceCurrent: "normal",
   flightDiscovered: true,
   flightMapLocked: "hide",
+  flightMapImage: "",
+  flightMapFit: "contain",
+  flightMapOpacity: 1,
+  flightMapScale: 1,
+  flightMapOffsetX: 0,
+  flightMapOffsetY: 0,
   // Off by default from 1.20 (earlier versions always advanced time); the 1.20.0 update notes offer a button to turn it back on.
   flightAdvanceTime: false,
   goldAct: 1,
@@ -216,6 +222,14 @@ function registerSettings() {
   // Flight Master refinements.
   s("flightDiscovered", "Flight Master: announce new flight points", "When the GM unlocks a flight point, chat says \"Discovered! New flight point: …\".", Boolean);
   s("flightMapLocked", "Flight route map: locked points for players", "Hidden: players' map shows only unlocked points. Greyed: locked points show as Unknown.", String, { choices: { hide: "Hidden", grey: "Greyed out, unnamed" }, onChange: () => FlightMap.refresh() });
+  // Flight map background (feature flightMapBackground): a world image behind the route map, lined up with the points' 0–1 box.
+  const bg = { onChange: () => FlightMap.refresh() };
+  s("flightMapImage", "Flight route map: background image", "Image from the world's files drawn behind the route map. Blank: none.", String, { filePicker: "image", ...bg });
+  s("flightMapFit", "Flight route map: background fit", "", String, { choices: Flight.MAP_FITS, ...bg });
+  s("flightMapOpacity", "Flight route map: background opacity", "", Number, { range: { min: 0.1, max: 1, step: 0.05 }, ...bg });
+  s("flightMapScale", "Flight route map: background scale", "", Number, { range: { min: 0.25, max: 4, step: 0.05 }, ...bg });
+  s("flightMapOffsetX", "Flight route map: background offset across", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
+  s("flightMapOffsetY", "Flight route map: background offset down", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
   s("flightAdvanceTime", "Flight Master: flights advance world time", "On arrival, world time advances by the flight's hours (game.time.advance, which calendar modules follow).", Boolean);
   // Party gold tracker.
   s("goldAct", "Party gold: current act / tier", "", Number, { range: { min: 1, max: 20, step: 1 }, onChange: () => Gold.refresh() });

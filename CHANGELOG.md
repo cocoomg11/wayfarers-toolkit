@@ -2,6 +2,16 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## Unreleased (1.23.0)
+
+**New**
+- **Flight map background** (new feature *Flight map background*, on by default, needs the Flight route map and Flight Master). A picture from the world's files (for example a continent or region map; nothing is bundled) is drawn behind the route map's routes and points, for the GM and for players. World settings (control panel › Travel › Advanced, shown while the feature is on): `flightMapImage` (Foundry file picker, images; blank = no picture), `flightMapFit` (`contain` fit inside / `cover` fill, may crop / `stretch`), `flightMapOpacity` (0.1–1, default 1), `flightMapScale` (0.25–4, default 1, around the centre), `flightMapOffsetX` / `flightMapOffsetY` (−1 to 1, share of the map's width / height). The picture fills the same box the points' saved `pos` (0 to 1) span, so the GM drags points onto it and **Save layout** as before; players see the same positions. Changing a setting redraws an open map (unless the GM has unsaved drags). A GM-only **Background…** button on the map opens the Travel tab. Pure placement maths: `Flight.mapBackground` / `Flight.MAP_FITS`. Off, or no image: the map is unchanged.
+- Health check (section *Map, pace, gold and settings*): the picked image and fit, a note when the feature is on with no image, a warning when the route map is off. The settings are included in settings export / import and reset by Remove toolkit data.
+
+**Tests**: `tests/v123.test.mjs` (off/blank, fit values, scale and offset maths, clamping, alignment with point positions, panel rows, update note, no publisher names). Two older tests that assumed 1.22.0 was the newest update note now look the note up by version.
+
+**Untested in Foundry** (needs a live world): the `<image>` drawn in the map's SVG on v14 (GM and player clients), the `<file-picker>` image control on the Travel tab, the redraw when a background setting changes, and dragging points over the picture.
+
 ## 1.22.0
 
 Builds on 1.21.0 (which includes the Session Start recap removal).

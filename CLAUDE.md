@@ -15,7 +15,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `bosses.mjs` boss frames; `phases.mjs` pure phase thresholds; `bossloot.mjs` boss loot tables.
 - `loot.mjs` Need/Greed/Pass; `history.mjs` / `history-model.mjs` loot roll history (UI / pure).
 - `pane.mjs` character pane; `weapon-sets.mjs` pure weapon-set rules; `compare.mjs` pure item comparison tooltips.
-- `flight-map.mjs` route map window (model: `Flight.mapModel`, `autoLayout`, `newlyUnlocked`, `withPositions` in flight.mjs).
+- `flight-map.mjs` route map window (model: `Flight.mapModel`, `autoLayout`, `newlyUnlocked`, `withPositions`, `mapBackground` in flight.mjs).
 - `travel-pace.mjs` pure pace rules (SRD 5.2 figures, effect text, trip hours/days, socket request reader); UI and socket in main.mjs (`travelPace`, `setTravelPace`, `paceRequest`).
 - `gold.mjs` / `gold-model.mjs` party gold tracker (UI / pure curve, coin, gear and status maths).
 - `settings-io.mjs` / `settings-io-model.mjs` settings export/import (UI / pure file format and validation).
@@ -48,9 +48,14 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - Who's online writes nothing; it fires `wayfarers-toolkit.allPlayersOnline` and `wayfarers-toolkit.playerCountChanged` on every client (documented in the README; never edit world tiles from the module).
 - Inn: renting is a GM action; `dnd5e.restCompleted(actor, result, config)` (`result.longRest`) on the resting client → active GM applies (socket `restedRest`, owner-checked). Socket `roomRequest` from players → GM whisper with a Rent rooms button. Coin maths in `inn-model.mjs` (`spend`, `payPlan`) mirrors `api.pay`.
 
+## 1.23 notes (unreleased)
+- New feature `flightMapBackground` (needs `flightMap` + `flightMaster`; rows use `"flightMaster:flightMap:flightMapBackground"`). World settings `flightMapImage` (`filePicker: "image"`, rendered by the panel as `<file-picker>`), `flightMapFit` (`Flight.MAP_FITS`: contain/cover/stretch → SVG `preserveAspectRatio` meet/slice/none), `flightMapOpacity`, `flightMapScale`, `flightMapOffsetX/Y`; all `onChange: FlightMap.refresh()`.
+- `Flight.mapBackground(settings, box)` (pure) places the picture in the SVG's points box (`PAD`..`W−PAD`, `PAD`..`H−PAD`), the same box `pos` 0–1 maps to, so positions line up with the picture at any window size. `flight-map.mjs` `background()` reads the settings and draws an `<image class="wct-fm-bg">` (no pointer events) before the edges. Null (feature off, blank image) = 1.22 output.
+- No per-point or per-region images: one picture per world. Point positioning stays the existing GM drag + Save layout.
+
 ## Tests
 - `npm test` = `node --test tests/*.test.mjs`; `npm run check` syntax-checks all scripts. CI runs them (`test.yml`).
-- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`), title config, online roster, room costs and coin deduction, rested benefits (`tests/v122.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.
+- Pure and tested: rules, models, parsers, update-note logic, weapon sets, flight network (and map model), phases, history, compare, travel pace, gold curve, settings import validation, permission checks (`tests/v120.test.mjs`), title config, online roster, room costs and coin deduction, rested benefits (`tests/v122.test.mjs`), flight map background placement (`tests/v123.test.mjs`). `tests/_globals.mjs` stubs minimal Foundry globals.
 - Not testable in Node (needs a live world): hooks, ApplicationV2 windows, Item Piles integration, sockets, chat cards. Say what is untested in the changelog/handoff.
 
 ## Release process

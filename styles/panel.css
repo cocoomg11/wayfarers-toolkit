@@ -197,3 +197,6 @@
 .wct-dim { opacity: 0.55; }
 .wct-sio code { font-size: var(--font-size-12, 12px); word-break: break-all; }
 .wct-discovered i { margin-right: 4px; }
+/* Flight map background (feature flightMapBackground): the picture never takes pointer events, so points stay draggable. */
+.wct-fm-bg { pointer-events: none; }
+.wct-fm-svg.has-bg .wct-fm-node text { stroke: rgba(0, 0, 0, 0.8); stroke-width: 4px; }

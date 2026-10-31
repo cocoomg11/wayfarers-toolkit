@@ -4,8 +4,12 @@
  * them; locked points are hidden, or greyed and unnamed (setting "Locked flight points on players' map"). The GM sees every point,
  * can drag points to arrange the map and saves their positions into the flight network (`pos` on each point, 0 to 1). The pure
  * model (what's drawn, auto layout) is Flight.mapModel in flight.mjs.
+ * With the feature "flightMapBackground" a world image (setting flightMapImage) is drawn behind the routes, placed by
+ * Flight.mapBackground in the same box the points' 0–1 positions span, so the GM can drag points onto the picture and players see
+ * them in the same places. Off or blank: nothing changes.
  */
 import * as Flight from "./flight.mjs";
+import { on } from "./features.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -21,6 +25,14 @@ export function open(api) {
 export function refresh() {
   const app = foundry.applications.instances?.get?.(`${ID}-flight-map`);
   if (app?.rendered && !Object.keys(app.moved).length) app.render();
+}
+
+/** The background image in SVG units, or null (feature off, no image). Every client reads the same world settings. */
+export function background() {
+  if (!on("flightMapBackground")) return null;
+  const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
+  return Flight.mapBackground({ src: get("flightMapImage", ""), fit: get("flightMapFit", "contain"), opacity: get("flightMapOpacity", 1), scale: get("flightMapScale", 1), offsetX: get("flightMapOffsetX", 0), offsetY: get("flightMapOffsetY", 0) },
+    { x: PAD, y: PAD, width: W - 2 * PAD, height: H - 2 * PAD });
 }
 
 const px = n => ({ x: PAD + n.x * (W - 2 * PAD), y: PAD + n.y * (H - 2 * PAD) });
@@ -56,12 +68,14 @@ export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
         <circle r="${n.here ? 13 : 10}"></circle>${n.here ? '<circle class="ring" r="19"></circle>' : ""}
         <text y="-18" text-anchor="middle">${esc(n.name)}${gm && !n.unlocked ? " (locked)" : ""}</text><title>${esc(n.name)}${n.here ? " · you are here" : ""}${gm && !n.placed ? " · drag to place" : ""}</title></g>`;
     };
+    const bg = background();
+    const bgSvg = bg ? `<image class="wct-fm-bg" href="${esc(bg.src)}" x="${bg.x}" y="${bg.y}" width="${bg.width}" height="${bg.height}" preserveAspectRatio="${bg.preserve}" opacity="${bg.opacity}"></image>` : "";
     const empty = !nodes.length ? `<p class="wct-note">${gm ? "No flight points yet. Add them in the flight network editor." : "No flight points are open yet."}</p>` : "";
-    div.innerHTML = `${empty}<svg class="wct-fm-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Flight route map">
+    div.innerHTML = `${empty}<svg class="wct-fm-svg ${bg ? "has-bg" : ""}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Flight route map">
         <defs><marker id="wct-fm-arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"></path></marker></defs>
-        <g class="edges">${edges.map(edge).join("")}</g><g class="nodes">${nodes.map(node).join("")}</g></svg>
-      <footer class="wct-footer"><span class="hint" data-note>${gm ? "Drag points to arrange the map; players see the same layout. Locked points: players " + (game.settings.get(ID, "flightMapLocked") === "grey" ? "see them greyed, unnamed." : "don't see them.") : "Solid lines are routes you can fly. Open Flight Master to book a flight."}</span>
-        ${gm ? `<button type="button" data-do="editor"><i class="fa-solid fa-pen"></i> Edit network…</button><button type="button" data-do="auto"><i class="fa-solid fa-circle-nodes"></i> Arrange in a circle</button><button type="button" class="wct-primary" data-do="save" ${Object.keys(this.moved).length ? "" : "disabled"}><i class="fa-solid fa-floppy-disk"></i> Save layout</button>`
+        ${bgSvg}<g class="edges">${edges.map(edge).join("")}</g><g class="nodes">${nodes.map(node).join("")}</g></svg>
+      <footer class="wct-footer"><span class="hint" data-note>${gm ? (bg ? "Drag points onto the background picture; players see the same layout. Fit, scale and offset: control panel › Travel › Advanced. " : "") + "Drag points to arrange the map; players see the same layout. Locked points: players " + (game.settings.get(ID, "flightMapLocked") === "grey" ? "see them greyed, unnamed." : "don't see them.") : "Solid lines are routes you can fly. Open Flight Master to book a flight."}</span>
+        ${gm ? `${on("flightMapBackground") ? `<button type="button" data-do="background" title="Background image, fit, scale, offset and opacity (control panel › Travel › Advanced)"><i class="fa-solid fa-image"></i> Background…</button>` : ""}<button type="button" data-do="editor"><i class="fa-solid fa-pen"></i> Edit network…</button><button type="button" data-do="auto"><i class="fa-solid fa-circle-nodes"></i> Arrange in a circle</button><button type="button" class="wct-primary" data-do="save" ${Object.keys(this.moved).length ? "" : "disabled"}><i class="fa-solid fa-floppy-disk"></i> Save layout</button>`
           : `<button type="button" data-do="fly"><i class="fa-solid fa-feather-pointed"></i> Flight Master</button>`}</footer>`;
     return div;
   }
@@ -105,6 +119,7 @@ export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
     try {
       if (what === "fly") return API.flight();
       if (what === "editor") return API.flightEditor();
+      if (what === "background") return API.panel("travel");
       if (what === "auto") {
         const net = API.flightNetwork(); const pos = Flight.autoLayout(net.points.length);
         this.moved = Object.fromEntries(net.points.map((p, i) => [p.id, pos[i]])); return this.render();

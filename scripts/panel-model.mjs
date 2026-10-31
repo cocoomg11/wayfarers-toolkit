@@ -21,6 +21,7 @@ export const FEATURE_CARDS = [
   { id: "bossLoot", icon: "fa-solid fa-gem", text: "Hand-picked drops for named creatures, drawn from a roll table you link to them." },
   { id: "lootRolls", icon: "fa-solid fa-dice", text: "Need / Greed / Pass rolls for items on a defeated creature. Needs the Item Piles module." },
   { id: "flightMap", icon: "fa-solid fa-map-location-dot", text: "A map of the flight network. Players see the flight points they've unlocked and the routes between them. Needs Flight Master." },
+  { id: "flightMapBackground", icon: "fa-solid fa-image", text: "Put a map picture of your own behind the flight route map, so the routes sit on your world's map. Needs the flight route map." },
   { id: "travelPace", icon: "fa-solid fa-person-hiking", text: "Fast, normal or slow (careful) pace for Hex Travel, with what each does to Perception, Survival and Stealth. Needs Hex Travel." },
   { id: "partyGold", icon: "fa-solid fa-scale-balanced", text: "GM only: how much coin the party carries, against a wealth curve per act that you can edit." },
   { id: "settingsIO", icon: "fa-solid fa-file-export", text: "Save the toolkit's settings to a file and load them into another world, with a preview first." },
@@ -41,7 +42,7 @@ export const TABS = [
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
     basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"]],
-    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
+    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
   {
@@ -120,6 +121,12 @@ export const LABELS = {
   paceRequests: ["Players can ask for a travel pace", "Players get a Travel Pace window to ask for fast, normal or slow pace. You get a whisper with a button to accept. You always set the pace yourself."],
   flightDiscovered: ["Announce new flight points", "When you unlock a flight point (in the flight network editor or from a macro), chat says \"Discovered! New flight point: …\" for everyone."],
   flightMapLocked: ["Locked flight points on players' map", "Hidden: players' route map shows only unlocked points and the routes between them. Greyed: locked points show as Unknown, greyed out, with their routes dashed."],
+  flightMapImage: ["Flight map background image", "A picture from your world's files (for example a map of the continent) drawn behind the flight route map for everyone. Blank: no picture. Use your own art."],
+  flightMapFit: ["Background fit", "How the picture fills the map area: fit inside shows all of it, fill may crop its edges, stretch ignores its shape."],
+  flightMapOpacity: ["Background opacity", "1 is the full picture; lower it so routes and names stand out."],
+  flightMapScale: ["Background scale", "Grows or shrinks the picture around the map's centre, to line it up with the flight points."],
+  flightMapOffsetX: ["Background offset across", "Moves the picture left (below 0) or right (above 0), as a share of the map's width."],
+  flightMapOffsetY: ["Background offset down", "Moves the picture up (below 0) or down (above 0), as a share of the map's height."],
   flightAdvanceTime: ["Flights advance world time", "On arrival, world time moves on by the flight's hours, so a calendar module follows. Off: flights take no time."],
   goldAct: ["Party is in act / tier", "Which act (or tier) of the wealth curve the party is in now. The tracker highlights it."],
   goldCurve: ["Wealth curve (gold per character)", "Gold per character expected at each act or tier, in order, separated by commas: Act/Tier 1 first. The tracker multiplies it by the party size."],
@@ -223,7 +230,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.

@@ -252,7 +252,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
   /** Tools that need another (quest tracker → quest log, route map → Flight Master, travel pace → Hex Travel): shown as not available while it is off. */
   featureDeps() {
     const root = this.element; if (!root) return;
-    for (const [need, card] of [["questLog", "questTracker"], ["flightMaster", "flightMap"], ["hexTravel", "travelPace"]]) {
+    for (const [need, card] of [["questLog", "questTracker"], ["flightMaster", "flightMap"], ["flightMap", "flightMapBackground"], ["hexTravel", "travelPace"]]) {
       const base = root.querySelector(`[name="feature:${need}"]`); const c = root.querySelector(`[data-feature="${card}"]`);
       if (base && c) c.classList.toggle("wct-needs", !base.checked);
     }

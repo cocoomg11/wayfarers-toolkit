@@ -306,6 +306,28 @@ export function mapModel(net, { isGM = false, lockedForPlayers = "hide", here = 
   return { nodes, edges };
 }
 
+/** Fits for the route map's background image, as SVG preserveAspectRatio values. */
+export const MAP_FITS = { contain: "Fit inside (whole picture shows)", cover: "Fill (picture may be cropped)", stretch: "Stretch to the map's shape" };
+const FIT_RATIO = { contain: "xMidYMid meet", cover: "xMidYMid slice", stretch: "none" };
+const clampNum = (v, lo, hi, d) => { v = +v; return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+
+/**
+ * The route map's background image (feature flightMapBackground): null when off or no image, else { src, x, y, width, height,
+ * preserve, opacity } in the map's own units. `box` is the area flight point positions (0 to 1) span, so the picture and the points
+ * share one coordinate system and stay lined up at any window size. `scale` (0.25 to 4) grows the picture around the box centre;
+ * `offsetX` / `offsetY` (-1 to 1) move it by that fraction of the box's width / height. Bad numbers fall back to the defaults.
+ */
+export function mapBackground({ on = true, src = "", fit = "contain", opacity = 1, scale = 1, offsetX = 0, offsetY = 0 } = {}, box = { x: 0, y: 0, width: 1, height: 1 }) {
+  src = str(src); if (!on || !src) return null;
+  const k = clampNum(scale, 0.25, 4, 1), dx = clampNum(offsetX, -1, 1, 0), dy = clampNum(offsetY, -1, 1, 0);
+  const width = box.width * k, height = box.height * k;
+  const r = v => Math.round(v * 100) / 100;
+  return {
+    src, preserve: FIT_RATIO[fit] ?? FIT_RATIO.contain, opacity: clampNum(opacity, 0, 1, 1),
+    x: r(box.x + (box.width - width) / 2 + dx * box.width), y: r(box.y + (box.height - height) / 2 + dy * box.height), width: r(width), height: r(height)
+  };
+}
+
 /** Points unlocked in `next` that weren't unlocked in `prev` (matched by id): [{ id, name }]. Nothing when `prev` had no points. */
 export function newlyUnlocked(prev, next) {
   const before = new Map((prev?.points ?? []).map(p => [p.id, p]));

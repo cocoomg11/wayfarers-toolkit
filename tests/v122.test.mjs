@@ -163,8 +163,9 @@ test("1.22 features, macros, panel and notes", () => {
   const places = TABS.find(t => t.id === "places");
   assert.ok(places.basic.length <= 5);
   for (const [k] of [...places.basic, ...places.advanced]) assert.ok(LABELS[k]?.[0], k);
-  assert.equal(NOTES[0].version, "1.22.0");
-  assert.deepEqual(NOTES[0].changes.filter(c => c.feature).map(c => c.feature), ["zoneTitles", "whosOnline", "restedInn", "vendorTrash"]);
+  const n122 = NOTES.find(n => n.version === "1.22.0");
+  assert.ok(n122);
+  assert.deepEqual(n122.changes.filter(c => c.feature).map(c => c.feature), ["zoneTitles", "whosOnline", "restedInn", "vendorTrash"]);
 });
 
 test("permission checks know the 1.22 tools", () => {
@@ -176,6 +177,6 @@ test("permission checks know the 1.22 tools", () => {
 });
 
 test("no publisher names in 1.22 strings", () => {
-  const all = JSON.stringify([ZT, OM, Inn, NOTES[0], FEATURES.slice(-3), FEATURE_CARDS, LABELS].map(x => typeof x === "object" ? Object.entries(x).map(([k, v]) => [k, typeof v === "function" ? String(v) : v]) : x));
+  const all = JSON.stringify([ZT, OM, Inn, NOTES.find(n => n.version === "1.22.0"), FEATURES.slice(-3), FEATURE_CARDS, LABELS].map(x => typeof x === "object" ? Object.entries(x).map(([k, v]) => [k, typeof v === "function" ? String(v) : v]) : x));
   assert.doesNotMatch(all, /warcraft|blizzard|azeroth|\bwow\b/i);
 });

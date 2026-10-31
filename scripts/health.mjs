@@ -263,6 +263,12 @@ function bundle2(api) {
   const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
   const out = [];
   if (F.on("flightMap")) out.push(F.on("flightMaster") ? ok(`Flight route map: on; locked points ${get("flightMapLocked") === "grey" ? "greyed" : "hidden"} for players.`) : warn("Flight route map is on but Flight Master is off, so there's no map to show (control panel › Features)."));
+  if (F.on("flightMapBackground")) {
+    const img = String(get("flightMapImage") ?? "").trim();
+    out.push(!F.on("flightMap") || !F.on("flightMaster") ? warn("Flight map background is on but the flight route map (or Flight Master) is off, so it isn't shown (control panel › Features).")
+      : img ? ok(`Flight map background: ${esc(img)} (fit ${esc(get("flightMapFit") ?? "contain")}, opacity ${esc(get("flightMapOpacity") ?? 1)}).`)
+      : off("Flight map background is on but no image is picked (control panel › Travel › Advanced); the map has no picture."));
+  }
   if (F.on("flightMaster")) out.push(off(`Flights ${get("flightAdvanceTime") ? "advance" : "don't advance"} world time; new flight points ${get("flightDiscovered") ? "are" : "aren't"} announced.`));
   if (F.on("travelPace")) out.push(F.on("hexTravel") ? ok(`Travel pace: the party travels at ${esc(api.travelPaceNow())} pace; players ${get("paceRequests") ? "can" : "can't"} ask for another.`) : warn("Travel pace is on but Hex Travel is off, so it does nothing (control panel › Features)."));
   if (F.on("partyGold")) {
