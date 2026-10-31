@@ -67,6 +67,7 @@ export async function openImport(api) {
   const text = await pickFile(); if (text == null) return null;
   const r = readText(text);
   if (!r.ok) { ui.notifications.error(`Settings import: ${r.error}.`); return null; }
+  await foundry.applications.instances?.get?.(`${ID}-settings-import`)?.close();
   return new ImportPreview(r).render({ force: true });
 }
 
@@ -102,18 +103,19 @@ export class ImportPreview extends foundry.applications.api.ApplicationV2 {
     result.addEventListener("change", note); note();
     result.querySelector('[data-do="cancel"]').addEventListener("click", () => this.close());
     result.querySelector('[data-do="import"]').addEventListener("click", async ev => {
+      const btn = ev.currentTarget; // currentTarget is null once the handler has awaited, so keep the button
       const keys = new Set([...result.querySelectorAll("[data-key]:checked")].map(i => i.dataset.key));
       const rows = this.result.rows.filter(x => keys.has(x.key));
       const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Import toolkit settings" }, rejectClose: false,
         content: `<p>Write ${rows.length} setting${rows.length === 1 ? "" : "s"} from the file? Settings you didn't tick stay as they are. Export your current settings first if you want a copy.</p>` });
       if (!ok) return;
-      ev.currentTarget.disabled = true;
+      btn.disabled = true;
       try {
         const res = await apply(rows);
         ui.notifications.info(`Wayfarer's Toolkit: imported ${res.written} setting${res.written === 1 ? "" : "s"}.`);
         await this.close();
         if (res.reload) { const SC = foundry.applications?.settings?.SettingsConfig; if (SC?.reloadConfirm) SC.reloadConfirm({ world: true }); else foundry.utils.debouncedReload?.() ?? location.reload(); }
-      } catch (e) { ui.notifications.error(`Settings import: ${e.message}`); ev.currentTarget.disabled = false; }
+      } catch (e) { ui.notifications.error(`Settings import: ${e.message}`); btn.disabled = false; }
     });
   }
 }

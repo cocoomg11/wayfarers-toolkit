@@ -18,6 +18,10 @@ All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `mod
 - Flights no longer advance world time unless *Flights advance world time* is on (see above).
 - The Features tab notes that the route map needs Flight Master and travel pace needs Hex Travel. The Classic MMO wizard preset turns on everything new except Travel pace.
 
+**Fixes** (found in a code review before release)
+- Settings import: the *Import ticked settings* button did nothing after the confirm (it touched the clicked button after waiting for the dialog, which throws); it now writes the ticked settings. Opening the import window twice no longer leaves two windows with the same id.
+- Health check, *Permissions*: the unshared-macro warning only looks at the macros Run setup shares with players, so *Flight Master* (never shared) no longer raises a warning setup can't fix.
+
 **Untested in Foundry** (needs a live world): the route map window and dragging, the Travel Pace window and the socket request with its Accept button, the Party gold window, export download and import file picking / preview, the Permissions section against real users, the Discovered! line and the time skip.
 
 ## 1.19.0

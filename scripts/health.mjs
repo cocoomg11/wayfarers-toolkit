@@ -236,7 +236,7 @@ function permissionFacts(api) {
   });
   const party = api.partyActor?.();
   const lvl = d => users.length ? Math.min(...users.map(u => { try { return d.getUserLevel?.(u) ?? (d.ownership?.[u.id] ?? d.ownership?.default ?? 0); } catch { return 0; } })) : OWN.OWNER;
-  const macros = {}; for (const m of MACROS) { const w = game.macros.getName(m.name); if (w) macros[m.name] = w.ownership?.default ?? 0; }
+  const macros = {}; for (const m of MACROS) { if (!m.shared) continue; const w = game.macros.getName(m.name); if (w) macros[m.name] = w.ownership?.default ?? 0; }
   let quests = null;
   if (F.on("questLog")) {
     try {
