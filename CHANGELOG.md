@@ -7,9 +7,12 @@ All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `mod
 **Fixes**
 - **Sell all junk total could be one copper out.** The confirm window added up Item Piles' per-item prices (fractions of the primary coin) and rounded the sum once, while each line and the payment are whole coins per item, so with several cheap items the shown total could differ from the lines by a copper. Each price is now rounded to whole smallest coins first and the whole coins are added (`J.totalSmallest`, `J.smallestRate` in `junk-rules.mjs`), so the total equals the sum of the lines. No setting or API change.
 
-**Tests**: `tests/v125-1.test.mjs` (the old float-sum total is off by one copper; the new total matches the lines, stays an integer; smallest coin rate).
+**Changes**
+- **Zone title cards use the navigation name.** A scene with no custom *Title* now shows its navigation name, falling back to the scene name when the navigation name is empty (was always the scene name). The scene configuration's Title hint and placeholder say so.
 
-**Untested in Foundry** (needs a live world): a Sell all junk sale with many low-value items against a real merchant, checking the confirm total against the coin actually paid.
+**Tests**: `tests/v125-1.test.mjs` (the old float-sum total is off by one copper; the new total matches the lines, stays an integer; smallest coin rate); `tests/v122.test.mjs` (title falls back to the navigation name, then the scene name).
+
+**Untested in Foundry** (needs a live world): a Sell all junk sale with many low-value items against a real merchant, checking the confirm total against the coin actually paid; a title card on a scene with a navigation name and no custom title.
 
 ## 1.25.0
 

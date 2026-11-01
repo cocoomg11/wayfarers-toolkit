@@ -70,7 +70,7 @@ function addSceneFields(app, html) {
   const fs = document.createElement("fieldset"); fs.dataset.wctFieldset = "zoneTitle";
   fs.innerHTML = `<legend>Title card (Wayfarer's Toolkit)</legend>
     <div class="form-group"><label>Show a title card</label><div class="form-fields"><input type="checkbox" name="${n}.show" ${cfg.enabled ? "checked" : ""}></div><p class="hint">Fades in over the map when this scene is activated (control panel › Places sets when and for whom).</p></div>
-    <div class="form-group"><label>Title</label><div class="form-fields"><input type="text" name="${n}.title" value="${esc(f.title ?? "")}" placeholder="${esc(scene.name)}"></div><p class="hint">Blank: the scene's name.</p></div>
+    <div class="form-group"><label>Title</label><div class="form-fields"><input type="text" name="${n}.title" value="${esc(f.title ?? "")}" placeholder="${esc(scene.navName || scene.name)}"></div><p class="hint">Blank: the scene's navigation name, or its name if that is empty.</p></div>
     <div class="form-group"><label>Subtitle</label><div class="form-fields"><input type="text" name="${n}.subtitle" value="${esc(f.subtitle ?? "")}" placeholder="e.g. Levels 1–3"></div></div>
     <div class="form-group"><label>Sound</label><div class="form-fields"><file-picker name="${n}.sound" type="audio" value="${esc(f.sound ?? "")}"></file-picker></div><p class="hint">Blank: the default sound from the control panel, if any.</p></div>`;
   tab.append(fs);

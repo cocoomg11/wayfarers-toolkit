@@ -26,6 +26,8 @@ test("zone titles: title config resolution", () => {
   assert.equal(ZT.titleConfig(scene("A", { title: "   " })).title, "A", "blank title falls back to the name");
   assert.equal(ZT.titleConfig({ name: "", flags: {} }).enabled, false, "no title, no card");
   assert.equal(ZT.titleConfig(null).enabled, false);
+  assert.equal(ZT.titleConfig({ name: "Map 7", navName: "The Hollow Vale", flags: {} }).title, "The Hollow Vale", "navigation name wins over the scene name");
+  assert.equal(ZT.titleConfig({ name: "Map 7", navName: "  ", flags: {} }).title, "Map 7", "blank navigation name falls back to the name");
 });
 
 test("zone titles: when to show", () => {

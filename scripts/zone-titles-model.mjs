@@ -11,13 +11,13 @@ export const AUDIENCES = { players: "Players only", everyone: "Everyone (GMs too
 export const STYLES = { classic: "Classic (gold serif, ornament)", plain: "Plain (white, no ornament)" };
 
 /**
- * A scene's title card: { enabled, title, subtitle, sound }. `scene`: { name, flags }. `all`: the world default for scenes with no
+ * A scene's title card: { enabled, title, subtitle, sound }. `scene`: { name, navName, flags }. `all`: the world default for scenes with no
  * per-scene choice; `defaultSound`: the world sound used when the scene names none. A card with no title is never enabled.
  */
 export function titleConfig(scene, { all = true, defaultSound = "" } = {}) {
   const f = scene?.flags?.[ID]?.zoneTitle ?? {};
   const enabled = typeof f.show === "boolean" ? f.show : !!all;
-  const title = str(f.title) || str(scene?.name);
+  const title = str(f.title) || str(scene?.navName) || str(scene?.name);
   return { enabled: enabled && !!title, title, subtitle: str(f.subtitle), sound: str(f.sound) || str(defaultSound) };
 }
 

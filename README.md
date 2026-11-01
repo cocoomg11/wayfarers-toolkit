@@ -408,7 +408,7 @@ Without Travel pace, Hex Travel's pace list is as before. There's no hex trail.
 
 With **Zone title cards** on, activating a scene shows its title over the map on every screen viewing it: large gold serif lettering in the upper third, a thin ornament line and an optional subtitle. It fades in, holds (*Seconds on screen*, 4 by default) and fades out, over the canvas without moving anything; with the browser's *reduce motion* preference it appears and disappears without fading.
 
-- **Per scene** (Scene configuration › Basics › *Title card*): **Show a title card**, **Title** (blank: the scene's name), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
+- **Per scene** (Scene configuration › Basics › *Title card*): **Show a title card**, **Title** (blank: the scene's navigation name, or its name if that is empty), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
 - **When** (*Title cards show*): when a scene is activated (default), or also every time someone's view moves to a scene (a player pulled to another scene, a GM looking around).
 - **World load**: the scene that's already active when someone joins shows no card, unless **Show a card when the world loads** is on.
 - **Who**: everyone (default) or players only. **Every scene gets a title card** off means only scenes you tick show one.
