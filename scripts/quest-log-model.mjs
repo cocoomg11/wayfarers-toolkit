@@ -20,15 +20,25 @@ const str = v => String(v ?? "").trim();
 
 // ---------------------------------------------------------------- level and difficulty
 /**
- * A quest level from what was stored or typed: a number, "4", "Lv 4", "Lvl. 4", "Level 4". Anything else (a range, "Heroic")
- * keeps its text and has no number. @returns {{ level: number | null, text: string }}
+ * A quest level from what was stored or typed. A number, "4", "Lv 4", "Lvl. 4" or "Level 4" alone gives the number and no text.
+ * Since 1.30 "Lv N" / "Lvl N" / "Level N" is also found inside longer text ("Act 4 · Lv 8" → 8): the number is used for the
+ * difficulty colour and the whole text is kept for display. A range after the word ("Lv 3-5", "Level 3 to 5") or two different
+ * levels in one text give no number (text only), as does text without the word ("Heroic", "3-5", "Act 4").
+ * @returns {{ level: number | null, text: string }}
  */
 export function parseLevel(raw) {
   if (typeof raw === "number") return Number.isFinite(raw) ? { level: int(raw, 0, LEVEL_MAX), text: "" } : { level: null, text: "" };
   const s = str(raw); if (!s) return { level: null, text: "" };
   const m = s.match(/^(?:(?:lv|lvl|level)\.?\s*)?(\d{1,3})$/i);
-  return m ? { level: int(m[1], 0, LEVEL_MAX), text: "" } : { level: null, text: s };
+  if (m) return { level: int(m[1], 0, LEVEL_MAX), text: "" };
+  const found = [...s.matchAll(/\b(?:lv|lvl|level)\.?\s*(\d{1,3})(?!\d)(\s*(?:-|–|—|to\b)\s*\d)?/gi)];
+  if (!found.length || found.some(f => f[2])) return { level: null, text: s };
+  const nums = new Set(found.map(f => int(f[1], 0, LEVEL_MAX)));
+  return nums.size === 1 ? { level: [...nums][0], text: s } : { level: null, text: s };
 }
+
+/** The text a GM edits for a quest's level: the kept text when there is one, else the number. */
+export const levelInput = q => (q?.levelText ? String(q.levelText) : typeof q?.level === "number" ? String(q.level) : "");
 
 /** The party's level: the average of its characters' levels, rounded; null with no characters. @param {number[]} levels */
 export function partyLevel(levels = []) {
@@ -127,7 +137,11 @@ export function normalizeQuest(raw = {}, { id = () => Math.random().toString(36)
   const q = raw ?? {};
   const giver = typeof q.giver === "string" ? { name: q.giver } : (q.giver ?? {});
   const r = q.rewards ?? {};
-  const lv = Number(q.v) >= 2 && (typeof q.level === "number" || q.level === null) ? { level: typeof q.level === "number" ? int(q.level, 0, LEVEL_MAX) : null, text: str(q.levelText) } : parseLevel(q.level);
+  // Version 2 keeps level and text apart; a null level whose text names one ("Act 4 · Lv 8") reads it at once (1.30), and the next
+  // save writes the number back. No migration needed.
+  const lv = Number(q.v) >= 2 && (typeof q.level === "number" || q.level === null)
+    ? { level: typeof q.level === "number" ? int(q.level, 0, LEVEL_MAX) : parseLevel(q.levelText).level, text: str(q.levelText) }
+    : parseLevel(q.level);
   /** @param {any} list @returns {Array<{ uuid: string, name: string, img: string, rarity: string }>} */
   const items = list => /** @type {any[]} */ ((Array.isArray(list) ? list : []).map(i => normalizeItem(i, lookup)).filter(Boolean));
   const choice = items(r.choice);

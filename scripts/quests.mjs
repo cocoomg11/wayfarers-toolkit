@@ -134,7 +134,7 @@ export function pageHTML(full, name) {
   const f = normalize(full); const q = publicQuest(f);
   if (f.hidden || f.status === "available") return `<p><strong>Status:</strong> ${STATUS[f.status].label}${f.hidden ? " (hidden from players)" : ""}</p><p><em>Open the quest log to see and edit this quest.</em></p>`;
   const meta = [`<strong>Status:</strong> ${STATUS[q.status].label}${q.hidden ? " (hidden from players)" : ""}`];
-  const lvl = typeof q.level === "number" ? String(q.level) : q.levelText;
+  const lvl = QL.levelInput(q);
   if (lvl) meta.push(`<strong>Level:</strong> ${esc(lvl)}`);
   if (q.zone) meta.push(`<strong>Zone:</strong> ${esc(q.zone)}`);
   const pn = partyName(q.party); if (pn) meta.push(`<strong>Party:</strong> ${esc(pn)}`);
@@ -159,9 +159,34 @@ async function questFolder() {
   return game.folders.find(f => f.type === "JournalEntry" && f.name === name) ?? Folder.create({ name, type: "JournalEntry", sorting: "a" });
 }
 
+/**
+ * Fills a blank `rarity` on reward items (GM, at save time; 1.30 fix). Items added by uuid only (api.quests.create / update with
+ * `{ uuid, name, img }`) came out blank because a compendium's default index has no `system.rarity`. Compendium items: one
+ * `getIndex({ fields: ["system.rarity"] })` per pack (Foundry caches it), never a document load per item; world and actor items:
+ * fromUuidSync. Blank stays blank for a mundane item. Never throws.
+ * @param {any} q a normalized quest (changed in place)
+ */
+export async function fillRarity(q) {
+  const list = [...(q?.rewards?.items ?? []), ...(q?.rewards?.choice ?? [])].filter(i => i?.uuid && !i.rarity);
+  if (!list.length) return q;
+  /** @type {Map<string, any>} */
+  const indexes = new Map();
+  for (const i of list) {
+    try {
+      const m = String(i.uuid).match(/^Compendium\.([^.]+\.[^.]+)\.(?:Item\.)?([^.]+)$/);
+      if (m) {
+        const pack = game.packs.get(m[1]); if (!pack) continue;
+        if (!indexes.has(m[1])) indexes.set(m[1], await pack.getIndex({ fields: ["system.rarity"] }));
+        i.rarity = String(foundry.utils.getProperty(indexes.get(m[1])?.get(m[2]) ?? {}, "system.rarity") ?? "");
+      } else i.rarity = String(safeSync(i.uuid)?.system?.rarity ?? "");
+    } catch { /* leave it blank */ }
+  }
+  return q;
+}
+
 /** Writes quest data (full: GM-only store; public view: the journal), ownership and the page in one go. */
 async function save(j, q, name = j.name) {
-  q = normalize(q);
+  q = await fillRarity(normalize(q));
   await Vault.setKey("quests", j.id, q);
   await j.update({ name, ownership: ownershipOf(q), [`flags.${ID}.quest`]: publicQuest(q) });
   const content = pageHTML(q, name); const page = j.pages.contents[0];
@@ -206,7 +231,7 @@ function playSound(key) {
 }
 function card(kind, j, q, body = "") {
   const head = { active: ["!", "New quest"], completed: ["✔", "Quest complete"], failed: ["✖", "Quest failed"], reopened: ["?", "Quest reopened"] }[kind];
-  const lvl = typeof q.level === "number" ? String(q.level) : q.levelText;
+  const lvl = QL.levelInput(q);
   const meta = [lvl && `Level ${esc(lvl)}`, q.zone && esc(q.zone), q.giver.name && `from ${esc(q.giver.name)}`].filter(Boolean).join(" · ");
   return `<div class="wct-quest-card ${kind}"><header><span class="wct-glyph">${head[0]}</span><div><small>${head[1]}</small><h3>${esc(j.name)}</h3></div></header>${meta ? `<p class="meta">${meta}</p>` : ""}${body}<button type="button" data-wct-quest-open="${j.id}"><i class="fa-solid fa-scroll"></i> Open quest log</button></div>`;
 }
@@ -246,7 +271,7 @@ async function announceObjective(j, o, verb) {
 const OPS = {
   async create(d = {}) {
     const name = String(d.title ?? d.name ?? "").trim() || "New Quest";
-    const q = normalize({ ...d, status: d.status ?? "available" });
+    const q = await fillRarity(normalize({ ...d, status: d.status ?? "available" }));
     if (!d.party && !("party" in d)) q.party = parties()[0]?.id ?? "";
     if (q.status === "active") capWarn(q.party, null);
     const folder = await questFolder();
@@ -880,7 +905,7 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
       <div class="form-group"><label>Title</label><input type="text" name="title" value="${esc(name)}" placeholder="e.g. Trouble at the Old Mill" required></div>
       <div class="wctq-two">
         <div class="form-group"><label>Zone / region</label><input type="text" name="zone" value="${esc(q.zone)}" placeholder="Groups quests in the log"></div>
-        <div class="form-group"><label>Level</label><input type="text" name="level" value="${esc(typeof q.level === "number" ? String(q.level) : q.levelText)}" placeholder="e.g. 4 (sets the difficulty colour)"></div>
+        <div class="form-group"><label>Level</label><input type="text" name="level" value="${esc(QL.levelInput(q))}" placeholder="e.g. 4 (sets the difficulty colour)"></div>
       </div>
       <div class="form-group"><label>Party</label><select name="party"><option value="">No party (only you see it)</option>${parties().map(p => `<option value="${p.id}" ${p.id === q.party ? "selected" : ""}>${esc(p.name)}</option>`).join("")}${q.party && !parties().some(p => p.id === q.party) ? `<option value="${esc(q.party)}" selected>${esc(partyName(q.party) || "Missing party")}</option>` : ""}</select></div>
       <div class="form-group"><label>Quest giver</label><div class="wctq-giver" data-drop="giver"><input type="text" name="giver" value="${esc(q.giver.name)}" placeholder="Name, or drop an actor here"><input type="hidden" name="giverUuid" value="${esc(q.giver.uuid)}"><span class="linked ${q.giver.uuid ? "" : "off"}" data-tooltip="Linked to an actor"><i class="fa-solid fa-link"></i><button type="button" data-action="unlink" aria-label="Remove link"><i class="fa-solid fa-xmark"></i></button></span></div></div>
