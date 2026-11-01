@@ -181,6 +181,8 @@ export async function draw(target) {
 
 /** How many item lookups the health check runs at once. */
 export const INSPECT_CONCURRENCY = 8;
+/** itemChecker() on the live world (a fresh one per health check, so a new pack or item is seen next time). */
+export const liveChecker = () => itemChecker({ getPack: id => game.packs.get(id), worldHas: id => game.items.has(id), resolve: resolveCached, isItem: d => d instanceof Item });
 /**
  * `fn` over `list` with at most `limit` calls running at once; results in the list's order. A call that throws gives undefined for
  * its entry (the others carry on). Pure (no Foundry calls), tested in Node.
@@ -200,19 +202,59 @@ function resolveCached(uuid) {
 }
 
 /**
- * Checks a boss loot link without drawing (for the health check): { flag, table, results, usable, resolved, unresolved: [labels],
- * draws, tooManyDraws, fallback } where `fallback` is fallbackReason() for a draw where every item result is missing.
+ * Where an item UUID points, for an existence check without loading the item: { pack, id } for a compendium item,
+ * { world: true, id } for a world item, null for anything else (embedded items and the like are loaded instead). Pure.
+ * @param {string} uuid
  */
-export async function inspect(target) {
+export function splitItemUuid(uuid) {
+  const s = String(uuid ?? "");
+  let m = /^Compendium\.([^.]+\.[^.]+)\.Item\.([^.]+)$/.exec(s); if (m) return { pack: m[1], id: m[2] };
+  m = /^Item\.([^.]+)$/.exec(s); if (m) return { world: true, id: m[1] };
+  return null;
+}
+
+/**
+ * An existence checker for item UUIDs: `exists(uuid)` → Promise<boolean>. Compendium items are looked up in their pack's index
+ * (one index request per pack at most, shared by concurrent calls; usually already loaded), world items in the world
+ * collection; only other UUIDs are loaded with `resolve`. Why: loading each item from a cold compendium is one server round trip
+ * per item, and the server answers them one after another (about a quarter of a second each), which made the first health
+ * check take 20 s or more with a hundred boss loot results. Pure (takes its Foundry lookups as arguments), tested in Node.
+ * @param {{ getPack: (id: string) => any, worldHas: (id: string) => boolean, resolve: (uuid: string) => Promise<any>, isItem: (doc: any) => boolean }} deps
+ */
+export function itemChecker({ getPack, worldHas, resolve, isItem }) {
+  const indexes = new Map();
+  const indexOf = packId => {
+    if (!indexes.has(packId)) indexes.set(packId, Promise.resolve().then(async () => {
+      const pack = getPack(packId); if (!pack || pack.documentName !== "Item") return null;
+      return pack.indexed && pack.index?.size ? pack.index : await pack.getIndex();
+    }).catch(() => null));
+    return indexes.get(packId);
+  };
+  return async uuid => {
+    const where = splitItemUuid(uuid);
+    if (where?.pack) { const idx = await indexOf(where.pack); return !!idx?.has?.(where.id); }
+    if (where?.world) return !!worldHas(where.id);
+    try { return isItem(await resolve(uuid)); } catch { return false; }
+  };
+}
+
+/**
+ * Checks a boss loot link without drawing (for the health check): { flag, table, results, usable, resolved, unresolved: [labels],
+ * draws, tooManyDraws, fallback } where `fallback` is fallbackReason() for a draw where every item result is missing. Items are
+ * checked with `checker` (itemChecker(); pass one to share pack indexes across several bosses) without loading them.
+ * @param {any} target
+ * @param {{ checker?: ((uuid: string) => Promise<boolean>) | null }} [opts]
+ */
+export async function inspect(target, { checker = null } = {}) {
   const flag = get(target); if (!flag) return null;
   const table = await tableOf(flag).catch(() => null);
   if (!table) return { flag, table: null, results: 0, usable: 0, resolved: 0, unresolved: [], draws: flag.draws, tooManyDraws: false, fallback: "table" };
   const results = [...table.results]; const usableList = results.filter(r => (Number(r.weight ?? 1) || 0) > 0);
   // Every result's item at once (a few at a time), not one after another: a cold compendium made the first health check take ~30 s.
+  const exists = checker ?? liveChecker();
   const looked = await mapLimit(usableList.filter(r => resultUuid(r) || r.documentId), INSPECT_CONCURRENCY, async r => {
     const uuid = resultUuid(r);
-    const src = uuid ? await resolveCached(uuid) : null;
-    return { r, ok: src instanceof Item };
+    return { r, ok: uuid ? await exists(uuid) : false };
   });
   let resolved = 0; const unresolved = [];
   for (const x of looked) { if (x.ok) resolved++; else unresolved.push(resultLabel(x.r)); }

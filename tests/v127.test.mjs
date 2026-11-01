@@ -74,7 +74,7 @@ test("healthReport: core's format, plain text, GM only", async () => {
   const H = src("health.mjs");
   assert.match(H, /export async function report\(api/);
   assert.match(H, /if \(!game\.user\?\.isGM\) return \[\];/);
-  assert.match(H, /healthCollector\(\{ timeoutMs \}\)/);
+  assert.match(H, /healthCollector\(\{ timeoutMs: reportTimeout\(timeoutMs\) \}\)/);
   const { toPlain } = await import("../scripts/health.mjs").catch(() => ({}));
   if (toPlain) {
     assert.equal(toPlain(`3 creatures: <em>A</em> &amp; B. <button type="button" data-x>Link</button>`), "3 creatures: A & B.");

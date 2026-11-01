@@ -2,6 +2,20 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.27.1
+
+**Fixed**
+- **The first health check after loading a world still took about 20 s** with boss loot tables, and the Boss loot section could time out ("no answer within 20 s"). The check loaded every table result's item from its compendium, and the server answers those one after another (about a quarter of a second each, so ~100 results took 25–30 s). It now only asks whether each item exists, using the compendium's index (already loaded, or fetched once per compendium), and checks the bosses side by side. Measured on a test world: 109 results checked in about 1 ms instead of ~28 s. Dropping loot is unchanged (it still loads the items it draws).
+- **`api.healthReport({ timeoutMs })` ignored a caller's longer limit in practice** (the hub module passed none, so the toolkit's own 20 s per section fired before the hub's "Still checking…" and its longer first-run limit). The toolkit now uses the caller's `timeoutMs` per section (clamped to 1 s – 5 min) and keeps 20 s only when none is given.
+
+**Not changed (checked)**
+- The GM-only records stay in their None-ownership journal. A GM-only world compendium was tested as a replacement on Foundry 14.369 and does **not** keep data from players: a player's client lists the pack, and `getIndex`, `getDocuments`, `getDocument` and `fromUuid` all return the full entry (flags and pages) over the socket. Moving there would not help.
+
+**Untested in Foundry**
+- The 1.27.1 health check itself on a freshly loaded world (the new existence check was compared live against full lookups for all 109 boss loot results and agreed; the full section was not timed on a cold load).
+- A boss loot result pointing at a world item or an embedded item (index path / fallback path) in a live health check.
+- The hub module's combined health check with its budget passed through (needs Wanderer's Satchel 0.2.1).
+
 ## 1.27.0
 
 **Moved to the shared core**

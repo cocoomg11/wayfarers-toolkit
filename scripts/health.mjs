@@ -97,9 +97,14 @@ async function bossLoot(api) {
   const linkLine = unlinked.length ? [warn(`${plural(unlinked.length, "creature")} with a table named for it but not linked (${listNames(unlinked, 6)}). <button type="button" data-wct-action="autolink-boss" style="width:auto;line-height:1.4;padding:0 0.4em;"><i class="fa-solid fa-link"></i> Link boss tables by name</button>`)] : [];
   out.push(ok(`Party size ${pr.size}: boss coin ×${(pr.size / 4).toFixed(2).replace(/\.?0+$/, "")}${pr.size > 4 ? (pr.extra ? ", +1 draw for bosses with 3 or more" : ", no extra draw (setting off)") : ""}.`));
   if (!targets.length) return [...out, off("No creature has a boss loot table linked."), ...linkLine];
-  for (const x of targets) {
+  const checker = BossLoot.liveChecker();
+  // Every boss at once (they share the pack indexes); lines stay in the bosses' order.
+  const inspected = await BossLoot.mapLimit(targets, BossLoot.INSPECT_CONCURRENCY, x => BossLoot.inspect(x.ref, { checker }).catch(e => ({ error: e })));
+  for (const [i, x] of targets.entries()) {
     try {
-      const r = await BossLoot.inspect(x.ref); if (!r) continue;
+      const r = inspected[i];
+      if (r?.error) throw r.error;
+      if (!r) continue;
       const name = esc(x.label);
       if (x.noLoot) { out.push(off(`${name}: No loot is set, so nothing drops.`)); continue; }
       if (!r.table) { out.push(bad(`${name}: table not found (${esc(r.flag.table)}). On death it drops vendor trash instead.`)); continue; }
@@ -372,18 +377,31 @@ export async function run(api) {
  * The report in wanderers-core's health format, for the hub module and other readers (api.healthReport()):
  *   [{ title, lines: [{ level: "ok" | "warn" | "bad" | "off" | "info", text }] }]
  * Text is plain (no HTML: buttons and markup are dropped), empty sections are left out, each section is wrapped and time-limited by
- * core's collector (a section that throws or takes longer than `timeoutMs` becomes one "warn" line). Read-only; never throws.
+ * core's collector (a section that throws or takes longer than `timeoutMs` becomes one "warn" line; see reportTimeout()). Read-only;
+ * never throws.
  * GM only: other users get [] (the report names hidden things such as boss tables and inns).
+ * @param {any} api
+ * @param {{ timeoutMs?: number }} [opts]
  */
-export async function report(api, { timeoutMs = 20000 } = {}) {
+export async function report(api, { timeoutMs } = {}) {
   if (!game.user?.isGM) return [];
-  const c = healthCollector({ timeoutMs });
+  const c = healthCollector({ timeoutMs: reportTimeout(timeoutMs) });
   for (const [title, fn] of SECTIONS) {
     await c.checkAsync(title, async add => {
       for (const l of (await fn(api)) ?? []) add(l.level, toPlain(l.text));
     });
   }
   return c.report();
+}
+/** Default per-section limit of healthReport() when the caller gives none. */
+export const REPORT_TIMEOUT_MS = 20000;
+/**
+ * The per-section limit healthReport() uses: the caller's `timeoutMs` (a hub passes its own budget so the two agree), clamped to
+ * 1 s – 5 min, or REPORT_TIMEOUT_MS. Pure.
+ * @param {unknown} ms
+ */
+export function reportTimeout(ms) {
+  return typeof ms === "number" && Number.isFinite(ms) && ms > 0 ? Math.min(300000, Math.max(1000, Math.round(ms))) : REPORT_TIMEOUT_MS;
 }
 /** A line's HTML as plain text: buttons dropped, tags removed, entities read. */
 export const toPlain = html => plain(String(html ?? "").replace(/<button[^>]*>[\s\S]*?<\/button>/g, " "));

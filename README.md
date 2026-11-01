@@ -855,7 +855,7 @@ const report = await game.modules.get("wayfarers-toolkit").api.healthReport({ ti
 
 - A Promise of an array of sections in the order of the health card; sections with no lines are left out.
 - `text` is plain text (no HTML; buttons in the chat card are dropped). `level` is one of the five words.
-- Each section runs wrapped and time-limited (default 20 s per section): one that throws or runs out of time becomes a single `warn` line, and the others still run. Nothing in the world is changed. Nothing is posted to chat (use `api.health()` for the chat card).
+- Each section runs wrapped and time-limited: `timeoutMs` per section when given (clamped to 1 s – 5 min; a hub passes its own budget so the two limits agree), otherwise 20 s. One that throws or runs out of time becomes a single `warn` line, and the others still run. Nothing in the world is changed. Nothing is posted to chat (use `api.health()` for the chat card).
 - Players get `[]` (the report names GM-only things).
 
 Hooks the module fires: **none** since 1.27 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the acting GM client, and it isn't meant for other modules.
