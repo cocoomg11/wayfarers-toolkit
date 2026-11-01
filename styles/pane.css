@@ -10,78 +10,45 @@
   backdrop-filter: none !important;
 }
 
-/* Wanderer's Toolkit: character pane (an MMO-style paper doll). The frame is an in-world panel, so it keeps its own
-   dark stone look in both Foundry themes; the light theme gets warmer, lighter wood around it. */
-
+/* Wanderer's Toolkit 1.30: character pane, a classic-MMO character sheet inside Foundry's own window (native window chrome).
+   The sheet (.wct-frame) is an in-world panel: it stays dark in both Foundry themes, so it sets its own core tokens (--wc-*) and
+   the bright item-quality colours on itself instead of using theme selectors. Slots, coins and badges are core components. */
 .application.wct-pane {
-  --wct-wood: #3a2a18;
-  --wct-wood-hi: #8a6a3a;
-  --wct-stone: #17130f;
-  --wct-stone-2: #241d16;
-  --wct-panel: rgba(0, 0, 0, 0.55);
-  --wct-gold: #ffd100;
-  --wct-gold-dim: #c9a227;
-  --wct-text: #f2ead8;
-  --wct-muted: #a99d86;
-  --wct-slot-bg: #0d0b09;
-  --wct-slot-edge: #4a3d2c;
   --wct-slot: 42px; /* slot size; pane.mjs grows it with the window */
-  min-width: 460px;
-  min-height: 690px;
+  min-width: 540px;
+  min-height: 780px;
 }
-body.theme-light .application.wct-pane:not(.theme-dark),
-.application.wct-pane.theme-light {
-  --wct-wood: #7a5a32;
-  --wct-wood-hi: #c8a466;
-  --wct-stone: #2a221a;
-  --wct-stone-2: #3a2f23;
-  --wct-panel: rgba(0, 0, 0, 0.45);
-  --wct-slot-edge: #6b5638;
-}
-
-.application.wct-pane .window-content {
-  flex: 1 1 auto;
-  display: flex; flex-direction: column;
-  padding: 0;
-  overflow: visible;
-  min-height: 0;
-  background: var(--wct-wood);
-}
+.application.wct-pane .window-content { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0; overflow: visible; min-height: 0; }
 
 .wct-pane .wct-frame {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex; flex-direction: column;
-  min-height: 0;
-  margin: 6px;
+  /* The sheet's own palette, the same in both themes. */
+  --wc-text: #ece6d8; --wc-text-2: #c9c0ad; --wc-text-3: #958b78;
+  --wc-line: rgba(236, 230, 216, 0.16); --wc-line-strong: rgba(236, 230, 216, 0.3);
+  --wc-surface: rgba(255, 255, 255, 0.035); --wc-surface-2: rgba(255, 255, 255, 0.06);
+  --wc-ok: #3fbf4a; --wc-warn: #e8a33a; --wc-bad: #ef6a5c; --wc-info: #6fb0ff; --wc-accent: #e9b949;
+  --wc-ok-bg: rgba(63, 191, 74, 0.16); --wc-warn-bg: rgba(232, 163, 58, 0.16); --wc-bad-bg: rgba(239, 106, 92, 0.16); --wc-info-bg: rgba(111, 176, 255, 0.16);
+  --wc-q-poor: var(--wc-qs-poor, #9d9d9d); --wc-q-common: var(--wc-qs-common, #f2f2f2); --wc-q-uncommon: var(--wc-qs-uncommon, #2fd24a);
+  --wc-q-rare: var(--wc-qs-rare, #3d8bff); --wc-q-epic: var(--wc-qs-epic, #b86cf0); --wc-q-legendary: var(--wc-qs-legendary, #ff8a1f);
+  --wc-q-artifact: var(--wc-qs-artifact, #e6cc80);
+  --wct-sheet: #15130f; --wct-sheet-2: #1f1b16; --wct-well: #0c0b09; --wct-gold: var(--wc-accent);
+  position: relative; flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
   padding: 10px 12px 12px;
-  color: var(--wct-text);
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(255, 220, 160, 0.07), transparent 60%),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 6px),
-    linear-gradient(180deg, var(--wct-stone-2), var(--wct-stone));
-  border: 2px solid var(--wct-wood-hi);
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0, 0, 0, 0.8), 0 0 0 1px #000;
-  font-family: var(--font-primary, "Signika"), sans-serif;
+  color: var(--wc-text); color-scheme: dark;
+  background: radial-gradient(ellipse at 50% 22%, rgba(233, 185, 73, 0.06), transparent 62%), linear-gradient(180deg, var(--wct-sheet-2), var(--wct-sheet));
+  font-family: var(--font-body, var(--font-primary, sans-serif));
 }
 
-/* Name plate */
-.wct-pane .wct-head { flex: 0 0 auto; text-align: center; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); }
-.wct-pane .wct-head h2 {
-  margin: 0; border: none; padding: 0;
-  font-family: "Modesto Condensed", var(--font-primary, serif);
-  font-size: 1.7em; line-height: 1.1; letter-spacing: 0.02em;
-  color: var(--wct-gold);
-  text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.9);
-}
-.wct-pane .wct-head p { margin: 2px 0 0; font-size: 0.95em; color: var(--wct-text); text-shadow: 0 1px 0 #000; }
+/* Title: name, "Level N Class · Species · Party", Rested pill. */
+.wct-pane .wct-head { flex: 0 0 auto; display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--wc-line); }
+.wct-pane .wct-head-text { flex: 1; min-width: 0; text-align: center; }
+.wct-pane .wct-head h2 { margin: 0; padding: 0; border: none; font-size: 1.55em; line-height: 1.15; color: var(--wct-gold); text-shadow: 0 1px 0 #000; overflow-wrap: anywhere; }
+.wct-pane .wct-head p { margin: 2px 0 0; font-size: 0.92em; color: var(--wc-text-2); }
+.wct-pane .wct-rested { flex: none; margin-top: 4px; cursor: help; }
 
-/* Paper doll grid */
+/* Paper doll grid: two slot columns, the portrait in the middle, the weapon sets below. */
 .wct-pane .wct-doll {
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: calc(var(--wct-slot) + 4px) minmax(300px, 1fr) calc(var(--wct-slot) + 4px);
+  display: grid; flex: 0 0 auto;
+  grid-template-columns: calc(var(--wct-slot) + 4px) minmax(260px, 1fr) calc(var(--wct-slot) + 4px);
   grid-template-areas: "left centre right" ". bottom .";
   gap: 6px 12px;
 }
@@ -89,116 +56,117 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 .wct-pane .wct-col.left { grid-area: left; }
 .wct-pane .wct-col.right { grid-area: right; }
 .wct-pane .wct-row.bottom { grid-area: bottom; display: flex; justify-content: center; gap: 10px; padding-top: 4px; }
-.wct-pane .wct-centre { grid-area: centre; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+.wct-pane .wct-centre { grid-area: centre; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
 
-/* Slots */
-.wct-pane .wct-slot,
-.wct-pane .wct-item {
-  position: relative;
-  width: var(--wct-slot); height: var(--wct-slot); flex: 0 0 var(--wct-slot);
-  box-sizing: border-box;
-  border-radius: 4px;
-  background: var(--wct-slot-bg);
-  border: 2px solid var(--wct-slot-edge);
-  box-shadow: inset 0 0 8px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-  overflow: hidden;
+/* Slots are core's wc-item-slot (quality border and glow), sized by the window. */
+.wct-pane .wct-slot.wc-item-slot, .wct-pane .wct-item.wc-item-slot {
+  --wc-slot-size: var(--wct-slot); cursor: pointer; background: var(--wct-well); box-shadow: inset 0 0 8px #000;
 }
-.wct-pane .wct-slot img,
-.wct-pane .wct-item img { width: 100%; height: 100%; object-fit: cover; border: none; border-radius: 2px; display: block; pointer-events: none; }
-.wct-pane .wct-slot.filled,
-.wct-pane .wct-item { border-color: var(--q, #fff); box-shadow: inset 0 0 0 1px #000, 0 0 5px color-mix(in srgb, var(--q, #fff) 45%, transparent); }
-.wct-pane .wct-slot.filled:hover,
-.wct-pane .wct-item:hover { filter: brightness(1.2); box-shadow: inset 0 0 0 1px #000, 0 0 9px var(--q, #fff); }
-.wct-pane .wct-slot.ghost { border-color: color-mix(in srgb, var(--q, #fff) 40%, #000); }
+.wct-pane .wct-slot.wc-item-slot:not(.wc-empty), .wct-pane .wct-item.wc-item-slot { box-shadow: inset 0 0 0 1px #000, 0 0 6px color-mix(in srgb, var(--wc-q, transparent) 50%, transparent); }
+.wct-pane .wc-item-slot img { pointer-events: none; }
+.wct-pane .wct-slot.filled:hover, .wct-pane .wct-item:hover { filter: brightness(1.2); }
 .wct-pane .wct-slot.ghost img { opacity: 0.35; filter: grayscale(0.8); }
-.wct-pane .wct-slot.empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: rgba(214, 196, 160, 0.22);
-}
-.wct-pane .wct-slot.empty i { font-size: calc(var(--wct-slot) * 0.43); }
-.wct-pane .wct-slot.empty span { font-size: calc(var(--wct-slot) * 0.18); line-height: 1; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
-.wct-pane .wct-slot.empty:hover { color: rgba(255, 209, 0, 0.5); border-color: var(--wct-gold-dim); }
-.wct-pane .wct-slot.over,
-.wct-pane [data-drop].over { outline: 2px solid var(--wct-gold); outline-offset: 1px; }
+.wct-pane .wct-frame .wct-slot.wc-item-slot.wc-empty { border-style: solid; border-color: var(--wc-line); color: rgba(236, 230, 216, 0.2); background: var(--wct-well); }
+.wct-pane .wct-frame .wct-slot.wc-item-slot.wc-empty:hover { color: rgba(233, 185, 73, 0.55); border-color: color-mix(in srgb, var(--wct-gold) 55%, transparent); }
+.wct-pane .wct-glyph-svg { width: 62%; height: 62%; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.wct-pane .wct-slot.over, .wct-pane [data-drop].over { outline: 2px solid var(--wct-gold); outline-offset: 1px; }
 
-/* Portrait */
+/* Portrait, attunement, HP bar, purse. */
 .wct-pane .wct-portrait {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 160px;
-  border: 2px solid var(--wct-wood-hi);
-  border-radius: 4px;
-  background: #000;
-  box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #000;
-  overflow: hidden;
+  position: relative; flex: 1 1 auto; min-height: 150px; overflow: hidden;
+  border: 1px solid var(--wc-line-strong); border-radius: var(--wc-radius); background: #000;
 }
 .wct-pane .wct-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; border: none; display: block; }
 .wct-pane .wct-portrait::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 30px 6px rgba(0, 0, 0, 0.85); pointer-events: none; }
+.wct-pane .wct-attuned { position: absolute; z-index: 1; left: 50%; bottom: 6px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px; font-size: 0.8em; white-space: nowrap; color: var(--wc-text); background: rgba(0, 0, 0, 0.7); border: 1px solid var(--wc-line-strong); }
+.wct-pane .wct-attuned.over { color: var(--wc-bad); border-color: var(--wc-bad); }
+.wct-pane .wct-hp { position: relative; display: flex; height: 18px; flex: none; overflow: hidden; border-radius: var(--wc-radius-sm); background: #2a0d0b; border: 1px solid #000; }
+.wct-pane .wct-hp-fill { height: 100%; background: linear-gradient(color-mix(in srgb, var(--wc-tone, var(--wc-ok)) 85%, white), var(--wc-tone, var(--wc-ok))); transition: width 0.3s ease; }
+.wct-pane .wct-hp-fill.wc-ok { --wc-tone: #2f9e3a; } .wct-pane .wct-hp-fill.wc-warn { --wc-tone: #b8901d; } .wct-pane .wct-hp-fill.wc-bad { --wc-tone: #b0352a; }
+.wct-pane .wct-hp-temp { height: 100%; background: repeating-linear-gradient(45deg, rgba(120, 180, 255, 0.65) 0 4px, rgba(70, 120, 220, 0.65) 4px 8px); }
+.wct-pane .wct-hp-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: 600; color: #fff; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; }
+.wct-pane .wct-purse { flex: none; display: flex; justify-content: center; font-size: 0.92em; }
 
-/* Stats */
-.wct-pane .wct-stats {
-  flex: 0 0 auto;
-  display: grid; grid-template-columns: 1.25fr 1fr; gap: 0 10px;
-  padding: 6px 8px;
-  background: var(--wct-panel);
-  border: 1px solid rgba(201, 162, 39, 0.4);
-  border-radius: 4px;
-}
-.wct-pane .wct-stats ul { list-style: none; margin: 0; padding: 0; }
-.wct-pane .wct-stats li { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: calc(0.86em + (var(--wct-slot) - 42px) * 0.1); line-height: 1.5; }
-.wct-pane .wct-stats .lbl { color: var(--wct-gold); text-shadow: 0 1px 0 #000; }
-.wct-pane .wct-stats .val { color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 #000; white-space: nowrap; }
-.wct-pane .wct-stats .val small { color: var(--wct-muted); font-size: 0.85em; }
-.wct-pane .wct-stats .wct-def { border-left: 1px solid rgba(201, 162, 39, 0.25); padding-left: 10px; }
-.wct-pane .wct-stats li.over .val { color: #ff6060; }
+/* Stat boxes: Attributes, Defence, Attack. */
+.wct-pane .wct-boxes { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.15fr 1.15fr; gap: 8px; margin-top: 10px; }
+.wct-pane .wct-box { min-width: 0; padding: 6px 8px; border: 1px solid var(--wc-line); border-radius: var(--wc-radius); background: rgba(0, 0, 0, 0.35); font-size: 0.86em; }
+.wct-pane .wct-box header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.wct-pane .wct-box h3 { flex: 1; margin: 0; padding: 0; border: none; font-size: 0.85em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wct-gold); }
+.wct-pane .wct-box select { width: auto; max-width: 9em; height: 20px; padding: 0 4px; font-size: 0.9em; color: var(--wc-text); background: var(--wct-well); border: 1px solid var(--wc-line-strong); }
+.wct-pane .wct-box select option { color: var(--wc-text); background: var(--wct-sheet); }
+.wct-pane .wct-attrs ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 6px; }
+.wct-pane .wct-attrs li { display: grid; grid-template-columns: 2.6em 1fr auto; align-items: baseline; gap: 2px; }
+.wct-pane .wct-attrs abbr { text-decoration: none; color: var(--wc-text-3); font-size: 0.85em; font-weight: 600; }
+.wct-pane .wct-attrs b { font-size: 1.1em; font-variant-numeric: tabular-nums; }
+.wct-pane .wct-attrs small { color: var(--wc-text-2); font-variant-numeric: tabular-nums; }
+.wct-pane .wct-box dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 0; }
+.wct-pane .wct-box dt { color: var(--wc-text-3); white-space: nowrap; }
+.wct-pane .wct-box dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wct-pane .wct-saves { display: flex; flex-wrap: wrap; gap: 2px 6px; margin: 5px 0 0; padding-top: 4px; border-top: 1px solid var(--wc-line); font-variant-numeric: tabular-nums; }
+.wct-pane .wct-saves > span:first-child { color: var(--wc-text-3); width: 100%; }
+.wct-pane .wct-saves span.prof { color: var(--wct-gold); }
+.wct-pane .wct-atk-name { margin: 0 0 3px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wct-pane .wct-box-empty { margin: 0 0 3px; color: var(--wc-text-3); font-style: italic; }
 
-/* Bag of equippable items */
-.wct-pane .wct-bag {
-  flex: 1 1 0;
-  display: flex; flex-direction: column;
-  min-height: 0;
-  margin-top: 10px; padding: 6px 8px 8px;
-  background: var(--wct-panel);
-  border: 1px solid rgba(201, 162, 39, 0.4);
-  border-radius: 4px;
-}
+/* Equippable items. */
+.wct-pane .wct-bag { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; margin-top: 10px; padding: 6px 8px 8px; border: 1px solid var(--wc-line); border-radius: var(--wc-radius); background: rgba(0, 0, 0, 0.35); }
 .wct-pane .wct-bag h3, .wct-pane .wct-note { flex: 0 0 auto; }
-.wct-pane .wct-bag h3 { margin: 0 0 6px; border: none; padding: 0; font-size: 0.95em; color: var(--wct-gold); font-family: var(--font-primary, "Signika"), sans-serif; }
-.wct-pane .wct-bag h3 small { display: block; color: var(--wct-muted); font-size: 0.8em; font-weight: normal; }
+.wct-pane .wct-bag h3 { margin: 0 0 6px; border: none; padding: 0; font-size: 0.85em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wct-gold); }
+.wct-pane .wct-bag h3 small { display: block; color: var(--wc-text-3); font-size: 0.9em; font-weight: normal; letter-spacing: 0; text-transform: none; }
 /* The item list takes the rest of the window's height and scrolls inside it. Its icons stay at 42px. */
-.wct-pane .wct-bag-grid { --wct-slot: 42px; flex: 1 1 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; min-height: 42px; overflow-y: auto; padding: 1px 2px 6px 1px; }
+.wct-pane .wct-bag-grid { --wct-slot: 42px; flex: 1 1 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; min-height: 42px; overflow-y: auto; padding: 4px 4px 6px 4px; }
 .wct-pane .wct-item.equipped::after { content: "E"; position: absolute; right: 1px; bottom: 0; font-size: 9px; font-weight: bold; color: var(--wct-gold); text-shadow: 0 0 2px #000, 0 0 2px #000; }
-.wct-pane .wct-empty, .wct-pane .wct-note { margin: 0 0 4px; color: var(--wct-muted); font-size: 0.85em; }
-.wct-pane .wct-note button {
-  display: inline-block; width: auto; height: auto; margin-left: 4px; padding: 1px 8px;
-  font-size: 0.95em; line-height: 1.5;
-  color: var(--wct-gold); background: linear-gradient(#5a1a12, #2c0c08); border: 1px solid var(--wct-gold-dim); border-radius: 3px;
+.wct-pane .wct-empty, .wct-pane .wct-note { margin: 0 0 4px; color: var(--wc-text-3); font-size: 0.85em; }
+.wct-pane .wct-note button, .wct-pane .wct-set-notes button {
+  display: inline-block; width: auto; height: auto; margin-left: 4px; padding: 1px 8px; font-size: 0.95em; line-height: 1.5;
+  color: var(--wct-gold); background: rgba(233, 185, 73, 0.12); border: 1px solid color-mix(in srgb, var(--wct-gold) 60%, transparent); border-radius: var(--wc-radius-sm);
 }
-.wct-pane .wct-note button:hover { filter: brightness(1.25); }
+.wct-pane .wct-note button:hover, .wct-pane .wct-set-notes button:hover { background: rgba(233, 185, 73, 0.22); }
 
-/* Pick list */
+/* Pick list. */
 .wct-pane .wct-pop {
-  position: absolute; z-index: 10;
-  width: 230px; max-height: 300px; overflow-y: auto;
-  padding: 6px;
-  color: var(--wct-text);
-  background: rgba(8, 8, 14, 0.96);
-  border: 1px solid #5a5a70; border-radius: 4px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  position: absolute; z-index: 10; width: 230px; max-height: 300px; overflow-y: auto; padding: 6px;
+  color: var(--wc-text); background: rgba(10, 9, 8, 0.97); border: 1px solid var(--wc-line-strong); border-radius: var(--wc-radius-sm); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
 }
 .wct-pane .wct-pop[hidden] { display: none; }
 .wct-pane .wct-pop h4 { margin: 0 0 4px; border: none; padding: 0; color: var(--wct-gold); font-size: 0.95em; }
 .wct-pane .wct-pop ul { list-style: none; margin: 0; padding: 0; }
 .wct-pane .wct-pop li, .wct-pane .wct-pop p.cur { display: flex; align-items: center; gap: 6px; padding: 3px 4px; margin: 0; border-radius: 3px; font-size: 0.86em; cursor: pointer; }
-.wct-pane .wct-pop p.cur { cursor: default; background: rgba(255, 255, 255, 0.05); margin-bottom: 4px; }
-.wct-pane .wct-pop li:hover { background: rgba(255, 209, 0, 0.12); }
-.wct-pane .wct-pop li img, .wct-pane .wct-pop p.cur img { width: 22px; height: 22px; flex: 0 0 22px; border: 1px solid var(--q, #fff); border-radius: 2px; }
-.wct-pane .wct-pop li span, .wct-pane .wct-pop p.cur span { color: var(--q, #fff); }
-.wct-pane .wct-pop li small { color: var(--wct-muted); }
-.wct-pane .wct-pop li.remove { color: #ff8a7a; }
-.wct-pane .wct-pop li.none { cursor: default; color: var(--wct-muted); }
+.wct-pane .wct-pop p.cur { cursor: default; background: var(--wc-surface-2); margin-bottom: 4px; }
+.wct-pane .wct-pop li:hover { background: rgba(233, 185, 73, 0.12); }
+.wct-pane .wct-pop li img, .wct-pane .wct-pop p.cur img { width: 22px; height: 22px; flex: 0 0 22px; border: 1px solid var(--wc-q, var(--wc-line)); border-radius: 2px; }
+.wct-pane .wct-pop li span, .wct-pane .wct-pop p.cur span { color: var(--wc-q, var(--wc-text)); }
+.wct-pane .wct-pop li small { color: var(--wc-text-3); }
+.wct-pane .wct-pop li.remove { color: var(--wc-bad); }
+.wct-pane .wct-pop li.none { cursor: default; color: var(--wc-text-3); }
 .wct-pane .wct-pop li.none:hover { background: none; }
+
+/* Weapon sets: three sets (tab + two hands) and the relic under the doll; the set in hand outlined gold, the others dimmed. */
+.wct-pane .wct-row.bottom.wct-sets { grid-area: auto; grid-column: 1 / -1; grid-row: 2; gap: 8px; flex-wrap: nowrap; align-items: flex-end; }
+.wct-pane .wct-set-notes { grid-row: 3; }
+.wct-pane .wct-set { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px 3px 3px; border-radius: var(--wc-radius-sm); border: 1px solid transparent; }
+.wct-pane .wct-set.active { border-color: color-mix(in srgb, var(--wct-gold) 65%, transparent); background: rgba(233, 185, 73, 0.07); box-shadow: 0 0 8px rgba(233, 185, 73, 0.18); }
+.wct-pane .wct-set.stowed .wct-set-hands { opacity: 0.45; filter: grayscale(0.7); }
+.wct-pane .wct-set.stowed .wct-set-hands .worn { opacity: 1; filter: none; }
+.wct-pane .wct-set-hands { display: flex; gap: 4px; }
+.wct-pane .wct-set-tab {
+  display: inline-flex; align-items: center; gap: 4px; position: relative; width: auto; height: 18px; margin: 0; padding: 0 6px;
+  font-size: 11px; line-height: 16px; white-space: nowrap; color: var(--wc-text-3); background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--wc-line); border-radius: 3px; cursor: pointer;
+}
+.wct-pane .wct-set-tab:hover { color: var(--wct-gold); border-color: color-mix(in srgb, var(--wct-gold) 60%, transparent); }
+.wct-pane .wct-set-tab:focus-visible { outline: 2px solid var(--wct-gold); outline-offset: 1px; }
+.wct-pane .wct-set.active .wct-set-tab { color: #1b150b; border-color: var(--wct-gold); background: var(--wct-gold); cursor: default; }
+.wct-pane .wct-set-tab.static { cursor: default; }
+.wct-pane .wct-set-tab .fa-lock { color: var(--wc-bad); font-size: 9px; }
+.wct-pane .wct-stowed { font-size: 9px; line-height: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wc-text-3); }
+.wct-pane .wct-set.active .wct-stowed { color: var(--wct-gold); }
+.wct-pane .wct-slot.worn { box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--wct-gold); }
+.wct-pane .wct-set-notes { list-style: none; margin: 4px 0 0; padding: 0; grid-column: 1 / -1; font-size: 0.82em; color: var(--wc-text-3); }
+.wct-pane .wct-set-notes li { margin: 1px 0; text-align: center; }
+.wct-pane .wct-set-notes li.bad { color: var(--wc-bad); }
+.wct-pane .wct-set-notes li.warn { color: var(--wc-warn); }
+.chat-message .wct-swap { margin: 0; font-style: italic; }
 
 /* Item tooltip (Foundry's tooltip element, styled like an MMO item tooltip) */
 #tooltip.wct-tip, .locked-tooltip.wct-tip {
@@ -219,39 +187,6 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 /* Header button on the sheet */
 .window-header .wct-pane-btn { flex: 0 0 auto; }
 
-/* Weapon sets: three small groups (tab + two hands) under the paper doll; the set in hand is lit, the others dimmed and marked Stowed. */
-.wct-pane .wct-row.bottom.wct-sets { grid-area: auto; grid-column: 1 / -1; grid-row: 2; gap: 8px; flex-wrap: nowrap; align-items: flex-end; }
-.wct-pane .wct-set-notes { grid-row: 3; }
-.wct-pane .wct-set { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px 3px 3px; border-radius: 4px; border: 1px solid transparent; }
-.wct-pane .wct-set.active { border-color: rgba(201, 162, 39, 0.55); background: rgba(255, 209, 0, 0.06); }
-.wct-pane .wct-set.stowed .wct-set-hands { opacity: 0.45; filter: grayscale(0.7); }
-.wct-pane .wct-set.stowed .wct-set-hands .worn { opacity: 1; filter: none; }
-.wct-pane .wct-set-hands { display: flex; gap: 4px; }
-.wct-pane .wct-set-tab {
-  display: inline-flex; align-items: center; gap: 4px; position: relative;
-  width: auto; height: 18px; margin: 0; padding: 0 6px;
-  font-size: 11px; line-height: 16px; white-space: nowrap;
-  color: var(--wct-muted); background: rgba(0, 0, 0, 0.45);
-  border: 1px solid var(--wct-slot-edge); border-radius: 3px; cursor: pointer;
-}
-.wct-pane .wct-set-tab:hover { color: var(--wct-gold); border-color: var(--wct-gold-dim); }
-.wct-pane .wct-set.active .wct-set-tab { color: var(--wct-gold); border-color: var(--wct-gold-dim); background: linear-gradient(#5a1a12, #2c0c08); cursor: default; }
-.wct-pane .wct-set-tab.static { cursor: default; }
-.wct-pane .wct-set-tab .fa-lock { color: #ff8a7a; font-size: 9px; }
-.wct-pane .wct-stowed { font-size: 9px; line-height: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wct-muted); opacity: 0.85; }
-.wct-pane .wct-set.active .wct-stowed { color: var(--wct-gold-dim); }
-.wct-pane .wct-slot.worn { box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--wct-gold-dim); }
-.wct-pane .wct-set-notes { list-style: none; margin: 4px 0 0; padding: 0; grid-column: 1 / -1; font-size: 0.82em; color: var(--wct-muted); }
-.wct-pane .wct-set-notes li { margin: 1px 0; text-align: center; }
-.wct-pane .wct-set-notes li.bad { color: #ff9a8a; }
-.wct-pane .wct-set-notes li.warn { color: #f0c060; }
-.wct-pane .wct-set-notes button {
-  display: inline-block; width: auto; height: auto; margin-left: 4px; padding: 0 8px; font-size: 0.95em; line-height: 1.5;
-  color: var(--wct-gold); background: linear-gradient(#5a1a12, #2c0c08); border: 1px solid var(--wct-gold-dim); border-radius: 3px;
-}
-.wct-pane .wct-set-notes button:hover { filter: brightness(1.25); }
-.chat-message .wct-swap { margin: 0; font-style: italic; }
-
 /* Item comparison (inside the item tooltip): the hovered item's value, then what's there now. Green better, red worse, plain different. */
 .wct-tip .wct-compare { margin-top: 6px; padding-top: 5px; border-top: 1px solid #3a3a4a; font-size: 0.92em; }
 .wct-tip .wct-compare p { margin: 0 0 3px; }
@@ -265,4 +200,3 @@ body.theme-light .application.wct-pane:not(.theme-dark),
 .wct-tip .wct-compare tr.worse td:not(.was) { color: #ff5a4a; }
 .wct-tip .wct-compare tr.diff td:not(.was) { color: #fff; }
 .wct-tip .wct-compare .note { color: #f0c060; }
-.wct-pane .wct-head h2 .wct-rested { font-size: 0.55em; vertical-align: super; color: #9fc8ff; letter-spacing: 0.08em; font-style: italic; text-shadow: 0 0 4px rgba(120, 170, 255, 0.6); }

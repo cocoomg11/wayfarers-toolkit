@@ -6,6 +6,9 @@
 import * as WS from "./weapon-sets.mjs";
 import * as C from "./compare.mjs";
 import { on as featureOn } from "./features.mjs";
+import * as PM from "./pane-model.mjs";
+import { BENEFITS } from "./inn-model.mjs";
+import { UI_CLASSES, coins as coinHTML } from "../vendor/wanderers-core/index.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -117,7 +120,12 @@ export function wowInfo(item) {
   return { slot: tip.slot ?? wowFolderSlot(item), color: tip.color ?? null };
 }
 
-/** Border colour for an item: the tooltip's quality colour, else its dnd5e rarity. */
+/** Core's quality key for an item ("rare"): its tooltip colour when it has one, else its dnd5e rarity (1.30). */
+export const qualityOf = item => PM.qualityKey({ color: wowInfo(item).color, rarity: item?.system?.rarity });
+/** data-quality attribute for an item (core's --wc-q colour inside the pane). */
+const qAttr = item => `data-quality="${qualityOf(item)}"`;
+
+/** Border colour for an item: the tooltip's quality colour, else its dnd5e rarity (tooltips outside the pane window). */
 export function qualityColor(item) {
   return wowInfo(item).color ?? QUALITY[item.system?.rarity] ?? QUALITY.common;
 }
@@ -527,8 +535,8 @@ async function pileRowTip(element, item) {
 const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? /** @type {any} */ (globalThis).TextEditor;
 const OPEN = new Map();
 
-// Window size. The paper doll needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
-const MIN_W = 460, MIN_H = 690, DEF_W = 470, DEF_H = 720;
+// Window size. The sheet needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
+const MIN_W = 540, MIN_H = 780, DEF_W = 580, DEF_H = 880;
 const SLOT_MIN = 42, SLOT_MAX = 72;
 const SIZE_KEY = "paneWindow";
 
@@ -548,7 +556,7 @@ function defaultPosition() {
 
 export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    classes: ["wct-pane", "wct-window"],
+    classes: ["wct-pane", "wct-window", ...UI_CLASSES],
     window: { title: "Character", icon: "fa-solid fa-shirt", resizable: true },
     position: { width: DEF_W, height: DEF_H }
   };
@@ -579,21 +587,21 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const item = cur[slot];
     const ghost = !item && slot === "offhand" && cur.mainhand && isTwo(cur.mainhand) ? cur.mainhand : null;
     const s = SLOTS[slot];
-    if (item) return `<div class="wct-slot filled" data-slot="${slot}" data-item-id="${item.id}" draggable="true" style="--q:${qualityColor(item)}" aria-label="${esc(s.label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
-    if (ghost) return `<div class="wct-slot ghost" data-slot="${slot}" data-item-id="${ghost.id}" style="--q:${qualityColor(ghost)}" aria-label="${esc(s.label)}: blocked by ${esc(ghost.name)}"><img src="${esc(ghost.img)}" alt=""></div>`;
-    return `<div class="wct-slot empty" data-slot="${slot}" aria-label="${esc(s.label)} (empty)" data-tooltip="${esc(s.label)}"><i class="fa-solid ${s.icon}"></i><span>${esc(s.label)}</span></div>`;
+    if (item) return `<div class="wct-slot wc-item-slot filled" ${qAttr(item)} data-slot="${slot}" data-item-id="${item.id}" draggable="true" aria-label="${esc(s.label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
+    if (ghost) return `<div class="wct-slot wc-item-slot ghost" ${qAttr(ghost)} data-slot="${slot}" data-item-id="${ghost.id}" aria-label="${esc(s.label)}: blocked by ${esc(ghost.name)}"><img src="${esc(ghost.img)}" alt=""></div>`;
+    return `<div class="wct-slot wc-item-slot wc-empty empty" data-slot="${slot}" aria-label="${esc(s.label)} (empty)" data-tooltip="${esc(s.label)}">${PM.glyph(slot)}</div>`;
   }
 
   /** One hand of a weapon set. */
   handHTML(state, set, hand) {
     const a = this.actor; const id = state.sets[set][hand]; const item = id ? a.items.get(id) : null;
-    const label = WS.handLabel(set, hand); const icon = hand === "off" ? "fa-shield" : set === "ranged" ? "fa-bow-arrow" : "fa-sword";
+    const label = WS.handLabel(set, hand);
     const data = `data-set="${set}" data-hand="${hand}"`;
     const main = hand === "off" ? a.items.get(state.sets[set].main) : null;
     const worn = item && set !== state.active && isShield(item) && item.system.equipped;
-    if (item) return `<div class="wct-slot wct-hand filled${worn ? " worn" : ""}" ${data} data-item-id="${item.id}" draggable="true" style="--q:${qualityColor(item)}" aria-label="${esc(WS.SETS[set].label)} ${esc(label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
-    if (main && isTwo(main)) return `<div class="wct-slot wct-hand ghost" ${data} data-item-id="${main.id}" style="--q:${qualityColor(main)}" aria-label="${esc(label)}: blocked by ${esc(main.name)}"><img src="${esc(main.img)}" alt=""></div>`;
-    return `<div class="wct-slot wct-hand empty" ${data} aria-label="${esc(WS.SETS[set].label)} ${esc(label)} (empty)" data-tooltip="${esc(WS.SETS[set].label)}: ${esc(label)}"><i class="fa-solid ${icon}"></i><span>${esc(hand === "off" ? "Off" : set === "ranged" ? "Ranged" : "Main")}</span></div>`;
+    if (item) return `<div class="wct-slot wct-hand wc-item-slot filled${worn ? " worn" : ""}" ${qAttr(item)} ${data} data-item-id="${item.id}" draggable="true" aria-label="${esc(WS.SETS[set].label)} ${esc(label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
+    if (main && isTwo(main)) return `<div class="wct-slot wct-hand wc-item-slot ghost" ${qAttr(main)} ${data} data-item-id="${main.id}" aria-label="${esc(label)}: blocked by ${esc(main.name)}"><img src="${esc(main.img)}" alt=""></div>`;
+    return `<div class="wct-slot wct-hand wc-item-slot wc-empty empty" ${data} aria-label="${esc(WS.SETS[set].label)} ${esc(label)} (empty)" data-tooltip="${esc(WS.SETS[set].label)}: ${esc(label)}">${PM.glyph(hand === "off" ? "offhand" : set === "ranged" ? "ranged" : "mainhand")}</div>`;
   }
 
   /** The weapon sets row: three sets (the active one lit, the others dimmed and marked Stowed), the relic slot, and a note line. */
@@ -621,43 +629,102 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     return `<div class="wct-row bottom wct-sets">${groups}${relic}</div>${notes.length ? `<ul class="wct-set-notes">${notes.join("")}</ul>` : ""}`;
   }
 
+  /** The party (group actor) this actor is a member of, by name, or "". */
+  partyName() {
+    try { return game.actors?.find(g => g.type === "group" && (g.system?.members ?? []).some(m => (m?.actor ?? m) === this.actor || m?.actor?.id === this.actor.id))?.name ?? ""; } catch { return ""; }
+  }
+
+  /** The Attack box's facts, read from prepared dnd5e data: the set in hand, its main-hand weapon labels and the spellcasting. */
+  attackFacts() {
+    const a = this.actor; const sys = a.system;
+    const sets = setsOn(); const state = sets ? weaponState(a) : null; const active = state?.active ?? "melee";
+    const handItems = state ? [state.sets[active].main, state.sets[active].off].map(id => a.items.get(id)).filter(Boolean) : [slotted(a).mainhand, slotted(a).offhand].filter(Boolean);
+    const prog = c => { try { return c?.spellcasting?.progression ?? c?.system?.spellcasting?.progression ?? "none"; } catch { return "none"; } };
+    const caster = !!sys.attributes?.spellcasting && Object.values(a.classes ?? {}).some(c => prog(c) !== "none");
+    const relic = relicShown(a) ? slotted(a).relic : null;
+    const focus = handItems.find(i => WS.isFocus(i)) ?? relic ?? null;
+    const weaponOf = item => {
+      if (!item || item.type !== "weapon") return null;
+      const L = item.labels ?? {};
+      const dmg = Array.isArray(L.damages) && L.damages.length ? L.damages[0]?.label ?? L.damages[0]?.formula : L.damage;
+      return { name: item.name, toHit: L.toHit ?? (L.modifier ? `${L.modifier}` : ""), damage: dmg ?? "", range: L.range ?? L.reach ?? "", quality: qualityOf(item) };
+    };
+    const rangedItem = state ? a.items.get(state.sets.ranged.main) : slotted(a).ranged;
+    const weapon = mode => mode === "ranged" ? weaponOf(rangedItem) : weaponOf(handItems.find(i => i.type === "weapon"));
+    const spell = sys.attributes?.spell ?? {};
+    const abil = CONFIG.DND5E.abilities?.[sys.attributes?.spellcasting];
+    return {
+      active, caster, focusInHand: !!handItems.find(i => WS.isFocus(i)), weaponInHand: handItems.some(i => i.type === "weapon"), weapon,
+      spell: { attack: spell.attack ?? null, dc: spell.dc ?? null, ability: abil ? game.i18n?.localize?.(abil.label) ?? abil.label : "", focus: focus ? { name: focus.name, quality: qualityOf(focus) } : null }
+    };
+  }
+
+  /** The Attack box: follows the set in hand, with a dropdown to pick a mode by hand (per window, not saved). */
+  attackHTML() {
+    let f; try { f = this.attackFacts(); } catch (e) { console.warn(`${ID} | character pane attack box`, e); return ""; }
+    const auto = PM.attackMode({ ...f, override: "" });
+    const mode = PM.attackMode({ ...f, override: this._attackMode ?? "" });
+    const r = PM.attackRows(mode, { weapon: mode === "spell" ? null : f.weapon(mode), spell: f.spell });
+    const name = r.name ? `<p class="wct-atk-name wc-q-text" data-quality="${esc(r.quality || "common")}">${esc(r.name)}</p>` : "";
+    return `<section class="wct-box wct-attack"><header><h3>Attack</h3><label class="wc-sr" for="${this.id}-atk">Attack shown</label><select id="${this.id}-atk" data-attack-mode>${PM.attackOptions(this._attackMode ?? "auto", auto)}</select></header>
+      ${name}${r.empty ? `<p class="wct-box-empty">${esc(r.empty)}</p>` : ""}<dl>${r.rows.map(x => `<dt>${esc(x.label)}</dt><dd>${esc(x.value)}</dd>`).join("")}</dl></section>`;
+  }
+
   async _renderHTML() {
     const a = this.actor; const sys = a.system; const sets = setsOn(); const cur = sets ? gearSlotted(a) : slotted(a);
     if (relicShown(a)) { const r = slotted(a).relic; if (r) cur.relic = r; }
-    const ab = sys.abilities ?? {};
-    const sign = n => (n >= 0 ? `+${n}` : `${n}`);
-    const abil = Object.entries(CONFIG.DND5E.abilities).filter(([k]) => ab[k]).map(([k, c]) => `<li><span class="lbl">${esc(c.label)}</span><span class="val">${ab[k].value ?? "–"} <small>(${sign(ab[k].mod ?? 0)})</small></span></li>`).join("");
-    const hp = sys.attributes?.hp ?? {}; const ac = sys.attributes?.ac?.value; const att = sys.attributes?.attunement;
+    const cfg = /** @type {Array<[string, any]>} */ (Object.entries(CONFIG.DND5E.abilities ?? {}));
+    const loc = t => game.i18n?.localize?.(t) ?? t;
+    const attrs = PM.attributes(cfg.map(([k, c]) => [k, { label: loc(c.label), abbreviation: loc(c.abbreviation ?? k) }]), sys.abilities ?? {});
+    const hp = sys.attributes?.hp ?? {}; const att = sys.attributes?.attunement;
+    const hd = sys.attributes?.hd;
+    const hdFacts = hd ? { value: hd.value, max: hd.max, denom: hd.largestFace ? `d${hd.largestFace}` : hd.denomination ? `d${hd.denomination}` : "" } : null;
+    const def = PM.defence({
+      ac: sys.attributes?.ac?.value, hp, hd: hdFacts, init: sys.attributes?.init?.total ?? sys.attributes?.init?.mod,
+      speed: { walk: sys.attributes?.movement?.speeds?.walk ?? sys.attributes?.movement?.speed ?? sys.attributes?.movement?.walk, units: sys.attributes?.movement?.units },
+      saves: attrs.map(x => ({ abbr: x.abbr, value: sys.abilities?.[x.key]?.save, prof: (sys.abilities?.[x.key]?.proficient ?? 0) > 0 }))
+    });
     const classes = Object.values(a.classes ?? {}).map(c => `${c.name}${Object.keys(a.classes).length > 1 ? ` ${c.system.levels}` : ""}`).join(" / ");
     const race = sys.details?.race?.name ?? (typeof sys.details?.race === "string" ? sys.details.race : "");
     const level = sys.details?.level ?? (sys.details?.cr != null ? `CR ${sys.details.cr}` : "");
-    const sub = [level ? (typeof level === "number" ? `Level ${level}` : level) : "", race, classes].filter(Boolean).join(" ");
+    const sub = PM.subtitle({ level, classes, species: race, party: this.partyName() });
+    const rested = featureOn("restedInn") ? a.getFlag?.(ID, "rested") : null;
+    const benefit = rested ? (() => { try { return BENEFITS[game.settings.get(ID, "innBenefit")] ?? ""; } catch { return ""; } })() : "";
+    const bar = PM.hpBar(hp);
+    const api = game.modules.get(ID)?.api; let values = []; try { values = api?.coins?.() ?? []; } catch { values = []; }
+    const purse = PM.purse(sys.currency ?? {}, values);
     const bag = unslottedItems(a, cur);
     const loose = bag.filter(i => i.system.equipped).length;
     const div = document.createElement("div");
     div.className = `wct-frame${sets ? " wct-with-sets" : ""}`;
     div.innerHTML = `
-      <header class="wct-head"><h2>${esc(a.name)}${featureOn("restedInn") && a.getFlag?.(ID, "rested") ? ` <span class="wct-rested" data-tooltip="Rested at ${esc(a.getFlag(ID, "rested").inn ?? "the inn")}: the next long rest gives a bonus" aria-label="Rested">zzz</span>` : ""}</h2>${sub ? `<p>${esc(sub)}</p>` : ""}</header>
+      <header class="wct-head">
+        <div class="wct-head-text"><h2>${esc(a.name)}</h2>${sub ? `<p>${esc(sub)}</p>` : ""}</div>
+        ${rested ? `<span class="wct-rested wc-badge wc-info" data-tooltip="${esc(PM.restedTip({ inn: rested.inn, benefit }))}"><i class="fa-solid fa-bed" aria-hidden="true"></i> Rested<span class="wc-sr">: ${esc(PM.restedTip({ inn: rested.inn, benefit }))}</span></span>` : ""}
+      </header>
       <div class="wct-doll">
         <div class="wct-col left">${LEFT.map(s => this.slotHTML(s, cur)).join("")}</div>
         <div class="wct-centre">
-          <div class="wct-portrait" data-drop="auto"><img src="${esc(a.img)}" alt="${esc(a.name)}"></div>
-          <div class="wct-stats">
-            <ul class="wct-abil">${abil}</ul>
-            <ul class="wct-def">
-              <li><span class="lbl">Armor</span><span class="val">${ac ?? "–"}</span></li>
-              <li><span class="lbl">Health</span><span class="val">${hp.value ?? "–"}${hp.max ? ` / ${hp.max}` : ""}${hp.temp ? ` <small>+${hp.temp}</small>` : ""}</span></li>
-              ${att ? `<li class="${att.value > att.max ? "over" : ""}"><span class="lbl">Attuned</span><span class="val">${att.value} / ${att.max}</span></li>` : ""}
-            </ul>
-          </div>
+          <div class="wct-portrait" data-drop="auto"><img src="${esc(a.img)}" alt="${esc(a.name)}">
+            ${att ? `<span class="wct-attuned${att.value > att.max ? " over" : ""}">Attuned ${att.value} / ${att.max}</span>` : ""}</div>
+          ${bar ? `<div class="wct-hp" role="img" aria-label="Hit points ${esc(bar.text)}"><span class="wct-hp-fill wc-${bar.tone}" style="width:${bar.hpPct}%"></span>${bar.tempPct ? `<span class="wct-hp-temp" style="width:${bar.tempPct}%"></span>` : ""}<span class="wct-hp-text">${esc(bar.text)}</span></div>` : ""}
+          <div class="wct-purse">${coinHTML(purse.copper, { ratio: purse.ratio })}</div>
         </div>
         <div class="wct-col right">${RIGHT.map(s => this.slotHTML(s, cur)).join("")}</div>
         ${sets ? this.setsHTML(cur) : `<div class="wct-row bottom">${BOTTOM.map(s => this.slotHTML(s, cur)).join("")}</div>`}
       </div>
+      <div class="wct-boxes">
+        <section class="wct-box wct-attrs"><header><h3>Attributes</h3></header><ul>${attrs.map(x => `<li><abbr title="${esc(x.label)}">${esc(x.abbr)}</abbr><b>${x.value ?? "–"}</b><small>${PM.sign(x.mod)}</small></li>`).join("")}</ul></section>
+        <section class="wct-box wct-def"><header><h3>Defence</h3></header><dl>
+          <dt>Armor Class</dt><dd>${esc(def.ac)}</dd><dt>Hit points</dt><dd>${esc(def.hp)}</dd><dt>Hit dice</dt><dd>${esc(def.hd)}</dd>
+          <dt>Initiative</dt><dd>${esc(def.init)}</dd><dt>Speed</dt><dd>${esc(def.speed)}</dd></dl>
+          <p class="wct-saves"><span>Saves</span>${def.saves.map(x => `<span class="${x.prof ? "prof" : ""}"${x.prof ? ' title="Proficient"' : ""}>${esc(x.abbr)} ${esc(x.value)}</span>`).join("")}</p></section>
+        ${this.attackHTML()}
+      </div>
       <section class="wct-bag" data-drop="bag">
         <h3>Equippable items <small>drag onto a slot, click to equip, right-click a slot to remove</small></h3>
         ${loose ? `<p class="wct-note">${loose} equipped item${loose === 1 ? " isn't" : "s aren't"} in a slot. <button type="button" data-action="slotEquipped">Slot equipped items</button></p>` : ""}
-        <div class="wct-bag-grid">${bag.length ? bag.map(i => `<div class="wct-item${i.system.equipped ? " equipped" : ""}" data-item-id="${i.id}" draggable="true" style="--q:${qualityColor(i)}" aria-label="${esc(i.name)}"><img src="${esc(i.img)}" alt=""></div>`).join("") : `<p class="wct-empty">Nothing else to equip. Drop items here from a compendium or the sidebar to add them.</p>`}</div>
+        <div class="wct-bag-grid">${bag.length ? bag.map(i => `<div class="wct-item wc-item-slot${i.system.equipped ? " equipped" : ""}" ${qAttr(i)} data-item-id="${i.id}" draggable="true" aria-label="${esc(i.name)}"><img src="${esc(i.img)}" alt=""></div>`).join("") : `<p class="wct-empty">Nothing else to equip. Drop items here from a compendium or the sidebar to add them.</p>`}</div>
       </section>
       <div class="wct-pop" hidden></div>`;
     return div;
@@ -699,13 +766,15 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const cs = getComputedStyle(frame);
     const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 4;
     const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 4;
-    // Width: the centre column keeps at least 300px beside two slot columns (slot + 4px) and the 12px gaps.
-    const byW = (frame.clientWidth + 4 - padX - 24 - 300) / 2 - 4;
+    // Width: the centre column keeps at least 260px beside two slot columns (slot + 4px) and the 12px gaps.
+    const byW = (frame.clientWidth + 4 - padX - 24 - 260) / 2 - 4;
+    // The stat boxes (Attributes, Defence, Attack) sit between the doll and the item list.
+    const boxes = (frame.querySelector(".wct-boxes")?.offsetHeight ?? 0) + 10;
     // Height: 8 slots + 7 gaps in a column, the weapon row below (slot + 10px), and room for the item list (title + a row of items).
     const free = frame.clientHeight + 4 - padY - head - 8 - (note + 10 + 2 * SLOT_MIN + 5 + 14);
     // Weapon sets: the set tabs above the hands, and the note line under them.
     const extra = frame.classList.contains("wct-with-sets") ? 36 + (frame.querySelector(".wct-set-notes")?.offsetHeight ?? 0) : 0;
-    const byH = (free - extra - 7 * 5 - 10 - 6) / 9;
+    const byH = (free - boxes - extra - 7 * 5 - 10 - 6) / 9;
     // Weapon sets: six hands (seven with the relic slot) side by side across the frame, with the set borders and gaps.
     const hands = frame.querySelectorAll(".wct-sets .wct-slot").length;
     const bySets = hands ? (frame.clientWidth - padX - 16 * (hands / 2 + 1) - 8) / hands : SLOT_MAX;
@@ -724,6 +793,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
       el.addEventListener("pointerenter", () => this._tooltip(el, itemOf(el)));
       el.addEventListener("pointerleave", () => game.tooltip?.deactivate?.());
     });
+    root.querySelector("[data-attack-mode]")?.addEventListener("change", ev => { const v = ev.currentTarget.value; this._attackMode = v === "auto" ? null : v; this.render(); });
     if (!editable) return;
 
     // Drag out
@@ -820,8 +890,8 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const inSlot = el.classList.contains("filled") ? this.actor.items.get(state.sets[set][hand]) : null;
     const choices = this.actor.items.filter(i => i !== inSlot && !i.system.container && WS.fitsHand(describeItem(i), set, hand)).sort((a, b) => a.name.localeCompare(b.name));
     const where = i => { const at = WS.locate(state, i.id); return at ? ` <small>(${esc(WS.SETS[at.set].label)})</small>` : ""; };
-    const rows = choices.map(i => `<li data-pick-item="${i.id}" style="--q:${qualityColor(i)}"><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
-    this._showPop(el, `<h4>${esc(title)}</h4>${inSlot ? `<p class="cur" style="--q:${qualityColor(inSlot)}"><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take out of the set</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
+    const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
+    this._showPop(el, `<h4>${esc(title)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take out of the set</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
       li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unassignWeapon(inSlot); const it = this.actor.items.get(id); if (it) assignWeapon(this.actor, it, set, hand); });
   }
 
@@ -832,8 +902,8 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
     const first = new Map(); const firstIs = i => { if (!first.has(i)) first.set(i, slot === "relic" || fits(i)?.slots[0] === slot); return first.get(i); };
     const choices = this.actor.items.filter(i => i !== inSlot && canSlot(i, slot) && !i.system.container).sort((a, b) => firstIs(b) - firstIs(a) || a.name.localeCompare(b.name));
     const where = i => { const s = Object.entries(cur).find(([, x]) => x === i)?.[0]; return s ? ` <small>(${esc(SLOTS[s].label)})</small>` : ""; };
-    const rows = choices.map(i => `<li data-pick-item="${i.id}" style="--q:${qualityColor(i)}"><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
-    this._showPop(el, `<h4>${esc(SLOTS[slot].label)}</h4>${inSlot ? `<p class="cur" style="--q:${qualityColor(inSlot)}"><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take off</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
+    const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
+    this._showPop(el, `<h4>${esc(SLOTS[slot].label)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take off</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
       li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unslotItem(inSlot); const it = this.actor.items.get(id); if (it) slotItem(this.actor, it, slot); });
   }
 

@@ -99,3 +99,97 @@ test("health: chat card is short only while the Satchel is active; healthReport 
   assert.match(h, /export async function report\(api, \{ timeoutMs \} = \{\}\)/);
   assert.match(h, /if \(!game\.user\?\.isGM\) return \[\];/);
 });
+
+// ---------------------------------------------------------------- character pane (classic sheet)
+const PM = await import("../scripts/pane-model.mjs");
+
+test("pane: subtitle, Rested tooltip", () => {
+  assert.equal(PM.subtitle({ level: 5, classes: "Fighter", species: "Human", party: "The Party" }), "Level 5 Fighter · Human · The Party");
+  assert.equal(PM.subtitle({ level: "CR 2", classes: "", species: "", party: "" }), "CR 2");
+  assert.equal(PM.subtitle({}), "");
+  assert.equal(PM.restedTip({ inn: "The Inn", benefit: "Heroic Inspiration" }), "Rested at The Inn: Heroic Inspiration at the end of the next long rest.");
+  assert.match(PM.restedTip({}), /the inn/);
+});
+
+test("pane: HP bar with a temporary segment; tones; no bar without a maximum", () => {
+  const b = PM.hpBar({ value: 30, max: 40, temp: 10 });
+  assert.equal(b.hpPct, 60); assert.equal(b.tempPct, 20); assert.equal(b.tone, "ok"); assert.equal(b.text, "30 / 40 (+10)");
+  assert.equal(PM.hpBar({ value: 9, max: 40 }).tone, "bad");
+  assert.equal(PM.hpBar({ value: 15, max: 40 }).tone, "warn");
+  assert.equal(PM.hpBar({ value: 50, max: 40 }).hpPct, 100, "never over full");
+  assert.equal(PM.hpBar({ value: 10, max: 40, effectiveMax: 50 }).max, 50, "dnd5e effectiveMax wins");
+  assert.equal(PM.hpBar({ value: 5, max: null }), null);
+  assert.equal(PM.hpBar(null), null);
+});
+
+test("pane: purse in the smallest coin and the ratio for core's coins()", () => {
+  const three = [["gp", 10000], ["sp", 100], ["cp", 1]];
+  assert.deepEqual(PM.purse({ gp: 12, sp: 46, cp: 8, pp: 0, ep: 0 }, three), { copper: 124608, ratio: 100 });
+  const std = [["pp", 1000], ["gp", 100], ["ep", 50], ["sp", 10], ["cp", 1]];
+  assert.deepEqual(PM.purse({ pp: 1, gp: 2, ep: 1, sp: 3, cp: 4 }, std), { copper: 1284, ratio: 10 });
+  assert.equal(PM.purse({ gp: -5, sp: "x" }, std).copper, 0);
+  assert.equal(PM.purse({}, []).ratio, 10);
+});
+
+test("pane: attributes and defence boxes from prepared data (save as number or { value })", () => {
+  const rows = PM.attributes([["str", { label: "Strength", abbreviation: "str" }], ["dex", { label: "Dexterity", abbreviation: "dex" }], ["hon", {}]], { str: { value: 16, mod: 3 }, dex: { value: 9, mod: -1 } });
+  assert.deepEqual(rows.map(r => [r.abbr, r.value, r.mod]), [["STR", 16, 3], ["DEX", 9, -1]]);
+  const d = PM.defence({ ac: 17, hp: { value: 20, max: 30 }, hd: { value: 3, max: 5, denom: "d10" }, init: 2, speed: { walk: 30, units: "ft" }, saves: [{ abbr: "STR", value: { value: 5 }, prof: true }, { abbr: "DEX", value: -1 }, { abbr: "CON", value: null }] });
+  assert.equal(d.ac, 17); assert.equal(d.hp, "20 / 30"); assert.equal(d.hd, "3 / 5 d10"); assert.equal(d.init, "+2"); assert.equal(d.speed, "30 ft");
+  assert.deepEqual(d.saves, [{ abbr: "STR", value: "+5", prof: true }, { abbr: "DEX", value: "−1", prof: false }, { abbr: "CON", value: "–", prof: false }]);
+  assert.deepEqual(PM.defence({}).hd, "–");
+});
+
+test("pane: Attack box follows the set in hand; the dropdown overrides", () => {
+  assert.equal(PM.attackMode({ active: "melee" }), "melee");
+  assert.equal(PM.attackMode({ active: "ranged" }), "ranged");
+  assert.equal(PM.attackMode({ active: "utility", caster: true }), "spell");
+  assert.equal(PM.attackMode({ active: "utility", caster: false }), "melee");
+  assert.equal(PM.attackMode({ active: "melee", caster: true, focusInHand: true, weaponInHand: false }), "spell");
+  assert.equal(PM.attackMode({ active: "melee", caster: true, focusInHand: true, weaponInHand: true }), "melee");
+  assert.equal(PM.attackMode({ active: "ranged", override: "spell" }), "spell");
+  assert.equal(PM.attackMode({ active: "ranged", override: "nonsense" }), "ranged");
+  const w = PM.attackRows("melee", { weapon: { name: "Longsword", toHit: "5", damage: "1d8 + 3 Slashing", range: "5 ft", quality: "rare" } });
+  assert.deepEqual(w.rows.map(r => r.value), ["+5", "1d8 + 3 Slashing", "5 ft"]); assert.equal(w.name, "Longsword");
+  assert.match(PM.attackRows("ranged", {}).empty, /Ranged set/);
+  const s = PM.attackRows("spell", { spell: { attack: 7, dc: 15, ability: "Wisdom", focus: { name: "Holy Symbol", quality: "common" } } });
+  assert.deepEqual(s.rows.map(r => r.value), ["+7", "15", "Wisdom"]); assert.equal(s.name, "Holy Symbol");
+  assert.match(PM.attackRows("spell", { spell: {} }).empty, /No spellcasting/);
+  const o = PM.attackOptions("ranged", "melee");
+  assert.match(o, /<option value="auto">Auto \(Melee\)<\/option>/); assert.match(o, /<option value="ranged" selected>/);
+});
+
+test("pane: quality keys from tooltip colours or dnd5e rarity (core's keys)", () => {
+  assert.equal(PM.qualityKey({ color: "#A335EE" }), "epic");
+  assert.equal(PM.qualityKey({ color: "#1eff00", rarity: "legendary" }), "uncommon", "the tooltip wins");
+  assert.equal(PM.qualityKey({ rarity: "veryRare" }), "epic");
+  assert.equal(PM.qualityKey({ rarity: "" }), "poor");
+  assert.equal(PM.qualityKey({}), "poor");
+});
+
+test("pane: an original outline for every slot the toolkit has (stroke-only SVG, hidden from screen readers)", async () => {
+  const pane = src("scripts/pane.mjs");
+  const slots = [...pane.slice(pane.indexOf("export const SLOTS = {"), pane.indexOf("const LEFT")).matchAll(/^\s+(\w+): \{ label/gm)].map(m => m[1]);
+  assert.ok(slots.length >= 20);
+  for (const s of slots) { assert.ok(PM.SLOT_GLYPH[s], s); assert.ok(PM.GLYPHS[PM.SLOT_GLYPH[s]], s); }
+  for (const [k, d] of Object.entries(PM.GLYPHS)) assert.match(d, /^M[\d\s.,MmLlHhVvCcSsQqAaZz-]+$/, k);
+  const g = PM.glyph("head");
+  assert.match(g, /^<svg class="wct-glyph-svg" viewBox="0 0 24 24" aria-hidden="true"/);
+  assert.match(PM.glyph("nope"), /<path d="/);
+});
+
+test("pane: core look (UI_CLASSES, item slots, coins), dark sheet in both themes, every behaviour kept", () => {
+  const pane = src("scripts/pane.mjs"); const css = src("styles/pane.css");
+  assert.match(pane, /classes: \["wct-pane", "wct-window", \.\.\.UI_CLASSES\]/);
+  assert.doesNotMatch(pane + css, /wc-r\d/, "never a literal revision");
+  assert.match(pane, /wc-item-slot/); assert.match(pane, /coinHTML\(purse\.copper, \{ ratio: purse\.ratio \}\)/);
+  assert.match(pane, /Attuned \$\{att\.value\} \/ \$\{att\.max\}/);
+  assert.match(pane, /Slot equipped items/);
+  assert.match(pane, /data-attack-mode/);
+  for (const kept of ["_onDrop", "_slotMenu", "_handMenu", "_equipFromBag", "slotEquipped", "_tooltip", "data-activate", "data-stow-shield", "contextmenu", "dragstart"]) assert.ok(pane.includes(kept), kept);
+  const sheet = css.slice(css.indexOf("/* Wanderer's Toolkit 1.30: character pane"), css.indexOf("/* Item tooltip"));
+  assert.ok(sheet.length > 1000);
+  assert.doesNotMatch(sheet, /\.theme-(dark|light)/, "no theme selectors inside the sheet");
+  assert.match(sheet, /\.wct-pane \.wct-frame \{[^}]*--wc-text: #/, "the sheet sets its own tokens");
+  assert.doesNotMatch(src("scripts/pane-model.mjs"), /warcraft|blizzard|\bwow\b|azeroth/i);
+});
