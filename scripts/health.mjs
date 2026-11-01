@@ -15,6 +15,8 @@ import { phasesOf } from "./bosses.mjs";
 import * as Perm from "./permissions.mjs";
 import * as Quests from "./quests.mjs";
 import * as Pins from "./pins.mjs";
+import * as Vault from "./vault.mjs";
+import * as Migrate from "./migrate.mjs";
 import { CORE_VERSION, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
 import { sceneTab } from "../vendor/wanderers-core/foundry/index.mjs";
 
@@ -283,7 +285,7 @@ function bundle2(api) {
   return out.length ? out : [off("None of the 1.20 tools is on.")];
 }
 
-/** Zone title cards, who's online and inns (1.22). */
+/** Zone title cards and inns (1.22). */
 function places(api) {
   const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
   const out = [];
@@ -293,27 +295,21 @@ function places(api) {
     out.push(ok(`Zone title cards: ${get("zoneTitleTrigger") === "view" ? "every view" : "on activation"}, ${get("zoneTitleAudience") === "players" ? "players only" : "everyone"}; ${get("zoneTitleAll") !== false ? `every scene${off ? ` except ${plural(off, "scene")} switched off` : ""}` : `${plural(set, "scene")} ticked`}.`));
     if (get("zoneTitleAll") === false && !set) out.push(warn("Zone title cards: no scene is ticked and Every scene gets a title card is off, so no card ever shows (Scene configuration › Title card)."));
   }
-  if (F.on("whosOnline")) {
-    const hubs = game.scenes.filter(s => s.getFlag(ID, "hub")).map(s => s.name);
-    out.push(hubs.length ? ok(`Who's online: ${plural(hubs.length, "Hub scene")} (${listNames(hubs)}).`) : off("Who's online: no scene is marked Hub (Scene configuration › Hub scene); the board is only in the window."));
-    try {
-      const r = api.online.read();
-      if (get("onlineCount") === "list" && !r.expected) out.push(warn("Who's online: Only the users listed is chosen, but the list names no user of this world (control panel › Places › Advanced)."));
-      else if (!r.expected) out.push(warn("Who's online: no user counts for \"Everyone's here\" yet (assign characters to your players, or change who counts)."));
-      else out.push(ok(`Who's online: ${r.present} of ${r.expected} here now.`));
-      if (r.unknown.length) out.push(warn(`Who's online: no user named ${listNames(r.unknown)}.`));
-    } catch (e) { out.push(warn(`Who's online: couldn't read (${esc(e.message)}).`)); }
-  }
   if (F.on("restedInn")) {
-    const inns = game.scenes.filter(s => s.getFlag(ID, "inn")?.on === true);
-    if (!inns.length) out.push(off("Inns: no scene is marked Inn (Scene configuration › Inn)."));
+    const all = api.inn.all();
+    if (!all.length) out.push(off("Inns: none yet (Scene configuration › Table Tools › Inns, or Make innkeeper here… on a token's HUD)."));
     else {
-      const noPrice = inns.filter(s => !String(s.getFlag(ID, "inn")?.price ?? "").trim()).map(s => s.name);
-      const badPrice = inns.filter(s => { try { return !api.inn.inn(s).priceOk; } catch { return true; } }).map(s => s.name);
-      out.push(ok(`Inns: ${listNames(inns.map(s => s.name))}.`));
+      const label = x => `${x.inn.name} (${x.scene.name})`;
+      const noPrice = all.filter(x => !String(x.inn.price ?? "").trim()).map(label);
+      const badPrice = all.filter(x => !x.inn.priceOk).map(label);
+      const lostKeeper = all.filter(x => x.inn.innkeeper?.token && !x.scene.tokens.get(x.inn.innkeeper.token)).map(label);
+      out.push(ok(`${plural(all.length, "inn")}: ${listNames(all.map(label))}.`));
       if (noPrice.length) out.push(warn(`Inn${noPrice.length === 1 ? "" : "s"} with no room price of ${noPrice.length === 1 ? "its" : "their"} own (the default ${esc(get("innDefaultPrice") || "5s")} is used): ${listNames(noPrice)}.`));
       if (badPrice.length) out.push(bad(`Inn room price can't be read (try 5s or 1g 20s): ${listNames(badPrice)}.`));
+      if (lostKeeper.length) out.push(warn(`Innkeeper token no longer on the scene: ${listNames(lostKeeper)} (rent from the Places tab, or set a new innkeeper).`));
     }
+    const unrented = game.actors.filter(a => a.getFlag(ID, "rested") && !api.inn.rental(a)).map(a => a.name);
+    if (unrented.length) out.push(warn(`Rested without a room the GM rented (no benefit; cleared on their next long rest): ${listNames(unrented)}.`));
     if (get("innPayFrom") !== "each" && !api.partyActor()) out.push(warn(`Inns: rooms are paid from the party actor, but there's no group actor named ${esc(api.PARTY)} (Run setup adds it).`));
     const restedNames = game.actors.filter(a => a.getFlag(ID, "rested")).map(a => a.name);
     out.push(off(`Rested now: ${restedNames.length ? listNames(restedNames) : "nobody"}; benefit: ${esc({ inspiration: "Heroic Inspiration", hitDie: "one extra Hit Die", tempHp: "temporary hit points" }[get("innBenefit")] ?? "Heroic Inspiration")}.`));
@@ -342,6 +338,12 @@ function shared() {
   const mine = sceneTab.sections().filter(x => x.moduleId === ID);
   const want = F.on("zoneTitles") || F.on("vendorTrash") || F.on("restedInn");
   if (want) out.push(mine.length ? ok("Table Tools tab in Scene Configuration: the toolkit's section is registered.") : warn("Table Tools tab: the toolkit's section isn't registered, so scene title cards, Dungeon and inns can't be set (reload Foundry)."));
+  const v = Vault.status();
+  if (!v.exists) out.push(off("GM-only records: none yet (made the first time something GM-only is saved)."));
+  else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "Wayfarer's Toolkit (GM only)" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`));
+  else out.push(ok(`GM-only records: kept in "Wayfarer's Toolkit (GM only)", players can't open it (${plural(v.buckets.length, "kind")} of record).`));
+  const pending = Migrate.status().filter(m => !m.done).map(m => m.id);
+  if (pending.length) out.push(off(`1.27 data moves not run yet: ${pending.join(", ")} (they run on the acting GM's next load, or with a tool turned on).`));
   return out;
 }
 
@@ -352,7 +354,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

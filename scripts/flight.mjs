@@ -41,6 +41,28 @@ export function normalizeNetwork(raw, idFn = newId) {
   return net;
 }
 
+/**
+ * What players may know of a network, stored in the flightNetwork world setting (which every client reads) since 1.27.0; the full
+ * network is GM-only (vault.mjs). Unlocked points and the routes between them, with GM notes dropped. With `locked: "grey"` (the
+ * route map's "Greyed out, unnamed"), locked points are kept as bare positions (no name, scene or note) and routes into them keep
+ * no fare or hours, which is all the greyed map draws. Hidden mode keeps nothing of them.
+ */
+export function playerView(net, { locked = "hide" } = {}) {
+  const n = normalizeNetwork(net, () => "x");
+  const grey = locked === "grey";
+  // Every point keeps the position the GM's map gives it (placed, or its automatic spot among all points), so leaving locked points
+  // out doesn't move the others on the players' map.
+  const auto = autoLayout(n.points.length); n.points.forEach((p, i) => { p.pos ??= auto[i]; });
+  const points = []; const open = new Set(); const shown = new Set();
+  for (const p of n.points) {
+    if (p.unlocked) { points.push({ id: p.id, name: p.name, sceneUuid: p.sceneUuid, unlocked: true, note: "", ...(p.pos ? { pos: p.pos } : {}) }); open.add(p.id); shown.add(p.id); }
+    else if (grey) { points.push({ id: p.id, name: "", sceneUuid: null, unlocked: false, note: "", ...(p.pos ? { pos: p.pos } : {}) }); shown.add(p.id); }
+  }
+  const routes = n.routes.filter(r => shown.has(r.from) && shown.has(r.to))
+    .map(r => (open.has(r.from) && open.has(r.to) ? r : { ...r, fareCp: 0, hours: 0, free: false }));
+  return { version: VERSION, points, routes };
+}
+
 /** A map position { x, y } (each 0 to 1, rounded to 4 places), or null when there isn't a usable one. */
 export function cleanPos(pos) {
   if (!pos || typeof pos !== "object") return null;

@@ -10,6 +10,7 @@ import * as F from "./features.mjs";
 import * as Quests from "./quests.mjs";
 import { activeGM, handle, request, notify } from "./gm.mjs";
 import { log } from "./log.mjs";
+import * as Vault from "./vault.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -38,7 +39,16 @@ function noteOf(ref, scene) {
   if (!ref) return null;
   if (ref.document?.documentName === "Note") return ref.document;
   if (ref.documentName === "Note") return ref;
-  return sceneOf(scene)?.notes?.get(String(ref)) ?? null;
+  if (ref.hidden && ref.id) return null;
+  return sceneOf(scene)?.notes?.get(String(ref.id ?? ref)) ?? null;
+}
+/** GM: hidden GM pins (no Note; GM-only store). Players: none. */
+const hiddenBucket = () => (game.user?.isGM ? Vault.get("pins", {}) ?? {} : {});
+/** GM: a hidden pin's record by id (or { hidden, id } from list()), or null. */
+function hiddenOf(ref) {
+  if (!game.user?.isGM || !ref) return null;
+  const id = typeof ref === "string" ? ref : ref.hidden ? ref.id : null; if (!id) return null;
+  return M.readHidden(hiddenBucket()[id]);
 }
 /** Quest lookups for the model's guard (nothing when the quest log is off). */
 const questTools = (user = game.user) => ({
@@ -48,10 +58,11 @@ const questTools = (user = game.user) => ({
 });
 /** The linked quest as this user may see it, or null (never anything about a quest the user can't see). */
 export const questFor = (pin, user = game.user) => M.questFor(pin, questTools(user));
-/** Pins on a scene this user draws: [{ id, note, pin }]. */
+/** Pins on a scene this user may see: [{ id, note, pin }]; for a GM also hidden pins: [{ id, note: null, hidden: true, record, pin }]. */
 export function list(scene) {
   const s = sceneOf(scene); if (!s) return [];
   const out = []; for (const n of s.notes) { const pin = M.pinOf(n); if (pin && M.drawn(pin, game.user.isGM)) out.push({ id: n.id, note: n, pin }); }
+  if (game.user?.isGM) for (const r of M.hiddenOn(hiddenBucket(), s.id)) out.push({ id: r.id, note: null, hidden: true, record: r, pin: r.pin });
   return out;
 }
 
@@ -79,6 +90,8 @@ export async function create(input, { scene, x, y, level } = {}) {
   if (game.user.isGM) {
     const made = M.gmNote(input, me(), { x, y, level: s.levels?.has?.(level) ? level : null, size: get("pinsSize", M.SIZE.def), dims: s.dimensions });
     if (made.error) return tell(made.error);
+    // A hidden GM pin is only a record in the GM-only store; its Note is made when it's revealed.
+    if (made.pin.hidden) return storeHidden(M.hiddenRecord(made.pin, { id: M.newPinId(), sceneId: s.id, x: made.data.x, y: made.data.y, level: made.data.levels?.[0] ?? null, size: made.data.iconSize }));
     return gmWrite("create", s, null, made.data);
   }
   if (!M.can("create", me(), null, opts())) return tell("players can't place map pins in this world");
@@ -86,12 +99,27 @@ export async function create(input, { scene, x, y, level } = {}) {
   return relay("create", { sceneId: s.id, x, y, level: level ?? undefined, pin });
 }
 
+/** GM: saves a hidden pin's record (null: refused). */
+async function storeHidden(r) {
+  if (!r) return tell("that pin couldn't be stored");
+  if (Object.keys(hiddenBucket()).length >= M.HIDDEN_MAX && !hiddenBucket()[r.id]) return tell(`there are already ${M.HIDDEN_MAX} hidden pins`);
+  await Vault.setKey("pins", r.id, r); redrawGhosts();
+  return r;
+}
+
 /** Change a pin's label, text, look or quest link (GM: kind and hidden too). */
 export async function update(ref, input, scene) {
+  const h = hiddenOf(ref);
+  if (h) {
+    const pin = M.gmUpdate(h.pin, input); if (!pin.label) return tell("a pin needs a label");
+    if (!pin.hidden) { await storeHidden({ ...h, pin: { ...pin, hidden: true, kind: "gm" } }); return reveal(h.id, false); }
+    return storeHidden({ ...h, pin });
+  }
   const note = noteOf(ref, scene); const old = M.pinOf(note); if (!old) return tell("that pin is gone");
   if (game.user.isGM) {
     const pin = M.gmUpdate(old, input);
     if (!pin.label) return tell("a pin needs a label");
+    if (pin.hidden) { await gmWrite("update", note.parent, note, M.noteUpdate({ ...pin, hidden: false })); return reveal(note, true); }
     return gmWrite("update", note.parent, note, M.noteUpdate(pin));
   }
   if (!M.can("edit", me(), old, opts())) return tell("you can't change that pin");
@@ -99,6 +127,8 @@ export async function update(ref, input, scene) {
 }
 
 export async function move(ref, { x, y } = {}, scene) {
+  const h = hiddenOf(ref);
+  if (h) { const s = game.scenes.get(h.sceneId); const p = M.clampPoint({ x, y }, s?.dimensions); return storeHidden({ ...h, ...p }); }
   const note = noteOf(ref, scene); const old = M.pinOf(note); if (!old) return tell("that pin is gone");
   if (game.user.isGM) return gmWrite("move", note.parent, note, M.clampPoint({ x, y }, note.parent.dimensions));
   if (!M.can("move", me(), old, opts())) return tell("you can't move that pin");
@@ -106,18 +136,36 @@ export async function move(ref, { x, y } = {}, scene) {
 }
 
 export async function remove(ref, scene) {
+  const h = hiddenOf(ref);
+  if (h) { await Vault.setKey("pins", h.id, null); redrawGhosts(); return true; }
   const note = noteOf(ref, scene); const old = M.pinOf(note); if (!old) return tell("that pin is gone");
   if (game.user.isGM) return gmWrite("delete", note.parent, note);
   if (!M.can("delete", me(), old, opts())) return tell("you can't delete that pin");
   return relay("delete", { sceneId: note.parent.id, noteId: note.id });
 }
 
-/** GM: show a GM pin to players (hidden false) or hide it again. */
+/**
+ * GM: show a GM pin to players (hidden false) or hide it again. Revealing makes the Note (with the record's id) and drops the record;
+ * hiding stores the record and deletes the Note, so players' clients hold nothing of a hidden pin.
+ */
 export async function reveal(ref, hidden = false, scene) {
   if (!game.user.isGM) return tell("GM only");
+  const h = hiddenOf(ref);
+  if (h) {
+    if (hidden) return h;
+    const s = game.scenes.get(h.sceneId); if (!s) return tell("that pin's scene is gone");
+    const data = { ...M.revealedNote(h), _id: h.id };
+    const [made] = await s.createEmbeddedDocuments("Note", [data], { keepId: true });
+    await Vault.setKey("pins", h.id, null); redrawGhosts();
+    return made;
+  }
   const note = noteOf(ref, scene); const old = M.pinOf(note); if (!old) return tell("that pin is gone");
-  const upd = M.revealUpdate(old, hidden); if (!upd) return tell("only GM pins can be hidden");
-  return note.update(upd);
+  if (old.kind !== "gm") return tell("only GM pins can be hidden");
+  if (!hidden) return old.hidden ? note.update(M.revealUpdate(old, false)) : note;
+  const r = M.toHidden(note, note.parent.id); if (!r) return tell("that pin couldn't be hidden");
+  await storeHidden(r);
+  await note.delete();
+  return r;
 }
 
 /** Leader: a player's request, schema-checked by core. The user is Foundry's sender, never a field of the message. */
@@ -182,8 +230,10 @@ async function pinForm({ pin = null, title = "New map pin" } = {}) {
 
 /** A pin's card: label, note, linked quest (if this user may see it) and the buttons this user may use. */
 export async function open(ref, scene) {
-  const note = noteOf(ref, scene); const pin = M.pinOf(note);
+  const h = hiddenOf(ref);
+  const note = h ? null : noteOf(ref, scene); const pin = h ? h.pin : M.pinOf(note);
   if (!pin || !M.can("view", me(), pin)) return null;
+  const target = h ? h.id : note;
   const q = questFor(pin);
   const by = pin.by ? game.users.get(pin.by)?.name : "";
   const o = opts(); const u = me();
@@ -206,13 +256,13 @@ export async function open(ref, scene) {
   const act = await foundry.applications.api.DialogV2.wait({ classes: ["wct-window", "wct-pin-dialog"], window: { title: "Map pin", icon: "fa-solid fa-map-pin" }, content, buttons, position: { width: 380 }, rejectClose: false });
   // Everything below re-checks through the write functions (and the GM's client re-checks a player's request again).
   if (act === "quest" && q) return Quests.open(q.id);
-  if (act === "edit") { const input = await pinForm({ pin, title: "Edit map pin" }); return input ? update(note, input) : null; }
-  if (act === "move") return arm({ moving: note });
-  if (act === "show") return reveal(note, false);
-  if (act === "hide") return reveal(note, true);
+  if (act === "edit") { const input = await pinForm({ pin, title: "Edit map pin" }); return input ? update(target, input) : null; }
+  if (act === "move") return arm({ moving: target });
+  if (act === "show") return reveal(target, false);
+  if (act === "hide") return reveal(target, true);
   if (act === "delete") {
     const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Delete map pin" }, content: `<p>Delete the pin <strong>${esc(pin.label)}</strong>?</p>`, rejectClose: false });
-    return ok ? remove(note) : null;
+    return ok ? remove(target) : null;
   }
   return null;
 }
@@ -234,8 +284,9 @@ export function arm({ moving = null } = {}) {
     const at = canvas.canvasCoordinatesFromClient({ x: ev.clientX, y: ev.clientY });
     disarm();
     if (moving) return move(moving, at).catch(e => console.warn(`${ID} | map pin`, e));
-    const hit = M.hitPin(list().map(p => ({ id: p.id, x: p.note.x, y: p.note.y, size: p.note.iconSize })), at);
-    if (hit) return open(hit).catch(e => console.warn(`${ID} | map pin`, e));
+    const shown = list();
+    const hit = M.hitPin(shown.map(p => (p.note ? { id: p.id, x: p.note.x, y: p.note.y, size: p.note.iconSize } : { id: p.id, x: p.record.x, y: p.record.y, size: p.record.size })), at);
+    if (hit) { const e = shown.find(p => p.id === hit); return open(e?.hidden ? e.id : hit).catch(e2 => console.warn(`${ID} | map pin`, e2)); }
     pinForm().then(input => (input ? create(input, { scene: canvas.scene, x: at.x, y: at.y }) : null)).catch(e => console.warn(`${ID} | map pin`, e));
   };
   const onKey = ev => { if (ev.key === "Escape") { disarm(); ui.notifications.info("Map pins: cancelled."); } };
@@ -251,10 +302,14 @@ function disarm() { if (ARMED) { const f = ARMED; ARMED = null; f(); } }
 function pinNoteClass(Base) {
   return class WctPinNote extends Base {
     static [MARK] = true;
+    // v14's Note#isVisible looks at the note's journal entry and hides entry-less notes from players, so players saw no pins in
+    // 1.26. A pin has no entry: its own rule decides (hidden pins are never Notes since 1.27), plus the level check core does.
     get isVisible() {
       const pin = M.pinOf(this.document);
-      if (pin && !M.drawn(pin, game.user.isGM)) return false;
-      return super.isVisible;
+      if (!pin) return super.isVisible;
+      const lv = this.document.levels; const cur = canvas?.level?.id ?? null;
+      const levelOk = !cur || !lv?.size && !lv?.length ? true : (lv.has?.(cur) ?? lv.includes?.(cur) ?? true);
+      return M.pinVisible({ pin, isGM: game.user.isGM, levelOk });
     }
     // Core lets only notes with a journal entry be viewed (double-clicked); a pin has none, so the pin's own rule decides.
     _canView(user) {
@@ -287,6 +342,25 @@ function pinNoteClass(Base) {
   };
 }
 
+// ---------------------------------------------------------------- hidden GM pins on the GM's canvas (no Note: a GM-only overlay)
+let GHOSTS = null;
+/** GM: draws this scene's hidden pins as faded marks on the notes layer (clicking one with the Map pin tool opens it). */
+export function redrawGhosts() {
+  try {
+    GHOSTS?.destroy?.({ children: true }); GHOSTS = null;
+    if (!game.user?.isGM || !canvas?.ready || !canvas.scene || !globalThis.PIXI) return;
+    const recs = M.hiddenOn(hiddenBucket(), canvas.scene.id); if (!recs.length) return;
+    GHOSTS = new PIXI.Container(); GHOSTS.eventMode = "none";
+    for (const r of recs) {
+      const sprite = PIXI.Sprite.from(M.iconPath(r.pin.icon)); sprite.anchor.set(0.5); sprite.width = sprite.height = r.size;
+      sprite.tint = Number.parseInt(String(M.INKS[r.pin.ink]?.hex ?? "#333333").slice(1), 16); sprite.alpha = 0.45; sprite.position.set(r.x, r.y);
+      const ring = new PIXI.Graphics(); ring.lineStyle(2, 0xb02a2a, 0.8).drawCircle(r.x, r.y, r.size * 0.62);
+      GHOSTS.addChild(ring, sprite);
+    }
+    (canvas.notes ?? canvas.interface)?.addChild?.(GHOSTS);
+  } catch (e) { log(`map pins: hidden pin marks not drawn (${e.message})`); }
+}
+
 /** Redraws pin opacity (a quest's status changed, or the dimming setting). */
 export function refreshAll(questId = null) {
   for (const n of canvas?.notes?.placeables ?? []) {
@@ -308,7 +382,8 @@ async function showNotes() {
 /** Health check facts. */
 export function status() {
   const cls = CONFIG.Note?.objectClass; const t = M.tally(game.scenes ?? []);
-  return { ...t, classOk: !!cls?.[MARK], players: get("pinsPlayers", true) };
+  const stored = Object.keys(hiddenBucket()).length;
+  return { ...t, hidden: t.hidden + stored, hiddenAsNotes: t.hidden, classOk: !!cls?.[MARK], players: get("pinsPlayers", true) };
 }
 
 export function init() {
@@ -319,7 +394,7 @@ export function init() {
     if (!game.user.isGM && !get("pinsPlayers", true)) return;
     tokens.tools.wctPin = { name: "wctPin", title: "Map pin", icon: "fa-solid fa-map-pin", order: 101, button: true, visible: true, onChange: () => arm() };
   });
-  Hooks.on("canvasReady", () => { disarm(); showNotes(); });
+  Hooks.on("canvasReady", () => { disarm(); showNotes(); redrawGhosts(); });
   // A quest's status (or who can see it) changed: redraw the pins linked to it. Bails unless the quest flag changed.
   Hooks.on("updateJournalEntry", (j, changes) => {
     if (!foundry.utils.hasProperty(changes ?? {}, `flags.${ID}.quest`) && !("ownership" in (changes ?? {}))) return;
@@ -343,7 +418,7 @@ export const api = {
   open: (note, scene) => open(note, scene),
   /** Pins on a scene this user can see: [{ id, note, pin }]. */
   list: scene => list(scene),
-  /** The pin data on a Note (normalized), or null. */
-  read: note => M.pinOf(noteOf(note)),
+  /** The pin data on a Note (normalized), or (GM) a hidden pin's by id; null otherwise. */
+  read: note => hiddenOf(note)?.pin ?? M.pinOf(noteOf(note)),
   icons: M.ICONS, inks: M.INKS
 };

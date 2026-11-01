@@ -208,10 +208,9 @@ test("public repo: no publisher names in the 1.20 user-facing text", async () =>
 test("1.21: Session Start has no recap, and campaign name is no longer shown", () => {
   const keys = TABS.flatMap(tabKeys);
   assert.ok(!keys.includes("campaignName"), "campaignName is not on a tab");
-  assert.ok(keys.includes("hiddenScenes"), "Session Start's scene setting stays");
+  assert.ok(!keys.includes("hiddenScenes"), "Session Start moved to Red Book (1.27)");
   const n = NOTES.find(x => x.version === "1.21.0"); assert.ok(n, "1.21.0 update note");
   assert.equal(NOTES.findIndex(x => x.version === "1.21.0"), NOTES.findIndex(x => x.version === "1.22.0") + 1, "1.21.0 is the newest note before 1.22.0");
   assert.ok(n.changes.some(c => /delete/i.test(c.text ?? c)), "tells the GM they can delete the old page");
-  assert.ok(!/recap/i.test(FEATURES.find(f => f.id === "sessionStart").hint));
-  assert.ok(!/recap/i.test(FEATURE_CARDS.find(c => c.id === "sessionStart").text));
+  assert.ok(!FEATURES.some(f => f.id === "sessionStart")); assert.ok(!FEATURE_CARDS.some(c => c.id === "sessionStart"));
 });

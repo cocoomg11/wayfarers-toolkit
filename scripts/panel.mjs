@@ -118,24 +118,15 @@ function classesPicker(v, off) {
   const box = (id, label, note) => `<label class="wct-check"><input type="checkbox" data-class value="${esc(id)}" ${set.has(id) ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)} <span class="hint">${esc(note)}</span></label>`;
   return `<div class="wct-checklist"><div class="wct-checks">${list.map(c => box(c.id, c.label, c.label.toLowerCase() === c.id ? "" : c.id)).join("")}${gone.map(id => box(id, id, "not in this world")).join("")}</div></div>`;
 }
-/** Advanced raw field for a hand-written hidden-scenes pattern. */
-function rawScenesRow(off) {
-  const v = get("hiddenScenes"); if (M.hiddenToScenes(v) !== null) return "";
-  return `<div class="wct-row ${off ? "wct-off" : ""}" data-key="hiddenScenes__raw"><div class="wct-row-text"><label>Scenes left out of Session Start (custom pattern)</label>
-    <p class="hint">A pattern written by hand in an earlier version. Scene names it matches are left out. Leave it, edit it, or tick scenes in the checklist above to replace it.</p></div>
-    <div class="wct-row-control"><input type="text" name="hiddenScenes__raw" value="${esc(v)}" ${off ? "disabled" : ""}></div></div>`;
-}
-
 function settingsTab(tab) {
-  const advanced = [...(tab.advanced ?? []).map(rowHTML), tab.id === "travel" ? rawScenesRow(!isOn("sessionStart")) : ""].join("");
+  const advanced = (tab.advanced ?? []).map(rowHTML).join("");
   const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>
     ${F.on("flightMap") ? `<div class="wct-actions"><button type="button" data-act="flight-map" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-map-location-dot"></i> Flight route map…</button><span class="hint">The network drawn as a map. Drag points to arrange it; players see the same layout.</span></div>` : ""}
     ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
   const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
     ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
   const places = tab.id === "places" ? `<div class="wct-actions"><button type="button" data-act="zone-preview" ${F.on("zoneTitles") ? "" : "disabled"}><i class="fa-solid fa-signs-post"></i> Preview title card</button><span class="hint">Shows this scene's card on your screen only. Set each scene's title, subtitle and sound in its configuration.</span></div>
-    <div class="wct-actions"><button type="button" data-act="whos-online" ${F.on("whosOnline") ? "" : "disabled"}><i class="fa-solid fa-users"></i> Who's online…</button><span class="hint">Tick <em>Hub scene</em> in a scene's configuration to show the board there for everyone.</span></div>
-    <div class="wct-actions"><button type="button" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Mark inns (name and room price) in the scene configuration.</span></div>` : "";
+    <div class="wct-actions"><button type="button" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Add inns (name, room price, innkeeper) in the scene configuration's Table Tools tab, or with <em>Make innkeeper here…</em> on a token's HUD.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
     <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${places}${actions}
@@ -308,7 +299,6 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "travel-pace") return API.travelPace();
       if (act === "party-gold") return API.partyGold();
       if (act === "zone-preview") return API.zoneTitles?.show(canvas?.scene);
-      if (act === "whos-online") return API.whosOnline();
       if (act === "rent-rooms") return API.rentRooms();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);

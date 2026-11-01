@@ -27,9 +27,11 @@ import * as Gold from "./gold.mjs";
 import { DEFAULT_CURVE, curveText } from "./gold-model.mjs";
 import { RECORD_SETTINGS } from "./panel-model.mjs";
 import * as ZoneTitles from "./zone-titles.mjs";
-import * as Online from "./online.mjs";
 import * as Inn from "./inn.mjs";
 import * as Pins from "./pins.mjs";
+import * as Vault from "./vault.mjs";
+import * as SceneConfig from "./scene-config.mjs";
+import * as Migrate from "./migrate.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -193,7 +195,12 @@ function registerSettings() {
   s("paceSlow", "Hex Travel: Slow pace (mph)", "", Number);
   s("paceNormal", "Hex Travel: Normal pace (mph)", "", Number);
   s("paceFast", "Hex Travel: Fast pace (mph)", "", Number);
-  s("hiddenScenes", "Session Start: Scenes hidden from the list", "Regular expression; matching scene names are left out of the list.", String);
+  // Session Start and Who's online moved to the Red Book module in 1.27.0. Their settings stay registered (hidden, same keys, types and
+  // defaults) so Red Book's one-time migration can read them through game.settings; nothing here uses them any more.
+  s("hiddenScenes", "Session Start (moved to Red Book): scenes hidden from the list", "", String);
+  for (const [key, def] of [["onlineCount", "characters"], ["onlineList", ""], ["onlinePosition", "top-left"]]) game.settings.register(ID, key, { scope: "world", config: false, type: String, default: def });
+  game.settings.register(ID, "onlineDrag", { scope: "world", config: false, type: Boolean, default: true });
+  game.settings.register(ID, "onlineHudPos", { scope: "client", config: false, type: Object, default: {} });
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
@@ -222,7 +229,7 @@ function registerSettings() {
   s("travelPaceCurrent", "Travel pace: the party's pace", "", String, { choices: { fast: "Fast", normal: "Normal", slow: "Slow (careful)" } });
   // Flight Master refinements.
   s("flightDiscovered", "Flight Master: announce new flight points", "When the GM unlocks a flight point, chat says \"Discovered! New flight point: …\".", Boolean);
-  s("flightMapLocked", "Flight route map: locked points for players", "Hidden: players' map shows only unlocked points. Greyed: locked points show as Unknown.", String, { choices: { hide: "Hidden", grey: "Greyed out, unnamed" }, onChange: () => FlightMap.refresh() });
+  s("flightMapLocked", "Flight route map: locked points for players", "Hidden: players' map shows only unlocked points. Greyed: locked points show as Unknown.", String, { choices: { hide: "Hidden", grey: "Greyed out, unnamed" }, onChange: v => { FlightMap.refresh(); if (isActiveGM() && Vault.get("flightNetwork", null)) game.settings.set(ID, "flightNetwork", Flight.playerView(WCT.flightNetwork(), { locked: v })).catch(e => console.warn(`${ID} | flight network`, e)); } });
   // Flight map background (feature flightMapBackground): a world image behind the route map, lined up with the points' 0–1 box.
   const bg = { onChange: () => FlightMap.refresh() };
   s("flightMapImage", "Flight route map: background image", "Image from the world's files drawn behind the route map. Blank: none.", String, { filePicker: "image", ...bg });
@@ -238,8 +245,8 @@ function registerSettings() {
   s("goldCurve", "Party gold: wealth curve", "Gold per character for each act or tier, separated by commas (Act/Tier 1 first).", String, { onChange: () => Gold.refresh() });
   s("goldIncludeGear", "Party gold: count mundane gear", "Adds the price of the party's non-magical, no-rarity gear to their coin.", Boolean, { onChange: () => Gold.refresh() });
   Gold.registerSettings();
-  // 1.22: zone title cards, who's online, rested at the inn (registered whether the feature is on or not, like every feature's settings).
-  ZoneTitles.registerSettings(); Online.registerSettings(); Inn.registerSettings();
+  // 1.22: zone title cards, rested at the inn (registered whether the feature is on or not, like every feature's settings).
+  ZoneTitles.registerSettings(); Inn.registerSettings();
   // 1.26: map pins.
   Pins.registerSettings();
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
@@ -285,6 +292,22 @@ const TRACKER_PAGES = {
   "Travel Log": `<h2>Travel Rules</h2><ul><li><strong>1 hex = 1 mile.</strong> Roads are safe: no encounter rolls on road hexes.</li><li>Off-road hexes take longer and each rolls for an encounter on the zone's table.</li><li>Tick <em>Mounted</em> in Hex Travel when the party rides.</li></ul><p>The Hex Travel and Flight Master tools write each trip below.</p><h2>Log</h2>`
 };
 
+/**
+ * An API object whose functions refuse non-GM callers (a warning, undefined), except the pure helpers listed in `open`. Used for the
+ * GM tool APIs players could otherwise call from the console (the server still checks writes; this keeps players from running GM
+ * flows and reading GM-only previews).
+ */
+function gmOnlyApi(obj, { open = [] } = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = typeof v !== "function" || open.includes(k) ? v : (...args) => {
+      if (!game.user?.isGM) { ui.notifications.warn("Wayfarer's Toolkit: GM only."); return undefined; }
+      return v(...args);
+    };
+  }
+  return Object.freeze(out);
+}
+
 export const WCT = {
   ID,
   get version() { return game.modules.get(ID)?.version; },
@@ -319,7 +342,7 @@ export const WCT = {
   /** What Run setup would create for the features turned on, without creating it: [{ key, label, ok, detail }]. */
   setupPlan() {
     const out = [];
-    const needJournal = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash"].some(F.on);
+    const needJournal = ["hexTravel", "flightMaster", "vendorTrash"].some(F.on);
     const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
     if (needJournal) {
       const j = game.journal.getName(this.JOURNAL); const tp = this.trackerPages();
@@ -343,7 +366,7 @@ export const WCT = {
   async setup() {
     if (!this.gmOnly()) return [];
     const made = [];
-    const needJournal = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash"].some(F.on);
+    const needJournal = ["hexTravel", "flightMaster", "vendorTrash"].some(F.on);
     const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
     if (!needJournal) { /* no tool that writes the tracker journal is on */ }
     else if (!game.journal.getName(this.JOURNAL)) {
@@ -482,16 +505,24 @@ export const WCT = {
     return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name, rid } } },
       content: `<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>` });
   },
-  // ------------------------------------------------------------ flight network (the flightNetwork world setting; everyone can read it)
-  /** The flight network, cleaned up (see flight.mjs). */
-  flightNetwork() { let raw; try { raw = game.settings.get(ID, "flightNetwork"); } catch { raw = null; } return Flight.normalizeNetwork(raw); },
+  // ------------------------------------------------------------ flight network
+  // GMs read the full network from the GM-only store (vault.mjs); everyone else reads the flightNetwork world setting, which since
+  // 1.27.0 holds only the players' view (unlocked points, their routes; Flight.playerView). Before the one-time move has run, a GM
+  // still reads the setting.
+  /** The flight network, cleaned up (see flight.mjs). GM: the whole network. Players: what they may know. */
+  flightNetwork() {
+    let raw = game.user?.isGM ? Vault.get("flightNetwork", null) : null;
+    if (!raw) { try { raw = game.settings.get(ID, "flightNetwork"); } catch { raw = null; } }
+    return Flight.normalizeNetwork(raw);
+  },
   /** GM: replaces the network. Refuses one with errors (empty or repeated names, routes to unknown points or to themselves). */
   async setFlightNetwork(obj) {
     if (!game.user.isGM) throw new Error("Only a GM can change the flight network.");
     const net = Flight.normalizeNetwork(obj); const errors = Flight.validateNetwork(net).filter(p => p.level === "error");
     if (errors.length) throw new Error(`Flight network not saved: ${errors.slice(0, 4).map(Flight.problemText).join("; ")}${errors.length > 4 ? "; …" : ""}.`);
     const found = F.on("flightMaster") && setting("flightDiscovered") ? Flight.newlyUnlocked(this.flightNetwork(), net) : [];
-    await game.settings.set(ID, "flightNetwork", net);
+    await Vault.set("flightNetwork", net);
+    await game.settings.set(ID, "flightNetwork", Flight.playerView(net, { locked: setting("flightMapLocked") }));
     for (const p of found) await this.say(`<p class="wct-discovered"><i class="fa-solid fa-feather-pointed"></i> <strong>Discovered!</strong> New flight point: <strong>${esc(p.name)}</strong>.</p>`, "Flight Master");
     return net;
   },
@@ -653,9 +684,14 @@ export const WCT = {
   /** Sells a character's grey junk to an Item Piles merchant (actors or tokens), after a confirm. */
   sellJunk(seller, merchant) { return F.need("vendorTrash") ? Merchant.sellJunk(seller ?? game.user.character, merchant) : undefined; },
   syncItemPilesCoins,
-  /** Vendor Trash internals plus reroll(tokens), preview(tokenOrActor, n) and showPreview(tokens, n) for the GM. */
-  trash: {
-    ...Trash,
+  /**
+   * Vendor Trash, GM only (1.27: no longer the whole internal module; players get a warning and undefined). reroll(tokens),
+   * reset(tokens, opts), showPreview(tokens, n), preview(tokenOrActor, n), applyWeights, setLootable, setAllLootable, setNoLoot, and
+   * read-only helpers isNoLoot(doc), isPile(doc), isDungeon(scene), resetPool(), resetRules().
+   */
+  trash: gmOnlyApi({
+    isNoLoot: d => Trash.isNoLoot(d), isPile: d => Trash.isPile(d), isDungeon: s => Trash.isDungeon(s), resetPool: () => Trash.resetPool(), resetRules: () => Trash.resetRules(),
+    rollDrop: (actor, opts) => (F.need("vendorTrash") ? Trash.rollDrop(actor, opts) : undefined),
     reroll(tokens) { return F.need("vendorTrash") ? Trash.reroll(WCT, tokens) : undefined; },
     reset(tokens, opts = {}) { return F.need("vendorTrash") ? Trash.reset(WCT, tokens, opts) : undefined; },
     showPreview(tokens, n = 12) { return F.need("vendorTrash") ? Trash.showPreview(WCT, tokens, n) : undefined; },
@@ -671,7 +707,7 @@ export const WCT = {
       if (!F.on("vendorTrash") && !F.on("bossLoot")) return F.need("vendorTrash");
       return Trash.setNoLoot(WCT, targets, on, opts);
     }
-  },
+  }),
 
   // ------------------------------------------------------------ character pane
   characterPane(actor) { return F.need("characterPane") ? Pane.characterPane(actor) : undefined; },
@@ -696,17 +732,17 @@ export const WCT = {
    * dialog(token) opens the Boss loot dialog, and draw / drawWeighted / odds helpers.
    */
   /** GM: whispers the boss loot odds for the selected tokens (the Preview Boss Loot macro). */
-  previewBossLoot(targets) { return F.need("bossLoot") ? BossLoot.preview(WCT, targets) : undefined; },
+  previewBossLoot(targets) { return F.need("bossLoot") && this.gmOnly() ? BossLoot.preview(WCT, targets) : undefined; },
   get bossLoot() {
     if (!F.on("bossLoot")) return undefined;
-    return {
+    return gmOnlyApi({
       get: BossLoot.get, set: BossLoot.set, draw: BossLoot.draw, drawWeighted: BossLoot.drawWeighted, odds: BossLoot.odds,
       preview: targets => BossLoot.preview(WCT, targets), showPreview: targets => BossLoot.preview(WCT, targets),
       drop: tokens => BossLoot.drop(WCT, tokens), reset: (tokens, opts = {}) => Trash.reset(WCT, tokens, opts), dialog: target => BossLoot.openDialog(WCT, target ?? canvas.tokens?.controlled?.[0]),
       /** Links NPC actors to world tables named "<name> · Loot" (also " - Loot" or "Loot: <name>"). { folder, overwrite } */
       autoLink: (opts = {}) => BossLoot.autoLink(WCT, opts),
       scaledCoin: BossLoot.scaledCoin, scaledDraws: BossLoot.scaledDraws
-    };
+    }, { open: ["odds", "drawWeighted", "scaledCoin", "scaledDraws"] });
   },
 
   // ------------------------------------------------------------ 1.20: flight map, party gold
@@ -715,28 +751,37 @@ export const WCT = {
   /** GM: opens the party gold tracker. */
   partyGold() { return F.need("partyGold") && this.gmOnly() ? Gold.open(this) : undefined; },
   /** Party gold numbers (GM): { coin, gear, wealth, size, rows, … } in the smallest coin; undefined when the feature is off. */
-  get gold() { return F.on("partyGold") ? { read: () => Gold.read(this), open: () => Gold.open(this), snapshot: note => Gold.snapshot(this, note), snapshots: Gold.snapshots } : undefined; },
+  get gold() { return F.on("partyGold") ? gmOnlyApi({ read: () => Gold.read(this), open: () => Gold.open(this), snapshot: note => Gold.snapshot(this, note), snapshots: Gold.snapshots }) : undefined; },
   /** Record settings a settings file must leave out (stored lists and bookkeeping): for the hub's settings export / import. */
   settingsRecords: () => [...RECORD_SETTINGS],
 
-  // ------------------------------------------------------------ 1.22: zone titles, who's online, rested at the inn
+  // ------------------------------------------------------------ 1.22: zone titles, rested at the inn
   /** Zone title cards: show(scene | { title, subtitle, sound }) on this client, config(scene); undefined when the feature is off. */
   get zoneTitles() { return F.on("zoneTitles") ? { show: what => ZoneTitles.show(what), config: scene => ZoneTitles.configFor(scene ?? canvas?.scene) } : undefined; },
-  /** Opens the Who's online window (everyone). */
-  whosOnline() { return F.need("whosOnline") ? Online.open() : undefined; },
-  /** Who's online numbers: read() → { entries, expected, present, all, missing }; resetPosition() puts this user's panel back (1.25); undefined when the feature is off. */
-  get online() { return F.on("whosOnline") ? { read: () => Online.read(), open: () => Online.open(), refresh: () => Online.refresh(), resetPosition: () => Online.resetPosition() } : undefined; },
   /** GM: the Rent rooms dialog for a scene (default the one you're viewing), optionally for given actors. Players: ask the GM. */
+  /** One-time 1.27 data moves: status() → [{ id, done }]; run() runs any not done yet (GM). */
+  migrations: { status: () => Migrate.status(), run: () => (game.user.isGM ? Migrate.run(WCT) : []) },
   /** Map pins: place(), create(input, { scene, x, y }), update, move, remove, reveal (GM), open, list(scene), read(note); undefined when the feature is off. */
   get pins() { return F.on("mapPins") ? Pins.api : undefined; },
   rentRooms(opts = {}) { return F.need("restedInn") ? Inn.rentRooms(opts) : undefined; },
-  /** Rested at the inn: inn(scene), rested(actor), clear(actors) (GM), candidates(scene); undefined when the feature is off. */
-  get inn() { return F.on("restedInn") ? { inn: scene => Inn.innFor(scene ?? canvas?.scene), rested: Inn.rested, clear: actors => Inn.clearRested(actors), candidates: scene => Inn.candidates(scene ?? canvas?.scene), rent: opts => Inn.rentRooms(opts) } : undefined; },
+  /**
+   * Rested at the inn; undefined when the feature is off. inn(scene, innId?) the inn as charged; inns(scene) records; all(); rested(actor)
+   * the flag; rental(actor) the GM-side rental (GM); clear(actors), save(scene, inn), remove(scene, id), makeInnkeeper(token) (GM);
+   * candidates(scene); rent({ scene, inn, actors }).
+   */
+  get inn() {
+    if (!F.on("restedInn")) return undefined;
+    return {
+      inn: (scene, innId) => Inn.innFor(scene ?? canvas?.scene, innId), inns: scene => Inn.inns(scene ?? canvas?.scene), all: () => Inn.allInns(),
+      rested: Inn.rested, rental: Inn.rental, clear: actors => Inn.clearRested(actors), candidates: scene => Inn.candidates(scene ?? canvas?.scene),
+      rent: opts => Inn.rentRooms(opts), save: (scene, inn) => Inn.saveInn(scene, inn), remove: (scene, id) => Inn.deleteInn(scene, id), makeInnkeeper: token => Inn.makeInnkeeper(token?.document ?? token)
+    };
+  },
 
   // ------------------------------------------------------------ features
   features: F,
   /** Remove toolkit data: plan() counts what would go, remove({ actors, tokens, scenes, items, deleteItems, journals, messages, macros, settings }) removes it (GM). Opens the window with no arguments. */
-  cleanup: { plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) },
+  cleanup: gmOnlyApi({ plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) }),
   /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, pane, quests). */
   panel(tab) { return this.gmOnly() ? Panel.open(tab) : undefined; },
   /** GM: opens the welcome wizard. */
@@ -749,6 +794,7 @@ export const WCT = {
   purse(a) { const c = a.system.currency ?? {}; const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; return coins().filter(([k]) => c[k]).map(([k]) => `${c[k]}${tight ? "" : " "}${C[k].abbreviation}`).join(" ") || "empty"; },
   /** Spends the smallest coins first, then breaks one larger coin and gives change, so the purse keeps its mix. */
   async pay(a, amount) {
+    if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wayfarer's Toolkit: you can only pay from coin you own."); return; }
     const c = { ...a.system.currency }; let need = Math.round(amount); const asc = coins().reverse();
     for (const [k, v] of asc) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] = (c[k] || 0) - take; need -= take * v; }
     if (need > 0) {
@@ -769,6 +815,7 @@ export const WCT = {
    * the largest coins. consolidate: the whole purse is changed up into the largest coins afterwards (no electrum).
    */
   async addMoney(a, amount, { consolidate = false } = {}) {
+    if (!game.user.isGM) { ui.notifications.warn("Wayfarer's Toolkit: GM only."); return; }
     const old = a.system.currency ?? {}; const c = { ...old }; let left = Math.max(0, Math.round(amount));
     if (consolidate) left += this.totalMoney(a);
     for (const [k, v] of coins()) {
@@ -778,21 +825,7 @@ export const WCT = {
     if (Object.keys(c).some(k => c[k] !== old[k])) await a.update({ "system.currency": c });
   },
   /** Old name kept for macros written against v1.0–1.2. */
-  totalCp(a) { return this.totalMoney(a); },
-
-  // ------------------------------------------------------------ session
-  async sessionStart() {
-    if (!F.need("sessionStart") || !this.gmOnly()) return;
-    let hide; try { hide = new RegExp(setting("hiddenScenes") || "(?!)"); } catch { hide = /(?!)/; }
-    const scenes = game.scenes.filter(s => !hide.test(s.name)).sort((a, b) => a.name.localeCompare(b.name));
-    const content = `<div class="form-group"><label>Scene</label><select name="scene">${scenes.map(s => this.opt(s.id, s.name, s.id === canvas.scene?.id)).join("")}</select></div>
-      <div class="form-group"><label>Activate it for players</label><input type="checkbox" name="activate" checked></div>
-      <div class="form-group"><label>Unpause the game</label><input type="checkbox" name="unpause" checked></div>`;
-    const f = await this.form("Session Start", content, "Start session"); if (!f) return;
-    const s = game.scenes.get(f.scene); if (f.activate && s) await s.activate();
-    if (f.unpause && game.paused) game.togglePause(false, { broadcast: true });
-    await this.appendPage("Travel Log", `<p><strong>Session started</strong> at ${this.stamp()}${s ? ` on ${esc(s.name)}` : ""}.</p>`);
-  }
+  totalCp(a) { return this.totalMoney(a); }
 };
 
 // api.updateNotes.show(fromVersion?) posts the update notes card again.
@@ -822,9 +855,10 @@ Hooks.once("init", () => {
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.
   if (F.on("bossLoot")) BossLoot.init(WCT, { vendorTrash: F.on("vendorTrash") });
   if (F.on("zoneTitles")) ZoneTitles.init();
-  if (F.on("whosOnline")) Online.init();
   if (F.on("restedInn")) Inn.init(WCT);
   if (F.on("mapPins")) Pins.init();
+  // One section in the shared Table Tools scene tab (title card, Dungeon, inns) for the tools that are on.
+  SceneConfig.init();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -848,10 +882,11 @@ Hooks.once("ready", () => {
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("restedInn")) Inn.ready();
   if (F.on("mapPins")) Pins.ready();
-  if (F.on("whosOnline")) Online.refresh();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the
   // update notes (an upgrade posts its card; a new world just stores the version).
-  gmSettled().then(() => {
+  gmSettled().then(async () => {
+    // One-time 1.27 data moves (GM-only store, inn records), on the acting client only; each runs once per world.
+    if (isActiveGM()) await Migrate.run(WCT).catch(e => console.warn(`${ID} | migrations`, e));
     if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
     convertOldCoins();
     return Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })
@@ -889,8 +924,6 @@ function registerPaceHooks() {
 }
 
 function registerTrashHooks() {
-  // Scene configuration: a "Dungeon" checkbox (flags.wayfarers-toolkit.dungeon) for richer Vendor Trash drops.
-  Hooks.on("renderSceneConfig", (app, html) => Trash.addDungeonField(app, html));
   // Vendor Trash loot cards: the Give to Party button (GM only).
   Hooks.on("renderChatMessageHTML", (message, html) => {
     if (!message.flags?.[ID]?.trash) return;

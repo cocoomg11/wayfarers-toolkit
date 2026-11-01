@@ -5,6 +5,7 @@
  * day) with a per-player tally, exports CSV and clears the history. The pure parts are in history-model.mjs.
  */
 import * as H from "./history-model.mjs";
+import * as Vault from "./vault.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log } from "./log.mjs";
 
@@ -15,21 +16,29 @@ const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return 
 
 export const enabled = () => !!get("lootHistory", true);
 /** The stored entries, newest first. */
-export function entries() { const v = get(KEY, null); return Array.isArray(v?.entries) ? v.entries.filter(e => e && typeof e === "object") : []; }
+/** GM: the stored rolls, newest first (GM-only store since 1.27.0; the old world setting until the one-time move). Players: []. */
+export function entries() {
+  if (!game.user?.isGM) return [];
+  const v = Vault.get("lootHistory", null) ?? get(KEY, null);
+  return Array.isArray(v?.entries) ? v.entries.filter(e => e && typeof e === "object") : [];
+}
+const save = list => Vault.update(v => ({ ...v, buckets: { ...v.buckets, lootHistory: { v: 1, entries: list } } })).then(() => refresh());
 
 export function registerSettings() {
   game.settings.register(ID, "lootHistory", {
     name: "Loot rolls: keep a loot roll history", hint: "Records each finished loot roll (item, who chose what, who got it) for the Loot history window. Only GMs see it.",
     scope: "world", config: false, type: Boolean, default: true
   });
-  game.settings.register(ID, KEY, { scope: "world", config: false, type: Object, default: { v: 1, entries: [] }, onChange: () => refresh() });
+  // Before 1.27.0 the history lived here, where every client could read it. Kept registered (empty after the one-time move to the
+  // GM-only store) so the move can read it and Remove toolkit data resets it.
+  game.settings.register(ID, KEY, { scope: "world", config: false, type: Object, default: { v: 1, entries: [] } });
 }
 
 let chain = Promise.resolve();
 /** Active GM: adds an entry (writes one at a time, so rolls ending together don't overwrite each other). */
 export function record(entry) {
   if (!enabled() || !isActiveGM() || !entry) return chain;
-  chain = chain.then(() => game.settings.set(ID, KEY, { v: 1, entries: H.addEntry(entries(), entry) }))
+  chain = chain.then(() => save(H.addEntry(entries(), entry)))
     .then(() => log("Loot history: recorded", entry.item?.name, entry.outcome))
     .catch(e => console.warn(`${ID} | loot history`, e));
   return chain;
@@ -43,7 +52,7 @@ export async function clear({ confirm = true } = {}) {
     const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Clear loot history" }, content: `<p>Delete all ${n} loot roll${n === 1 ? "" : "s"} from the history? This can't be undone. Export a CSV first if you want a copy.</p>`, rejectClose: false });
     if (!ok) return false;
   }
-  await game.settings.set(ID, KEY, { v: 1, entries: [] });
+  await save([]);
   ui.notifications.info("Loot history cleared.");
   return true;
 }

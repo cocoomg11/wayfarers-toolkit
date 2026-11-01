@@ -60,7 +60,7 @@ test("presets → feature settings", () => {
   assert.deepEqual(Object.entries(min).filter(([, v]) => v).map(([k]) => k).sort(), ["feature-characterPane", "feature-questLog", "feature-questTracker"]);
   const classic = M.presetSettings("classic");
   assert.equal(classic["feature-hexTravel"], false); assert.equal(classic["feature-riderFeat"], false);
-  for (const id of ["flightMaster", "sessionStart", "vendorTrash", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"]) assert.equal(classic[`feature-${id}`], true, id);
+  for (const id of ["flightMaster", "vendorTrash", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot"]) assert.equal(classic[`feature-${id}`], true, id);
   assert.ok(Object.values(M.presetSettings("everything")).every(Boolean));
   assert.throws(() => M.presetSettings("nope"));
 });

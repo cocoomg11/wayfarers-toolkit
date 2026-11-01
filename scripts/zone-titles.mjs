@@ -62,22 +62,16 @@ function maybeShow(scene, reason) {
 }
 
 /** Adds the "Title card" fieldset to the scene configuration (GM). */
-function addSceneFields(app, html) {
-  const root = html instanceof HTMLElement ? html : html?.[0]; const scene = app?.document; if (!root || !scene || !game.user.isGM) return;
-  if (root.querySelector("[data-wct-fieldset=zoneTitle]")) return;
-  const tab = root.querySelector('.tab[data-tab="basics"]') ?? root.querySelector(".tab"); if (!tab) return;
+/** The title card fields for the shared Table Tools tab (scene-config.mjs). Named flags.wayfarers-toolkit.zoneTitle.*: saved with the form. */
+export function sceneFields(scene) {
   const f = scene.getFlag(ID, "zoneTitle") ?? {}; const cfg = configFor(scene); const n = `flags.${ID}.zoneTitle`;
-  const fs = document.createElement("fieldset"); fs.dataset.wctFieldset = "zoneTitle";
-  fs.innerHTML = `<legend>Title card (Wayfarer's Toolkit)</legend>
-    <div class="form-group"><label>Show a title card</label><div class="form-fields"><input type="checkbox" name="${n}.show" ${cfg.enabled ? "checked" : ""}></div><p class="hint">Fades in over the map when this scene is activated (control panel › Places sets when and for whom).</p></div>
+  return `<div class="form-group"><label>Show a title card</label><div class="form-fields"><input type="checkbox" name="${n}.show" ${cfg.enabled ? "checked" : ""}></div><p class="hint">Fades in over the map when this scene is activated (control panel › Places sets when and for whom).</p></div>
     <div class="form-group"><label>Title</label><div class="form-fields"><input type="text" name="${n}.title" value="${esc(f.title ?? "")}" placeholder="${esc(scene.navName || scene.name)}"></div><p class="hint">Blank: the scene's navigation name, or its name if that is empty.</p></div>
     <div class="form-group"><label>Subtitle</label><div class="form-fields"><input type="text" name="${n}.subtitle" value="${esc(f.subtitle ?? "")}" placeholder="e.g. Levels 1–3"></div></div>
     <div class="form-group"><label>Sound</label><div class="form-fields"><file-picker name="${n}.sound" type="audio" value="${esc(f.sound ?? "")}"></file-picker></div><p class="hint">Blank: the default sound from the control panel, if any.</p></div>`;
-  tab.append(fs);
 }
 
 export function init() {
-  Hooks.on("renderSceneConfig", addSceneFields);
   // Every client hears the activation; the card shows once its canvas has drawn that scene (or at once if it's already on it).
   Hooks.on("updateScene", (scene, changes) => {
     if (changes?.active !== true) return;

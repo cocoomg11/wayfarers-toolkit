@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit 1.22: zone title cards, the Who's online panel and window. No backdrop blur (it tanks FPS in v14). */
+/* Wayfarer's Toolkit 1.22: zone title cards (Who's online moved to the Red Book module in 1.27). No backdrop blur (it tanks FPS in v14). */
 .wct-zone-title {
   position: fixed; left: 0; right: 0; top: 18vh; z-index: 60; pointer-events: none;
   display: flex; justify-content: center; opacity: 0; transition: opacity var(--wct-zt-in, 900ms) ease-out;
@@ -18,26 +18,6 @@
 .wct-zone-title.style-plain h1 { color: #fff; font-family: var(--font-primary, sans-serif); }
 .wct-zone-title.style-plain .wct-zt-orn { display: none; }
 @media (prefers-reduced-motion: reduce) { .wct-zone-title, .wct-zone-title.leaving { transition: none; } }
-
-.wct-online-hud {
-  position: fixed; z-index: 40; min-width: 170px; max-width: 240px; padding: 6px 10px 8px;
-  background: rgba(15, 12, 8, 0.82); border: 1px solid rgba(201, 162, 39, 0.55); border-radius: 6px; color: #e8dcc0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); font-size: 0.9em;
-}
-/* 1.25: placed with inline left/top by online.mjs (clear of the v14 scene navigation, kept on screen); movable by its title. */
-.wct-online-hud { top: 12px; left: 320px; }
-.wct-online-hud.movable h3 { cursor: grab; touch-action: none; user-select: none; }
-.wct-online-hud.dragging { opacity: 0.85; }
-.wct-online-hud.dragging h3 { cursor: grabbing; }
-.wct-online-hud.all { border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.55); }
-.wct-online-hud h3 { margin: 0 0 3px; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); color: #ffd100; font-size: 1.1em; }
-.wct-online-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.wct-online-list li { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
-.wct-online-list li img { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(201, 162, 39, 0.7); object-fit: cover; }
-.wct-online-list li .dot { width: 14px; height: 14px; border-radius: 50%; margin: 0 6px; border: 1px solid #000; }
-.wct-online-list li.off { opacity: 0.45; filter: grayscale(1); }
-.wct-online-list li.extra { font-style: italic; }
-.wct-online-list li small { opacity: 0.75; }
-.wct-online-all { margin: 0; color: #7fdc82; font-weight: bold; }
-.wct-online-count { margin: 0; opacity: 0.85; }
-.wct-online-board { padding: 8px; }
+/* 1.27: inns list in the Table Tools scene tab. */
+.wct-inn-list li { margin: 3px 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.wct-inn-list li button { flex: 0 0 auto; line-height: 1.4; padding: 0 0.5em; }

@@ -102,3 +102,172 @@ test("boss loot inspect: bounded parallel lookups, results in order, a failing o
   assert.ok(Date.now() - t < 400, `took ${Date.now() - t} ms`);
   assert.doesNotMatch(readFileSync(new URL("../scripts/bossloot.mjs", import.meta.url), "utf8").match(/export async function inspect[\s\S]*?\n}\n/)[0], /for \(const r of usableList\)[^]*await fromUuid/, "no serial awaits");
 });
+
+// ---------------------------------------------------------------- 3: inns are records; rentals are GM-side
+const InnM = await import("../scripts/inn-model.mjs");
+const TK = "wayfarers-toolkit";
+test("inns: records on the scene, versioned and capped; the old scene inn becomes one record", () => {
+  const legacy = { [TK]: { inn: { on: true, name: "The Gilded Goose", price: "7s" } } };
+  assert.ok(InnM.needsInnMove(legacy));
+  const rec = InnM.innFromLegacy(legacy, "Market", "abc123");
+  assert.deepEqual(rec, { id: "abc123", name: "The Gilded Goose", price: "7s", innkeeper: null, region: null });
+  assert.equal(InnM.innFromLegacy({ [TK]: { inn: { on: false, name: "x" } } }), null, "a scene not marked Inn isn't moved");
+  assert.ok(!InnM.needsInnMove({ [TK]: { inn: { on: true }, inns: { v: 1, list: [] } } }), "already moved: never again");
+  let inns = { v: 1, list: [] };
+  for (let i = 0; i < InnM.INNS_MAX; i++) { const r = InnM.upsertInn(inns, { id: `i${i}`, name: `Inn ${i}` }); assert.ok(r.ok); inns = r.inns; }
+  const over = InnM.upsertInn(inns, { id: "extra", name: "one too many" });
+  assert.equal(over.ok, false); assert.equal(over.inns.list.length, InnM.INNS_MAX);
+  assert.equal(InnM.upsertInn(inns, { id: "i3", name: "Renamed" }).inns.list.find(x => x.id === "i3").name, "Renamed", "replace by id stays under the cap");
+  assert.equal(InnM.removeInn(inns, "i0").list.length, InnM.INNS_MAX - 1);
+  const k = InnM.cleanInn({ id: "k1", name: "K", innkeeper: { actor: "Actor.abcdefghijklmnop", token: "abcdefghijklmnop" }, region: "ponmlkjihgfedcba" });
+  assert.deepEqual(k.innkeeper, { actor: "Actor.abcdefghijklmnop", token: "abcdefghijklmnop" }); assert.equal(k.region, "ponmlkjihgfedcba");
+  assert.equal(InnM.cleanInn({ id: "k2", innkeeper: { actor: "<script>", token: "x" }, region: "bad" }).innkeeper, null);
+  assert.equal(InnM.innOfToken({ v: 1, list: [k] }, "abcdefghijklmnop").id, "k1");
+  const v = InnM.innView({ id: "a", name: "", price: "" }, { sceneName: "Harbour", defaultPrice: "5s" });
+  assert.equal(v.displayName, "Harbour"); assert.equal(v.priceText, "5s");
+  assert.equal(InnM.DEFAULT_PRICE, "5s");
+  assert.equal(InnM.innsOf({ [TK]: { inns: { list: [{ id: "a" }, { id: "a" }, null, { name: "no id" }] } } }).list.length, 1, "duplicates and junk dropped");
+});
+
+test("inns: Rested is granted only against a GM-side rental, and rentals are capped", () => {
+  assert.equal(InnM.restOutcomeChecked({ rental: null, onInn: true }), "none", "a self-set Rested flag without a rental grants nothing");
+  const rent = InnM.rentalFor({ innId: "a", inn: "Goose", sceneId: "abcdefghijklmnop", at: 5, by: "abcdefghijklmnop" });
+  assert.equal(InnM.restOutcomeChecked({ rental: rent, onInn: false, lastsAnywhere: true }), "grant");
+  assert.equal(InnM.restOutcomeChecked({ rental: rent, onInn: false, lastsAnywhere: false }), "lose");
+  assert.equal(InnM.restOutcomeChecked({ rental: rent, onInn: true, lastsAnywhere: false }), "grant");
+  let b = {};
+  for (let i = 0; i < InnM.RENTALS_MAX + 30; i++) b = InnM.addRentals(b, [`a${String(i).padStart(15, "0")}`], { inn: "x", at: i });
+  assert.equal(Object.keys(b).length, InnM.RENTALS_MAX);
+  assert.deepEqual(InnM.addRentals({}, ["not-an-id"], { inn: "x" }), {}, "only document ids");
+  const inn = src("inn.mjs");
+  assert.match(inn, /const rent = rental\(actor\);[\s\S]*if \(!rent\)/, "the rest checks the GM-side rental first");
+  assert.match(inn, /Vault\.update\(v => \(\{ \.\.\.v, buckets: \{ \.\.\.v\.buckets, rentals: M\.addRentals/, "renting records the rental GM-side");
+  assert.match(inn, /renderTokenHUD/); assert.match(inn, /Make innkeeper here/);
+  assert.doesNotMatch(inn, /renderSceneConfig/);
+});
+
+// ---------------------------------------------------------------- 4: Table Tools tab
+test("Table Tools: one core scene-tab section for title card, Dungeon and inns; no own scene config injection", async () => {
+  for (const f of ["zone-titles.mjs", "trash.mjs", "inn.mjs", "main.mjs"]) assert.doesNotMatch(src(f).replace(/\/\/.*$/gm, ""), /Hooks\.on\("renderSceneConfig"/, f);
+  const sc = src("scene-config.mjs");
+  assert.match(sc, /sceneTab\.addSection\(ID, \{/);
+  const { parts } = await import("../scripts/scene-config.mjs");
+  assert.deepEqual(parts(() => true), ["zoneTitles", "vendorTrash", "restedInn"]);
+  assert.deepEqual(parts(id => id === "vendorTrash"), ["vendorTrash"]);
+  assert.deepEqual(parts(() => false), [], "every tool off: no section at all");
+  assert.match(src("zone-titles.mjs"), /name="\$\{n\}\.show"/); assert.match(src("trash.mjs"), /name="flags\.\$\{ID\}\.dungeon"/);
+});
+
+// ---------------------------------------------------------------- 5: GM-only data stays off player clients
+const V = await import("../scripts/vault-model.mjs");
+const QM = await import("../scripts/quests-model.mjs");
+const Fl = await import("../scripts/flight.mjs");
+const PM = await import("../scripts/pins-model.mjs");
+
+test("GM-only store: versioned, known buckets only, keyed buckets capped", () => {
+  assert.deepEqual(V.normalizeVault(null), { v: 1, buckets: {} });
+  assert.deepEqual(V.normalizeVault({ v: 99, buckets: { quests: {} } }), { v: 1, buckets: {} }, "a newer shape isn't read");
+  const v = V.withKey(V.withBucket(null, "flightNetwork", { points: [] }), "quests", "q1", { status: "active" });
+  assert.deepEqual(V.bucket(v, "quests"), { q1: { status: "active" } });
+  assert.deepEqual(V.normalizeVault({ v: 1, buckets: { junk: 1, pins: {} } }).buckets, { pins: {} });
+  assert.throws(() => V.withBucket(null, "nope", 1));
+  const many = {}; for (let i = 0; i < V.CAPS.pins + 10; i++) many[`p${i}`] = { at: i };
+  assert.equal(Object.keys(V.withBucket(null, "pins", many).buckets.pins).length, V.CAPS.pins);
+  assert.ok(V.withBucket(null, "pins", many).buckets.pins[`p${V.CAPS.pins + 9}`], "newest kept");
+  assert.equal(V.withKey(v, "quests", "q1", null).buckets.quests.q1, undefined);
+  assert.ok(V.migrated(V.markMigrated(null, "quests1"), "quests1")); assert.ok(!V.migrated(null, "quests1"));
+  const vs = src("vault.mjs");
+  assert.match(vs, /ownership: \{ default: CONST\.DOCUMENT_OWNERSHIP_LEVELS\.NONE \}/);
+  assert.match(vs, /if \(!game\.user\?\.isGM\) return null;/, "players never read it");
+});
+
+test("quests: players' copy (journal flag and page) holds no hidden objectives or GM text", () => {
+  const full = { v: 1, status: "active", hidden: false, zone: "Z", level: "3", giver: { name: "G", uuid: "" }, summary: "S",
+    description: `<p>Open text.</p><section class="secret" id="secret-x"><p>The mayor did it.</p></section><p>More.</p>`,
+    objectives: [{ id: "a", text: "Find the mill", done: false, hidden: false, optional: false }, { id: "b", text: "Unmask the mayor", done: false, hidden: true, optional: false }],
+    rewards: { coin: "5g", items: [], other: "" }, paid: false, sort: 1 };
+  const pub = QM.publicQuest(full);
+  const text = JSON.stringify(pub);
+  assert.doesNotMatch(text, /mayor/i); assert.match(text, /Find the mill/); assert.match(text, /Open text/); assert.equal(pub.pub, true);
+  const hidden = QM.publicQuest({ ...full, hidden: true });
+  assert.doesNotMatch(JSON.stringify(hidden), /mill|Open text|mayor|5g/i, "a hidden quest keeps nothing");
+  assert.doesNotMatch(JSON.stringify(QM.publicQuest({ ...full, status: "available" })), /mill|mayor/i, "an ungiven quest keeps nothing");
+  assert.equal(QM.stripSecrets(`<section class="secret"><section class="secret">x</section>y</section>z`), "z", "nested secret blocks go whole");
+  assert.equal(QM.stripSecrets(`<p>a</p><section class="secret">never closed`), "", "an unclosed secret: drop it all");
+  assert.equal(QM.stripSecrets(`<section class="note"><section class="secret">s</section>keep</section>`), `<section class="note">keep</section>`);
+  assert.equal(QM.stripSecrets(`<p>a</p><section class='other secret'>x</section>`), "<p>a</p>");
+  assert.ok(QM.isPublic(pub)); assert.ok(!QM.isPublic(full), "an old full flag is moved once");
+  const q = src("quests.mjs");
+  assert.match(q, /\[`flags\.\$\{ID\}\.quest`\]: publicQuest\(q\)/, "save writes only the public view to the journal");
+  assert.match(q, /flags: \{ \[ID\]: \{ quest: publicQuest\(q\) \} \}/, "create too");
+  assert.doesNotMatch(q, /class="secret" id="secret-wct-objectives"/, "no secret block on the page");
+});
+
+test("flight network: players' copy keeps no locked point (names, scenes, notes) and no fares into them", () => {
+  const net = { points: [{ id: "a", name: "Port", unlocked: true, note: "GM: smuggler den" }, { id: "b", name: "Hidden Vale", unlocked: false, sceneUuid: "Scene.x", note: "secret" }, { id: "c", name: "Ridge", unlocked: true }],
+    routes: [{ id: "r1", from: "a", to: "c", fareCp: 50, hours: 2 }, { id: "r2", from: "a", to: "b", fareCp: 999, hours: 9 }] };
+  const hide = Fl.playerView(net);
+  assert.doesNotMatch(JSON.stringify(hide), /Hidden Vale|Scene\.x|secret|smuggler|999/);
+  assert.deepEqual(hide.points.map(p => p.id), ["a", "c"]); assert.deepEqual(hide.routes.map(r => r.id), ["r1"]);
+  const grey = Fl.playerView(net, { locked: "grey" });
+  assert.doesNotMatch(JSON.stringify(grey), /Hidden Vale|Scene\.x|secret|999/);
+  assert.equal(grey.points.find(p => p.id === "b").name, ""); assert.equal(grey.routes.find(r => r.id === "r2").fareCp, 0);
+  const auto = Fl.autoLayout(3);
+  assert.deepEqual(hide.points.find(p => p.id === "c").pos, auto[2], "points keep the GM map's positions");
+  assert.match(src("main.mjs"), /game\.settings\.set\(ID, "flightNetwork", Flight\.playerView\(net/);
+});
+
+test("map pins: hidden GM pins are store records, not Notes; revealing makes the Note; pin visibility needs no journal", () => {
+  const rid = PM.newPinId(() => 0.5); assert.match(rid, /^[A-Za-z0-9]{16}$/);
+  const r = PM.hiddenRecord({ label: "Lair", kind: "gm", hidden: true }, { id: rid, sceneId: "abcdefghijklmnop", x: 10.4, y: 20, size: 40 });
+  assert.equal(r.pin.hidden, true); assert.equal(r.x, 10);
+  assert.equal(PM.hiddenRecord({ label: "Camp", kind: "party" }, { id: rid, sceneId: "abcdefghijklmnop", x: 1, y: 1 }), null, "party pins are Notes");
+  const note = PM.revealedNote(r);
+  assert.equal(note.flags[TK].pin.hidden, false); assert.equal(note.text, "Lair");
+  const notes = [
+    { sceneId: "abcdefghijklmnop", note: { _id: "nnnnnnnnnnnnnnnn", x: 5, y: 6, iconSize: 32, flags: { [TK]: { pin: { label: "Secret", kind: "gm", hidden: true } } } } },
+    { sceneId: "abcdefghijklmnop", note: { _id: "mmmmmmmmmmmmmmmm", x: 5, y: 6, flags: { [TK]: { pin: { label: "Open", kind: "party" } } } } },
+    { sceneId: "abcdefghijklmnop", note: { _id: "oooooooooooooooo", x: 5, y: 6, flags: {} } }
+  ];
+  const mv = PM.hiddenToMove(notes);
+  assert.equal(mv.records.length, 1); assert.equal(mv.records[0].id, "nnnnnnnnnnnnnnnn", "the record keeps the Note's id");
+  assert.deepEqual(mv.del, [{ sceneId: "abcdefghijklmnop", id: "nnnnnnnnnnnnnnnn" }]);
+  assert.equal(PM.hiddenOn({ [rid]: r, bad: { x: 1 } }, "abcdefghijklmnop").length, 1);
+  // Bug A: a party pin (no journal) is visible to players.
+  assert.equal(PM.pinVisible({ pin: PM.normalize({ label: "Camp", kind: "party" }), isGM: false }), true);
+  assert.equal(PM.pinVisible({ pin: PM.normalize({ label: "X", kind: "gm", hidden: true }), isGM: false }), false);
+  assert.equal(PM.pinVisible({ pin: PM.normalize({ label: "Camp" }), isGM: false, levelOk: false }), false);
+  const P = src("pins.mjs");
+  assert.match(P, /get isVisible\(\) \{[\s\S]*?M\.pinVisible\(/, "WctPinNote.isVisible uses the pin's own rule");
+  assert.doesNotMatch(P.match(/get isVisible\(\) \{[\s\S]*?\n {4}\}/)[0], /return super\.isVisible;\n {4}\}$/, "doesn't fall through to core's journal check for pins");
+  assert.match(P, /if \(made\.pin\.hidden\) return storeHidden/, "a new hidden pin never becomes a Note");
+  assert.match(P, /await storeHidden\(r\);\n {2}await note\.delete\(\);/, "hiding a revealed pin deletes its Note");
+});
+
+test("notices and requests: GM senders only; no payload user ids; player-reachable GM APIs are gated", () => {
+  const main = src("main.mjs");
+  assert.doesNotMatch(main, /\.\.\.Trash,/, "the internal Vendor Trash module isn't spread into the API");
+  assert.match(main, /trash: gmOnlyApi\(\{/); assert.match(main, /return gmOnlyApi\(\{\n {6}get: BossLoot\.get/);
+  assert.match(main, /cleanup: gmOnlyApi\(/); assert.match(main, /get gold\(\) \{ return F\.on\("partyGold"\) \? gmOnlyApi\(/);
+  for (const f of ["quests.mjs", "pins.mjs", "main.mjs"]) assert.doesNotMatch(src(f), /questNotify|mapPinResult|flightResult/, f);
+  assert.match(src("gm.mjs"), /Hooks\.on\(NOTICE_HOOK/, "notices only arrive as core broadcast hooks (leader's GM session)");
+  for (const f of ["history.mjs", "gold.mjs"]) assert.match(src(f), /if \(!game\.user\?\.isGM\) return \[\];/, `${f}: players read nothing`);
+});
+
+// ---------------------------------------------------------------- 8: Session Start and Who's online moved to Red Book
+test("Session Start and Who's online are gone; their stored settings stay readable for Red Book's migration", () => {
+  for (const id of ["sessionStart", "whosOnline"]) assert.ok(!FEATURES.some(f => f.id === id), id);
+  const main = src("main.mjs");
+  assert.doesNotMatch(main, /sessionStart\(\)|get online\(\)|whosOnline\(\)/, "no api.sessionStart, api.online, api.whosOnline");
+  assert.doesNotMatch(main, /allPlayersOnline|playerCountChanged/);
+  for (const f of readdirSync(new URL("../scripts/", import.meta.url))) if (f.endsWith(".mjs")) assert.doesNotMatch(src(f), /Hooks\.callAll\(`\$\{ID\}\.(allPlayersOnline|playerCountChanged)`/, f);
+  // Red Book 0.3.0 reads these through game.settings: same keys, types and defaults, hidden.
+  for (const [k, type, def] of [["onlineCount", "String", "characters"], ["onlineList", "String", ""], ["onlinePosition", "String", "top-left"]]) {
+    assert.match(main, new RegExp(`\\["${k}", "${def}"\\]`), k); assert.ok(type);
+  }
+  assert.match(main, /register\(ID, "onlineDrag", \{ scope: "world", config: false, type: Boolean, default: true \}\)/);
+  assert.match(main, /register\(ID, "onlineHudPos", \{ scope: "client", config: false, type: Object, default: \{\} \}\)/);
+  assert.match(main, /s\("hiddenScenes", /);
+  assert.doesNotMatch(src("macros.mjs"), /fn: "(sessionStart|whosOnline)"/);
+  assert.doesNotMatch(src("cleanup.mjs"), /unsetFlag\(ID, "hub"\)/, "cleanup doesn't single out the hub flag");
+});

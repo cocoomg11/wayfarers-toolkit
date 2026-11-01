@@ -2,7 +2,8 @@
  * Remove toolkit data: a settings-menu window (GM only) that strips what the toolkit stored in a world. It first counts (a dry run),
  * lets the GM tick what goes, then asks to type REMOVE. Only the toolkit's own data is touched: `flags.wayfarers-toolkit` on
  * documents (chat messages only when ticked), items the toolkit created (vendor trash and boss loot, when ticked), the Rested status
- * effect, map pins (Note documents with flags.wayfarers-toolkit.pin, when ticked), Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
+ * effect, map pins (Note documents with flags.wayfarers-toolkit.pin, and hidden pins in the GM-only store, when ticked), the GM-only
+ * records journal (when ticked), Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
  * settings (when ticked). Other flags, items and documents are never changed. It doesn't need to be the active GM.
  */
 import { pinsByScene } from "./pins-model.mjs";
@@ -20,11 +21,12 @@ export const trackerFlag = (j, journalName) => !!(j && journalName && j.name ===
 export const CATEGORIES = [
   ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested and its status icon, …)"],
   ["tokens", "Toolkit flags on tokens and their own actors, every scene (pre-rolled loot, looted, boss, phase marks, No loot, Everything is lootable, …)"],
-  ["scenes", "Toolkit flags on scenes (Dungeon, Title card, Hub, Inn)"],
+  ["scenes", "Toolkit flags on scenes (Dungeon, Title card, inns; the old Hub and Inn marks too, which the Red Book module may still read)"],
   ["items", "Toolkit flags on items (world items and items on actors; Lootable, Buckler and Relic marks too, the items themselves stay)"],
   ["deleteItems", "Also delete items created by the toolkit (vendor trash, boss loot) wherever they are"],
   ["pins", "Delete map pins (the map notes the toolkit's Map pins tool placed, every scene, party and GM pins)"],
   ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests; the tracker journal's trip counter)"],
+  ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history)"],
   ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
   ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; reloads)"]
@@ -38,10 +40,12 @@ function* holders() {
 
 /** Counts what each category would remove. Nothing is changed. */
 export function plan() {
-  const p = { actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], pins: [], items: [], deleteItems: [], journals: [], trackers: [], messages: [], macros: [], settings: [] };
+  const p = { actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], pins: [], hiddenPins: 0, items: [], deleteItems: [], journals: [], vault: [], trackers: [], messages: [], macros: [], settings: [] };
   for (const a of game.actors) if (ours(a)) p.actors.push(a);
   // Map pins: Note documents carrying flags.wayfarers-toolkit.pin; grouped by scene so each scene is one delete.
   p.pins = pinsByScene(game.scenes);
+  // Hidden GM pins have no Note: they're records in the GM-only store (removed with it, or on their own with "pins").
+  try { p.hiddenPins = Object.keys(game.journal.find(j => j.flags?.[ID]?.vaultEntry === true)?.flags?.[ID]?.vault?.buckets?.pins ?? {}).length; } catch { p.hiddenPins = 0; }
   for (const s of game.scenes) {
     if (ours(s)) p.scenes.push(s);
     for (const t of s.tokens) {
@@ -57,7 +61,10 @@ export function plan() {
     const ownFx = a.isToken ? new Set((a.token?.delta?._source?.effects ?? []).map(e => e._id)) : null;
     for (const e of a.effects ?? []) { if (ownFx && !ownFx.has(e.id)) continue; if (restedEffect(e)) p.effects.push(e); }
   }
-  for (const j of game.journal) { if (ours(j)) p.journals.push(j); for (const pg of j.pages) if (ours(pg)) p.journals.push(pg); }
+  for (const j of game.journal) {
+    if (j.flags?.[ID]?.vaultEntry === true) { p.vault.push(j); continue; }
+    if (ours(j)) p.journals.push(j); for (const pg of j.pages) if (ours(pg)) p.journals.push(pg);
+  }
   for (const t of game.tables) if (ours(t)) p.journals.push(t);
   let tj = ""; try { tj = game.settings.get(ID, "trackerJournal"); } catch { }
   for (const j of game.journal) if (trackerFlag(j, tj)) p.trackers.push(j);
@@ -66,7 +73,7 @@ export function plan() {
   for (const [, c] of game.settings.settings) if (c.namespace === ID && (c.scope === "world" ? game.user.isGM : true)) p.settings.push(c);
   return p;
 }
-const count = (p, k) => k === "pins" ? p.pins.reduce((n, g) => n + g.ids.length, 0) : k === "tokens" ? p.tokens.length + p.tokenActors.length : k === "actors" ? p.actors.length + p.effects.length : k === "journals" ? p.journals.length + p.trackers.length : p[k].length;
+const count = (p, k) => k === "pins" ? p.pins.reduce((n, g) => n + g.ids.length, 0) + p.hiddenPins : k === "tokens" ? p.tokens.length + p.tokenActors.length : k === "actors" ? p.actors.length + p.effects.length : k === "journals" ? p.journals.length + p.trackers.length : p[k].length;
 
 /** Removes every toolkit flag from one document, key by key (unsetFlag writes the deletion the way this Foundry version wants). */
 async function stripFlags(doc) {
@@ -97,7 +104,11 @@ export async function remove(pick = {}) {
   if (pick.actors) done.actors = (await each(p.actors, stripFlags)) + (await each(p.effects, async e => { await e.delete(); return 1; }));
   if (pick.tokens) done.tokens = (await each(p.tokens, stripFlags)) + (await each(p.tokenActors, stripDelta));
   if (pick.scenes) done.scenes = await each(p.scenes, stripFlags);
-  if (pick.pins) done.pins = await each(p.pins, async g => { await g.scene.deleteEmbeddedDocuments("Note", g.ids); return g.ids.length; });
+  if (pick.pins) {
+    done.pins = await each(p.pins, async g => { await g.scene.deleteEmbeddedDocuments("Note", g.ids); return g.ids.length; });
+    if (p.hiddenPins && !pick.vault) { try { await (await import("./vault.mjs")).set("pins", {}); done.pins += p.hiddenPins; } catch (e) { console.warn(`${ID} | remove data: hidden pins`, e); } }
+  }
+  if (pick.vault) done.vault = await each(p.vault, async j => { await j.delete(); return 1; });
   if (pick.journals) done.journals = (await each(p.journals, stripFlags)) + (await each(p.trackers, async j => { await j.unsetFlag("world", "trackers"); return 1; }));
   if (pick.messages) done.messages = await each(p.messages, stripFlags);
   if (pick.macros && p.macros.length) {
@@ -121,7 +132,7 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
     const p = plan();
     div.innerHTML = `<p>Removes what Wayfarer's Toolkit stored in this world. Counts below are what would go now; nothing is changed until you confirm. Your own documents, other modules' data and items the toolkit didn't create are never touched. Item Piles piles stay piles (revert them with Reset loot first if you want normal tokens back).</p>
-      ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "pins", "messages", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
+      ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "pins", "vault", "messages", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
       <div class="form-group"><label for="wct-cleanup-confirm">Type <strong>${CONFIRM_WORD}</strong> to confirm</label><div class="form-fields"><input type="text" id="wct-cleanup-confirm" name="confirm" autocomplete="off"></div></div>
       <footer class="form-footer"><button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="submit" data-action="remove"><i class="fa-solid fa-broom"></i> Remove</button></footer>`;
     return div;

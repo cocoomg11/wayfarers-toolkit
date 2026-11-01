@@ -258,3 +258,55 @@ export function revealUpdate(old, hidden) {
   const o = normalize(old); if (o.kind !== "gm") return null;
   return noteUpdate({ ...o, hidden: !!hidden });
 }
+
+// ---------------------------------------------------------------- 1.27: hidden GM pins live in the GM-only store, not in a Note
+/**
+ * A hidden GM pin is a record in the GM-only store (vault bucket "pins", keyed by its own id) and has no Note on the scene, so a
+ * player client never receives it. Revealing it creates the Note; hiding a revealed pin deletes the Note and stores the record.
+ * Record: { id, sceneId, x, y, level, size, pin } with `pin` normalized (kind "gm", hidden true).
+ */
+export const HIDDEN_MAX = 1000;
+const ID_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+/** A 16-character id like Foundry's. `rand` is for tests. */
+export function newPinId(rand = Math.random) { let s = ""; for (let i = 0; i < 16; i++) s += ID_CHARS[Math.floor(rand() * ID_CHARS.length) % ID_CHARS.length]; return s; }
+
+/** A hidden-pin record from a pin and where it goes; null when it isn't a hidden GM pin. */
+export function hiddenRecord(pin, { id, sceneId, x, y, level = null, size = SIZE.def }) {
+  const p = normalize(pin); if (p.kind !== "gm" || !p.hidden || !isDocId(sceneId) || !isDocId(id)) return null;
+  const nx = num(x), ny = num(y); if (nx === null || ny === null) return null;
+  return { id, sceneId, x: Math.round(nx), y: Math.round(ny), level: isDocId(level) ? level : null, size: clampSize(size), pin: p, at: Date.now() };
+}
+/** A stored record cleaned up, or null. */
+export function readHidden(r) {
+  if (!r || typeof r !== "object") return null;
+  const out = hiddenRecord({ ...(r.pin ?? {}), kind: "gm", hidden: true }, r);
+  return out && { ...out, at: Number(r.at) || 0 };
+}
+/** Hidden pins on one scene, from the bucket. */
+export const hiddenOn = (bucket, sceneId) => Object.values(bucket ?? {}).map(readHidden).filter(r => r && r.sceneId === sceneId);
+/** The Note data a revealed pin gets (the pin no longer hidden). */
+export const revealedNote = r => noteData({ ...r.pin, hidden: false }, { x: r.x, y: r.y, level: r.level, size: r.size });
+/** The record a revealed pin's Note becomes when the GM hides it again. */
+export const toHidden = (note, sceneId) => hiddenRecord({ ...pinOf(note), kind: "gm", hidden: true }, { id: note.id ?? note._id, sceneId, x: note.x, y: note.y, level: Array.isArray(note.levels) ? note.levels[0] ?? null : null, size: note.iconSize });
+
+/**
+ * The one-time move: Notes on a scene that hold a hidden GM pin → records to store, and the Note ids to delete. Pure over
+ * [{ id, sceneId, note }] plain data.
+ */
+export function hiddenToMove(notes = []) {
+  const records = []; const del = [];
+  for (const { sceneId, note } of notes) {
+    const p = pinOf(note); if (!p || p.kind !== "gm" || !p.hidden) continue;
+    const r = toHidden(note, sceneId); if (!r) continue;
+    records.push(r); del.push({ sceneId, id: r.id });
+  }
+  return { records, del };
+}
+
+/**
+ * Whether a pin Note is drawn on this client. A pin Note never has a journal entry, and Foundry's own rule for notes looks at the
+ * entry (and hides entry-less notes from players), which is why players saw no pins at all in 1.26 (v14). Pins decide by themselves:
+ * a pin drawn by its own rule (hidden ones are never Notes since 1.27, so this is everyone), on this client's level when the Note
+ * names levels. `levelOk`: the Note is on the level being viewed (true when the scene has no levels).
+ */
+export const pinVisible = ({ pin, isGM, levelOk = true }) => drawn(pin, isGM) && levelOk;

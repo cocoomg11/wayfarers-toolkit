@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import "./_globals.mjs";
 const ZT = await import("../scripts/zone-titles-model.mjs");
-const OM = await import("../scripts/online-model.mjs");
 const Inn = await import("../scripts/inn-model.mjs");
 const Perm = await import("../scripts/permissions.mjs");
 const { MACROS, macroOn } = await import("../scripts/macros.mjs");
@@ -42,42 +41,6 @@ test("zone titles: when to show", () => {
   assert.equal(s({ reason: "other" }), false);
   assert.deepEqual(ZT.timeline(4, true), { fadeIn: 0, hold: 4000, fadeOut: 0 }, "reduced motion: instant");
   assert.equal(ZT.timeline(99).hold, 15000); assert.equal(ZT.timeline("x").hold, 4000); assert.ok(ZT.timeline(4).fadeIn > 0);
-});
-
-// ---------------------------------------------------------------- who's online
-const user = (id, name, o = {}) => ({ id, name, active: false, isGM: false, character: null, color: "#f00", ...o });
-const users = [
-  user("g", "Gamemaster", { isGM: true, active: true }),
-  user("a", "Ann", { active: true, character: { name: "Thalia", img: "t.webp" } }),
-  user("b", "Bob", { character: { name: "Brom", img: "b.webp" } }),
-  user("c", "Cy", { active: true })
-];
-
-test("who's online: who counts and all present", () => {
-  const r = OM.roster(users, { count: "characters" });
-  assert.equal(r.expected, 2); assert.equal(r.present, 1); assert.equal(r.all, false); assert.deepEqual(r.missing, ["Bob"]);
-  assert.equal(r.entries[0].label, "Thalia", "character name shown"); assert.equal(r.entries[0].active, true);
-  assert.ok(r.entries.some(e => e.id === "g" && !e.counts), "online GM shown, not counted");
-  assert.ok(r.entries.some(e => e.id === "c" && !e.counts && e.label === "Cy"), "online player without a character shown by user name");
-  const p = OM.roster(users, { count: "players" });
-  assert.equal(p.expected, 3); assert.equal(p.present, 2);
-  const allIn = OM.roster(users.map(u => ({ ...u, active: true })), { count: "characters" });
-  assert.equal(allIn.all, true);
-  const l = OM.roster(users, { count: "list", list: "ann, cy; Nobody" });
-  assert.equal(l.expected, 2); assert.equal(l.all, true); assert.deepEqual(l.unknown, ["nobody"]);
-  assert.equal(OM.roster([user("g", "GM", { isGM: true, active: true })]).all, false, "nobody counts: never everyone's here");
-  assert.deepEqual(OM.listNames(" A ,b;\nA"), ["a", "b"]);
-});
-
-test("who's online: change detection and hook payload", () => {
-  const a = OM.roster(users, { count: "characters" });
-  const b = OM.roster(users.map(u => ({ ...u, active: true })), { count: "characters" });
-  assert.deepEqual(OM.changes(null, a), { countChanged: true, becameAll: false, leftAll: false });
-  assert.deepEqual(OM.changes(a, b), { countChanged: true, becameAll: true, leftAll: false });
-  assert.deepEqual(OM.changes(b, b), { countChanged: false, becameAll: false, leftAll: false });
-  assert.deepEqual(OM.changes(b, a), { countChanged: true, becameAll: false, leftAll: true });
-  const h = OM.hookPayload(b);
-  assert.equal(h.online, 2); assert.equal(h.expected, 2); assert.equal(h.all, true); assert.ok(h.users.every(u => "label" in u && "counts" in u));
 });
 
 // ---------------------------------------------------------------- rested at the inn
@@ -154,14 +117,13 @@ test("inn: socket messages", () => {
 
 // ---------------------------------------------------------------- wiring
 test("1.22 features, macros, panel and notes", () => {
-  for (const id of ["zoneTitles", "whosOnline", "restedInn"]) {
+  for (const id of ["zoneTitles", "restedInn"]) {
     assert.ok(FEATURES.some(f => f.id === id), id); assert.ok(FEATURE_IDS.includes(id), id); assert.ok(FEATURE_CARDS.some(c => c.id === id), id);
     assert.ok(PRESETS.everything.on.includes(id));
   }
-  const rent = MACROS.find(m => m.fn === "rentRooms"); const who = MACROS.find(m => m.fn === "whosOnline");
-  assert.ok(rent && who);
+  const rent = MACROS.find(m => m.fn === "rentRooms");
+  assert.ok(rent); assert.ok(!MACROS.some(m => m.fn === "whosOnline"), "Who's online moved to Red Book (1.27)");
   assert.equal(macroOn(rent, id => id !== "restedInn"), false, "Rent Rooms skipped when the inn is off");
-  assert.equal(macroOn(who, () => true), true);
   const places = TABS.find(t => t.id === "places");
   assert.ok(places.basic.length <= 5);
   for (const [k] of [...places.basic, ...places.advanced]) assert.ok(LABELS[k]?.[0], k);
@@ -171,14 +133,14 @@ test("1.22 features, macros, panel and notes", () => {
 });
 
 test("permission checks know the 1.22 tools", () => {
-  const facts = { on: id => id === "restedInn" || id === "whosOnline", socket: true, settings: { innRequests: true }, players: [{ name: "Ann", character: "Thalia", characterOwned: true, ownsAnyCharacter: true, can: { MACRO_SCRIPT: true } }], macros: {} };
+  const facts = { on: id => id === "restedInn", socket: true, settings: { innRequests: true }, players: [{ name: "Ann", character: "Thalia", characterOwned: true, ownsAnyCharacter: true, can: { MACRO_SCRIPT: true } }], macros: {} };
   const lines = Perm.featureChecks(facts);
   assert.ok(lines.some(l => l.feature === "socket" && /room requests/.test(l.text)));
-  assert.ok(lines.some(l => l.feature === "macros" && /Rent Rooms/.test(l.text) && /Who's Online/.test(l.text)));
+  assert.ok(lines.some(l => l.feature === "macros" && /Rent Rooms/.test(l.text)));
   assert.ok(lines.some(l => l.feature === "characters" && /Rested/.test(l.text)));
 });
 
 test("no publisher names in 1.22 strings", () => {
-  const all = JSON.stringify([ZT, OM, Inn, NOTES.find(n => n.version === "1.22.0"), FEATURES.slice(-3), FEATURE_CARDS, LABELS].map(x => typeof x === "object" ? Object.entries(x).map(([k, v]) => [k, typeof v === "function" ? String(v) : v]) : x));
+  const all = JSON.stringify([ZT, Inn, NOTES.find(n => n.version === "1.22.0"), FEATURES.slice(-3), FEATURE_CARDS, LABELS].map(x => typeof x === "object" ? Object.entries(x).map(([k, v]) => [k, typeof v === "function" ? String(v) : v]) : x));
   assert.doesNotMatch(all, /warcraft|blizzard|azeroth|\bwow\b/i);
 });

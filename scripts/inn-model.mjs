@@ -117,3 +117,91 @@ export function readRestReport(msg) {
   if (!msg || msg.action !== "restedRest" || typeof msg.actorId !== "string" || !msg.actorId) return null;
   return { actorId: msg.actorId, sceneId: typeof msg.sceneId === "string" ? msg.sceneId : null };
 }
+
+// ---------------------------------------------------------------- 1.27: inns are records on a scene, rentals are GM-side
+/**
+ * Inns are records in the scene flag `flags.wayfarers-toolkit.inns` = { v: INNS_VERSION, list: [inn] } (several per scene, capped at
+ * INNS_MAX). An inn: { id, name, price ("5s", per person per night), innkeeper: { actor (UUID), token (token id) } | null,
+ * region (v14 Region id) | null }. The old one-per-scene flag `inn` = { on, name, price } becomes one record (one-time GM move; the
+ * old flag is kept).
+ *
+ * Rentals are GM-side records (GM-only store, bucket "rentals", keyed by actor id): { innId, inn, sceneId, at, by }. Rested on a
+ * character is only shown by its flag; the long-rest benefit is granted only when a GM-side rental for that character exists, so a
+ * player who writes the Rested flag on their own character gets nothing.
+ */
+export const INNS_VERSION = 1;
+export const INNS_MAX = 20;
+export const RENTALS_MAX = 200;
+const ID_RE = /^[A-Za-z0-9]{16}$/;
+const isId = v => typeof v === "string" && ID_RE.test(v);
+const shortId = v => (typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v) ? v : null);
+const UUID_RE = /^[A-Za-z0-9_.-]{3,300}$/;
+
+/** One inn record cleaned up (id kept or given), or null without an id. */
+export function cleanInn(raw, idFn) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = shortId(raw.id) ?? (idFn ? idFn() : null); if (!id) return null;
+  const k = raw.innkeeper && typeof raw.innkeeper === "object" ? raw.innkeeper : null;
+  const actor = k && typeof k.actor === "string" && UUID_RE.test(k.actor) && k.actor.includes(".") ? k.actor : null;
+  const token = k && isId(k.token) ? k.token : null;
+  return { id, name: str(raw.name).slice(0, 80), price: str(raw.price).slice(0, 40), innkeeper: actor || token ? { actor, token } : null, region: isId(raw.region) ? raw.region : null };
+}
+
+/** The scene's inns ({ v, list }) from its flags, cleaned and capped. A missing or unreadable flag: no inns. */
+export function innsOf(flags) {
+  const f = flags?.[ID]?.inns;
+  const list = Array.isArray(f?.list) ? f.list : [];
+  const seen = new Set(); const out = [];
+  for (const r of list) { const c = cleanInn(r); if (c && !seen.has(c.id)) { seen.add(c.id); out.push(c); } if (out.length >= INNS_MAX) break; }
+  return { v: INNS_VERSION, list: out };
+}
+
+/** The record an old `inn` flag ({ on, name, price }) becomes, or null when the scene wasn't an inn. */
+export function innFromLegacy(flags, sceneName = "", id = "inn1") {
+  const f = flags?.[ID]?.inn;
+  if (!f || f.on !== true) return null;
+  return cleanInn({ id, name: str(f.name) || str(sceneName), price: str(f.price) }, null);
+}
+
+/** Whether the scene still needs the one-time move: an old inn flag that's on, and no inns list yet. */
+export const needsInnMove = flags => !!innFromLegacy(flags) && !Array.isArray(flags?.[ID]?.inns?.list);
+
+/** A new list with `inn` added or replaced (by id); refuses past the cap. { ok, inns, error }. */
+export function upsertInn(inns, inn) {
+  const cur = innsOf({ [ID]: { inns } }).list; const c = cleanInn(inn); if (!c) return { ok: false, inns: { v: INNS_VERSION, list: cur }, error: "That inn has no id." };
+  const i = cur.findIndex(x => x.id === c.id);
+  if (i < 0 && cur.length >= INNS_MAX) return { ok: false, inns: { v: INNS_VERSION, list: cur }, error: `A scene can have up to ${INNS_MAX} inns.` };
+  const list = i < 0 ? [...cur, c] : cur.map(x => (x.id === c.id ? c : x));
+  return { ok: true, inns: { v: INNS_VERSION, list }, error: null };
+}
+export const removeInn = (inns, id) => ({ v: INNS_VERSION, list: innsOf({ [ID]: { inns } }).list.filter(x => x.id !== id) });
+
+/** An inn as shown and charged: { ...record, displayName, priceText } (blank name: the scene's; blank price: the default). */
+export function innView(inn, { sceneName = "", defaultPrice = DEFAULT_PRICE } = {}) {
+  return { ...inn, displayName: str(inn?.name) || str(sceneName) || "the inn", priceText: str(inn?.price) || str(defaultPrice) || DEFAULT_PRICE };
+}
+
+/** The inn whose innkeeper is this token (id) on the scene, or null. */
+export const innOfToken = (inns, tokenId) => innsOf({ [ID]: { inns } }).list.find(x => x.innkeeper?.token === tokenId) ?? null;
+
+/** A rental record for one character. */
+export const rentalFor = ({ innId, inn, sceneId, at, by }) => ({ innId: shortId(innId), inn: str(inn) || "the inn", sceneId: isId(sceneId) ? sceneId : null, at: Number(at) || 0, by: isId(by) ? by : null });
+
+/** The rentals bucket with these characters' rentals set (newest kept within the cap). */
+export function addRentals(bucket, actorIds, rental) {
+  const out = { ...(bucket && typeof bucket === "object" ? bucket : {}) };
+  for (const a of actorIds) if (isId(a)) out[a] = { ...rentalFor(rental), at: Number(rental.at) || 0, t: Date.now() };
+  const entries = Object.entries(out);
+  if (entries.length <= RENTALS_MAX) return out;
+  return Object.fromEntries(entries.sort((a, b) => (b[1].t ?? 0) - (a[1].t ?? 0)).slice(0, RENTALS_MAX));
+}
+
+/**
+ * What a long rest does, checked against the GM-side rental (not the character's flag): "grant", "lose" or "none".
+ * `rental` is the stored record for this character (or null). `onInn`: rested on a scene with an inn (an inn's Region, when it has
+ * one and the token position is known: `inRegion`).
+ */
+export function restOutcomeChecked({ rental, onInn, lastsAnywhere = true }) {
+  if (!rental) return "none";
+  return onInn || lastsAnywhere ? "grant" : "lose";
+}

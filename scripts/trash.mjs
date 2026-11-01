@@ -118,13 +118,9 @@ export function dungeonRules() {
   return { coinMult: Number.isFinite(mult) && mult >= 0 ? mult : 2, dropBonus: Math.max(0, Math.min(100, Number.isFinite(bonus) ? bonus : 25)) / 100, extraRoll: !!get("dungeonExtraRoll", true) };
 }
 /** Scene configuration (ApplicationV2): adds the Dungeon checkbox to the Basics tab. Foundry saves it with the rest of the form. */
-export function addDungeonField(app, html) {
-  const root = html instanceof HTMLElement ? html : html?.[0]; const scene = app?.document; if (!root || !scene) return;
-  if (root.querySelector(`input[name="flags.${ID}.dungeon"]`)) return;
-  const tab = root.querySelector('.tab[data-tab="basics"]') ?? root.querySelector('.tab[data-tab="ambience"]'); if (!tab) return;
-  const group = document.createElement("div"); group.className = "form-group";
-  group.innerHTML = `<label for="${app.id}-wct-dungeon">Dungeon</label><div class="form-fields"><input type="checkbox" id="${app.id}-wct-dungeon" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wayfarer's Toolkit).</p>`;
-  tab.append(group);
+/** The Dungeon checkbox for the shared Table Tools tab (scene-config.mjs), saved with the form as flags.wayfarers-toolkit.dungeon. */
+export function dungeonField(scene) {
+  return `<div class="form-group"><label>Dungeon</label><div class="form-fields"><input type="checkbox" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wayfarer's Toolkit).</p></div>`;
 }
 
 /**

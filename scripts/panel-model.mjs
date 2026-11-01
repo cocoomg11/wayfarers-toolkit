@@ -11,7 +11,6 @@ export const README = "https://github.com/cocoomg11/wayfarers-toolkit";
 export const FEATURE_CARDS = [
   { id: "hexTravel", icon: "fa-solid fa-map", text: "Travel overland hex by hex. Off-road hexes can turn up random encounters; time passes and the trip is logged." },
   { id: "flightMaster", icon: "fa-solid fa-feather-pointed", text: "Fly the party between flight points you unlock, paying fares from the party purse. Players can book flights too." },
-  { id: "sessionStart", icon: "fa-solid fa-flag-checkered", text: "Start a session in one step: pick the scene, activate it and unpause." },
   { id: "vendorTrash", icon: "fa-solid fa-sack-dollar", text: "Defeated creatures carry grey junk loot and coin to match what they are, ready for the party to loot." },
   { id: "riderFeat", icon: "fa-solid fa-horse", text: "A riding feat for your world. When everyone in the party has it, Hex Travel goes at mounted speed." },
   { id: "characterPane", icon: "fa-solid fa-shirt", text: "An equipment frame around the character portrait. Drop gear in a slot to equip it; swap between melee, ranged and utility weapon sets." },
@@ -25,7 +24,6 @@ export const FEATURE_CARDS = [
   { id: "travelPace", icon: "fa-solid fa-person-hiking", text: "Fast, normal or slow (careful) pace for Hex Travel, with what each does to Perception, Survival and Stealth. Needs Hex Travel." },
   { id: "partyGold", icon: "fa-solid fa-scale-balanced", text: "GM only: how much coin the party carries, against a wealth curve per act that you can edit." },
   { id: "zoneTitles", icon: "fa-solid fa-signs-post", text: "The scene's name fades in over the map when you activate it, with an optional subtitle and sound." },
-  { id: "whosOnline", icon: "fa-solid fa-users", text: "Who's connected, with their character's portrait, on scenes you mark Hub. Says \"Everyone's here\" when the party is complete." },
   { id: "restedInn", icon: "fa-solid fa-bed", text: "Rent rooms at an inn scene; the characters wake from their next long rest with Heroic Inspiration (or an extra Hit Die, or temporary hit points)." },
   { id: "mapPins", icon: "fa-solid fa-map-pin", text: "The party marks the map: inked pins with a label and a note, on any scene. Your own pins can stay hidden until you reveal them." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
@@ -40,7 +38,7 @@ export const TABS = [
   { id: "features", label: "Features", icon: "fa-solid fa-toggle-on", anchor: "features-tab" },
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
-    basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"], ["hiddenScenes", "sessionStart", "scenes"]],
+    basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"]],
     advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapZoom", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
@@ -61,9 +59,9 @@ export const TABS = [
   },
   {
     id: "places", label: "Places", icon: "fa-solid fa-signs-post", anchor: "places-tab",
-    basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["onlineCount", "whosOnline"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
+    basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
     advanced: [["zoneTitleAll", "zoneTitles"], ["zoneTitleSeconds", "zoneTitles"], ["zoneTitleStyle", "zoneTitles"], ["zoneTitleSound", "zoneTitles"], ["zoneTitleVolume", "zoneTitles"], ["zoneTitleOnLoad", "zoneTitles"],
-      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["onlineDrag", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"], ["pinsPlayers", "mapPins"], ["pinsEditAll", "mapPins"], ["pinsDimDone", "mapPins"], ["pinsSize", "mapPins"], ["pinsPaper", "mapPins"], ["pinsShowNotes", "mapPins"]]
+      ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"], ["pinsPlayers", "mapPins"], ["pinsEditAll", "mapPins"], ["pinsDimDone", "mapPins"], ["pinsSize", "mapPins"], ["pinsPaper", "mapPins"], ["pinsShowNotes", "mapPins"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -237,7 +235,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "whosOnline", "restedInn", "mapPins"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.

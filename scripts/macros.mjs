@@ -24,7 +24,6 @@ export const MACRO_FOLDERS = [
 export const MACROS = [
   { id: "wctHexTravel0000", name: "Hex Travel", fn: "hexTravel", img: "icons/environment/wilderness/terrain-forest-gray.webp", feature: "hexTravel", folder: "wctFolderTravel0" },
   { id: "wctFlightMaster0", name: "Flight Master", fn: "flight", img: "icons/creatures/birds/raptor-hawk-flying.webp", feature: "flightMaster", folder: "wctFolderTravel0" },
-  { id: "wctSessionStart0", name: "Session Start", fn: "sessionStart", img: "icons/sundries/books/book-open-turquoise.webp", feature: "sessionStart", folder: "wctFolderSession" },
   { id: "wctVendorTrash00", name: "Vendor Trash", fn: "vendorTrash", img: "icons/containers/bags/sack-simple-leather-brown.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctPreviewTrash0", name: "Preview Vendor Trash", fn: "trash.showPreview", img: "icons/tools/scribal/magnifying-glass.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
   { id: "wctSellTrash0000", name: "Sell Vendor Trash", fn: "sellTrash", img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp", feature: "vendorTrash", folder: "wctFolderVTrash0" },
@@ -35,7 +34,6 @@ export const MACROS = [
   { id: "wctTravelPace000", name: "Travel Pace", fn: "travelPace", img: "icons/skills/movement/feet-winged-boots-brown.webp", feature: "hexTravel:travelPace", shared: true, folder: "wctFolderTravel0" },
   { id: "wctPartyGold0000", name: "Party Gold", fn: "partyGold", img: "icons/commodities/currency/coins-stitched-pouch-brown.webp", feature: "partyGold", folder: "wctFolderToolkt0" },
   { id: "wctRentRooms0000", name: "Rent Rooms", fn: "rentRooms", img: "icons/environment/settlement/house-cottage.webp", feature: "restedInn", shared: true, folder: "wctFolderPlaces0" },
-  { id: "wctWhosOnline000", name: "Who's Online", fn: "whosOnline", img: "icons/environment/people/group.webp", feature: "whosOnline", shared: true, folder: "wctFolderPlaces0" },
   { id: "wctHealthCheck00", name: "Toolkit Health Check", fn: "health", img: "icons/tools/scribal/magnifying-glass.webp", folder: "wctFolderToolkt0" }
 ];
 

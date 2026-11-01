@@ -1,10 +1,14 @@
 /**
  * Quest log: narrative quests with free-text objectives the GM ticks off, an MMO-style log window and an on-screen tracker.
- * Each quest is a JournalEntry in the Quest folder. Its data lives in flags.wayfarers-toolkit.quest and its single text page is
- * rebuilt from that data on every change, so the journal reads well on its own (and in exports). Players only read; every write
+ * Each quest is a JournalEntry in the Quest folder. Since 1.27.0 the full quest (hidden objectives, the description's secret
+ * sections) lives in the GM-only store (vault.mjs); the journal's flags.wayfarers-toolkit.quest and its single text page hold only
+ * what players may see (quests-model.mjs publicQuest), so player clients never receive GM-only text. The page is rebuilt on every
+ * change, so the journal reads well on its own (and in exports). Players only read; every write
  * happens on a GM's client. Turned off with the "Quest log" setting, nothing here is registered.
  */
 import { notify } from "./gm.mjs";
+import * as Vault from "./vault.mjs";
+import { publicQuest, isPublic, stripSecrets } from "./quests-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -64,7 +68,13 @@ export function normalize(raw = {}) {
 }
 
 export const isQuest = j => !!j?.flags?.[ID]?.quest;
-export const data = j => normalize(j.flags[ID].quest);
+/** The quest's data. GM: the full quest from the GM-only store (the journal's flag until the one-time move). Players: the public view. */
+export function data(j) {
+  if (game.user?.isGM) { const full = Vault.get("quests", {})?.[j.id]; if (full) return normalize(full); }
+  return normalize(j.flags[ID].quest);
+}
+/** Whether this quest still keeps its full data in the journal's flag (made before 1.27.0 and not moved yet). */
+export const unmoved = j => isQuest(j) && !isPublic(j.flags[ID].quest);
 export const all = () => game.journal.filter(isQuest);
 /** Whether this user may see the quest: the GM sees everything, players only given, unhidden quests they can observe. */
 export function canSee(j, user = game.user) {
@@ -93,22 +103,26 @@ const ownershipFor = q => (!q.hidden && q.status !== "available") ? CONST.DOCUME
 const coinText = q => { const n = q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0; return n > 0 ? WCT.fmtMoney(n) : ""; };
 const link = (uuid, name) => uuid ? `@UUID[${uuid}]{${String(name).replace(/[{}[\]]/g, "")}}` : esc(name);
 
-/** The journal page, written from the quest data. Hidden objectives go in a secret block, which only the GM sees in Foundry. */
-export function pageHTML(q, name) {
+/**
+ * The journal page, written from the quest's public view: hidden objectives and secret sections never go on the page (players
+ * receive the page). A quest players can't see yet gets a short GM note only. GMs see everything in the quest log window.
+ */
+export function pageHTML(full, name) {
+  const f = normalize(full); const q = publicQuest(f);
+  if (f.hidden || f.status === "available") return `<p><strong>Status:</strong> ${STATUS[f.status].label}${f.hidden ? " (hidden from players)" : ""}</p><p><em>Open the quest log to see and edit this quest.</em></p>`;
   const meta = [`<strong>Status:</strong> ${STATUS[q.status].label}${q.hidden ? " (hidden from players)" : ""}`];
   if (q.level) meta.push(`<strong>Level:</strong> ${esc(q.level)}`);
   if (q.zone) meta.push(`<strong>Zone:</strong> ${esc(q.zone)}`);
   const obj = o => `<li>${o.done ? "☑" : "☐"} ${o.done ? `<s>${esc(o.text)}</s>` : esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</li>`;
-  const shown = q.objectives.filter(o => !o.hidden), secret = q.objectives.filter(o => o.hidden);
+  const shown = q.objectives;
   const rewards = [coinText(q), ...q.rewards.items.map(i => link(i.uuid, i.name)), q.rewards.other ? esc(q.rewards.other) : ""].filter(Boolean);
   return [
     `<p>${meta.join(" · ")}</p>`,
     q.giver.name ? `<p><strong>Quest giver:</strong> ${link(q.giver.uuid, q.giver.name)}</p>` : "",
     q.summary ? `<p><em>${esc(q.summary)}</em></p>` : "",
     `<h2>Objectives</h2>`,
-    shown.length ? `<ul>${shown.map(obj).join("")}</ul>` : (secret.length ? "" : `<p>None yet.</p>`),
-    secret.length ? `<section class="secret" id="secret-wct-objectives"><p><strong>Hidden objectives</strong></p><ul>${secret.map(obj).join("")}</ul></section>` : "",
-    q.description ? `<h2>Description</h2>${q.description}` : "",
+    shown.length ? `<ul>${shown.map(obj).join("")}</ul>` : `<p>None yet.</p>`,
+    q.description ? `<h2>Description</h2>${stripSecrets(q.description)}` : "",
     rewards.length ? `<h2>Rewards</h2><ul>${rewards.map(r => `<li>${r}</li>`).join("")}</ul>${q.paid ? "<p><em>Rewards paid.</em></p>" : ""}` : ""
   ].filter(Boolean).join("\n");
 }
@@ -118,10 +132,11 @@ async function questFolder() {
   return game.folders.find(f => f.type === "JournalEntry" && f.name === name) ?? Folder.create({ name, type: "JournalEntry", sorting: "a" });
 }
 
-/** Writes quest data, ownership and the page in one go. */
+/** Writes quest data (full: GM-only store; public view: the journal), ownership and the page in one go. */
 async function save(j, q, name = j.name) {
   q = normalize(q);
-  await j.update({ name, "ownership.default": ownershipFor(q), [`flags.${ID}.quest`]: q });
+  await Vault.setKey("quests", j.id, q);
+  await j.update({ name, "ownership.default": ownershipFor(q), [`flags.${ID}.quest`]: publicQuest(q) });
   const content = pageHTML(q, name); const page = j.pages.contents[0];
   if (page) { if (page.name !== name || page.text?.content !== content) await page.update({ name, "text.content": content }); }
   else await j.createEmbeddedDocuments("JournalEntryPage", [{ name, type: "text", text: { content, format: 1 } }]);
@@ -170,7 +185,8 @@ const OPS = {
     const name = String(d.title ?? d.name ?? "").trim() || "New Quest";
     const q = normalize({ ...d, status: d.status ?? "available" });
     const folder = await questFolder();
-    const j = await JournalEntry.create({ name, folder: folder.id, ownership: { default: ownershipFor(q) }, flags: { [ID]: { quest: q } }, pages: [{ name, type: "text", text: { content: pageHTML(q, name), format: 1 } }] });
+    const j = await JournalEntry.create({ name, folder: folder.id, ownership: { default: ownershipFor(q) }, flags: { [ID]: { quest: publicQuest(q) } }, pages: [{ name, type: "text", text: { content: pageHTML(q, name), format: 1 } }] });
+    await Vault.setKey("quests", j.id, q);
     if (q.status !== "available" && !q.hidden && d.announce !== false) await announceStatus(j, q, null);
     return j;
   },
@@ -213,7 +229,7 @@ const OPS = {
     if (reveal && !q.hidden && q.status === "active") await announceObjective(j, o, "new");
     return j;
   },
-  async remove(ref) { const j = need(ref); await j.delete(); return true; },
+  async remove(ref) { const j = need(ref); const id = j.id; await j.delete(); await Vault.setKey("quests", id, null); return true; },
   /** Pays a completed quest's coin and items to the party group actor, once. */
   async pay(ref, messageId = null) {
     const j = need(ref); const q = data(j);

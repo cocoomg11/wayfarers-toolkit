@@ -60,7 +60,6 @@ export function featureChecks(facts) {
   if (on("travelPace") && on("hexTravel") && s.paceRequests) shared.push("Travel Pace");
   if (on("flightMap") && on("flightMaster")) shared.push("Flight Route Map");
   if (on("restedInn") && s.innRequests) shared.push("Rent Rooms");
-  if (on("whosOnline")) shared.push("Who's Online");
   if (shared.length) {
     const cant = lacking(players, "MACRO_SCRIPT");
     out.push(cant.length ? L("macros", "warn", `Can't run script macros: ${list(cant)}. The ${list(shared)} macro${shared.length === 1 ? " does" : "s do"} nothing for them (the token-control buttons and keys still work).`, "Game Settings › Configure Permissions › Use Script Macros: tick the Player role (or Trusted, and make them Trusted).")

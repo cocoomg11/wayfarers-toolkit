@@ -6,6 +6,7 @@
  * automatic snapshot at Session Start: Session Start has no hook to listen to. Maths: gold-model.mjs.
  */
 import * as G from "./gold-model.mjs";
+import * as Vault from "./vault.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -14,10 +15,17 @@ const KEY = "goldSnapshots";
 let API = null;
 
 export function registerSettings() {
-  game.settings.register(ID, KEY, { scope: "world", config: false, type: Object, default: { v: 1, list: [] }, onChange: () => refresh() });
+  // Before 1.27.0 the snapshots lived here, where every client could read them. Kept registered (empty after the one-time move to the
+  // GM-only store) so the move can read it and Remove toolkit data resets it.
+  game.settings.register(ID, KEY, { scope: "world", config: false, type: Object, default: { v: 1, list: [] } });
 }
 
-export const snapshots = () => { const v = get(KEY, null); return Array.isArray(v?.list) ? v.list : []; };
+/** GM: the snapshots, newest first (GM-only store since 1.27.0; the old world setting until the one-time move runs). Players: []. */
+export const snapshots = () => {
+  if (!game.user?.isGM) return [];
+  const v = Vault.get("goldSnapshots", null) ?? get(KEY, null);
+  return Array.isArray(v?.list) ? v.list : [];
+};
 
 /** Player characters: character actors at least one non-GM user owns or has assigned. */
 function playerCharacters() {
@@ -62,7 +70,8 @@ export async function snapshot(api = API, note = "") {
   if (!game.user.isGM) return null;
   const r = read(api); const cur = r.rows.find(x => x.current);
   const snap = { at: Date.now(), worldTime: game.time?.worldTime ?? 0, note: String(note ?? ""), coin: r.coin, gear: r.gear, wealth: r.wealth, act: r.act, target: cur?.target ?? 0, status: cur?.status ?? "green", size: r.size };
-  await game.settings.set(ID, KEY, { v: 1, list: G.addSnapshot(snapshots(), snap) });
+  await Vault.update(v => { const cur = v.buckets.goldSnapshots?.list ?? snapshots(); return { ...v, buckets: { ...v.buckets, goldSnapshots: { v: 1, list: G.addSnapshot(cur, snap) } } }; });
+  refresh();
   return snap;
 }
 
