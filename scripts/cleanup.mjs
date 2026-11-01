@@ -3,7 +3,8 @@
  * lets the GM tick what goes, then asks to type REMOVE. Only the toolkit's own data is touched: `flags.wayfarers-toolkit` on
  * documents (chat messages only when ticked), items the toolkit created (vendor trash and boss loot, when ticked), the Rested status
  * effect, map pins (Note documents with flags.wayfarers-toolkit.pin, and hidden pins in the GM-only store, when ticked), the GM-only
- * records journal (when ticked), Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
+ * records journal (when ticked, with its flags vaultEntry, vault and dataFolderFiled, through core's store remove(), which also deletes
+ * the shared "Module data" folder when it is empty), Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
  * settings (when ticked). Other flags, items and documents are never changed. It doesn't need to be the active GM.
  */
 import { isToolkitFolderName } from "./macros.mjs";
@@ -20,6 +21,8 @@ export const RESTED_STATUS = "wct-rested";
 export const restedEffect = e => !!(e?.statuses?.has?.(RESTED_STATUS) || (Array.isArray(e?.statuses) && e.statuses.includes(RESTED_STATUS)));
 /** Hex Travel's trip counter lives in flags.world.trackers on the tracker journal (kept there since the library version). */
 export const trackerFlag = (j, journalName) => !!(j && journalName && j.name === journalName && j.flags?.world?.trackers && typeof j.flags.world.trackers === "object");
+/** The flags on the GM-only records journal (vault.mjs): its marker, its data, and core's one-time "filed in Module data" mark. */
+export const VAULT_FLAGS = ["vaultEntry", "vault", "dataFolderFiled"];
 export const CATEGORIES = [
   ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested and its status icon, …)"],
   ["tokens", "Toolkit flags on tokens and their own actors, every scene (pre-rolled loot, looted, boss, phase marks, No loot, Everything is lootable, …)"],
@@ -28,7 +31,7 @@ export const CATEGORIES = [
   ["deleteItems", "Also delete items created by the toolkit (vendor trash, boss loot) wherever they are"],
   ["pins", "Delete map pins (the map notes the toolkit's Map pins tool placed, every scene, party and GM pins)"],
   ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests; the tracker journal's trip counter)"],
-  ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history)"],
+  ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history; the shared Module data folder too when nothing else is in it)"],
   ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
   ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; reloads)"]
@@ -111,7 +114,8 @@ export async function remove(pick = {}) {
     done.pins = await each(p.pins, async g => { await g.scene.deleteEmbeddedDocuments("Note", g.ids); return g.ids.length; });
     if (p.hiddenPins && !pick.vault) { try { await (await import("./vault.mjs")).set("pins", {}); done.pins += p.hiddenPins; } catch (e) { console.warn(`${ID} | remove data: hidden pins`, e); } }
   }
-  if (pick.vault) done.vault = await each(p.vault, async j => { await j.delete(); return 1; });
+  // Core's store removes every copy of the entry and the shared "Module data" folder when nothing else is left in it.
+  if (pick.vault && p.vault.length) { try { done.vault = await (await import("./vault.mjs")).remove(); } catch (e) { console.warn(`${ID} | remove data: GM-only records`, e); done.vault = 0; } }
   if (pick.journals) done.journals = (await each(p.journals, stripFlags)) + (await each(p.trackers, async j => { await j.unsetFlag("world", "trackers"); return 1; }));
   if (pick.messages) done.messages = await each(p.messages, stripFlags);
   if (pick.macros && p.macros.length) {

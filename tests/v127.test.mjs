@@ -177,8 +177,8 @@ test("GM-only store: versioned, known buckets only, keyed buckets capped", () =>
   assert.equal(V.withKey(v, "quests", "q1", null).buckets.quests.q1, undefined);
   assert.ok(V.migrated(V.markMigrated(null, "quests1"), "quests1")); assert.ok(!V.migrated(null, "quests1"));
   const vs = src("vault.mjs");
-  assert.match(vs, /ownership: \{ default: CONST\.DOCUMENT_OWNERSHIP_LEVELS\.NONE \}/);
-  assert.match(vs, /if \(!game\.user\?\.isGM\) return null;/, "players never read it");
+  // Since 1.30 (core 0.5.0) the journal is core's createStore: ownership None, found by the vaultEntry marker (tests/v130-core.test.mjs).
+  assert.match(vs, /createStore\(ID, \{[^}]*flagKey: "vault", entryFlag: "vaultEntry"/);
 });
 
 test("quests: players' copy (journal flag and page) holds no hidden objectives or GM text", () => {

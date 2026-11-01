@@ -933,6 +933,8 @@ Hooks.once("ready", () => {
   gmSettled().then(async () => {
     // One-time 1.27 data moves (GM-only store, inn records), on the acting client only; each runs once per world.
     if (isActiveGM()) await Migrate.run(WCT).catch(e => console.warn(`${ID} | migrations`, e));
+    // Core's store files an existing root-level GM-only records entry into the shared "Module data" folder once (never throws).
+    if (isActiveGM()) await Vault.file();
     if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
     convertOldCoins();
     return Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })

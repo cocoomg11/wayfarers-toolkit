@@ -1,78 +1,68 @@
 /**
- * The GM-only store (Foundry half; data shape and caps in vault-model.mjs). One journal entry, "Wanderer's Toolkit (GM only)", with
- * default ownership None and no player owners, holds every GM-only record under flags.wayfarers-toolkit.vault. Before 1.27.0 these
- * lived where every client could read them: world settings (flight network with locked points, gold snapshots, loot history), quest
- * flags and pages (hidden objectives, GM text) and scene notes (hidden GM pins).
+ * The GM-only store (Foundry half; data shape and caps in vault-model.mjs), on wanderers-core's `createStore` (core 0.5.0). One
+ * journal entry, "Wanderer's Toolkit (GM only)", with default ownership None and no player owners, holds every GM-only record under
+ * flags.wayfarers-toolkit.vault. Before 1.27.0 these lived where every client could read them: world settings (flight network with
+ * locked points, gold snapshots, loot history), quest flags and pages (hidden objectives, GM text) and scene notes (hidden GM pins).
  *
- * Only GMs read or write it. The leader creates it on first use; any GM client can write (GM actions run on that GM's client).
- * Every read is synchronous (the entry is a local document on GM clients). Writes are chained so two in a row don't overwrite each
- * other. It is never deleted by the module except through Remove toolkit data (category journals).
+ * The entry is found exactly as before: by the marker flag `flags.wayfarers-toolkit.vaultEntry === true`, never by name, so an
+ * existing world keeps its entry, name and data. The only move is core's one-time filing: `file()` (the leader, at ready) puts a
+ * root-level entry into the shared "Module data" journal folder once and marks it `flags.wayfarers-toolkit.dataFolderFiled`, so a GM
+ * who moves it afterwards keeps their choice. A new world's entry is created inside that folder on the first GM write.
  *
- * Whether Foundry withholds a None-ownership journal entry from player clients is Foundry's behaviour, not ours: see the README
- * (GM-only data) and the live checklist. This file is the one place to change if the store has to move (for example to a
- * GM-only compendium pack).
+ * Only GMs read or write it. Any GM client can write (GM actions run on that GM's client); writes are chained so two in a row don't
+ * overwrite each other, and keys that went away are deleted (core's deletions, three levels under the data flag). Every read is
+ * synchronous (cached until the entry changes). It is removed only through Remove toolkit data (category vault), with `remove()`,
+ * which also deletes the "Module data" folder when nothing else is left in it.
+ *
+ * Not secrecy: a None-ownership journal is still sent to players' clients (checked on 14.369). See the README (GM-only data). This
+ * file is the one place that knows where the store lives.
  */
+import { createStore } from "../vendor/wanderers-core/foundry/index.mjs";
 import * as M from "./vault-model.mjs";
+import { logger } from "./core.mjs";
+import { isActiveGM } from "./gm.mjs";
 
 const ID = "wayfarers-toolkit";
 
+/** The core store bound to the toolkit's vault. */
+export const Store = createStore(ID, {
+  name: M.VAULT_NAME, flagKey: "vault", entryFlag: "vaultEntry", normalize: M.normalizeVault, keysAt: "buckets", keys: M.BUCKETS,
+  deleteDepth: 3, about: M.VAULT_ABOUT, log: logger, isWriter: isActiveGM
+});
+
 /** The store's journal entry, or null (players: always null; they never look). */
-export function entry() {
-  if (!game.user?.isGM) return null;
-  try { return game.journal?.find(j => j.getFlag?.(ID, "vaultEntry") === true) ?? null; } catch { return null; }
-}
+export const entry = () => Store.entry();
 
 /**
  * The normalized vault ({ v, buckets }); empty for players and before it exists.
  * @returns {{ v: number, buckets: Record<string, any> }}
  */
-export function read() {
-  const j = entry(); const raw = j ? j.getFlag(ID, "vault") : null;
-  // Normalizing clones the whole store; quest and pin drawing read it often, so keep the result until the stored object changes.
-  if (raw !== cache.raw) cache = { raw, value: M.normalizeVault(raw) };
-  return cache.value;
-}
-/** @type {{ raw: unknown, value: any }} */
-let cache = { raw: undefined, value: null };
+export const read = () => Store.read();
 /** A bucket's value (vault-model BUCKETS), or `fallback`. GM only; players get `fallback`. */
-export const get = (/** @type {string} */ name, /** @type {any} */ fallback = null) => { const b = read().buckets; return name in b ? b[name] : fallback; };
+export const get = (/** @type {string} */ name, /** @type {any} */ fallback = null) => Store.get(name, fallback);
 // Values from get() are the cached copy: read them, never change them in place (change the store with update()).
 
-let creating = null;
-async function ensure() {
-  const j = entry(); if (j) return j;
-  if (!game.user?.isGM) throw new Error("GM only");
-  creating ??= JournalEntry.create({
-    name: M.VAULT_NAME, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
-    flags: { [ID]: { vaultEntry: true, vault: M.normalizeVault(null) } },
-    pages: [{ name: "About", type: "text", text: { format: 1, content: "<p>Wanderer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history). Don't share this entry with players. Deleting it loses those records.</p>" } }]
-  }).finally(() => { creating = null; });
-  return creating;
-}
+/**
+ * GM: changes the vault with `fn(vault) → vault` (pure), one change at a time. Resolves to the new vault.
+ * @param {(v: { v: number, buckets: Record<string, any> }) => any} fn
+ */
+export const update = fn => Store.update(fn);
+/** GM: one bucket's whole value (unknown buckets throw). */
+export const set = (/** @type {string} */ name, /** @type {any} */ value) => Store.set(name, value);
+/** GM: one key of a keyed bucket (null removes it). */
+export const setKey = (/** @type {string} */ name, /** @type {string} */ key, /** @type {any} */ value) => Store.setKey(name, key, value);
+export const migrated = (/** @type {string} */ id) => M.migrated(read(), id);
+export const markMigrated = (/** @type {string} */ id) => update(v => M.markMigrated(v, id));
+/** The leader, at ready: files a root-level entry in "Module data" once. Never throws. */
+export const file = () => Store.file();
+/** Cleanup: deletes the entry (every copy) and the "Module data" folder when empty. Resolves to the number deleted. */
+export const remove = () => Store.remove();
 
-let chain = Promise.resolve();
-/** GM: changes the vault with `fn(vault) → vault` (pure), one change at a time. Resolves to the new vault. */
-export function update(fn) {
-  if (!game.user?.isGM) return Promise.reject(new Error("Only a GM can change the toolkit's GM-only records."));
-  const run = chain.then(async () => {
-    const j = await ensure();
-    const next = M.normalizeVault(fn(M.normalizeVault(j.getFlag(ID, "vault"))));
-    const prev = M.normalizeVault(j.getFlag(ID, "vault"));
-    // A merge update, plus a "-=" deletion for every key that went away (so a removed pin or quest is really gone).
-    await j.update({ [`flags.${ID}.vault`]: next, ...M.deletions(prev, next, `flags.${ID}.vault`) });
-    return next;
-  });
-  chain = run.catch(e => console.warn(`${ID} | GM-only records`, e));
-  return run;
-}
-export const set = (name, value) => update(v => M.withBucket(v, name, value));
-export const setKey = (name, key, value) => update(v => M.withKey(v, name, key, value));
-export const migrated = id => M.migrated(read(), id);
-export const markMigrated = id => update(v => M.markMigrated(v, id));
-
-/** For the health check: { exists, playersCanSee: [user names], size }. */
+/** For the health check: { exists, playersCanSee: [user names], buckets, name, count, filed, inFolder }. */
 export function status() {
-  const j = entry(); if (!j) return { exists: false, playersCanSee: [], buckets: [], name: "" };
-  const see = game.users.filter(u => !u.isGM && j.testUserPermission(u, "LIMITED")).map(u => u.name);
-  return { exists: true, playersCanSee: see, buckets: Object.keys(read().buckets), name: j.name };
+  const s = Store.status();
+  const j = Store.entry();
+  const filed = !!j && j.getFlag?.(ID, "dataFolderFiled") === true;
+  const inFolder = !!(j?.folder?.id ?? j?.folder);
+  return { exists: s.exists, playersCanSee: s.playersCanSee, buckets: s.keys, name: s.name, count: s.count, filed, inFolder };
 }

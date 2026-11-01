@@ -13,10 +13,12 @@
  *   coinLog        { v: 1, entries } coin movements the toolkit made, newest first (≤ 200; coinlog-model.mjs) (1.28.0)
  *   migrations     { [id]: ISO date } one-time moves done
  */
-import { versioned, capList } from "../vendor/wanderers-core/index.mjs";
+import { versioned, capList, storeDeletions, deletionKeys } from "../vendor/wanderers-core/index.mjs";
 
 export const VAULT_VERSION = 1;
 export const VAULT_NAME = "Wanderer's Toolkit (GM only)";
+/** The store entry's About page (plain text; core escapes it). */
+export const VAULT_ABOUT = "Wanderer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history, the coin log). Don't share this entry with players. Deleting it loses those records.";
 export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "coinLog", "migrations"];
 /** Caps: records per keyed bucket. History and snapshot caps stay in their own models (history-model, gold-model). */
 export const CAPS = { quests: 2000, pins: 1000, rentals: 200, migrations: 50 };
@@ -63,15 +65,10 @@ export const migrated = (vault, id) => !!obj(bucket(vault, "migrations", {}))[id
 export const markMigrated = (vault, id, at = new Date().toISOString()) => withKey(vault, "migrations", id, { at: Date.parse(at) || 0, iso: at });
 
 /**
- * The "-=" deletion keys for an update that turns `prev` into `next` under `base` (Foundry merges object updates, so keys removed
- * from a bucket would otherwise stay). Two levels deep: removed buckets, and removed keys of keyed buckets.
+ * The "-=" deletion keys for an update that turns `prev` into `next` under `base` (Foundry merges object updates, so removed keys would
+ * otherwise stay). Core's store (vault.mjs) writes these itself (v14's deletion operator when present); this is the same walk, kept
+ * for tests and readers: three levels under `base` (v/buckets, the buckets, each bucket's keys), every bucket.
  */
 export function deletions(prev, next, base) {
-  const out = {}; const P = normalizeVault(prev).buckets; const N = normalizeVault(next).buckets;
-  for (const k of Object.keys(P)) {
-    if (!(k in N)) { out[`${base}.buckets.-=${k}`] = null; continue; }
-    const a = P[k], b = N[k];
-    if (CAPS[k] && a && b && typeof a === "object" && typeof b === "object") for (const key of Object.keys(a)) if (!(key in b)) out[`${base}.buckets.${k}.-=${key}`] = null;
-  }
-  return out;
+  return deletionKeys(storeDeletions(normalizeVault(prev), normalizeVault(next), base, 3), undefined);
 }
