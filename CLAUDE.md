@@ -50,7 +50,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - New features `zoneTitles`, `whosOnline`, `restedInn`; settings on the control panel's **Places** tab (`zoneTitle*`, `online*`, `inn*`).
 - Scene flags (added to the scene config's Basics tab by `renderSceneConfig`): `zoneTitle = { show, title, subtitle, sound }`, `hub`, `inn = { on, name, price }`. Actor flag `rested = { scene, inn, at }`.
 - Zone titles write nothing; each client decides (`updateScene` active → shown on that client's next `canvasReady` for the scene; the first draw after load is "load" and shows nothing unless `zoneTitleOnLoad`).
-- Who's online writes nothing; it fires `wayfarers-toolkit.allPlayersOnline` and `wayfarers-toolkit.playerCountChanged` on every client (documented in the README; never edit world tiles from the module).
+- Who's online writes nothing; it fires `wayfarers-toolkit.allPlayersOnline` and `wayfarers-toolkit.playerCountChanged` on every client (documented in docs/scripting.md; never edit world tiles from the module).
 - Inn: renting is a GM action; `dnd5e.restCompleted(actor, result, config)` (`result.longRest`) on the resting client → active GM applies (socket `restedRest`, owner-checked). Socket `roomRequest` from players → GM whisper with a Rent rooms button. Coin maths in `inn-model.mjs` (`spend`, `payPlan`) mirrors `api.pay`.
 
 ## 1.23 notes
@@ -90,7 +90,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Coin log**: vault bucket `coinLog` (`{ v: 1, entries }`, newest first, `COINLOG_MAX` 200), migration `coinLog1` creates it. Log a movement by passing `{ reason }` to `api.pay` / `api.addMoney` (they record the real purse change), or `CoinLog.record(actor, delta, reason)` when writing `system.currency` directly (inn rent, flight refund). Any new coin movement must carry a reason (test). Undo window `UNDO_WINDOW` 20; undo of a credit refuses when the actor no longer has it.
 - **Quest map pins**: `Quests.init(..., { goToPin })` gets `Pins.goToQuest` only when both features are on; no ping for hidden pins (pings broadcast).
 - **Glow**: `isUpdated(j)` players only; stamp = hash of name + the view this user receives (`data(j)`), so GM-only changes don't glow. Cleared when the log renders the quest selected.
-- **Hooks** (README › Hooks): `wayfarersToolkit.questUpdated` `{ questId, change }` via `emit()` in quests.mjs, always **after** `save()`; `wayfarersToolkit.journey` via `journeyHook()` in main.mjs after a trip. GM client only; ids only. `change` "assigned" fires since 1.29 when a quest's party changes. Red Book listens to both: don't rename or reshape.
+- **Hooks** (docs/scripting.md › Hooks): `wayfarersToolkit.questUpdated` `{ questId, change }` via `emit()` in quests.mjs, always **after** `save()`; `wayfarersToolkit.journey` via `journeyHook()` in main.mjs after a trip. GM client only; ids only. `change` "assigned" fires since 1.29 when a quest's party changes. Red Book listens to both: don't rename or reshape.
 - **Inn rest**: `longRest({ dialog: false, chat: true, advanceTime: false })` (dnd5e `initiateRest` merges config; long rests default `advanceTime` false anyway), time advanced once by `innRestHours`. Flights still only advance with `flightAdvanceTime` (test counts `await game.time.advance` in main.mjs).
 - Tests: `tests/v128.test.mjs`.
 
@@ -136,7 +136,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Flags:** ours live only under `flags.wayfarers-toolkit.*` (plus the legacy `flags.world.trackers` on the tracker journal). Other modules read/change toolkit data through the API, and we never write another module's flags except through its API (Item Piles' own calls).
 - **Schema versions:** a stored shape that has changed before or is likely to carries a version and is read through one normalizer: `flightNetwork.version` (flight.mjs `VERSION`), `weaponSets.v`, `lootHistoryData.v`, `goldSnapshots.v`, `quest.v` (`QUEST_VERSION` in quest-log-model.mjs, re-exported by quests.mjs; missing = 0, old giver/objective shortcuts; 2 since 1.29). Bump the version and handle the old shape in the normalizer when changing a shape. No migrations without something to migrate.
 - **Cleanup covers everything we write:** a new flag, setting, status effect or document must be found by `cleanup.mjs` `plan()` and removed by `remove()` (and listed in its `CATEGORIES` label).
-- **Docs:** README *Public API and hooks* lists every `api.*` entry and every hook we fire (`Hooks.callAll("wayfarers-toolkit.*")`), each marked stable or experimental. Update it with any API or hook change.
+- **Docs:** docs/scripting.md (Public API and hooks) lists every `api.*` entry and every hook we fire (`Hooks.callAll("wayfarers-toolkit.*")`), each marked stable or experimental. Update it with any API or hook change. User-facing tool docs live in docs/*.md (travel, loot-and-coins, quests-and-characters, places); the README stays a short front page (requirements, install, quick start, tools table, family, settings, troubleshooting, cleanup). The control panel ? buttons link README tab headings (panel-model.mjs): keep those eight headings.
 - **End each release with a live checklist** in the changelog/handoff: what was not run in Foundry and needs checking in a live world.
 
 ## Tests
