@@ -49,10 +49,31 @@ test("module.json: compatibility and dnd5e range", () => {
   assert.ok(m.relationships.recommends.some(r => r.id === "item-piles"));
 });
 
-test("release workflow: tag must be vMAJOR.MINOR.PATCH", () => {
+test("release workflow: tag must be vMAJOR.MINOR.PATCH", async () => {
   const yml = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
-  assert.match(yml, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
-  const re = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
-  for (const ok of ["v1.23.0", "v10.0.12"]) assert.ok(re.test(ok), ok);
-  for (const bad of ["1.21", "1.22", "v1.24", "1.24.0", "v1.24.0-beta"]) assert.ok(!re.test(bad), bad);
+  const pattern = "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$";
+  assert.ok(yml.includes(pattern), "core's tag pattern");
+  const re = new RegExp(pattern);
+  for (const ok of ["v1.23.0", "v10.0.12", "v1.27.0"]) assert.ok(re.test(ok), ok);
+  for (const bad of ["1.21", "1.22", "v1.24", "1.24.0", "v1.24.0-beta", "v01.2.3"]) assert.ok(!re.test(bad), bad);
+  const { isReleaseTag } = await import("../vendor/wanderers-core/index.mjs");
+  for (const t of ["v1.27.0", "v1.24", "1.24.0"]) assert.equal(re.test(t), isReleaseTag(t), t);
+});
+
+test("workflows: actions pinned by SHA, read-only by default, upload is the only writer, vendor in the zip", () => {
+  const rel = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  const tst = readFileSync(new URL("../.github/workflows/test.yml", import.meta.url), "utf8");
+  for (const y of [rel, tst]) {
+    for (const m of y.matchAll(/uses:\s*(\S+)/g)) {
+      if (m[1].startsWith("cocoomg11/wanderers-core/")) { assert.match(m[1], /@v\d+\.\d+\.\d+$/, m[1]); continue; }
+      assert.match(m[1], /@[0-9a-f]{40}$/, `${m[1]} is pinned by SHA`);
+    }
+    assert.match(y, /^permissions:\n {2}contents: read$/m);
+  }
+  assert.equal((rel.match(/contents: write/g) ?? []).length, 1, "one job writes");
+  assert.match(rel, /upload:[\s\S]*contents: write[\s\S]*gh release upload/);
+  assert.match(rel, /vendor\.mjs verify --remote/);
+  assert.match(rel, /zip -r module\.zip [^\n]* vendor [^\n]*\\\n\s*-x 'vendor\/wanderers-core\/config\/\*' 'vendor\/wanderers-core\/vendor\.mjs'/);
+  assert.match(rel, /--ignore-scripts/);
+  assert.match(tst, /module-checks\.yml@v0\.2\.0/);
 });
