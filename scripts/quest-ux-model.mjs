@@ -36,14 +36,19 @@ export function questStamp(name, q) {
   return (h >>> 0).toString(36) + text.length.toString(36);
 }
 
-/** The stored record, cleaned: { v, init, seen: { [questId]: stamp } }. */
+/**
+ * The stored record, cleaned: { v, init, seen: { [questId]: stamp } } (+ `shape`, the quest record version the stamps were made
+ * from, when set: 1.29 re-baselines once when it differs, so the new quest shape doesn't make every quest glow).
+ */
 export function readSeen(raw) {
   let r = raw;
   if (typeof r === "string") { try { r = JSON.parse(r); } catch { r = null; } }
   if (!r || typeof r !== "object" || (r.v !== undefined && r.v !== SEEN_VERSION)) return { v: SEEN_VERSION, init: false, seen: {} };
   const seen = {};
   for (const [k, v] of Object.entries(r.seen ?? {})) if (typeof k === "string" && k && typeof v === "string") seen[k] = v;
-  return { v: SEEN_VERSION, init: !!r.init, seen };
+  const out = { v: SEEN_VERSION, init: !!r.init, seen };
+  if (Number.isInteger(r.shape)) out.shape = r.shape;
+  return out;
 }
 
 /** Whether the quest glows: the record has a baseline and this view isn't the one last seen. */
@@ -59,12 +64,15 @@ export function markSeen(stored, questId, stamp) {
  * The first time on a client (no baseline yet): everything visible now counts as seen, so nothing glows on the first load. Later
  * calls only drop quests that are gone (`live`: [{ id, stamp }] of every quest this user can see).
  */
-export function baseline(stored, live = []) {
-  const s = readSeen(stored);
+/** @param {any} stored @param {Array<{ id: string, stamp: string }>} [live] @param {number} [shape] */
+export function baseline(stored, live = [], shape = undefined) {
+  let s = readSeen(stored);
+  if (shape !== undefined && s.shape !== shape) s = { v: SEEN_VERSION, init: false, seen: {} };
+  if (shape !== undefined) s.shape = shape;
   if (s.init) return cap({ ...s, seen: Object.fromEntries(Object.entries(s.seen).filter(([id]) => live.some(q => q.id === id))) }, live);
-  return cap({ v: SEEN_VERSION, init: true, seen: Object.fromEntries(live.map(q => [q.id, String(q.stamp)])) });
+  return cap({ ...s, v: SEEN_VERSION, init: true, seen: Object.fromEntries(live.map(q => [q.id, String(q.stamp)])) });
 }
-/** @param {{ v: number, init: boolean, seen: Record<string, string> }} s @param {Array<{ id: string }> | null} [live] */
+/** @param {{ v: number, init: boolean, seen: Record<string, string>, shape?: number }} s @param {Array<{ id: string }> | null} [live] */
 function cap(s, live = null) {
   const e = Object.entries(s.seen); if (e.length <= SEEN_MAX) return s;
   const keep = live ? e.filter(([id]) => live.some(q => q.id === id)) : e;

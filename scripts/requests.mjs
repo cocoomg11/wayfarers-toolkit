@@ -44,6 +44,8 @@ export const REQUESTS = defineRequests(/** @type {any} */ ({
   restedRest: { fields: { actorId: id, sceneId: optId }, maxBytes: 256 },
   /** A GM tab that isn't the leader asks the leader to broadcast a notice to everyone (quest objective lines). GM senders only. */
   notifyAll: { fields: { text: { type: "string", max: 300 } }, from: "gm", maxBytes: 1024 },
+  /** Quest log (1.29): a party member picks one of a quest's choice rewards (the GM checks membership and the choice). */
+  questPick: { fields: { questId: id, uuid: { type: "string", max: 300 } }, maxBytes: 1024 },
   /** Map pins: create, update, move or delete (pins-model.mjs decides). */
   mapPin: {
     fields: {

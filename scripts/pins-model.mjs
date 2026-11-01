@@ -337,5 +337,7 @@ export function hiddenToMove(notes = []) {
  * entry (and hides entry-less notes from players), which is why players saw no pins at all in 1.26 (v14). Pins decide by themselves:
  * a pin drawn by its own rule (hidden ones are never Notes since 1.27, so this is everyone), on this client's level when the Note
  * names levels. `levelOk`: the Note is on the level being viewed (true when the scene has no levels).
+ *
+ * 1.29: `questOk` false hides a pin linked to a quest this player can't see (another party's quest, or one not given yet).
  */
-export const pinVisible = ({ pin, isGM, levelOk = true }) => drawn(pin, isGM) && levelOk;
+export const pinVisible = ({ pin, isGM, levelOk = true, questOk = true }) => drawn(pin, isGM) && levelOk && (isGM || !pin?.quest || questOk);

@@ -321,7 +321,9 @@ function pinNoteClass(Base) {
       const lv = this.document.levels; const cur = canvas?.level?.id ?? null;
       const named = lv ? (lv.size ?? lv.length ?? 0) > 0 : false;
       const levelOk = !cur || !named || (typeof lv.has === "function" ? lv.has(cur) : lv.includes(cur));
-      return M.pinVisible({ pin, isGM: game.user.isGM, levelOk });
+      // 1.29: a pin linked to a quest is shown to a player only while they can see the quest (its party's quests only).
+      const questOk = !pin.quest || game.user.isGM || !F.on("questLog") || !!questFor(pin);
+      return M.pinVisible({ pin, isGM: game.user.isGM, levelOk, questOk });
     }
     // Core lets only notes with a journal entry be viewed (double-clicked); a pin has none, so the pin's own rule decides.
     _canView(user) {

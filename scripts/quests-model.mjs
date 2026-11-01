@@ -4,7 +4,8 @@
  * GM-only store (vault.mjs, bucket "quests", keyed by journal id). The public view carries `pub: true`, so the one-time move can
  * tell an old full flag from a new public one.
  *
- * A quest players can't see yet (not given, or hidden) keeps no text at all in the public view: only its status and hidden mark.
+ * A quest players can't see yet (not given, or hidden) keeps no text at all in the public view: only its status and hidden mark
+ * (not even its party, since 1.29).
  */
 
 /**
@@ -36,7 +37,7 @@ export const shown = q => !q.hidden && q.status !== "available";
 /** The public view of a normalized quest `q`. */
 export function publicQuest(q) {
   if (!shown(q)) {
-    return { v: q.v, pub: true, status: q.status, hidden: q.hidden, zone: "", level: "", giver: { name: "", uuid: "" }, summary: "", description: "", objectives: [], rewards: { coin: "", items: [], other: "" }, paid: false, sort: q.sort };
+    return { v: q.v, pub: true, status: q.status, hidden: q.hidden, party: "", zone: "", level: null, levelText: "", giver: { name: "", uuid: "" }, summary: "", description: "", objectives: [], rewards: { coin: "", items: [], choice: [], pick: "", other: "" }, paid: false, sort: q.sort };
   }
   return {
     ...q, pub: true,

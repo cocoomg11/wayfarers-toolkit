@@ -1,5 +1,5 @@
 /**
- * One-time data moves for 1.27.0, run once per world by the leader (the active GM's acting client) after load. Each move is recorded
+ * One-time data moves (1.27.0 onward), run once per world by the leader (the active GM's acting client) after load. Each move is recorded
  * in the GM-only store (bucket "migrations") and is safe to run again (it skips what's already moved). Old data is kept where noted,
  * so going back to 1.26 still finds it; nothing a player wrote is trusted.
  *
@@ -11,6 +11,9 @@
  *   pins1        hidden GM pins (Notes) → GM-only store; their Notes are deleted (the record keeps their id, so revealing restores it)
  *   rested1      characters already Rested from 1.26 get a GM-side rental (they rented before the GM-side record existed)
  *   coinLog1     (1.28.0) the coin log's bucket is created, empty, in the GM-only store (nothing moves; earlier versions logged nothing)
+ *   quests2      (1.29.0) quest record version 2: every quest without a party gets the party actor (players then see it only when they
+ *                own a member of that party), levels like "Lv 4" become numbers (other text is kept), and the journal's flag, page and
+ *                ownership are rewritten. The Parties setting starts as the party actor. Old records keep working until this runs.
  *
  * Undo: `api.migrations.status()` lists what ran; the README (Upgrading to 1.27) says what each move kept.
  */
@@ -28,7 +31,7 @@ import { log } from "./log.mjs";
 const ID = "wayfarers-toolkit";
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 
-export const MOVES = ["inns1", "vault1", "quests1", "pins1", "rested1", "coinLog1"];
+export const MOVES = ["inns1", "vault1", "quests1", "pins1", "rested1", "coinLog1", "quests2"];
 
 async function inns1() {
   let n = 0;
@@ -109,9 +112,20 @@ async function coinLog1() {
   return null; // nothing to tell: an empty log
 }
 
-const RUN = { inns1, vault1, quests1, pins1, rested1, coinLog1 };
+async function quests2(api) {
+  const party = api?.partyActor?.() ?? null;
+  let parties = []; try { parties = game.settings.get(ID, "questParties") ?? []; } catch { }
+  if (party && !(Array.isArray(parties) && parties.length)) await game.settings.set(ID, "questParties", [party.id]);
+  let n = 0;
+  for (const j of Q.all()) if (await Q.upgrade(j, party?.id ?? "")) n++;
+  if (!n) return null;
+  return party ? `${n} quest${n === 1 ? "" : "s"} now belong to ${party.name}: players see a quest only when they own one of its party's characters`
+    : `${n} quest${n === 1 ? "" : "s"} upgraded, but there's no party actor: they're GM-only until you choose a party in the quest log`;
+}
+
+const RUN = { inns1, vault1, quests1, pins1, rested1, coinLog1, quests2 };
 /** Which moves apply with the tools that are on (others wait until their tool is turned on). */
-const wanted = id => ({ inns1: F.on("restedInn"), quests1: F.on("questLog"), pins1: F.on("mapPins"), rested1: F.on("restedInn"), coinLog1: F.on("coinLog"), vault1: true })[id];
+const wanted = id => ({ inns1: F.on("restedInn"), quests1: F.on("questLog"), pins1: F.on("mapPins"), rested1: F.on("restedInn"), coinLog1: F.on("coinLog"), quests2: F.on("questLog"), vault1: true })[id];
 
 /** Leader: runs every move not done yet. Returns the lines worth telling the GM. Never throws. */
 export async function run(api) {
@@ -120,7 +134,7 @@ export async function run(api) {
   for (const id of MOVES) {
     if (!wanted(id) || Vault.migrated(id)) continue;
     try {
-      const line = await RUN[id]();
+      const line = await RUN[id](api);
       await Vault.markMigrated(id);
       if (line) lines.push(line);
       log(`migration ${id}: ${line ?? "nothing to move"}`);
