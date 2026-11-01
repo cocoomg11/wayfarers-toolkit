@@ -197,3 +197,63 @@ export function pinsByScene(scenes) {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- forms, GM writes, quest choices, hit test
+/**
+ * The pin dialog's form object → pin input. Kind and hidden are read only for a GM (a player's pins are always party pins, never
+ * hidden); `by` is never read from a form.
+ */
+export function readForm(f = {}, { isGM = false } = {}) {
+  const out = { label: oneLine(f.label, LABEL_MAX), text: str(f.text, TEXT_MAX), icon: ICONS[f.icon] ? f.icon : "pin", ink: INKS[f.ink] ? f.ink : "iron", quest: isDocId(f.quest) ? f.quest : "" };
+  if (isGM) { out.kind = KINDS.includes(f.kind) ? f.kind : "party"; out.hidden = out.kind === "gm" && (f.hidden === true || f.hidden === "on" || f.hidden === "true"); }
+  else { out.kind = "party"; out.hidden = false; }
+  return out;
+}
+
+/** A GM's new pin: Note data, or { error }. `at`: { x, y, level?, size?, dims? }. The GM's own user id is the author. */
+export function gmNote(input, user, at = {}) {
+  if (!user?.isGM) return { error: "GM only" };
+  const pin = normalize({ ...input, by: user.id });
+  if (!pin.label) return { error: "a pin needs a label" };
+  const p = clampPoint(at, at.dims);
+  return { pin, data: noteData(pin, { ...p, level: at.level ?? null, size: at.size }) };
+}
+
+/** Quests offered in the pin dialog: only those `canSee` allows (never a hidden or ungiven quest for a player), sorted by name. */
+export function questChoices(journals = [], { canSee = () => false, name = j => j?.name } = {}) {
+  return [...journals].filter(j => j && isDocId(j.id) && canSee(j)).map(j => ({ id: j.id, name: String(name(j) ?? "") })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The pin under a canvas point: `pins` [{ id, x, y, size }] → the nearest id within its icon's radius, or null. */
+export function hitPin(pins = [], { x, y } = {}) {
+  let best = null, bestD = Infinity;
+  for (const p of pins) {
+    const r = clampSize(p.size) / 2; const d = Math.hypot(p.x - x, p.y - y);
+    if (d <= r && d < bestD) { best = p.id; bestD = d; }
+  }
+  return best;
+}
+
+/**
+ * Whether this browser should switch on core's map-notes display so pins show: the setting is on, the scene has pins this user
+ * draws, notes are off, and the toolkit hasn't switched them on in this browser before (switched off again later = left off).
+ */
+export const showNotesNow = ({ setting = true, toggle = false, done = false, hasPins = false } = {}) => !!(setting && hasPins && !toggle && !done);
+
+/** A short line about the pins in a world, for the health check: { pins, scenes, hidden }. */
+export function tally(scenes) {
+  let pins = 0, hidden = 0; const groups = pinsByScene(scenes);
+  for (const g of groups) for (const n of g.scene.notes ?? []) { const p = pinOf(n); if (!p) continue; pins++; if (p.hidden) hidden++; }
+  return { pins, scenes: groups.length, hidden };
+}
+
+/** A GM's edit of a pin: everything from `input` (kind and hidden too), keeping the author. Moving a pin to "party" un-hides it. */
+export function gmUpdate(old, input = {}) {
+  const o = normalize(old);
+  return normalize({ ...o, ...input, by: o.by });
+}
+/** The reveal / hide update for a GM pin (party pins can't be hidden). */
+export function revealUpdate(old, hidden) {
+  const o = normalize(old); if (o.kind !== "gm") return null;
+  return noteUpdate({ ...o, hidden: !!hidden });
+}
