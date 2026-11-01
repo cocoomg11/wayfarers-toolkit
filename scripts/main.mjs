@@ -20,6 +20,7 @@ import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import * as Merchant from "./merchant.mjs";
+import * as Shop from "./shop.mjs";
 import { log } from "./log.mjs";
 import * as Pace from "./travel-pace.mjs";
 import * as FlightMap from "./flight-map.mjs";
@@ -71,6 +72,7 @@ const DEFAULTS = {
   trashAutoLoot: true,
   trashGmAddedLoot: true,
   junkSellButton: true,
+  shopChatLine: false,
   itemCompare: true,
   trashUnconscious: false,
   trashWeight: true,
@@ -242,6 +244,7 @@ function registerSettings() {
   // Character pane: weapon sets
   s("weaponSets", "Character pane: Weapon sets", "Melee, Ranged and Utility weapon sets in the character pane; only the set in hand is equipped on the sheet. Off: one Main Hand, Off Hand and Ranged slot, all equipped at once.", Boolean, { onChange: () => Pane.refreshOpen?.() });
   s("weaponSwapCost", "Character pane: Weapon swap cost", "What a weapon-set swap costs in combat. Shown in a chat line when a character in an active combat swaps; nothing is enforced. Outside combat swapping is free and silent.", String, { choices: { free: "Free", attack: "Part of an attack", object: "Object interaction", bonus: "Bonus action", action: "Action" } });
+  s("shopChatLine", "Open shop for players: chat line", "When the GM opens a merchant for players, a whispered chat line tells them (and the GM) that the shop is open.", Boolean);
   s("itemCompare", "Character pane: Item comparison tooltips", "Hovering an item in the character pane (or in a loot pile or merchant, for your character) compares it with what's in its slot or weapon-set hand.", Boolean);
   s("relicClasses", "Character pane: Classes with a relic slot", "dnd5e class identifiers, separated by commas, whose characters get a relic slot in the character pane (for a spellcasting focus or a relic).", String, { onChange: () => Pane.refreshOpen?.() });
   // Travel pace (feature travelPace, with Hex Travel). The party's pace is a world setting everyone reads; only GMs write it.
@@ -799,6 +802,8 @@ export const WCT = {
   /** Map pins: place(), create(input, { scene, x, y }), update, move, remove, reveal (GM), open, list(scene), read(note); undefined when the feature is off. */
   get pins() { return F.on("mapPins") ? Pins.api : undefined; },
   /** 1.28: coin log (GM): entries(), open(), undo(id); undefined when the feature is off. */
+  /** Open shop for players (merchantShop, 1.31): GM only. open(merchant, { users, onlyOnScene }), close(merchant), openedFor(merchant). */
+  get shop() { return F.on("merchantShop") ? gmOnlyApi({ open: (m, opts) => Shop.open(m, opts), close: m => Shop.close(m), openedFor: m => Shop.openedFor(m) }) : undefined; },
   get coinLog() { return F.on("coinLog") ? gmOnlyApi({ entries: () => CoinLog.entries(), open: () => CoinLog.open(), undo: id => CoinLog.undo(id) }) : undefined; },
   /** 1.28: GM: splits the party actor's coin evenly among its members, after a preview. */
   splitCoin(party) { return F.need("splitCoin") && this.gmOnly() ? CoinLog.split(party ? (typeof party === "string" ? game.actors.get(party) ?? game.actors.getName(party) : party) : undefined) : undefined; },
@@ -901,6 +906,7 @@ Hooks.once("init", () => {
   if (F.on("flightMaster")) registerFlightHooks();
   if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
+  if (F.on("merchantShop")) Shop.init();
   if (F.on("bossFrames")) Bosses.init();
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.

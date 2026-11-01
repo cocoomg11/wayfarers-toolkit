@@ -2,6 +2,26 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.31.0
+
+New feature: open a merchant for the players. No data migration; one new feature switch and one new world setting.
+
+**Added**
+- **Open shop for players** (new feature `merchantShop`, on by default, Features tab; needs Item Piles). GM only. A GM's Item Piles merchant window gets **Open for players** and **Close for everyone** in its title bar; merchant tokens get a shop button in the token HUD (click: open, right-click: close for everyone); scripts call `api.shop.open(merchant, { users, onlyOnScene })`, `api.shop.close(merchant)` and `api.shop.openedFor(merchant)` (experimental). The pick dialog (core look) lists connected players with a character they own, all ticked, and an optional *Only players whose tokens are on this scene*. Each chosen player gets the merchant's Item Piles window with their own character as the buyer and seller, so Item Piles' prices, coin and merchant settings apply as usual, and the Sell all junk button and item comparison tooltips appear in it as they do when the player opens it. Players with no character, a character they don't own, who aren't connected or (with the scene option) have no token on the scene are named in a notification; nothing throws.
+  - Item Piles call (checked in Item Piles 3.3.4's source, `src/API/api.js`): `game.itempiles.API.renderItemPileInterface(merchant, { userIds: [userId], inspectingTarget: characterUuid })`, one call per player because Item Piles takes one inspecting target per call; Item Piles sends it to that user's client over its own socket. Close: `unrenderItemPileInterface(merchant, { userIds })`. The toolkit sends no socket message of its own and stores nothing; who it was opened for is kept on the GM's client for Close for everyone (after a reload, Close for everyone goes to every connected player).
+- Setting **Say when a shop opens** (`shopChatLine`, world, default off; Loot › Advanced): a whispered "The shop is open" line to those players and the GM.
+- Health check: an *Open shop for players* line (Loot, junk and phases); the Permissions section counts shops opened for players among the tools that need a character the player owns.
+
+**Tests**: `tests/v131-shop.test.mjs` (user selection, the per-player Item Piles calls and UUID/id checks, close targets, the API's `users` option, feature/panel/permission wiring, source checks: Item Piles only through its API, no socket or flags, every Item Piles call caught).
+
+**Untested in Foundry**
+- With Item Piles 3.3.4 (and its dnd5e module), as GM: Open for players from a merchant window header and from a merchant token's HUD; the dialog lists only connected players with an owned character; unticking one leaves them out; *Only players whose tokens are on this scene* leaves out a player with no token there.
+- On each player's client the merchant window opens with their own character as the buyer; buying and selling move coin and items as usual; an unlinked (token) merchant keeps its own stock; a merchant set closed or with Item Piles' own restrictions behaves as Item Piles decides.
+- Sell all junk button and comparison tooltips work in the pushed window.
+- Close for everyone (header and HUD right-click) closes it on those players' screens and not on the GM's; after a GM reload it closes for every connected player.
+- A player with no character, a character they don't own, or offline: named in the GM's warning, no error in either console. `api.shop.open(m, { users: "Name" })` and `{ users: null }` from a macro; a player calling `api.shop.open` gets "GM only".
+- *Say when a shop opens* on: one whisper to the chosen players and the GM. Feature off: no header buttons, no HUD button, `api.shop` undefined.
+
 ## 1.30.2
 
 Patch. No data, setting or API changes.

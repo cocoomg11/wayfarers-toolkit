@@ -33,7 +33,9 @@ export const FEATURES = [
   { id: "splitCoin", label: "Split coin", hint: "GM: share the party actor's coin evenly among its members, with a preview first. What doesn't divide evenly stays with the party." },
   { id: "innRestOffer", label: "Rest after renting rooms", hint: "After you rent rooms, the toolkit offers to long-rest everyone who rented and to move world time on (8 hours unless you change it). Needs Rested at the inn." },
   { id: "travelConfirm", label: "Cost and time before travel", hint: "Hex Travel and flights show what the trip costs (gold, silver, copper), how long it takes and who pays, and ask before going." },
-  { id: "moduleHooks", label: "Hooks for other modules", hint: "Tells other modules (for example a session log) when quests change and when the party travels, through Foundry hooks. Nothing shows at the table." }
+  { id: "moduleHooks", label: "Hooks for other modules", hint: "Tells other modules (for example a session log) when quests change and when the party travels, through Foundry hooks. Nothing shows at the table." },
+  // 1.31.0
+  { id: "merchantShop", label: "Open shop for players", hint: "GM: open an Item Piles merchant on players' screens, each with their own character as the buyer, from the merchant window's header or the merchant token's HUD, and close it for everyone again. Needs Item Piles." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 /**

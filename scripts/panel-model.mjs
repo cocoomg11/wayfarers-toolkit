@@ -34,6 +34,7 @@ export const FEATURE_CARDS = [
   { id: "innRestOffer", icon: "fa-solid fa-moon", text: "After renting rooms, long-rest everyone who rented in one click and move time on. Needs Rested at the inn." },
   { id: "travelConfirm", icon: "fa-solid fa-signs-post", text: "Before Hex Travel or a flight: the cost, the time and who pays, with a confirm." },
   { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
+  { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -55,7 +56,7 @@ export const TABS = [
   {
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
-    advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashWeight", "vendorTrash"], ["trashWeightMult", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
+    advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["shopChatLine", "merchantShop"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashWeight", "vendorTrash"], ["trashWeightMult", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
       ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null], ["showModuleData", null]]
   },
   {
@@ -105,6 +106,7 @@ export const LABELS = {
   partySize: ["Party size", "How many characters are in the party. Boss coin grows with it, and bigger parties get an extra boss drop."],
   lootRollSeconds: ["Seconds to choose Need / Greed / Pass", "How long players get to pick on a loot roll. You can always close a roll early."],
   lootHistory: ["Keep a loot roll history", "Every finished loot roll is recorded: the item, who chose Need, Greed or Pass, the rolls and who got it. See it with the Loot history button below. Only GMs see it."],
+  shopChatLine: ["Say when a shop opens", "When you open a merchant for players, they (and you) get a whispered chat line: The shop is open."],
   junkSellButton: ["Sell all junk button", "Item Piles merchant windows get a Sell all junk button that sells every grey item the character carries at the merchant's prices, after asking. Equipped items, favourites and weapon-set items are never sold."],
   trashUnconscious: ["Unconscious creatures can be looted", "A creature knocked unconscious can be looted as if it had died."],
   trashItemPiles: ["Loot stays on the body (Item Piles)", "With the Item Piles module, players open the body and take the loot themselves. Off, or without Item Piles, you get a chat card with a Give to Party button."],
@@ -250,7 +252,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.

@@ -68,3 +68,9 @@
 .wct-junk-list { max-height: 260px; overflow-y: auto; margin: 4px 0; padding-left: 1.2em; }
 
 .wct-chat-card .wct-loot-nogm.wct-show { display: block; }
+
+/* Open shop for players (1.31): header buttons on a GM's merchant window and the pick dialog. */
+.item-piles-merchant-sheet .window-header .wct-shop-open,
+.item-piles-merchant-sheet .window-header .wct-shop-close { white-space: nowrap; }
+.wct-dialog .wct-shop-users { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; }
+.wct-dialog .wct-shop-row { display: flex; align-items: center; gap: 6px; }

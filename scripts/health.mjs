@@ -233,6 +233,12 @@ function lootExtras() {
     else if (!modActive("item-piles")) out.push(warn("Sell all junk button: on, but Item Piles isn't active, so there are no merchant windows to put it on."));
     else out.push(ok("Sell all junk button: on (Item Piles merchant windows; a GM must be connected for the sale)."));
   }
+  if (F.on("merchantShop")) {
+    const IP = /** @type {any} */ (game).itempiles?.API;
+    if (!modActive("item-piles")) out.push(warn("Open shop for players: on, but Item Piles isn't active, so there are no merchants to open."));
+    else if (!IP?.renderItemPileInterface || !IP?.unrenderItemPileInterface) out.push(bad("Open shop for players: this Item Piles version has no renderItemPileInterface / unrenderItemPileInterface."));
+    else out.push(ok(`Open shop for players: on (merchant window header and merchant token HUD; chat line ${get("shopChatLine") ? "on" : "off"}).`));
+  } else out.push(off("Open shop for players: off."));
   if (F.on("bossFrames")) {
     const marked = [];
     for (const t of allTokens()) { try { if (phasesOf(t).length) marked.push(t.name); } catch { } }

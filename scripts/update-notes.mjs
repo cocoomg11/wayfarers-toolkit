@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.31.0",
+    changes: [
+      { text: "New: Open shop for players. Open an Item Piles merchant on your players' screens, each shopping with their own character, from the merchant window's title bar or the merchant token's HUD, and close it for everyone again. Switch it off on the control panel's Features tab.", feature: "merchantShop" }
+    ],
+    actions: []
+  },
+  {
     version: "1.30.2",
     changes: [
       "Fixed: the loot roll card no longer says \"A GM needs to be connected.\" when a GM is online."

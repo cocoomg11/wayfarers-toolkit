@@ -47,7 +47,7 @@ export function featureChecks(facts) {
   }
 
   // Characters: loot rolls, the character pane, looting bodies and Sell all junk act through the player's own character.
-  const needsChar = [on("restedInn") && "Rested at the inn", on("lootRolls") && "loot rolls", on("characterPane") && "the character pane", on("vendorTrash") && s.trashItemPiles && facts.itemPiles && "looting bodies", on("vendorTrash") && s.junkSellButton && facts.itemPiles && "Sell all junk"].filter(Boolean);
+  const needsChar = [on("restedInn") && "Rested at the inn", on("lootRolls") && "loot rolls", on("characterPane") && "the character pane", on("vendorTrash") && s.trashItemPiles && facts.itemPiles && "looting bodies", on("vendorTrash") && s.junkSellButton && facts.itemPiles && "Sell all junk", on("merchantShop") && facts.itemPiles && "shops opened for players"].filter(Boolean);
   if (needsChar.length) {
     if (notOwned.length) out.push(L("characters", "bad", `Assigned a character they don't own: ${list(notOwned)}. ${needsChar.join(", ").replace(/^./, c => c.toUpperCase())} won't work for them.`, "Give each player Owner on their character (right-click the actor › Ownership), or assign them a character they own (Configure Player)."));
     if (noChar.length) out.push(L("characters", "warn", `No character to act with: ${list(noChar)}. They're left out of ${needsChar.join(", ")}.`, "Assign each player a character (User Configuration › Character), or give them Owner on one."));

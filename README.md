@@ -37,6 +37,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Rest after renting rooms** | After renting, long-rest everyone who rented in one click and move world time on. |
 | **Cost and time before travel** | Hex Travel and flights show cost, time and who pays before going. |
 | **Hooks for other modules** | Foundry hooks when quests change and when the party travels (see [Hooks](#hooks)). |
+| **Open shop for players** | GM: open an Item Piles merchant on the players' screens, each shopping with their own character (normal Item Piles prices and coin), from the merchant window or its token HUD, and close it for everyone again. See [Open shop for players](#open-shop-for-players). |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Contents
@@ -348,6 +349,18 @@ With Item Piles, a merchant window opened for a character (a player's own, or th
 Never sold: equipped items, items marked as favourites on the dnd5e sheet, items in any of the character's [weapon sets](#weapon-sets), containers, and anything the merchant would pay nothing for. The confirm says which junk was kept back and why. If the merchant won't buy one of the items, the rest are still sold, one by one, and you're told which wasn't. Merchants set to *purchase only* get no button. A GM has to be connected (Item Piles carries out trades on a GM's client).
 
 Switch it off with **Sell all junk button** (control panel › Loot › Advanced). From a macro: `api.sellJunk(character, merchantActorOrToken)`.
+
+### Open shop for players
+
+With **Open shop for players** on (a feature of its own, on by default; needs Item Piles), the GM can put a merchant in front of the players instead of each of them opening it:
+
+- **Merchant window**: a GM's Item Piles merchant window gets **Open for players** and **Close for everyone** in its title bar.
+- **Token HUD**: merchant tokens get a shop button (GM only). Click: open for players. Right-click: close for everyone.
+- **Macro**: `api.shop.open(merchantTokenOrActor, { users })` and `api.shop.close(merchant)` (GM only). Leave `users` out to get the pick dialog; `users: null` means every connected player with a character; otherwise a user, user id, user name or a list of them. `{ onlyOnScene: true }` skips players whose character has no token on the scene being viewed. `api.shop.openedFor(merchant)` lists the user ids it was last opened for from this client.
+
+The pick dialog lists the connected players who have a character they own, all ticked, with an optional **Only players whose tokens are on this scene**. Each chosen player gets the merchant's own Item Piles window with **their own character** as the buyer and seller, so prices, coin, the merchant's settings and Item Piles' trades work as when they open it themselves; the **Sell all junk** button and the item comparison tooltips appear in it as usual. Players with no character, a character they don't own, or who aren't connected are left out and named in a notification; nothing errors. Item Piles sends the window to the players' screens itself (its `renderItemPileInterface` API); the toolkit sends no socket message and stores nothing. **Close for everyone** closes the merchant on the players it was opened for from this GM's client (after a reload: on every connected player).
+
+**Say when a shop opens** (control panel › Loot › Advanced, off by default) whispers "The shop is open" to those players and the GM.
 
 ### With Item Piles: loot the bodies
 
@@ -900,7 +913,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty`, `moneyHTML`, `coinRatio` (1.30), health lines' `fix` in `healthReport()` (1.30) | experimental |
+| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty`, `moneyHTML`, `coinRatio` (1.30), `shop` (`open`, `close`, `openedFor`; 1.31), health lines' `fix` in `healthReport()` (1.30) | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
