@@ -14,6 +14,7 @@ import * as History from "./history.mjs";
 import { phasesOf } from "./bosses.mjs";
 import * as Perm from "./permissions.mjs";
 import * as Quests from "./quests.mjs";
+import * as Pins from "./pins.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -248,7 +249,7 @@ function permissionFacts(api) {
   }
   return {
     on: F.on, socket: game.modules.get(ID)?.socket !== false, itemPiles: modActive("item-piles"),
-    settings: { playerFlights: !!get("playerFlights"), paceRequests: !!get("paceRequests"), trashItemPiles: !!get("trashItemPiles"), junkSellButton: !!get("junkSellButton"), innRequests: !!get("innRequests") },
+    settings: { playerFlights: !!get("playerFlights"), paceRequests: !!get("paceRequests"), trashItemPiles: !!get("trashItemPiles"), junkSellButton: !!get("junkSellButton"), innRequests: !!get("innRequests"), pinsPlayers: !!get("pinsPlayers") },
     players, party: party ? { name: party.name, playerLevel: lvl(party) } : null, macros, quests
   };
 }
@@ -319,6 +320,19 @@ function places(api) {
   return out.length ? out : [off("None of the 1.22 tools is on.")];
 }
 
+/** Map pins (1.26). */
+function mapPins() {
+  if (!F.on("mapPins")) return [off("Map pins: off.")];
+  const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
+  const out = [];
+  const s = Pins.status();
+  out.push(ok(`Map pins: ${plural(s.pins, "pin")} on ${plural(s.scenes, "scene")}${s.hidden ? `, ${s.hidden} hidden from players` : ""}; players ${s.players ? "can" : "can't"} place pins.`));
+  if (!s.classOk) out.push(warn("Map pins: another module replaced the map note drawing after the toolkit, so hidden GM pins may show to players as plain notes, and a pin's card may not open on double-click. Check the module order, or keep GM pins unhidden."));
+  if (s.players && !activeGM()) out.push(off("Map pins: no GM is online right now, so players' pin changes wait for one (they're told nothing was saved)."));
+  try { const key = canvas?.notes?.constructor?.TOGGLE_SETTING ?? "notesDisplayToggle"; if (game.settings.get("core", key) === false && !get("pinsShowNotes")) out.push(off("Map pins: map notes are turned off in this browser (Journal Notes controls › Toggle notes), so pins only show while that layer is open.")); } catch { }
+  return out;
+}
+
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
@@ -326,7 +340,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

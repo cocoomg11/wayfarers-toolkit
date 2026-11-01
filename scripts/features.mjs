@@ -26,7 +26,8 @@ export const FEATURES = [
   { id: "permissionChecks", label: "Permission checks", hint: "The health check also checks the permissions each tool turned on relies on (characters players own, script macros, the party actor, quest journals, the module socket) and says how to fix what's missing." },
   { id: "zoneTitles", label: "Zone title cards", hint: "A title card (the scene's title, an optional subtitle and sound) fades in over the map when a scene is activated, or each time one is viewed. Per-scene title, subtitle and sound in the scene configuration." },
   { id: "whosOnline", label: "Who's online", hint: "A board of who's connected, with their character's portrait and name: a small panel on scenes marked Hub, and a window. Says \"Everyone's here\" and fires a hook world tiles and macros can listen to." },
-  { id: "restedInn", label: "Rested at the inn", hint: "Scenes marked as an Inn with a room price. Rent rooms (GM; players can ask) and the characters are Rested: their next long rest grants Heroic Inspiration (or an extra Hit Die, or temporary hit points), then Rested clears." }
+  { id: "restedInn", label: "Rested at the inn", hint: "Scenes marked as an Inn with a room price. Rent rooms (GM; players can ask) and the characters are Rested: their next long rest grants Heroic Inspiration (or an extra Hit Die, or temporary hit points), then Rested clears." },
+  { id: "mapPins", label: "Map pins", hint: "The party's own marks on any scene, in an inked, hand-drawn style: a label, a short note, a mark (pin, flag, camp, cave, …), an ink colour and an optional quest link. Players place and change party pins through the GM's client; GM pins can stay hidden until revealed." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 const byId = id => FEATURES.find(f => f.id === id);

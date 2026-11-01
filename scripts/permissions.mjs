@@ -4,7 +4,7 @@
  * health check gathers the facts (health.mjs) and nothing here touches Foundry.
  *
  * facts: {
- *   on(id) → feature on, settings: { playerFlights, paceRequests, trashItemPiles, junkSellButton, innRequests },
+ *   on(id) → feature on, settings: { playerFlights, paceRequests, trashItemPiles, junkSellButton, innRequests, pinsPlayers },
  *   socket: the module's socket is on (module.json), itemPiles: Item Piles active,
  *   players: [{ name, active, character: name | null, characterOwned: bool, ownsAnyCharacter: bool, can: { MACRO_SCRIPT, ... } }],
  *   party: null | { name, playerLevel (lowest ownership any player has: 0 none … 3 owner) },
@@ -31,6 +31,7 @@ export function featureChecks(facts) {
   if (on("lootRolls")) socketUsers.push("Need / Greed / Pass choices");
   if (on("travelPace") && on("hexTravel") && s.paceRequests) socketUsers.push("travel pace requests");
   if (on("questLog")) socketUsers.push("quest notices");
+  if (on("mapPins") && s.pinsPlayers) socketUsers.push("players' map pins");
   if (on("restedInn")) socketUsers.push(s.innRequests ? "room requests and Rested long rests" : "Rested long rests");
 
   // Socket: the module's channel between players and the active GM.

@@ -29,6 +29,7 @@ import { DEFAULT_CURVE, curveText } from "./gold-model.mjs";
 import * as ZoneTitles from "./zone-titles.mjs";
 import * as Online from "./online.mjs";
 import * as Inn from "./inn.mjs";
+import * as Pins from "./pins.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -240,6 +241,8 @@ function registerSettings() {
   Gold.registerSettings();
   // 1.22: zone title cards, who's online, rested at the inn (registered whether the feature is on or not, like every feature's settings).
   ZoneTitles.registerSettings(); Online.registerSettings(); Inn.registerSettings();
+  // 1.26: map pins.
+  Pins.registerSettings();
   // Before 1.16 the GM kept a players' copy of the Flight Routes page here. Unused now; registered so Remove toolkit data resets it.
   game.settings.register(ID, "flightCache", { scope: "world", config: false, type: Object, default: { pts: [], routes: [] } });
   // The flight network (points, routes, fares). World scope: every client reads it, only GMs write it (the editor or api.flight).
@@ -726,6 +729,8 @@ export const WCT = {
   /** Who's online numbers: read() → { entries, expected, present, all, missing }; resetPosition() puts this user's panel back (1.25); undefined when the feature is off. */
   get online() { return F.on("whosOnline") ? { read: () => Online.read(), open: () => Online.open(), refresh: () => Online.refresh(), resetPosition: () => Online.resetPosition() } : undefined; },
   /** GM: the Rent rooms dialog for a scene (default the one you're viewing), optionally for given actors. Players: ask the GM. */
+  /** Map pins: place(), create(input, { scene, x, y }), update, move, remove, reveal (GM), open, list(scene), read(note); undefined when the feature is off. */
+  get pins() { return F.on("mapPins") ? Pins.api : undefined; },
   rentRooms(opts = {}) { return F.need("restedInn") ? Inn.rentRooms(opts) : undefined; },
   /** Rested at the inn: inn(scene), rested(actor), clear(actors) (GM), candidates(scene); undefined when the feature is off. */
   get inn() { return F.on("restedInn") ? { inn: scene => Inn.innFor(scene ?? canvas?.scene), rested: Inn.rested, clear: actors => Inn.clearRested(actors), candidates: scene => Inn.candidates(scene ?? canvas?.scene), rent: opts => Inn.rentRooms(opts) } : undefined; },
@@ -821,6 +826,7 @@ Hooks.once("init", () => {
   if (F.on("zoneTitles")) ZoneTitles.init();
   if (F.on("whosOnline")) Online.init();
   if (F.on("restedInn")) Inn.init(WCT);
+  if (F.on("mapPins")) Pins.init();
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -846,6 +852,7 @@ Hooks.once("ready", () => {
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("restedInn")) Inn.ready();
+  if (F.on("mapPins")) Pins.ready();
   if (F.on("whosOnline")) Online.refresh();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the
   // update notes (an upgrade posts its card; a new world just stores the version).

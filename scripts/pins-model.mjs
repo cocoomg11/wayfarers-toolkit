@@ -31,7 +31,8 @@ export const INKS = {
   green: { label: "Verdigris", hex: "#2f6a4f" },
   violet: { label: "Oak-gall violet", hex: "#5a3566" }
 };
-export const SIZE = { min: 24, max: 96, def: 40 };
+/** Note iconSize: core requires at least 32. */
+export const SIZE = { min: 32, max: 96, def: 40 };
 
 const str = (v, max) => String(v ?? "").replace(/\r\n?/g, "\n").trim().slice(0, max);
 const oneLine = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);

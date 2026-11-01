@@ -10,7 +10,7 @@ export const MODULE_ID = "wayfarers-toolkit";
 export const FORMAT = 1;
 
 /** Kept out of export and import: stored records and bookkeeping, not settings someone chose. */
-export const SKIP = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots"]);
+export const SKIP = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown"]);
 
 /** Settings → the export object. `defs`: [{ key, scope: "world" | "client" | "user", value }]. */
 export function buildExport(defs, { version = "", exported = "" } = {}) {

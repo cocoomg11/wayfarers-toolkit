@@ -29,6 +29,7 @@ export const FEATURE_CARDS = [
   { id: "zoneTitles", icon: "fa-solid fa-signs-post", text: "The scene's name fades in over the map when you activate it, with an optional subtitle and sound." },
   { id: "whosOnline", icon: "fa-solid fa-users", text: "Who's connected, with their character's portrait, on scenes you mark Hub. Says \"Everyone's here\" when the party is complete." },
   { id: "restedInn", icon: "fa-solid fa-bed", text: "Rent rooms at an inn scene; the characters wake from their next long rest with Heroic Inspiration (or an extra Hit Die, or temporary hit points)." },
+  { id: "mapPins", icon: "fa-solid fa-map-pin", text: "The party marks the map: inked pins with a label and a note, on any scene. Your own pins can stay hidden until you reveal them." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -64,7 +65,7 @@ export const TABS = [
     id: "places", label: "Places", icon: "fa-solid fa-signs-post", anchor: "places-tab",
     basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["onlineCount", "whosOnline"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
     advanced: [["zoneTitleAll", "zoneTitles"], ["zoneTitleSeconds", "zoneTitles"], ["zoneTitleStyle", "zoneTitles"], ["zoneTitleSound", "zoneTitles"], ["zoneTitleVolume", "zoneTitles"], ["zoneTitleOnLoad", "zoneTitles"],
-      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["onlineDrag", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"]]
+      ["onlineList", "whosOnline"], ["onlinePosition", "whosOnline"], ["onlineDrag", "whosOnline"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"], ["pinsPlayers", "mapPins"], ["pinsEditAll", "mapPins"], ["pinsDimDone", "mapPins"], ["pinsSize", "mapPins"], ["pinsPaper", "mapPins"], ["pinsShowNotes", "mapPins"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -149,6 +150,12 @@ export const LABELS = {
   innPayFrom: ["Rooms are paid from", "The party actor's coin, or each character pays for their own room."],
   innLastsAnywhere: ["Rested lasts until the next long rest anywhere", "Off: a Rested character who long-rests away from an Inn scene loses Rested without the benefit."],
   innStatus: ["Rested icon on tokens", "Rested characters also get a Rested status effect (a sleep icon) on their token. Reloads Foundry."],
+  pinsPlayers: ["Players can place map pins", "Players get the Map pin tool and can add, change, move and delete the party's pins. A GM has to be logged in: the GM's client saves them."],
+  pinsDimDone: ["Fade pins of finished quests", "A pin linked to a completed or failed quest is drawn faded."],
+  pinsEditAll: ["Players can change any party pin", "Off: a player can only change, move or delete the party pins they placed themselves."],
+  pinsSize: ["Pin size", "How big new pins are on the map, in pixels (32 to 96)."],
+  pinsPaper: ["Parchment behind pins", "A small parchment disc behind each pin so the ink reads on dark maps. Reloads Foundry."],
+  pinsShowNotes: ["Show map notes when a scene has pins", "Turns on Foundry's map notes display once in each browser the first time it shows a scene with pins. Anyone can turn it off again in the Journal Notes controls."],
   innRequests: ["Players can ask for rooms", "On an Inn scene, a player's Rent Rooms macro sends you a request with a button to rent."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
@@ -232,7 +239,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn", "mapPins"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
@@ -248,7 +255,7 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
