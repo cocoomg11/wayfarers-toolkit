@@ -15,7 +15,9 @@ export const MAX_WAIT_MS = 6000;
  * A part is { kind: "trash" | "boss", rows: [html], coin, value, flag } where `flag` is that card's own flag
  * (trash: { drops?, coin, value?, piles?, dungeon, given }; boss: { token, piles, drops, coin, given }).
  */
+/** @param {any[]} [parts] */
 export function mergeParts(parts = []) {
+  /** @type {{ trash: any, boss: any }} */
   const out = { trash: null, boss: null };
   for (const p of parts) {
     if (p.kind === "trash") {
@@ -38,7 +40,10 @@ export function mergeParts(parts = []) {
   return out;
 }
 
-let pending = []; let timer = null; let first = 0;
+/** @type {any[]} */
+let pending = [];
+/** @type {any} */
+let timer = null; let first = 0;
 const gmIds = () => game.users.filter(u => u.isGM).map(u => u.id);
 
 /**

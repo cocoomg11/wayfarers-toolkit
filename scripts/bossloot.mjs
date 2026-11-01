@@ -52,6 +52,7 @@ export function resultUuid(r) {
  * "empty" (the table has no result that can drop) or "items" (the draw produced no item because the items it points at are missing).
  * Pure: `tableFound`, `usable` (results with weight > 0), `items` (resolved drops) and `missing` (results whose item wasn't found).
  */
+/** @param {{ tableFound?: boolean, usable?: number, items?: number, missing?: number }} [opts] */
 export function fallbackReason({ tableFound, usable = 1, items = 0, missing = 0 } = {}) {
   if (!tableFound) return "table";
   if (!usable) return "empty";
@@ -161,7 +162,7 @@ const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor
 
 /** Draws a creature's boss loot: { table, flag, items: [{ uuid, name, img, data }], nothing: [labels] }. Nothing is written. */
 export async function draw(target) {
-  const flag = get(target); const table = await tableOf(flag);
+  const flag = /** @type {any} */ (get(target)); const table = await tableOf(flag);
   if (!table) return null;
   const pr = partyRules();
   const usableN = [...table.results].filter(r => (Number(r.weight ?? 1) || 0) > 0).length;
@@ -194,7 +195,9 @@ export async function mapLimit(list, limit, fn) {
   return out;
 }
 /** One health check resolves each UUID once even when several bosses share a table (cleared after a short while). */
-const uuidCache = new Map(); let uuidCacheT = null;
+const uuidCache = new Map();
+/** @type {any} */
+let uuidCacheT = null;
 function resolveCached(uuid) {
   if (!uuidCache.has(uuid)) uuidCache.set(uuid, Promise.resolve().then(() => fromUuid(uuid)).catch(() => null));
   clearTimeout(uuidCacheT); uuidCacheT = setTimeout(() => uuidCache.clear(), 30000);
@@ -272,7 +275,7 @@ async function dropOne(doc, api, { auto = false } = {}) {
   if (!lootable(doc) || !get(doc)) return null;
   if (drawnFlag(doc)) { if (!auto) ui.notifications.info(`Boss loot: ${doc.name} has already dropped its loot (Reset loot to draw again).`); return null; }
   if (Trash.isNoLoot(doc)) { if (!auto) ui.notifications.info(`Boss loot: ${doc.name} is marked No loot.`); return null; }
-  const d = await draw(doc).catch(() => null);
+  const d = /** @type {any} */ (await draw(doc).catch(() => null));
   const why = fallbackReason({ tableFound: !!d, usable: d?.usable ?? 0, items: d?.items.length ?? 0, missing: d?.missing.length ?? 0 });
   if (why) return fallback(doc, api, why, d, { auto });
   const piles = Trash.usePiles(); const IP = piles ? Trash.itemPiles() : null;
@@ -324,6 +327,7 @@ ${!piles && !empty ? `<button type="button" data-wct-action="give-bossloot"><i c
 }
 
 /** GM: manual drop for the given (or selected) tokens. Tokens that already dropped are skipped (Reset loot first). */
+/** @param {any} api @param {any} [tokens] */
 export async function drop(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [...game.user.targets];
@@ -363,6 +367,7 @@ function tokensFor(actor) {
 
 // ---------------------------------------------------------------- preview
 /** GM: whispers a card per selected (or given) token or actor: table, draws, every result with its weight and its chance per draw. */
+/** @param {any} api @param {any} [targets] */
 export async function preview(api, targets = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (targets && !Array.isArray(targets)) targets = [targets];
@@ -400,10 +405,12 @@ export async function preview(api, targets = null) {
  * `folder` (a Folder, its id or name) limits it to actors in that folder. Existing links are kept unless `overwrite`.
  * Returns { linked: [{ actor, table }], skipped: [{ actor, why }] } and reports in a notification and a GM whisper.
  */
+/** @param {any} api @param {{ folder?: any, overwrite?: boolean, quiet?: boolean }} [opts] */
 export async function autoLink(api, { folder = null, overwrite = false, quiet = false } = {}) {
   if (!game.user.isGM) { ui.notifications.warn("GM only."); return null; }
   const byOwner = new Map();
   for (const t of game.tables) { const n = tableOwnerName(t.name); if (n && !byOwner.has(n)) byOwner.set(n, t); }
+  /** @type {any} */
   let fid = null;
   if (folder) { const f = folder?.id ? folder : game.folders.get(folder) ?? game.folders.find(x => x.type === "Actor" && x.name === folder); fid = f?.id ?? "__none__"; }
   const linked = []; const skipped = [];
@@ -430,7 +437,7 @@ export async function openDialog(api, target) {
   if (!game.user.isGM) return;
   const doc = tokenDoc(target); const actor = actorOf(target); if (!actor) return;
   const worldActor = doc?.actorLink === false ? game.actors.get(doc.actorId) : null;
-  const cur = get(target) ?? {};
+  const cur = /** @type {any} */ (get(target) ?? {});
   const tables = [...game.tables].sort((a, b) => a.name.localeCompare(b.name));
   const known = tables.some(t => t.uuid === cur.table);
   const content = `<p class="hint">Results that point at items drop those items; text results drop nothing. A result's weight is its relative chance. Drag a roll table (from the sidebar or a compendium) onto the box below to use it.</p>

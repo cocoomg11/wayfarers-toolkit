@@ -67,6 +67,7 @@ function cardHTML(st) {
 // ---------------------------------------------------------------- GM side
 /** Records a finished roll in the loot history (when it's kept). Plain text only. */
 const plain = s => String(s ?? "").replace(/<[^>]*>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+/** @param {any} st @param {string} outcome @param {any} [who] @param {string} [note] */
 function remember(st, outcome, who = null, note = "") {
   try { History.record(makeEntry(st, { outcome, who, note: plain(note) })); } catch (e) { console.warn(`${ID} | loot history`, e); }
 }
@@ -131,6 +132,7 @@ async function moveTo(item, actor) {
  * Who hears "You won": every non-GM user who owns the receiving actor or has it as their assigned character (the same way a roller's
  * character is found), plus `extra` (the user who won the roll). A party actor with no player owners gets nobody. Pure over `users`.
  */
+/** @param {any} actor @param {any} [users] @param {any} [extra] */
 export function winnerRecipients(actor, users = game.users, extra = null) {
   const ids = new Set();
   if (actor) for (const u of users) if (!u.isGM && ((u.character?.id ?? u.character) === actor.id || actor.testUserPermission?.(u, "OWNER"))) ids.add(u.id);
@@ -266,6 +268,7 @@ function onRender(message, html) {
     span.textContent = left ? `${left}s left` : "Time's up";
     if (!left) clearInterval(iv);
   };
+  /** @type {any} */
   let iv = null; tick(); iv = setInterval(tick, 1000);
 }
 

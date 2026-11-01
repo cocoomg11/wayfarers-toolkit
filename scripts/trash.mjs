@@ -29,6 +29,7 @@ const chance = p => Math.random() < p;
 
 /** The trash pool: every grey item in the configured compendiums, indexed once per session on first use (a promise, so calls made
  * while the index is loading share one scan). Each entry carries its material tags (trash-rules.mjs). */
+/** @type {Promise<any[]> | null} */
 let POOL = null;
 export function packIds() {
   const set = String(game.settings.get(ID, "trashPacks") || "").split(/[,\s]+/).filter(Boolean);
@@ -64,7 +65,10 @@ export const RULES_PAGE = "Vendor Trash Rules";
 /** The rules page's starting content, created by Run setup in the tracker journal. */
 export const RULES_PAGE_HTML = `<h2>Vendor Trash Rules</h2><p>Extra drop rules for this world. Each row applies to every creature whose name, type or subtype contains <em>Creature match</em> (not case-sensitive; <strong>*</strong> matches every creature). Separate list entries with commas.</p><ul><li><strong>Allow tags</strong>: materials the creature may also drop: ${R.ALL_TAGS.join(", ")}. <em>gear</em> lets it drop worn weapons and armour, <em>coin</em> makes it carry coin.</li><li><strong>Allow items</strong>: parts of item names it always may drop (and prefers).</li><li><strong>Deny items</strong>: parts of item names it never drops.</li><li><strong>Family words</strong>: words that tie items to this creature: an item with that word in its name only drops from creatures with a row (or name) carrying it.</li></ul><p>Rows with an unknown tag or no creature are skipped and the GM is warned. Delete the example rows if you don't want them.</p><table><thead><tr><th>Creature match</th><th>Allow tags</th><th>Allow items</th><th>Deny items</th><th>Family words</th></tr></thead><tbody><tr><td>ember</td><td>elemental</td><td></td><td></td><td></td></tr><tr><td>swamp</td><td>plant</td><td></td><td></td><td></td></tr></tbody></table>`;
 
-let RULES = null; let FAMS = null;
+/** @type {any[] | null} */
+let RULES = null;
+/** @type {Set<string> | null} */
+let FAMS = null;
 /** Forgets the parsed rules page (re-read on the next roll). */
 export function resetRules() { RULES = null; FAMS = null; }
 /** Forgets the world's family words (creature names changed). */
@@ -160,6 +164,7 @@ export async function preview(target, n = 20) {
  * GM: whispers one compact preview card per selected (or given) token: kind, CR band, materials allowed and denied, matched rules,
  * pool size and band widening, the token's current pre-rolled drop and coin (or "looted"), a sample of possible drops and the coin odds.
  */
+/** @param {any} api @param {any} [tokens] @param {number} [n] */
 export async function showPreview(api, tokens = null, n = 12) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [...game.user.targets];
@@ -244,7 +249,7 @@ async function trashItemData(uuid, value, cpVal) {
 function weightEnv() {
   let defaultUnits = "lb"; try { if (game.settings.get("dnd5e", "metricWeightUnits")) defaultUnits = "kg"; } catch { /* not dnd5e or no setting */ }
   const conversion = { ...R.WEIGHT_UNIT_LB };
-  for (const [k, v] of Object.entries(globalThis.CONFIG?.DND5E?.weightUnits ?? {})) if (Number(v?.conversion) > 0) conversion[k] = Number(v.conversion);
+  for (const [k, v] of Object.entries(/** @type {any} */ (globalThis).CONFIG?.DND5E?.weightUnits ?? {})) if (Number(v?.conversion) > 0) conversion[k] = Number(v.conversion);
   return { defaultUnits, conversion };
 }
 /** `system.weight` for a trash item that has none (item data or document), or null: the setting is off, it already weighs something, or nothing applies. */
@@ -285,6 +290,7 @@ const lootable = doc => doc?.actor && !["character", "group"].includes(doc.actor
  * wins over its actor's; so a token can opt back in when its actor is marked. Pure: takes the flag values (undefined when unset).
  * Returns { on, source: "token" | "actor" | null }.
  */
+/** @param {{ token?: any, actor?: any }} [opts] */
 export function resolveNoLoot({ token, actor } = {}) {
   if (token === true || token === false) return { on: token, source: "token" };
   if (actor === true) return { on: true, source: "actor" };
@@ -310,6 +316,7 @@ const hasPreRoll = doc => !!rolled(doc) && !doc.getFlag(ID, "looted") && !isPile
  * `{ actor: true }`, which marks its world actor (every token of it). Turning it on removes pre-rolled trash still waiting on the
  * affected tokens (no reroll). Turning a token off while its actor is marked sets an explicit opt-in on that token.
  */
+/** @param {any} api @param {any} [targets] @param {boolean} [on] @param {{ actor?: boolean }} [opts] */
 export async function setNoLoot(api, targets = null, on = true, { actor: onActor = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   targets ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [];
@@ -413,9 +420,10 @@ export const handLoot = (actor, all = allLootableOf(actor)) => actor?.items?.fil
  * creating user is a GM and it's this client, the actor is an NPC that wasn't created a moment ago (items arriving with a new or
  * imported actor's stat block), the item is a physical type, it isn't the toolkit's own (trash, boss loot) and it carries no Lootable mark yet.
  */
+/** @param {{ enabled?: boolean, isGM?: boolean, ownClient?: boolean, actorType?: string, itemType?: string, flags?: any, actorAgeMs?: number, internal?: boolean }} [opts] */
 export function autoLootDecision({ enabled = true, isGM = false, ownClient = false, actorType, itemType, flags = {}, actorAgeMs = Infinity, internal = false } = {}) {
   if (!enabled || !isGM || !ownClient || internal) return false;
-  if (actorType !== "npc" || !PHYSICAL_TYPES.has(itemType)) return false;
+  if (actorType !== "npc" || !PHYSICAL_TYPES.has(/** @type {string} */ (itemType))) return false;
   if (flags?.trash || flags?.bossLoot || flags?.lootable !== undefined) return false;
   return actorAgeMs > 3000;
 }
@@ -482,7 +490,7 @@ export function addLootableCheckbox(app, element) {
   wrap.className = "wct-lootable"; wrap.style.cssText = "display:flex;align-items:center;gap:0.3em;font-size:var(--font-size-12,12px);flex:0 0 auto;";
   wrap.dataset.tooltip = "Vendor Trash: show this item in the creature's loot pile when its body becomes lootable.";
   wrap.innerHTML = `<input type="checkbox" ${isLootItem(item, { all: allLootableOf(item.parent) }) && tkFlags(item).lootable !== false ? "checked" : ""}> Lootable`;
-  const box = wrap.querySelector("input");
+  const box = /** @type {HTMLInputElement} */ (wrap.querySelector("input"));
   box.addEventListener("change", async ev => { ev.stopPropagation(); await setLootable([item], box.checked); });
   box.addEventListener("input", ev => ev.stopPropagation());
   if (host.classList.contains("window-content")) host.prepend(wrap); else host.append(wrap);
@@ -570,6 +578,7 @@ export async function onCreateToken(doc, api) {
 }
 
 /** GM: rolls the drop of the given (or selected) tokens again. Already looted bodies and linked tokens are skipped. */
+/** @param {any} api @param {any} [tokens] */
 export async function reroll(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
@@ -594,6 +603,7 @@ export const resettable = doc => !!doc?.actor && lootable(doc) && (!!doc.getFlag
  * and the `looted`, `trashRolled` and `bossLootDrawn` flags are removed (so Boss loot draws again on the next death). With clearCoin the actor's coin is set to zero. Other items are never touched.
  * Unlinked tokens get a fresh pre-rolled drop when pre-rolling is on; linked tokens stay unrolled.
  */
+/** @param {any} api @param {any} [tokens] @param {{ clearCoin?: boolean, reroll?: boolean, quiet?: boolean, removeHandAdded?: boolean }} [opts] */
 export async function reset(api, tokens = null, { clearCoin = false, reroll = true, quiet = false, removeHandAdded = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens.controlled.length ? canvas.tokens.controlled : [...game.user.targets];
@@ -677,6 +687,7 @@ export async function onDeath(doc, api, { defeated = false } = {}) {
 }
 
 /** Selected tokens → loot. With Item Piles, each creature becomes a lootable pile; otherwise the GM gets a card with a Give to Party button. */
+/** @param {any} api @param {any} [tokens] */
 export async function vendorTrash(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (!packIds().length) return ui.notifications.warn("Vendor Trash: no item compendium set. Install the wow-classic-items module or pick compendiums in the control panel (Loot › Advanced) in the module settings.");
@@ -717,6 +728,7 @@ export function priorDrop(doc) {
   return doc?.getFlag?.(ID, "looted") ? "empty" : null;
 }
 /** The GM's wording for what a fallback vendor-trash drop actually did (pure; tested in Node). */
+/** @param {any} [report] */
 export function fallbackText(report = {}) {
   if (report.error) return `vendor trash failed too (${report.error})`;
   if (report.skipped) return "its vendor trash is already on the body";
@@ -727,6 +739,7 @@ export function fallbackText(report = {}) {
 const itemRow = (i, api) => `@UUID[${i.uuid}]{${esc(i.name)}}${i.qty > 1 ? ` ×${i.qty}` : ""} <span class="wct-val">(${api.fmtMoney(i.value * i.qty)})</span>`;
 
 /** The original flow: a GM loot card with a Give to Party button. A pre-rolled drop is taken off the creature and put on the card. */
+/** @param {any[]} docs @param {any} api @param {{ auto?: boolean, report?: any, tries?: number }} [opts] */
 async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}) {
   const rows = []; const drops = []; const extra = []; let total = 0; let coinTotal = 0; const skipped = []; let dungeon = false;
   const todo = docs.filter(lootable).filter(doc => !(doc.getFlag(ID, "looted") && skipped.push(doc.name)));
@@ -762,6 +775,7 @@ async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}
  * hidden from the pile, so players only see the trash, any boss loot and coin. Creatures that dropped nothing are left alone. A drop pre-rolled when
  * the token was placed is used as it is.
  */
+/** @param {any[]} docs @param {any} api @param {{ auto?: boolean, report?: any, tries?: number }} [opts] */
 async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {}) {
   const IP = itemPiles(); const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const rows = []; const skipped = []; const empty = []; let total = 0; let coinTotal = 0; let piles = 0; let dungeon = false;
@@ -852,6 +866,7 @@ export function trashHolders(api) {
 }
 
 /** Sells every trash item one actor holds at its vendor price; the coin goes to that actor. The GM picks whose trash when several hold some. */
+/** @param {any} api @param {any} [actor] */
 export async function sellTrash(api, actor = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
