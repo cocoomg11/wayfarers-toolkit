@@ -392,8 +392,24 @@ function hudDown(ev) {
   ev.preventDefault();
   const p = hudAt();
   hudDrag = { id: ev.pointerId, ox: ev.clientX - p.x, oy: ev.clientY - p.y, from: p, moved: false };
-  ev.target.closest("header").setPointerCapture?.(ev.pointerId);
+  hudDrag.header = ev.target.closest("header");
+  try { hudDrag.header.setPointerCapture?.(ev.pointerId); } catch { /* synthetic or already-released pointer: the drag still works without capture */ }
+  document.addEventListener("keydown", hudDragKey, true);
   hud.classList.add("dragging");
+}
+/** Ends the drag: drops the Escape listener and releases the pointer capture (both safe to repeat). */
+function hudDragEnd() {
+  document.removeEventListener("keydown", hudDragKey, true);
+  const d = hudDrag; hudDrag = null;
+  try { if (d?.header?.hasPointerCapture?.(d.id)) d.header.releasePointerCapture(d.id); } catch { /* already released */ }
+  hud?.classList.remove("dragging");
+}
+/** Escape during a mouse drag puts the tracker back where the drag started and saves nothing. */
+function hudDragKey(ev) {
+  if (!hudDrag || ev.key !== "Escape") return;
+  ev.preventDefault(); ev.stopPropagation();
+  setAt(hudDrag.from); hudDragEnd();
+  if (!hudHTML) renderTracker();
 }
 function hudMove(ev) {
   if (!hudDrag || ev.pointerId !== hudDrag.id) return;
@@ -402,13 +418,12 @@ function hudMove(ev) {
 }
 function hudUp(ev) {
   if (!hudDrag || ev.pointerId !== hudDrag.id) return;
-  const { moved } = hudDrag; hudDrag = null; hud.classList.remove("dragging");
+  const { moved } = hudDrag; hudDragEnd();
   if (moved) saveTrackerPos(hudAt());
   if (!hudHTML) renderTracker();
 }
 function hudKey(ev) {
   if (!ev.target.closest?.(".grip")) return;
-  if (hudDrag && ev.key === "Escape") { setAt(hudDrag.from); hudDrag = null; hud.classList.remove("dragging"); return; }
   if (ev.key === "Home") { ev.preventDefault(); resetTrackerPosition(); return; }
   const n = TM.nudge(hudAt(), ev.key, ev.shiftKey); if (!n) return;
   ev.preventDefault(); ev.stopPropagation(); // keep the arrows from also panning the canvas
@@ -416,7 +431,7 @@ function hudKey(ev) {
 }
 function renderTracker() {
   if (!TRACKER || !S("questTracker")) {
-    if (hud) { hud.remove(); hud = null; hudHTML = ""; hudDrag = null; if (LOG?.rendered) LOG.render(); } // the log's Show tracker switch
+    if (hud) { hudDragEnd(); hud.remove(); hud = null; hudHTML = ""; if (LOG?.rendered) LOG.render(); } // the log's Show tracker switch
     return;
   }
   const list = tracked().map(find).filter(j => j && canSee(j) && data(j).status === "active");
@@ -849,4 +864,4 @@ export function ready() {
 }
 
 /** Tears down the UI (used when testing the file live). */
-export function teardown() { LOG?.close(); hud?.remove(); hud = null; hudHTML = ""; hudDrag = null; }
+export function teardown() { LOG?.close(); hudDragEnd(); hud?.remove(); hud = null; hudHTML = ""; }

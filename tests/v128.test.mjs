@@ -206,3 +206,13 @@ test("README documents both hooks; 1.28.0 version and download URL", () => {
   assert.equal(m.version, "1.28.0");
   assert.match(m.download, /releases\/download\/v1\.28\.0\/module\.zip$/);
 });
+
+test("quest tracker: Escape cancels a mouse drag from anywhere, and pointer capture is guarded", () => {
+  const q = src("scripts/quests.mjs");
+  assert.match(q, /document\.addEventListener\("keydown", hudDragKey, true\)/, "page-wide Escape listener while dragging");
+  assert.match(q, /document\.removeEventListener\("keydown", hudDragKey, true\)/, "removed when the drag ends");
+  assert.match(q, /try \{ hudDrag\.header\.setPointerCapture/, "setPointerCapture guarded");
+  assert.match(q, /hasPointerCapture/, "release only when captured");
+  const esc = q.slice(q.indexOf("function hudDragKey"), q.indexOf("function hudMove"));
+  assert.ok(esc.includes("setAt(hudDrag.from)") && !esc.includes("saveTrackerPos"), "back to the start, nothing saved");
+});
