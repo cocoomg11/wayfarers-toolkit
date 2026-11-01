@@ -7,6 +7,8 @@
   --wc-text: #f2ead8; --wc-text-3: #a99d86; --wc-accent: #e9b949; --wc-q-epic: #b86cf0;
   --wct-boss-bg: rgba(16, 14, 12, 0.92); --wct-boss-line: rgba(242, 234, 216, 0.22);
 }
+/* Foundry's per-theme colours on these elements must not reach the frames (classes only, so .wct-boss rules below win). */
+.wct-boss :where(a, dd, dt, label, h1, h2, h3, h4, h5, h6, p, li, td, th, button) { color: var(--wc-text); }
 #wct-boss-frames img { pointer-events: none; -webkit-user-drag: none; }
 .wct-boss {
   position: absolute; top: 12px; left: calc(50% - min(180px, 50vw - 16px)); width: min(360px, calc(100vw - 32px));
