@@ -18,6 +18,7 @@ const tokenDoc = t => t?.document ?? t;
  * Boss or not, from plain values (tested in Node): an explicit crown flag (true or false) wins; with no flag, a token with boss loot
  * counts as a boss when `auto` (the "Treat tokens with boss loot as bosses" setting) is on.
  */
+/** @param {{ crown?: boolean | null, hasBossLoot?: boolean, auto?: boolean }} [opts] */
 export function resolveBoss({ crown, hasBossLoot = false, auto = true } = {}) {
   if (crown === true || crown === false) return crown;
   return !!(auto && hasBossLoot);
@@ -33,6 +34,7 @@ function hasBossLoot(doc) {
 export const isBoss = t => { const d = tokenDoc(t); if (!d?.getFlag) return false; return resolveBoss({ crown: d.getFlag(ID, "boss"), hasBossLoot: hasBossLoot(d), auto: autoOn() }); };
 
 /** Marks or unmarks tokens as bosses (GM only). `on` null toggles each. Defaults to the controlled tokens. */
+/** @param {any} [tokens] @param {boolean | null} [on] */
 export async function toggle(tokens = null, on = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens = (tokens ?? canvas.tokens?.controlled ?? []).map(tokenDoc).filter(Boolean);
@@ -61,6 +63,7 @@ export function phasesOf(t) {
  * Sets phase thresholds (GM only), e.g. setPhases(tokens, [66, 33]). An empty list removes them. `actor: true` stores them on each
  * token's world actor (every token of it) instead of the token. Defaults to the controlled tokens.
  */
+/** @param {any} [tokens] @param {any[] | null} [list] */
 export async function setPhases(tokens = null, list = [], { actor = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens = (tokens ?? canvas.tokens?.controlled ?? []).map(tokenDoc).filter(Boolean);
@@ -252,6 +255,7 @@ export function bbox(rs) {
 
 /** The nearest edge of `targets` ({id, x, y, w, h}) that rect `r` is within `th` px of, and where `r` would sit flush against it. */
 export function findSnap(r, targets, th = SNAP, gap = GAP) {
+  /** @type {{ to: any, side: string, x: number, y: number, d: number } | null} */
   let best = null;
   const overlapX = t => r.x < t.x + t.w && r.x + r.w > t.x, overlapY = t => r.y < t.y + t.h && r.y + r.h > t.y;
   for (const t of targets) for (const side of SIDES) {
@@ -286,7 +290,14 @@ export function prune(layout, live) {
 /* ---------- DOM ---------- */
 const TIP = "Drag to move. Dragging a group's top frame moves the whole group; dragging any other frame pulls it out. Drop it next to another frame to snap them together. Double-click to reset.";
 const GM_TIP = `${TIP} Right-click to set phase marks.`;
-let el = null; let ghost = null; let timer = null; const nodes = new Map(); let drag = null;
+/** @type {HTMLElement | null} */
+let el = null;
+/** @type {HTMLElement | null} */
+let ghost = null;
+/** @type {any} */
+let timer = null; const nodes = new Map();
+/** @type {any} */
+let drag = null;
 const keyOf = cb => cb.tokenId ?? cb.token?.id ?? cb.id;
 const getLayout = () => { const l = S("bossLayout"); return l && typeof l === "object" ? l : {}; };
 
@@ -297,7 +308,7 @@ function render() {
     el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health");
     el.addEventListener("pointerdown", dragStart); el.addEventListener("dblclick", resetPos);
     el.addEventListener("contextmenu", ev => {
-      const n = ev.target.closest(".wct-boss"); if (!n || !game.user.isGM) return;
+      const n = /** @type {HTMLElement} */ (/** @type {Element} */ (ev.target).closest(".wct-boss")); if (!n || !game.user.isGM) return;
       ev.preventDefault();
       const cb = game.combat?.combatants.get(n.dataset.combatantId); if (cb?.token) phaseDialog(cb.token);
     });
@@ -324,7 +335,10 @@ function render() {
   setTimeout(() => { if (!drag) applyLayout(); }, 300);
 }
 
-/** Places every frame from the layout (the drag's working copy while dragging, with the dragged frames following the pointer). */
+/**
+ * Places every frame from the layout (the drag's working copy while dragging, with the dragged frames following the pointer).
+ * @returns {any}
+ */
 function applyLayout() {
   if (!el) return null;
   const ids = [...nodes.keys()], sizes = {};
@@ -343,7 +357,10 @@ function applyLayout() {
 }
 
 /** The Carousel Combat Tracker's dock (#combat-dock) when it is shown: the default stack goes just below it. Watched for size changes. */
-let dockSeen = null; let dockObs = null;
+/** @type {HTMLElement | null} */
+let dockSeen = null;
+/** @type {ResizeObserver | null} */
+let dockObs = null;
 function dockTop() {
   const d = document.getElementById("combat-dock");
   if (d !== dockSeen) {
@@ -390,7 +407,7 @@ function snapFor(comp) {
 }
 function showGhost(s, r) {
   if (!s || !r) { ghost?.remove(); ghost = null; return; }
-  if (!ghost) { ghost = document.createElement("div"); ghost.className = "wct-boss-ghost"; el.append(ghost); }
+  if (!ghost) { ghost = document.createElement("div"); ghost.className = "wct-boss-ghost"; /** @type {HTMLElement} */ (el).append(ghost); }
   Object.assign(ghost.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${r.w}px`, height: `${r.h}px` });
 }
 function dragEnd(ev) {
