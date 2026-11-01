@@ -23,6 +23,7 @@ export function splitName(label = "") {
  * Builds an entry from a finished roll's card state `st` (loot.mjs). `who`: { uid, actor, tier, roll } for the winner, or for an
  * assigned item { actor } only. `at`: when it ended; `id`: a unique id.
  */
+/** @param {any} [st] @param {{ outcome?: string, who?: any, at?: number, id?: string | null, note?: string }} [opts] */
 export function makeEntry(st = {}, { outcome = "won", who = null, at = Date.now(), id = null, note = "" } = {}) {
   const people = uid => st.people?.[uid] ?? splitName(st.names?.[uid] ?? "?");
   const choices = Object.entries(st.choices ?? {}).map(([uid, c]) => {
@@ -30,6 +31,7 @@ export function makeEntry(st = {}, { outcome = "won", who = null, at = Date.now(
     const p = people(uid);
     return { uid, user: p.user, actor: p.actor, choice: c.choice, roll: rolls.length ? rolls.at(-1) : null, rolls };
   });
+  /** @type {any} */
   let winner = null;
   if (who) {
     if (who.uid) { const p = people(who.uid); winner = { uid: who.uid, user: p.user, actor: who.actor ?? p.actor, tier: who.tier ?? null, roll: who.roll ?? null }; }

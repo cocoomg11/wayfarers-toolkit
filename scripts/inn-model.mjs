@@ -57,6 +57,7 @@ export function spend(currency, amount, coins) {
 /**
  * The payment for a night: { ok, total, payers: [{ id, currency }], short: [name], error }.
  * `from`: party | each. `chosen`: [{ id, name, currency }]. `party`: { id, name, currency } | null. Nothing is paid unless all of it can be.
+ * @param {{ from?: string, price: number, chosen?: any[], party?: any, coins: any, fmt?: (n: number) => string }} opts
  */
 export function payPlan({ from = "party", price, chosen = [], party = null, coins, fmt = n => String(n) }) {
   const n = chosen.length; const sum = roomCost(price, n);

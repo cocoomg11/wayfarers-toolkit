@@ -25,6 +25,7 @@ export function titleConfig(scene, { all = true, defaultSound = "" } = {}) {
  * Whether this client shows a card. `reason`: "load" (the first canvas draw after the world loads), "activate" (the scene was just
  * activated) or "view" (any other draw, e.g. a player moved to another scene). `trigger`: activate | view (world setting);
  * `audience`: players | everyone; `onLoad`: show for the scene already active at load.
+ * @param {{ reason?: string, trigger?: string, audience?: string, isGM?: boolean, onLoad?: boolean }} [opts]
  */
 export function shouldShow({ reason, trigger = "activate", audience = "players", isGM = false, onLoad = false } = {}) {
   if (audience === "players" && isGM) return false;

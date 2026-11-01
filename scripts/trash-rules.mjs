@@ -56,6 +56,7 @@ export function tagsFor(name, type = "loot") {
  * all of `tags`) the ones an item needs at least one of. `family: true` also makes the word a family word: an item whose name contains
  * it only drops from creatures matching the same group ("bear" items only from bears).
  */
+/** @param {string} id @param {string} list @param {string[]} tags @param {{ kind?: string, core?: string[] | null, family?: boolean }} [opts] */
 const W = (id, list, tags, { kind = "beast", core = null, family = true } = {}) => ({ id, re: new RegExp(`\\b(${list})\\b`, "i"), tags, core: core ?? tags, kind, family });
 const BEAST = ["fur", "tooth", "flesh", "insect", "venom", "egg", "scale", "avian", "wing", "aquatic", "shell"];
 export const CREATURE_WORDS = [
@@ -157,8 +158,8 @@ export function profileFor({ name = "", type = "", subtype = "" } = {}, rules = 
   if (!groups.length) groups = hits.filter(g => g.kind === base.kind);
   const p = {
     kind: base.kind, tags: new Set(base.tags), core: new Set(base.core ?? base.tags), deny: new Set(base.deny ?? []), hardDeny: new Set(base.hard ? base.deny : []),
-    groups: groups.map(g => g.id), familyWords: new Set(), allowItems: [], denyItems: [], gear: base.kind === "humanoid" || base.kind === "undead",
-    coin: KIND_COIN[base.kind] ?? 0, prefer: base.kind === "humanoid" ? "trinket" : null, rules: []
+    groups: groups.map(g => g.id), familyWords: new Set(), allowItems: /** @type {string[]} */ ([]), denyItems: /** @type {string[]} */ ([]), gear: base.kind === "humanoid" || base.kind === "undead",
+    coin: KIND_COIN[base.kind] ?? 0, prefer: base.kind === "humanoid" ? "trinket" : null, rules: /** @type {string[]} */ ([])
   };
   const hay = `${name} ${type} ${subtype}`.toLowerCase();
   for (const r of rules) {
@@ -191,7 +192,7 @@ export function familyWordsFrom(names = [], extra = []) {
   const out = new Set();
   for (const n of names) {
     const raw = String(n ?? "").split(/[\s,]+/).filter(Boolean).find(r => !FAMILY_STOP.has(normWord(r)));
-    const w = normWord(raw); if (!w || w.length < 3 || KEYWORD_TAG.has(w) || CREATURE_WORDS.some(g => g.family && g.re.test(raw))) continue;
+    const w = normWord(raw); if (!w || w.length < 3 || KEYWORD_TAG.has(w) || CREATURE_WORDS.some(g => g.family && g.re.test(/** @type {string} */ (raw)))) continue;
     out.add(w);
   }
   for (const w of extra) { const n = normWord(w); if (n) out.add(n); }

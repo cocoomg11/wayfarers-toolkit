@@ -16,6 +16,7 @@ import * as FlightEditor from "./flight-editor.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** @type {any} */
 let API = null;
 
 const cfgOf = key => game.settings.settings.get(`${ID}.${key}`);
@@ -135,7 +136,7 @@ function settingsTab(tab) {
 }
 
 function featuresTab() {
-  const tab = M.TABS.find(t => t.id === "features");
+  const tab = /** @type {any} */ (M.TABS.find(t => t.id === "features"));
   const card = c => {
     const f = F.FEATURES.find(x => x.id === c.id);
     const checked = c.id === "coins" ? get("coinSystem") === "threeCoin" : F.on(c.id);
@@ -149,7 +150,7 @@ function featuresTab() {
 }
 
 function overviewTab() {
-  const tab = M.TABS.find(t => t.id === "overview");
+  const tab = /** @type {any} */ (M.TABS.find(t => t.id === "overview"));
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> Overview</h2>${help(tab.anchor)}</header>
     <div class="wct-status" data-status><p class="hint"><i class="fa-solid fa-spinner fa-spin"></i> Checking your world…</p></div>
     <div class="wct-actions wrap">
@@ -398,6 +399,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
     position: { width: 620, height: "auto" }
   };
   step = 0;
+  /** @type {any} */
   data = { preset: "classic", partySize: null, coinSystem: null };
 
   async _renderHTML() {

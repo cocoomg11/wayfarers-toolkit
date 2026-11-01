@@ -29,6 +29,7 @@ export function plan(seller, merchant) {
   const described = [];
   for (const i of seller.items) {
     if (!J.PHYSICAL.has(i.type) || i.system?.container) continue;
+    /** @type {any} */
     const d = { id: i.id, name: i.name, img: i.img, type: i.type, trash: !!i.getFlag(ID, "trash"), color: wowInfo(i).color, rarity: i.system?.rarity ?? "",
       equipped: !!i.system?.equipped, favourite: J.isFavourite(favs, i.id), inSet: sets.has(i.id), quantity: Number(IP.getItemQuantity?.(i) ?? i.system?.quantity ?? 1), price: null };
     if (!J.isJunk(d)) continue;

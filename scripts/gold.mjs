@@ -12,6 +12,7 @@ const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 const KEY = "goldSnapshots";
+/** @type {any} */
 let API = null;
 
 export function registerSettings() {
@@ -48,6 +49,7 @@ function actorWealth(actor, vals) {
 }
 
 /** GM: everything the window shows. */
+/** @param {any} [api] */
 export function read(api = API) {
   const vals = coinVals(api); const gpVal = vals.gp ?? 100;
   const { curve, error } = G.parseCurve(get("goldCurve", G.curveText()));

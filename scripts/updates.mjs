@@ -11,6 +11,7 @@ import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT } from "./macros.mjs";
 
 const ID = "wayfarers-toolkit";
+/** @type {any} */
 let API = null;
 const get = key => { try { return game.settings.get(ID, key); } catch { return undefined; } };
 const gmIds = () => game.users.filter(u => u.isGM).map(u => u.id);
@@ -24,6 +25,7 @@ export function registerSettings() {
 }
 
 /** Builds the notice from `from` (exclusive; null = every entry) to the running version. */
+/** @param {string | null | undefined} [from] */
 export function build(from = null) {
   return N.build({ from, to: API.version ?? "", on: F.on, ctx: ctx() });
 }

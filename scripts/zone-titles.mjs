@@ -11,7 +11,9 @@ const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 
-let firstDraw = true; let pendingActivate = null; let timer = null; let lastShown = { id: null, at: 0 };
+let firstDraw = true; let pendingActivate = null;
+/** @type {any} */
+let timer = null; let lastShown = { id: null, at: 0 };
 
 export function registerSettings() {
   const s = (key, name, hint, type, def, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: def, ...extra });
@@ -34,6 +36,7 @@ export function configFor(scene) {
 function reducedMotion() { try { return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true; } catch { return false; } }
 
 /** Shows a card now on this client: show(scene) uses the scene's config; show({ title, subtitle, sound }) shows any text. */
+/** @param {any} what */
 export function show(what) {
   const cfg = what?.title !== undefined && !(what instanceof foundry.abstract.Document) ? { enabled: true, title: String(what.title ?? ""), subtitle: String(what.subtitle ?? ""), sound: String(what.sound ?? "") } : configFor(what ?? canvas?.scene);
   if (!cfg.title) return null;

@@ -262,6 +262,7 @@ export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout",
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
  * toolkit already loaded in this world (`remindedVersion`: the pre-1.17 setupReminded setting or lastSeenVersion, differs from `version`).
+ * @param {{ settings?: any[], setupFound?: boolean, remindedVersion?: string, version?: string }} [opts]
  */
 export function worldConfigured({ settings = [], setupFound = false, remindedVersion = "", version = "" } = {}) {
   if (setupFound) return true;

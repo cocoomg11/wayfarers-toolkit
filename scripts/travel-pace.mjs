@@ -55,6 +55,7 @@ export function tripHours({ road = 0, off = 0, mph = 3, offroadMult = 2, mountMu
 /**
  * Travel days for the same trip: miles (off-road counted × offroadMult) over the pace's miles per day, scaled when the world's
  * miles-per-hour setting differs from the SRD figure (and by the mounted multiplier).
+ * @param {{ road?: number, off?: number, pace?: string, mph?: number, offroadMult?: number, mountMult?: number, mounted?: boolean }} [opts]
  */
 export function tripDays({ road = 0, off = 0, pace = "normal", mph, offroadMult = 2, mountMult = 1, mounted = false } = {}) {
   const p = PACES[normPace(pace)];
