@@ -1,5 +1,5 @@
 /**
- * Wayfarer's Toolkit
+ * Wanderer's Toolkit
  * Hex travel, flight routes, a session-start helper, vendor trash, a character pane, a quest log, boss frames, loot rolls and boss loot.
  * Each tool is a feature that can be turned off (features.mjs); turned-off tools register nothing.
  * for Foundry VTT (dnd5e). Campaign content (tables, journals, routes) lives in each world; this module is the logic.
@@ -15,7 +15,7 @@ import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
 import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, cardPosted, handle, request, notify } from "./gm.mjs";
 import * as Updates from "./updates.mjs";
-import { MACROS, macroData, macroOn } from "./macros.mjs";
+import { MACROS, macroData, macroOn, FOLDER_NAME, isToolkitFolderName } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
@@ -182,7 +182,7 @@ async function syncItemPilesCoins() {
 
 function registerSettings() {
   F.registerSettings();
-  // The main settings list shows one button, "Wayfarer's Toolkit", opening the control panel (panel.mjs), plus each user's own
+  // The main settings list shows one button, "Wanderer's Toolkit", opening the control panel (panel.mjs), plus each user's own
   // "Quest tracker: Show on screen". Every other setting is registered with config: false (same keys as before, so nothing stored is
   // lost) and shown in the panel. Settings of a turned-off feature stay registered and show greyed out there.
   const s = (key, name, hint, type, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: DEFAULTS[key], ...extra });
@@ -271,7 +271,7 @@ function registerSettings() {
   // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
   Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings();
   Quests.registerSettings({ tracker: F.on("questLog") && F.on("questTracker") });
-  game.settings.registerMenu(ID, "panel", { name: "Wayfarer's Toolkit", label: "Open the control panel", hint: "Everything in one window: what needs attention, which tools are on, and each tool's settings. Run setup, the health check and Remove toolkit data are in its Overview tab.", icon: "fas fa-toolbox", type: Panel.ControlPanel, restricted: true });
+  game.settings.registerMenu(ID, "panel", { name: "Wanderer's Toolkit", label: "Open the control panel", hint: "Everything in one window: what needs attention, which tools are on, and each tool's settings. Run setup, the health check and Remove toolkit data are in its Overview tab.", icon: "fas fa-toolbox", type: Panel.ControlPanel, restricted: true });
 }
 
 /**
@@ -282,8 +282,8 @@ function checkZones(text = setting("zones"), { notify = false } = {}) {
   const r = Flight.parseZones(text);
   const unknown = r.error ? [] : Flight.unknownZoneTables(r.zones, game.tables?.map?.(t => t.name) ?? []);
   if (notify && game.user?.isGM) {
-    if (r.error) ui.notifications.error(`Wayfarer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`);
-    else if (unknown.length) ui.notifications.warn(`Wayfarer's Toolkit › Hex Travel: Encounter zones: no roll table named ${unknown.map(u => `"${u.table}" (zone ${u.zone})`).join(", ")}.`);
+    if (r.error) ui.notifications.error(`Wanderer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`);
+    else if (unknown.length) ui.notifications.warn(`Wanderer's Toolkit › Hex Travel: Encounter zones: no roll table named ${unknown.map(u => `"${u.table}" (zone ${u.zone})`).join(", ")}.`);
   }
   return { ...r, unknown };
 }
@@ -294,7 +294,7 @@ const RIDER_FEAT = name => ({
   system: {
     type: { value: "feat", subtype: "general" },
     requirements: "",
-    source: { book: "Wayfarer's Toolkit", custom: "Wayfarer's Toolkit" },
+    source: { book: "Wanderer's Toolkit", custom: "Wanderer's Toolkit" },
     description: { value: `<p><em>General Feat</em></p><p><em>Granted on completing riding training with a stablemaster or riding instructor.</em></p><p>You've learned to ride properly, not just to stay on.</p><p><strong>Swift Mount.</strong> Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.</p><p><strong>Long Road.</strong> When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.</p>` }
   }
 });
@@ -315,7 +315,7 @@ function gmOnlyApi(obj, { open = [] } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(obj)) {
     out[k] = typeof v !== "function" || open.includes(k) ? v : (...args) => {
-      if (!game.user?.isGM) { ui.notifications.warn("Wayfarer's Toolkit: GM only."); return undefined; }
+      if (!game.user?.isGM) { ui.notifications.warn("Wanderer's Toolkit: GM only."); return undefined; }
       return v(...args);
     };
   }
@@ -327,21 +327,21 @@ export const WCT = {
   get version() { return game.modules.get(ID)?.version; },
   get JOURNAL() { return setting("trackerJournal"); },
   get PARTY() { return setting("partyActor"); },
-  get ZONES() { const r = Flight.parseZones(setting("zones")); if (r.error) ui.notifications.error(`Wayfarer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`); return r.zones; },
+  get ZONES() { const r = Flight.parseZones(setting("zones")); if (r.error) ui.notifications.error(`Wanderer's Toolkit › Hex Travel: Encounter zones: ${r.error}.`); return r.zones; },
   get PACE() { return { slow: setting("paceSlow"), normal: setting("paceNormal"), fast: setting("paceFast") }; },
   get OFFROAD_MULT() { return setting("offroadMult"); },
   get MOUNT_MULT() { return setting("mountMult"); },
   get ENC_DIE() { return setting("encounterDie"); },
 
   // ------------------------------------------------------------ helpers
-  tracker() { const j = game.journal.getName(this.JOURNAL); if (!j) throw new Error(`Wayfarer's Toolkit: journal "${this.JOURNAL}" not found. Run setup from the control panel (Game Settings › Wayfarer's Toolkit).`); return j; },
+  tracker() { const j = game.journal.getName(this.JOURNAL); if (!j) throw new Error(`Wanderer's Toolkit: journal "${this.JOURNAL}" not found. Run setup from the control panel (Game Settings › Wanderer's Toolkit).`); return j; },
   state() { return foundry.utils.duplicate(this.tracker().getFlag("world", "trackers") ?? {}); },
   async setState(patch) { const s = { ...this.state(), ...patch }; await this.tracker().setFlag("world", "trackers", s); return s; },
   stamp(t = game.time.worldTime) { const d = Math.floor(t / 86400) + 1, h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60); return `Day ${d}, ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; },
-  page(name) { const p = this.tracker().pages.getName(name); if (!p) throw new Error(`Wayfarer's Toolkit: page "${name}" missing from "${this.JOURNAL}".`); return p; },
+  page(name) { const p = this.tracker().pages.getName(name); if (!p) throw new Error(`Wanderer's Toolkit: page "${name}" missing from "${this.JOURNAL}".`); return p; },
   async appendPage(name, html) { const p = this.page(name); await p.update({ "text.content": (p.text.content || "") + html }); },
   parseTable(html, i) { const t = new DOMParser().parseFromString(html, "text/html").querySelectorAll("table")[i]; return t ? [...t.querySelectorAll("tbody tr")].map(tr => [...tr.children].map(td => td.textContent.trim())) : []; },
-  gmWhisper(content) { return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" } }); },
+  gmWhisper(content) { return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" } }); },
   say(content, alias = "Narrator") { return ChatMessage.create({ content, speaker: { alias } }); },
   /** An information or refusal window with a single OK button. */
   info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
@@ -395,17 +395,17 @@ export const WCT = {
       made.push("party actor");
     }
     // All missing macros in one create. Nobody's hotbar is touched: the GM and players drag them from the folder or the compendium.
-    // The same definitions (macros.mjs) build the Wayfarer's Toolkit Macros compendium.
+    // The same definitions (macros.mjs) build the Wanderer's Toolkit Macros compendium.
     const want = MACROS.filter(m => macroOn(m, F.on) && !game.macros.getName(m.name));
     if (want.length) {
-      const folder = game.folders.find(f => f.type === "Macro" && f.name === "Wayfarer's Toolkit") ?? await Folder.create({ name: "Wayfarer's Toolkit", type: "Macro", sorting: "m" });
+      const folder = game.folders.find(f => f.type === "Macro" && isToolkitFolderName(f.name)) ?? await Folder.create({ name: FOLDER_NAME, type: "Macro", sorting: "m" });
       const created = await Macro.implementation.createDocuments(want.map(m => ({ ...macroData(m), folder: folder.id, ...(m.shared ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } } : {}) })));
       for (const m of created) made.push(`macro "${m.name}"`);
     }
     if (F.on("riderFeat")) made.push(...await this.renameOldRiderFeat());
     if (F.on("riderFeat") && !game.items.find(i => i.getFlag(ID, "feat") === "trained-rider")) {
-      let ifolder = game.folders.find(f => f.type === "Item" && f.name === "Wayfarer's Toolkit");
-      ifolder ??= await Folder.create({ name: "Wayfarer's Toolkit", type: "Item" });
+      let ifolder = game.folders.find(f => f.type === "Item" && isToolkitFolderName(f.name));
+      ifolder ??= await Folder.create({ name: FOLDER_NAME, type: "Item" });
       await Item.create({ ...RIDER_FEAT(riderName()), folder: ifolder.id, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
       made.push(`feat "${riderName()}"`);
     }
@@ -825,7 +825,7 @@ export const WCT = {
    * @param {any} a @param {number} amount @param {{ reason?: string, undoOf?: string | null }} [opts]
    */
   async pay(a, amount, { reason = "", undoOf = null } = {}) {
-    if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wayfarer's Toolkit: you can only pay from coin you own."); return; }
+    if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wanderer's Toolkit: you can only pay from coin you own."); return; }
     const before = this.totalMoney(a);
     const c = { ...a.system.currency }; let need = Math.round(amount); const asc = coins().reverse();
     for (const [k, v] of asc) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] = (c[k] || 0) - take; need -= take * v; }
@@ -849,7 +849,7 @@ export const WCT = {
    */
   /** @param {any} a @param {number} amount @param {{ consolidate?: boolean, reason?: string, undoOf?: string | null }} [opts] `reason`: as for pay(). */
   async addMoney(a, amount, { consolidate = false, reason = "", undoOf = null } = {}) {
-    if (!game.user.isGM) { ui.notifications.warn("Wayfarer's Toolkit: GM only."); return; }
+    if (!game.user.isGM) { ui.notifications.warn("Wanderer's Toolkit: GM only."); return; }
     const before = this.totalMoney(a);
     const old = a.system.currency ?? {}; const c = { ...old }; let left = Math.max(0, Math.round(amount));
     if (consolidate) left += this.totalMoney(a);
@@ -912,7 +912,7 @@ Hooks.once("ready", () => {
       if (!setting("playerFlights") && !user.isGM) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
       // A player's booking: always charged, always changes the scene when the point has one (a "free" field doesn't exist here).
       try { await WCT.doFlight({ ...Flight.socketBooking(data), userId: uid }); }
-      catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); WCT.tellFlight(uid, false, `the flight failed (${e.message}).`); }
+      catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wanderer's Toolkit: a player's flight failed (${e.message}).`); WCT.tellFlight(uid, false, `the flight failed (${e.message}).`); }
     });
   }
   // A GM tab that isn't the leader asks the leader to tell everyone something (quest objective lines).
@@ -944,7 +944,7 @@ function registerKeybindings() {
     catch (e) { console.warn(`${ID} | key binding ${key} not registered`, e); }
   };
   if (F.on("characterPane")) reg("characterPane", "Open character pane", "Opens the character pane for the selected token's actor, or your character.", () => WCT.characterPane());
-  reg("controlPanel", "Open the control panel (GM)", "Opens the Wayfarer's Toolkit control panel. GM only.", () => { if (game.user.isGM) WCT.panel(); });
+  reg("controlPanel", "Open the control panel (GM)", "Opens the Wanderer's Toolkit control panel. GM only.", () => { if (game.user.isGM) WCT.panel(); });
 }
 
 /**

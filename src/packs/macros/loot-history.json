@@ -3,7 +3,7 @@
   "name": "Loot History",
   "type": "script",
   "img": "icons/sundries/books/book-worn-brown.webp",
-  "command": "// Loot History: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.lootHistory();",
+  "command": "// Loot History: Wanderer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wanderer's Toolkit module is not active.\");\nreturn api.lootHistory();",
   "flags": {
     "wayfarers-toolkit": {
       "macro": "lootHistory"

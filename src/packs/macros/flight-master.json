@@ -3,7 +3,7 @@
   "name": "Flight Master",
   "type": "script",
   "img": "icons/creatures/birds/raptor-hawk-flying.webp",
-  "command": "// Flight Master: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.flight();",
+  "command": "// Flight Master: Wanderer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wanderer's Toolkit module is not active.\");\nreturn api.flight();",
   "flags": {
     "wayfarers-toolkit": {
       "macro": "flight"

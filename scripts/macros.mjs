@@ -1,6 +1,6 @@
 /**
  * The module's macros, in one place. Run setup creates world copies from this list (main.mjs) and the release build writes the
- * same macros into the "Wayfarer's Toolkit Macros" compendium (tools/build-packs.mjs), so the two can't drift apart.
+ * same macros into the "Wanderer's Toolkit Macros" compendium (tools/build-packs.mjs), so the two can't drift apart.
  * No Foundry globals at import time: the build script loads this file in Node.
  * Each macro only calls the module API; the API warns when its tool is turned off or GM only.
  */
@@ -41,14 +41,19 @@ export const MACROS = [
 export const macroOn = (m, on) => !m.feature || String(m.feature).split(":").every(id => on(id));
 
 /** Where Run setup's macros are. Setup never puts macros on a hotbar; this is shown after setup and in the setup reminder. */
-export const MACRO_HINT = "Macros are in the \"Wayfarer's Toolkit\" macro folder and the \"Wayfarer's Toolkit Macros\" compendium: drag them to your hotbar if you want them there.";
+/** The setup folder's name now, and the name earlier worlds have (found by either; new folders get the current one). */
+export const FOLDER_NAME = "Wanderer's Toolkit";
+export const OLD_FOLDER_NAME = "Wayfarer's Toolkit";
+export const isToolkitFolderName = (/** @type {unknown} */ n) => n === FOLDER_NAME || n === OLD_FOLDER_NAME;
+
+export const MACRO_HINT = "Macros are in the \"Wanderer's Toolkit\" macro folder and the \"Wanderer's Toolkit Macros\" compendium: drag them to your hotbar if you want them there.";
 
 /** The script body every copy of a macro runs. */
 export function macroCommand(m) {
   return [
-    `// ${m.name}: Wayfarer's Toolkit`,
+    `// ${m.name}: Wanderer's Toolkit`,
     `const api = game.modules.get("${ID}")?.api;`,
-    `if (!api) return ui.notifications.error("Wayfarer's Toolkit module is not active.");`,
+    `if (!api) return ui.notifications.error("Wanderer's Toolkit module is not active.");`,
     `return api.${m.fn}();`
   ].join("\n");
 }

@@ -65,7 +65,7 @@ export function featureChecks(facts) {
     out.push(cant.length ? L("macros", "warn", `Can't run script macros: ${list(cant)}. The ${list(shared)} macro${shared.length === 1 ? " does" : "s do"} nothing for them (the token-control buttons and keys still work).`, "Game Settings › Configure Permissions › Use Script Macros: tick the Player role (or Trusted, and make them Trusted).")
       : L("macros", "ok", `Players can run the shared ${list(shared)} macro${shared.length === 1 ? "" : "s"}.`));
     const unshared = shared.filter(n => n in (facts.macros ?? {}) && (facts.macros[n] ?? 0) < LEVELS.OBSERVER);
-    if (unshared.length) out.push(L("macros", "warn", `World macro${unshared.length === 1 ? "" : "s"} players can't see: ${list(unshared)}.`, "Give players Observer on the macro (right-click it in the Macro Directory › Configure Ownership), or let them drag it from the Wayfarer's Toolkit Macros compendium."));
+    if (unshared.length) out.push(L("macros", "warn", `World macro${unshared.length === 1 ? "" : "s"} players can't see: ${list(unshared)}.`, "Give players Observer on the macro (right-click it in the Macro Directory › Configure Ownership), or let them drag it from the Wanderer's Toolkit Macros compendium."));
   }
 
   // The party actor: players see the purse Flight Master charges, and the gold tracker reads it.

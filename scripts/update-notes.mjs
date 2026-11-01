@@ -17,7 +17,7 @@ import * as C from "../vendor/wanderers-core/index.mjs";
 export const ALWAYS_ACTIONS = [
   {
     id: "setup", label: "Run setup", icon: "fa-solid fa-hammer",
-    hint: "Adds what the tools turned on still need (tracker journal, party actor, macros in the Wayfarer's Toolkit macro folder). Never overwrites anything and never touches a hotbar.",
+    hint: "Adds what the tools turned on still need (tracker journal, party actor, macros in the Wanderer's Toolkit macro folder). Never overwrites anything and never touches a hotbar.",
     check: ({ api }) => api.setupPlan().some(p => !p.ok),
     run: ({ api }) => api.setup()
   }
@@ -41,6 +41,7 @@ export const NOTES = [
   {
     version: "1.27.2",
     changes: [
+      "The module is now called Wanderer's Toolkit (it was Wayfarer's Toolkit), to match the Wanderer's Satchel hub. Only the name you see changed: nothing to do, and your world's data, settings and macros are untouched.",
       { feature: "questTracker", text: "The on-screen quest tracker can be moved: drag it by its title (or focus the grip and use the arrow keys). Each person's spot is kept on their own computer. It now starts clear of Foundry's own buttons; double-click its title, or use the button in the quest log, to put it back. It can also be closed with its X and shown again with Show tracker at the top of the quest log." }
     ]
   },
@@ -261,5 +262,5 @@ export function cardHTML(notice) {
   const list = e => `<ul>${e.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul>`;
   const body = entries.map((e, i) => i === 0 ? `<h4>What's new in ${esc(e.version)}</h4>${list(e)}` : `<details><summary>${esc(e.version)}</summary>${list(e)}</details>`).join("");
   const todo = actions.length ? `<h4>To do</h4><ul class="wct-update-actions">${actions.map(a => `<li><button type="button" data-wct-update="${esc(a.id)}"><i class="${esc(a.icon ?? "fa-solid fa-check")}"></i> ${esc(a.label)}</button>${a.hint ? `<p class="hint">${esc(a.hint)}</p>` : ""}</li>`).join("")}</ul>` : `<p>Nothing needs doing.</p>`;
-  return `<div class="wct-update"><h3>Wayfarer's Toolkit updated: ${range}</h3>${body}${todo}<p><a data-wct-update="panel"><i class="fa-solid fa-toolbox"></i> Open the control panel</a></p></div>`;
+  return `<div class="wct-update"><h3>Wanderer's Toolkit updated: ${range}</h3>${body}${todo}<p><a data-wct-update="panel"><i class="fa-solid fa-toolbox"></i> Open the control panel</a></p></div>`;
 }

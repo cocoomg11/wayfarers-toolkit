@@ -3,7 +3,7 @@
   "name": "Quest Log",
   "type": "script",
   "img": "icons/sundries/scrolls/scroll-bound-sealed-red-tan.webp",
-  "command": "// Quest Log: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.questLog();",
+  "command": "// Quest Log: Wanderer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wanderer's Toolkit module is not active.\");\nreturn api.questLog();",
   "flags": {
     "wayfarers-toolkit": {
       "macro": "questLog"

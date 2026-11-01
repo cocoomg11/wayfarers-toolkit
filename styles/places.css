@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit 1.22: zone title cards (Who's online moved to the Red Book module in 1.27). No backdrop blur (it tanks FPS in v14). */
+/* Wanderer's Toolkit 1.22: zone title cards (Who's online moved to the Red Book module in 1.27). No backdrop blur (it tanks FPS in v14). */
 .wct-zone-title {
   position: fixed; left: 0; right: 0; top: 18vh; z-index: 60; pointer-events: none;
   display: flex; justify-content: center; opacity: 0; transition: opacity var(--wct-zt-in, 900ms) ease-out;

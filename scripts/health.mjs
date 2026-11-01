@@ -346,8 +346,8 @@ function shared() {
   if (want) out.push(mine.length ? ok("Table Tools tab in Scene Configuration: the toolkit's section is registered.") : warn("Table Tools tab: the toolkit's section isn't registered, so scene title cards, Dungeon and inns can't be set (reload Foundry)."));
   const v = Vault.status();
   if (!v.exists) out.push(off("GM-only records: none yet (made the first time something GM-only is saved)."));
-  else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "Wayfarer's Toolkit (GM only)" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`));
-  else out.push(ok(`GM-only records: kept in "Wayfarer's Toolkit (GM only)", players can't open it (${plural(v.buckets.length, "kind")} of record).`));
+  else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "${v.name || "Wanderer's Toolkit (GM only)"}" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`));
+  else out.push(ok(`GM-only records: kept in "${v.name || "Wanderer's Toolkit (GM only)"}", players can't open it (${plural(v.buckets.length, "kind")} of record).`));
   const pending = Migrate.status().filter(m => !m.done).map(m => m.id);
   if (pending.length) out.push(off(`1.27 data moves not run yet: ${pending.join(", ")} (they run on the acting GM's next load, or with a tool turned on).`));
   return out;
@@ -413,14 +413,14 @@ export function html(api, sections) {
   const missing = (() => { try { return api.setupPlan().some(p => !p.ok); } catch { return false; } })();
   const counts = { ok: 0, warn: 0, bad: 0 }; for (const s of sections) for (const l of s.lines) if (l.level in counts) counts[l.level]++;
   const body = sections.map(s => `<h4 style="margin:0.6em 0 0.2em;border-bottom:1px solid currentColor;">${esc(s.title)}</h4><ul style="list-style:none;margin:0;padding:0;">${s.lines.map(l => `<li style="margin:0.1em 0;"><span style="color:${COLOR[l.level]};font-weight:bold;display:inline-block;width:1.2em;">${ICON[l.level]}</span>${l.text}</li>`).join("")}</ul>`).join("");
-  return `<div class="wct-health"><h3>Wayfarer's Toolkit ${esc(api.version ?? "")}: health check</h3><p>${counts.ok} ✓ · ${counts.warn} ⚠ · ${counts.bad} ✗</p>${body}${missing ? `<p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>` : ""}</div>`;
+  return `<div class="wct-health"><h3>Wanderer's Toolkit ${esc(api.version ?? "")}: health check</h3><p>${counts.ok} ✓ · ${counts.warn} ⚠ · ${counts.bad} ✗</p>${body}${missing ? `<p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>` : ""}</div>`;
 }
 
 /** GM: runs the checks and whispers the card to the GMs. With `{ window: true }` it opens the window instead. */
 export async function post(api, { window = false } = {}) {
   if (window) return new HealthApp().render(true);
   const sections = await run(api);
-  await ChatMessage.create({ content: html(api, sections), whisper: gmIds(), speaker: { alias: "Wayfarer's Toolkit" }, flags: { [ID]: { health: true } } });
+  await ChatMessage.create({ content: html(api, sections), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: { health: true } } });
   return sections;
 }
 
@@ -428,7 +428,7 @@ export async function post(api, { window = false } = {}) {
 let API = null;
 /** The report in a window (api.health({ window: true })), with Post to chat and Run setup. */
 export class HealthApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window"], window: { title: "Wayfarer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
+  static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window"], window: { title: "Wanderer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
   async _renderHTML() {
     const div = document.createElement("div"); div.style.overflowY = "auto";
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
@@ -446,8 +446,8 @@ export class HealthApp extends foundry.applications.api.ApplicationV2 {
 async function runSetup(after) {
   try {
     const r = await API.setup();
-    ui.notifications.info(`Wayfarer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}.`);
-  } catch (e) { ui.notifications.error(`Wayfarer's Toolkit setup: ${e.message}`); }
+    ui.notifications.info(`Wanderer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}.`);
+  } catch (e) { ui.notifications.error(`Wanderer's Toolkit setup: ${e.message}`); }
   after?.();
 }
 

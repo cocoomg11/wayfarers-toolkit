@@ -1,5 +1,5 @@
 /**
- * The GM-only store (Foundry half; data shape and caps in vault-model.mjs). One journal entry, "Wayfarer's Toolkit (GM only)", with
+ * The GM-only store (Foundry half; data shape and caps in vault-model.mjs). One journal entry, "Wanderer's Toolkit (GM only)", with
  * default ownership None and no player owners, holds every GM-only record under flags.wayfarers-toolkit.vault. Before 1.27.0 these
  * lived where every client could read them: world settings (flight network with locked points, gold snapshots, loot history), quest
  * flags and pages (hidden objectives, GM text) and scene notes (hidden GM pins).
@@ -45,7 +45,7 @@ async function ensure() {
   creating ??= JournalEntry.create({
     name: M.VAULT_NAME, ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
     flags: { [ID]: { vaultEntry: true, vault: M.normalizeVault(null) } },
-    pages: [{ name: "About", type: "text", text: { format: 1, content: "<p>Wayfarer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history). Don't share this entry with players. Deleting it loses those records.</p>" } }]
+    pages: [{ name: "About", type: "text", text: { format: 1, content: "<p>Wanderer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history). Don't share this entry with players. Deleting it loses those records.</p>" } }]
   }).finally(() => { creating = null; });
   return creating;
 }
@@ -72,7 +72,7 @@ export const markMigrated = id => update(v => M.markMigrated(v, id));
 
 /** For the health check: { exists, playersCanSee: [user names], size }. */
 export function status() {
-  const j = entry(); if (!j) return { exists: false, playersCanSee: [], buckets: [] };
+  const j = entry(); if (!j) return { exists: false, playersCanSee: [], buckets: [], name: "" };
   const see = game.users.filter(u => !u.isGM && j.testUserPermission(u, "LIMITED")).map(u => u.name);
-  return { exists: true, playersCanSee: see, buckets: Object.keys(read().buckets) };
+  return { exists: true, playersCanSee: see, buckets: Object.keys(read().buckets), name: j.name };
 }

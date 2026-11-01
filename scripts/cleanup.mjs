@@ -6,6 +6,7 @@
  * records journal (when ticked), Hex Travel's trip counter (flags.world.trackers on the tracker journal), macros Run setup made (when ticked) and the module's
  * settings (when ticked). Other flags, items and documents are never changed. It doesn't need to be the active GM.
  */
+import { isToolkitFolderName } from "./macros.mjs";
 import { pinsByScene } from "./pins-model.mjs";
 import { hasFlags, confirmed, CONFIRM_WORD } from "../vendor/wanderers-core/index.mjs";
 const ID = "wayfarers-toolkit";
@@ -116,7 +117,7 @@ export async function remove(pick = {}) {
     const folders = new Set(p.macros.map(m => m.folder).filter(Boolean));
     try { await Macro.deleteDocuments(p.macros.map(m => m.id)); done.macros = p.macros.length; } catch (e) { console.warn(`${ID} | remove data: macros`, e); done.macros = 0; }
     // The setup folder goes too once it's empty.
-    for (const f of folders) if (f.name === "Wayfarer's Toolkit" && !f.contents?.length && !f.children?.length) { try { await f.delete(); } catch { } }
+    for (const f of folders) if (isToolkitFolderName(f.name) && !f.contents?.length && !f.children?.length) { try { await f.delete(); } catch { } }
   }
   if (pick.settings) {
     let n = 0;
@@ -127,12 +128,12 @@ export async function remove(pick = {}) {
 }
 
 export class CleanupApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup", "wct-window"], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wayfarer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
+  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup", "wct-window"], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wanderer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
   async _renderHTML() {
     const div = document.createElement("div");
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
     const p = plan();
-    div.innerHTML = `<p>Removes what Wayfarer's Toolkit stored in this world. Counts below are what would go now; nothing is changed until you confirm. Your own documents, other modules' data and items the toolkit didn't create are never touched. Item Piles piles stay piles (revert them with Reset loot first if you want normal tokens back).</p>
+    div.innerHTML = `<p>Removes what Wanderer's Toolkit stored in this world. Counts below are what would go now; nothing is changed until you confirm. Your own documents, other modules' data and items the toolkit didn't create are never touched. Item Piles piles stay piles (revert them with Reset loot first if you want normal tokens back).</p>
       ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "pins", "vault", "messages", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
       <div class="form-group"><label for="wct-cleanup-confirm">Type <strong>${CONFIRM_WORD}</strong> to confirm</label><div class="form-fields"><input type="text" id="wct-cleanup-confirm" name="confirm" autocomplete="off"></div></div>
       <footer class="form-footer"><button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="submit" data-action="remove"><i class="fa-solid fa-broom"></i> Remove</button></footer>`;
@@ -154,8 +155,8 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
       const label = Object.fromEntries(CATEGORIES);
       const lines = Object.entries(done).map(([k, n]) => `${label[k].replace(/ \(.*\)$/, "")}: ${n}`);
       const text = lines.length ? lines.join("; ") : "nothing";
-      ui.notifications.info(`Wayfarer's Toolkit data removed: ${text}.`);
-      await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" }, content: `<h3>Toolkit data removed</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("") || "<li>nothing</li>"}</ul>` });
+      ui.notifications.info(`Wanderer's Toolkit data removed: ${text}.`);
+      await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" }, content: `<h3>Toolkit data removed</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("") || "<li>nothing</li>"}</ul>` });
       if (pick.settings && done.settings) foundry.applications?.settings?.SettingsConfig?.reloadConfirm?.({ world: true });
     };
   }
