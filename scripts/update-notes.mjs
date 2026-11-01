@@ -30,7 +30,10 @@ export const NOTES = [
       "A new look across the toolkit: every window, dialog and chat card now follows Foundry's own theme (dark or light), sharing one look with the Wanderer's Satchel and Red Book. The control panel has a sidebar you can move through with the arrow keys. Coins show as gold, silver and copper with little coin marks; item borders use one set of quality colours.",
       { feature: "characterPane", text: "The character pane is now a full character sheet: level, class, species and party under the name, a Rested badge, Attuned n / 3, a health bar with temporary hit points, your coins, empty slots drawn as outlines, and boxes for Attributes, Defence (AC, hit points, hit dice, initiative, speed, saves) and Attack. The Attack box follows the weapon set in your hands (melee, ranged or spell); pick one by hand from its menu. Everything else works as before." },
       "The health check's chat card is now one line (how many checks are fine, warnings and problems) with an Open in Wanderer's Satchel button when that module is on; without it you get the full card as before.",
-      { feature: "questLog", text: "Fixed: quest levels written like \"Act 4 · Lv 8\" now give the quest its difficulty colour (the text stays as you wrote it). Reward items added by a macro now show their rarity colour." }
+      { feature: "questLog", text: "Fixed: quest levels written like \"Act 4 · Lv 8\" now give the quest its difficulty colour (the text stays as you wrote it). Reward items added by a macro now show their rarity colour." },
+      "Windows remember where you left them: the control panel, quest log, character pane, flight map and editor, coin log, loot history, party gold and health check reopen at the same place and size. Control panel › Loot › Advanced › Reset window positions puts them back.",
+      "The GM-only records journal moves once into a \"Module data\" journal folder that stays out of the Journal sidebar. Nothing in it changes. To see it, turn on Show module data folder (control panel › Loot › Advanced).",
+      "Health check lines with a quick repair (Run setup, Link boss tables, make the records journal GM only, file it) now offer a Fix button in the Wanderer's Satchel and the control panel's Overview. Each asks first. Your shortcuts in Configure Controls carry over unchanged."
     ]
   },
   {
