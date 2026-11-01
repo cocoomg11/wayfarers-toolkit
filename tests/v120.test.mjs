@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import "./_globals.mjs";
 import * as Pace from "../scripts/travel-pace.mjs";
 import * as G from "../scripts/gold-model.mjs";
-import * as IO from "../scripts/settings-io-model.mjs";
 import * as Perm from "../scripts/permissions.mjs";
 import { FEATURES } from "../scripts/features.mjs";
 import { FEATURE_IDS, FEATURE_CARDS, TABS, tabKeys, LABELS, presetSettings } from "../scripts/panel-model.mjs";
@@ -42,8 +41,8 @@ test("travel pace: requests", () => {
   assert.equal(Pace.canRequest({ isGM: false, requestsOn: true }), true);
   assert.equal(Pace.canRequest({ isGM: true, requestsOn: true }), false);
   assert.equal(Pace.canRequest({ isGM: false, requestsOn: false }), false);
-  assert.deepEqual(Pace.readRequest({ action: "paceRequest", pace: "fast", userId: "u1" }), { pace: "fast", userId: "u1" });
-  assert.deepEqual(Pace.readRequest({ action: "paceRequest", pace: "careful" }), { pace: "slow", userId: null });
+  assert.deepEqual(Pace.readRequest({ action: "paceRequest", pace: "fast", userId: "u1" }), { pace: "fast" }, "a payload user id is ignored");
+  assert.deepEqual(Pace.readRequest({ action: "paceRequest", pace: "careful" }), { pace: "slow" });
   assert.equal(Pace.readRequest({ action: "paceRequest", pace: "warp" }), null);
   assert.equal(Pace.readRequest({ action: "flight", pace: "fast" }), null);
   assert.equal(Pace.readRequest(null), null);
@@ -97,64 +96,6 @@ test("gold: status bands and the per-act table", () => {
   assert.equal(G.clampAct(0), 1); assert.equal(G.clampAct(99), 9); assert.equal(G.clampAct("3"), 3);
   const snaps = G.addSnapshot([{ a: 1 }, null, "x"], { a: 2 }, 2);
   assert.deepEqual(snaps, [{ a: 2 }, { a: 1 }]);
-});
-
-// ---------------------------------------------------------------- settings export / import
-const DEFS = new Map([
-  ["partySize", { scope: "world", type: Number, range: { min: 1, max: 8 }, name: "Party size" }],
-  ["coinSystem", { scope: "world", type: String, choices: { standard: "s", threeCoin: "t" }, name: "Coin system" }],
-  ["feature-hexTravel", { scope: "world", type: Boolean, name: "Feature: Hex Travel" }],
-  ["flightNetwork", { scope: "world", type: Object }],
-  ["bossLayout", { scope: "client", type: Object }],
-  ["trackedQuests", { scope: "client", type: String }]
-]);
-
-test("settings io: export separates world and client and skips records", () => {
-  const out = IO.buildExport([
-    { key: "partySize", scope: "world", value: 5 }, { key: "bossLayout", scope: "client", value: { a: 1 } },
-    { key: "lootHistoryData", scope: "world", value: { entries: [1] } }, { key: "questTracker", scope: "user", value: true },
-    { key: "campaignName", scope: "world", value: undefined }
-  ], { version: "1.20.0", exported: "t" });
-  assert.equal(out.module, "wayfarers-toolkit"); assert.equal(out.format, 1); assert.equal(out.version, "1.20.0");
-  assert.deepEqual(out.world, { campaignName: null, partySize: 5 });
-  assert.deepEqual(out.client, { bossLayout: { a: 1 }, questTracker: true });
-  assert.match(IO.fileName("My World!", new Date(2026, 9, 31)), /^wayfarers-toolkit-settings-my-world-2026-10-31\.json$/);
-});
-
-test("settings io: value checks", () => {
-  assert.deepEqual(IO.checkValue({ type: Boolean }, true), { ok: true, value: true });
-  assert.equal(IO.checkValue({ type: Boolean }, "yes").ok, false);
-  assert.deepEqual(IO.checkValue({ type: Number, range: { min: 1, max: 8 } }, 12), { ok: true, value: 8, reason: "kept within 1 to 8" });
-  assert.equal(IO.checkValue({ type: Number }, NaN).ok, false);
-  assert.equal(IO.checkValue({ type: String, choices: { a: 1 } }, "b").ok, false);
-  assert.equal(IO.checkValue({ type: String }, 3).ok, false);
-  assert.equal(IO.checkValue({ type: Object }, []).ok, false);
-  assert.equal(IO.checkValue({ type: Array }, []).ok, true);
-  assert.equal(IO.checkValue({ type: "SomeModel" }, { x: 1 }).ok, true, "unknown types accept JSON values");
-});
-
-test("settings io: import validation, preview rows and unknown keys", () => {
-  const file = { module: "wayfarers-toolkit", format: 1, version: "1.19.0",
-    world: { partySize: 6, coinSystem: "fivecoin", "feature-hexTravel": true, removedInFuture: 1, lootHistoryData: {}, bossLayout: { b: 2 } },
-    client: { trackedQuests: "[]" } };
-  const r = IO.readImport(JSON.stringify(file), DEFS, { partySize: 4, "feature-hexTravel": true, trackedQuests: "[\"q\"]" });
-  assert.equal(r.ok, true); assert.equal(r.version, "1.19.0");
-  assert.deepEqual(r.unknown, ["removedInFuture"]);
-  assert.deepEqual(r.skipped, ["lootHistoryData"]);
-  assert.deepEqual(r.invalid.map(i => i.key), ["coinSystem"]);
-  const by = Object.fromEntries(r.rows.map(x => [x.key, x]));
-  assert.equal(by.partySize.changed, true); assert.equal(by.partySize.to, 6); assert.equal(by.partySize.label, "Party size");
-  assert.equal(by["feature-hexTravel"].changed, false);
-  assert.equal(by.bossLayout.scope, "client"); assert.match(by.bossLayout.note, /filed under world/);
-  assert.equal(by.trackedQuests.changed, true);
-  // Whole-file failures.
-  assert.match(IO.readImport("{nope", DEFS).error, /valid JSON/);
-  assert.match(IO.readImport("[]", DEFS).error, /isn't a settings export/);
-  assert.match(IO.readImport({ module: "other", format: 1 }, DEFS).error, /"other"/);
-  assert.match(IO.readImport({ module: "wayfarers-toolkit", format: 9 }, DEFS).error, /format 9/);
-  assert.match(IO.readImport({ module: "wayfarers-toolkit", format: 1, world: [1] }, DEFS).error, /"world"/);
-  assert.equal(IO.readImport({ module: "wayfarers-toolkit", format: 1 }, DEFS).rows.length, 0, "an empty export is fine");
-  assert.equal(IO.preview("x".repeat(100)).length, 60); assert.equal(IO.preview({ a: 1 }), "{\"a\":1}");
 });
 
 // ---------------------------------------------------------------- permission checks
@@ -241,7 +182,7 @@ test("flight discoveries: newly unlocked points only", () => {
 
 // ---------------------------------------------------------------- registry, panel, macros, notes
 test("1.20 tools are features with cards, settings rows and gated macros", () => {
-  for (const id of ["flightMap", "travelPace", "partyGold", "settingsIO", "permissionChecks"]) {
+  for (const id of ["flightMap", "travelPace", "partyGold"]) {
     assert.ok(FEATURES.some(f => f.id === id && f.key === `feature-${id}`), id);
     assert.ok(FEATURE_IDS.includes(id), id); assert.ok(FEATURE_CARDS.some(c => c.id === id), id);
   }
@@ -258,7 +199,7 @@ test("1.20 tools are features with cards, settings rows and gated macros", () =>
 
 test("public repo: no publisher names in the 1.20 user-facing text", async () => {
   const { readFile } = await import("node:fs/promises");
-  for (const f of ["travel-pace", "gold-model", "gold", "settings-io-model", "settings-io", "permissions", "flight-map"]) {
+  for (const f of ["travel-pace", "gold-model", "gold", "permissions", "flight-map"]) {
     const src = await readFile(new URL(`../scripts/${f}.mjs`, import.meta.url), "utf8");
     assert.doesNotMatch(src, /warcraft|blizzard|\bwow\b|azeroth/i, f);
   }

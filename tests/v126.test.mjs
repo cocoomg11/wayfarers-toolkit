@@ -6,7 +6,7 @@ const P = await import("../scripts/pins-model.mjs");
 const Perm = await import("../scripts/permissions.mjs");
 const { FEATURES } = await import("../scripts/features.mjs");
 const { TABS, LABELS, FEATURE_CARDS, FEATURE_IDS, WIZARD_IGNORE, tabKeys } = await import("../scripts/panel-model.mjs");
-const { SKIP } = await import("../scripts/settings-io-model.mjs");
+const { RECORD_SETTINGS: SKIP } = await import("../scripts/panel-model.mjs");
 const { NOTES } = await import("../scripts/update-notes.mjs");
 const { CATEGORIES } = await import("../scripts/cleanup.mjs");
 
@@ -171,9 +171,9 @@ test("1.26 wiring: feature, panel rows, labels, settings lists, notes, version, 
   const places = TABS.find(t => t.id === "places"); const keys = tabKeys(places);
   for (const k of ["pinsPlayers", "pinsEditAll", "pinsDimDone", "pinsSize", "pinsPaper", "pinsShowNotes"]) { assert.ok(keys.includes(k), k); assert.ok(LABELS[k]?.[0], k); }
   assert.ok(WIZARD_IGNORE.has("pinsNotesShown")); assert.ok(SKIP.has("pinsNotesShown"));
-  assert.equal(NOTES[0].version, "1.26.0"); assert.ok(NOTES[0].changes.some(c => c.feature === "mapPins"));
+  assert.ok(NOTES.find(n => n.version === "1.26.0").changes.some(c => c.feature === "mapPins"));
   const mod = JSON.parse(readFileSync(new URL("../module.json", import.meta.url), "utf8"));
-  assert.equal(mod.version, "1.26.0"); assert.match(mod.download, /\/v1\.26\.0\/module\.zip$/);
+  assert.match(mod.download, new RegExp(`/v${mod.version.replace(/\./g, "\\.")}/module\\.zip$`));
   assert.ok(mod.styles.includes("styles/pins.css"));
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
   assert.match(readme, /`pins`/); assert.match(readme, /## Map pins/);

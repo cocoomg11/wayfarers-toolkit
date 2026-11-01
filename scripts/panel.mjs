@@ -167,7 +167,6 @@ function overviewTab() {
       <button type="button" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
       <button type="button" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
       <button type="button" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
-      ${F.on("settingsIO") ? `<button type="button" data-act="settings-export"><i class="fa-solid fa-file-export"></i> Export settings</button><button type="button" data-act="settings-import"><i class="fa-solid fa-file-import"></i> Import settings…</button>` : ""}
       <button type="button" data-act="cleanup" class="wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
     <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
@@ -311,8 +310,6 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "zone-preview") return API.zoneTitles?.show(canvas?.scene);
       if (act === "whos-online") return API.whosOnline();
       if (act === "rent-rooms") return API.rentRooms();
-      if (act === "settings-export") return API.settingsIO?.export();
-      if (act === "settings-import") return API.settingsIO?.import();
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }

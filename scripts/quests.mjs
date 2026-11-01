@@ -4,8 +4,9 @@
  * rebuilt from that data on every change, so the journal reads well on its own (and in exports). Players only read; every write
  * happens on a GM's client. Turned off with the "Quest log" setting, nothing here is registered.
  */
+import { notify } from "./gm.mjs";
+
 const ID = "wayfarers-toolkit";
-const SOCKET = `module.${ID}`;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
 const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
@@ -159,8 +160,8 @@ async function announceStatus(j, q, prev) {
 async function announceObjective(j, o, verb) {
   const text = `${verb === "new" ? "New objective" : "Objective complete"}: ${o.text}`;
   if (S("questObjectiveChat")) return say(`<div class="wct-quest-line ${verb}"><span class="wct-glyph">${verb === "new" ? "!" : "✔"}</span> <strong>${esc(j.name)}</strong>: ${verb === "new" ? "" : "<s>"}${esc(o.text)}${verb === "new" ? "" : "</s>"}${o.optional ? " <em>(optional)</em>" : ""}</div>`, j, { kind: "objective" });
-  game.socket.emit(SOCKET, { action: "questNotify", text: `${j.name}: ${text}` });
-  ui.notifications.info(`${j.name}: ${text}`);
+  // Everyone (this client too) hears it as a notice hook from the leader, accepted only from the leader's GM session (gm.mjs).
+  if (!notify(null, `${j.name}: ${text}`)) ui.notifications.info(`${j.name}: ${text}`);
 }
 
 // ---------------------------------------------------------------- writes (GM client only)
@@ -623,9 +624,8 @@ export function init(wct, { tracker = true } = {}) {
   });
 }
 
-/** Called from the module's ready hook: socket (objective notifications only; no quest writes travel over it), tracker. */
+/** Called from the module's ready hook: the tracker. (Objective notices arrive as the toolkit's notice hook, gm.mjs.) */
 export function ready() {
-  game.socket.on(SOCKET, msg => { if (msg?.action === "questNotify" && typeof msg.text === "string") ui.notifications.info(msg.text.slice(0, 300)); });
   for (const j of all()) seen.set(j.id, liveFor(j));
   renderTracker();
   ui.controls?.render?.({ reset: true });

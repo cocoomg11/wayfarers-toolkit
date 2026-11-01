@@ -67,10 +67,10 @@ export function tripDays({ road = 0, off = 0, pace = "normal", mph, offroadMult 
 /** Whether a pace request from this user is accepted: players only when requests are on; a GM sets the pace directly. */
 export const canRequest = ({ isGM = false, requestsOn = true } = {}) => !isGM && !!requestsOn;
 
-/** A pace request from the socket, cleaned up: { pace, userId } or null. */
+/** A pace request from the socket, cleaned up: { pace } (the sender is Foundry's) or null. */
 export function readRequest(msg) {
   if (!msg || msg.action !== "paceRequest") return null;
   const raw = String(msg.pace ?? "").trim().toLowerCase();
   if (!PACE_IDS.includes(raw) && raw !== "careful" && raw !== "cautious") return null;
-  return { pace: normPace(raw), userId: typeof msg.userId === "string" ? msg.userId : null };
+  return { pace: normPace(raw) };
 }

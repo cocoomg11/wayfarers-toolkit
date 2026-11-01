@@ -107,10 +107,10 @@ export function benefitPlan(benefit, facts = {}) {
   return { actor: { "system.attributes.inspiration": true }, items: [], text: "gains Heroic Inspiration", granted: true };
 }
 
-/** A player's room request over the socket: { sceneId, userId } or null. */
+/** A player's room request (core request data): { sceneId } or null. The sender is Foundry's, never a field. */
 export function readRoomRequest(msg) {
   if (!msg || msg.action !== "roomRequest" || typeof msg.sceneId !== "string" || !msg.sceneId) return null;
-  return { sceneId: msg.sceneId, userId: typeof msg.userId === "string" ? msg.userId : null };
+  return { sceneId: msg.sceneId };
 }
 /** A player's long-rest report over the socket: { actorId, sceneId } or null. */
 export function readRestReport(msg) {

@@ -8,11 +8,10 @@
 import * as M from "./pins-model.mjs";
 import * as F from "./features.mjs";
 import * as Quests from "./quests.mjs";
-import { isActiveGM, activeGM, settled, newRequestId, firstTime } from "./gm.mjs";
+import { activeGM, handle, request, notify } from "./gm.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
-const SOCKET = `module.${ID}`;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 const opts = () => ({ players: get("pinsPlayers", true), editAll: get("pinsEditAll", true) });
@@ -62,7 +61,7 @@ function tell(text, ok = false) { if (text) ui.notifications[ok ? "info" : "warn
 /** Sends a player's change to the acting GM. Nothing happens when no GM is online. */
 function relay(op, body) {
   if (!activeGM()) { ui.notifications.warn("Map pins: no GM is online, so the pin wasn't saved. Try again once your GM has joined."); return false; }
-  game.socket.emit(SOCKET, { action: "mapPin", op, ...body, userId: game.user.id, rid: newRequestId() });
+  if (!request("mapPin", { op, ...body })) { ui.notifications.warn("Map pins: the change couldn't be sent."); return false; }
   return true;
 }
 
@@ -121,12 +120,10 @@ export async function reveal(ref, hidden = false, scene) {
   return note.update(upd);
 }
 
-/** Acting GM: a player's request. The user is Foundry's sender, never a field of the message. */
-async function onRequest(msg, senderId) {
-  if (!game.user.isGM) return;
-  await settled(); if (!isActiveGM() || !firstTime(msg)) return;
-  const sender = game.users.get(senderId); if (!sender) return;
-  const req = M.readRequest(msg);
+/** Leader: a player's request, schema-checked by core. The user is Foundry's sender, never a field of the message. */
+async function onRequest(data, sender) {
+  if (!sender) return;
+  const req = M.readRequest({ action: "mapPin", ...data });
   const scene = req ? game.scenes.get(req.sceneId) : null;
   const note = req?.noteId ? scene?.notes?.get(req.noteId) ?? null : null;
   const facts = {
@@ -140,12 +137,12 @@ async function onRequest(msg, senderId) {
   };
   const d = M.decide(req, facts);
   log(`map pin ${req?.op ?? "?"} from ${sender.name}: ${d.ok ? "ok" : d.reason}`);
-  if (!d.ok) return answer(sender.id, msg.rid, false, d.reason);
+  if (!d.ok) return refuse(sender.id, d.reason);
   try { await gmWrite(req.op, scene, note, d.data); }
-  catch (e) { console.warn(`${ID} | map pin`, e); answer(sender.id, msg.rid, false, "the GM's client couldn't save it"); }
+  catch (e) { console.warn(`${ID} | map pin`, e); refuse(sender.id, "the GM's client couldn't save it"); }
 }
-function answer(userId, rid, ok, reason) { try { game.socket.emit(SOCKET, { action: "mapPinResult", userId, rid, ok, reason }); } catch { } }
-function onResult(msg) { if (msg.userId === game.user.id && !msg.ok) tell(String(msg.reason ?? "the GM's client said no").slice(0, 120)); }
+/** Tells the sender their change was refused (a notice hook from the leader; clients accept it only from the leader's GM session). */
+function refuse(userId, reason) { notify(userId, `Map pins: ${String(reason ?? "the GM's client said no").slice(0, 120)}.`, "warn"); }
 
 // ---------------------------------------------------------------- dialogs
 const inkCss = id => M.INKS[id]?.hex ?? M.INKS.iron.hex;
@@ -331,10 +328,7 @@ export function init() {
   });
 }
 export function ready() {
-  game.socket.on(SOCKET, (msg, senderId) => {
-    if (msg?.action === "mapPin") onRequest(msg, senderId).catch(e => console.warn(`${ID} | map pin`, e));
-    else if (msg?.action === "mapPinResult") onResult(msg);
-  });
+  handle("mapPin", (data, sender) => onRequest(data, sender));
 }
 
 export const api = {

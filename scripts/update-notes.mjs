@@ -7,10 +7,13 @@
  * check(ctx) → true while it still needs doing, run(ctx) }. `ctx` is { api, on, importFlights } (the module API, the feature check and
  * the flight import flow), so
  * check and run only touch Foundry when they're called. Actions and lines with a `feature` are left out while that feature is off.
+ * Ordering, filtering and the decision are wanderers-core's notes-model (pure); this file keeps the notes and the card.
  * To add a version: add an entry at the top. A version with nothing worth saying needs no entry (patch updates without one post nothing).
  */
 
 /** Offered after any update while it's still needed. */
+import * as C from "../vendor/wanderers-core/index.mjs";
+
 export const ALWAYS_ACTIONS = [
   {
     id: "setup", label: "Run setup", icon: "fa-solid fa-hammer",
@@ -21,6 +24,14 @@ export const ALWAYS_ACTIONS = [
 ];
 
 export const NOTES = [
+  {
+    version: "1.27.0",
+    changes: [
+      "The toolkit now runs on the shared core its sister modules use: the same one-GM-client rule, the same checked requests from players, the same health report. Nothing to set up.",
+      "Settings export / import moved to the hub module (it saves every module's settings in one file). The toolkit's own Export / Import buttons are gone; nothing you set is lost.",
+      "Permission checks are now always part of the health check (they were a switch on the Features tab)."
+    ]
+  },
   {
     version: "1.26.0",
     changes: [
@@ -171,65 +182,44 @@ export const NOTES = [
   }
 ];
 
-// ---------------------------------------------------------------- versions
-/** "1.16.0" → [1, 16, 0]; null when it isn't a version. A "v" prefix and a "-beta"-style suffix are ignored. */
+// ---------------------------------------------------------------- versions (wanderers-core version.mjs and notes-model.mjs)
+/** "1.16.0" → [1, 16, 0]; null when it isn't a version. A "v" prefix is ignored; a "-beta"-style suffix is read by core. */
 export function parseVersion(v) {
   const m = /^v?(\d+(?:\.\d+)*)/.exec(String(v ?? "").trim());
   return m ? m[1].split(".").map(Number) : null;
 }
-/** -1, 0 or 1. Missing parts count as 0 (1.16 = 1.16.0). Unreadable versions sort before every real one. */
+/** -1, 0 or 1 (core's semver compare). Unreadable versions sort before every real one. */
 export function compareVersions(a, b) {
-  const x = parseVersion(a), y = parseVersion(b);
+  const x = !!parseVersion(a), y = !!parseVersion(b);
   if (!x || !y) return !x && !y ? 0 : !x ? -1 : 1;
-  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] ?? 0) - (y[i] ?? 0); if (d) return d < 0 ? -1 : 1; }
-  return 0;
+  return C.compareVersions(String(a).trim(), String(b).trim()) ?? 0;
 }
 
 // ---------------------------------------------------------------- what to do on ready
 /**
- * Decides what the ready hook does: { kind, from }. kinds: "fresh" (a new world: store the version, say nothing; the welcome wizard
- * covers it), "upgrade" (post notes from `from`, exclusive; null = an unknown older version), "same" (nothing), "downgrade" (store
- * the running version silently, so updating again shows the notes again).
+ * Decides what the ready hook does: { kind, from } (core's decide, plus the toolkit's pre-1.17 record). kinds: "fresh" (a new world:
+ * store the version, say nothing; the welcome wizard covers it), "upgrade" (post notes from `from`, exclusive; null = an unknown older
+ * version), "same" (nothing), "downgrade" (store the running version silently, so updating again shows the notes again).
  * `stored` is lastSeenVersion; `setupReminded` the version the pre-1.17 setup reminder last ran for; `wizardDone` the wizard flag.
  */
 export function decide({ stored = "", current = "", wizardDone = false, setupReminded = "" } = {}) {
   if (!parseVersion(current)) return { kind: "same", from: null };
-  if (parseVersion(stored)) {
-    const c = compareVersions(current, stored);
-    return c > 0 ? { kind: "upgrade", from: stored } : c < 0 ? { kind: "downgrade", from: stored } : { kind: "same", from: stored };
-  }
-  // No stored version: an earlier version that kept no record (before 1.17), or a new world.
-  if (parseVersion(setupReminded)) {
+  // No stored version but the pre-1.17 reminder's stamp: it says where the world came from.
+  if (!parseVersion(stored) && parseVersion(setupReminded)) {
     return compareVersions(current, setupReminded) > 0 ? { kind: "upgrade", from: setupReminded } : { kind: "same", from: setupReminded };
   }
-  if (wizardDone) return { kind: "upgrade", from: null };
-  return { kind: "fresh", from: null };
+  return C.decide({ stored, current, knownWorld: !!wizardDone });
 }
 
 /** The entries newer than `from` (exclusive; null = all) up to `to` (inclusive), newest first. */
-export function entriesBetween(notes = NOTES, from = null, to = null) {
-  return notes.filter(n => (from == null || compareVersions(n.version, from) > 0) && (to == null || compareVersions(n.version, to) <= 0))
-    .sort((a, b) => compareVersions(b.version, a.version));
-}
-
-const lineText = l => typeof l === "string" ? l : l?.text ?? "";
-const allowed = (x, on) => !x?.feature || on(x.feature);
+export const entriesBetween = (notes = NOTES, from = null, to = null) => C.entriesBetween(notes, from, to);
 
 /**
- * Builds the notice: { from, to, entries: [{ version, changes: [text] }], actions: [action], post }. Lines and actions for features
- * that are off are dropped, actions are deduped by id (the newest entry's wins, then ALWAYS_ACTIONS), and an action whose check says
- * it's done (or throws) is left out. `post` is false when there's nothing to say. `check` is called with `ctx`.
+ * Builds the notice (core's buildNotice): { from, to, entries: [{ version, changes: [text] }], actions: [action], post }. Lines and
+ * actions for features that are off are dropped, actions are deduped by id (the newest entry's wins, then ALWAYS_ACTIONS), and an
+ * action whose check says it's done (or throws) is left out. `post` is false when there's nothing to say. `check` gets { on, ...ctx }.
  */
-export async function build({ notes = NOTES, always = ALWAYS_ACTIONS, from = null, to, on = () => true, ctx = {} } = {}) {
-  const ctxOn = { on, ...ctx };
-  const entries = entriesBetween(notes, from, to).map(n => ({ version: n.version, changes: (n.changes ?? []).filter(l => allowed(l, on)).map(lineText).filter(Boolean), actions: (n.actions ?? []).filter(a => allowed(a, on)) }));
-  const seen = new Set(); const candidates = [];
-  for (const a of [...entries.flatMap(e => e.actions), ...always.filter(a => allowed(a, on))]) { if (!seen.has(a.id)) { seen.add(a.id); candidates.push(a); } }
-  const actions = [];
-  for (const a of candidates) { let need = false; try { need = !!(await a.check?.(ctxOn)); } catch { need = false; } if (need) actions.push(a); }
-  const shown = entries.filter(e => e.changes.length).map(({ version, changes }) => ({ version, changes }));
-  return { from, to, entries: shown, actions, post: shown.length > 0 || actions.length > 0 };
-}
+export const build = ({ notes = NOTES, always = ALWAYS_ACTIONS, from = null, to, on = () => true, ctx = {} } = {}) => C.buildNotice({ notes, always, from, to, on, ctx });
 
 /** For a manual re-show without a version: the newest entry older than `to`, so only `to`'s own notes show. */
 export function previousVersion(notes = NOTES, to) {

@@ -15,6 +15,8 @@ import { phasesOf } from "./bosses.mjs";
 import * as Perm from "./permissions.mjs";
 import * as Quests from "./quests.mjs";
 import * as Pins from "./pins.mjs";
+import { CORE_VERSION, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
+import { sceneTab } from "../vendor/wanderers-core/foundry/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -254,14 +256,14 @@ function permissionFacts(api) {
   };
 }
 
+/** Permission checks are part of the health check (always on since 1.27.0; they were a switch before). */
 function permissions(api) {
-  if (!F.on("permissionChecks")) return [off("Permission checks are off (control panel › Features).")];
   const lines = Perm.featureChecks(permissionFacts(api));
   if (!lines.length) return [off("No tool turned on needs player permissions.")];
   return lines.map(l => line(l.level, `${esc(l.text)}${l.hint && l.level !== "ok" ? ` <em>Fix: ${esc(l.hint)}</em>` : ""}`));
 }
 
-/** Flight route map, travel pace, party gold and settings export / import (1.20). */
+/** Flight route map, travel pace and party gold (1.20). */
 function bundle2(api) {
   const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
   const out = [];
@@ -278,7 +280,6 @@ function bundle2(api) {
     try { const r = api.gold.read(); const cur = r.rows.find(x => x.current); out.push(r.curveError ? warn(`Party gold: the wealth curve can't be read (${esc(r.curveError)}); the default curve is used.`) : ok(`Party gold: ${esc(api.fmtMoney(r.wealth))} against ${esc(api.fmtMoney(cur?.target ?? 0))} for act/tier ${r.act} (${esc(cur?.direction ?? "")}).`)); }
     catch (e) { out.push(warn(`Party gold: couldn't read (${esc(e.message)}).`)); }
   }
-  if (F.on("settingsIO")) out.push(ok("Settings export / import: on (control panel › Overview)."));
   return out.length ? out : [off("None of the 1.20 tools is on.")];
 }
 
@@ -333,6 +334,17 @@ function mapPins() {
   return out;
 }
 
+/** The vendored wanderers-core, the one-writer leader and the shared Table Tools scene tab. */
+function shared() {
+  const out = [ok(`wanderers-core ${esc(CORE_VERSION)} (bundled).`)];
+  const si = sessionInfo();
+  out.push(si ? ok(`One-writer election running: ${si.leader ? "this client acts" : "another client acts"}.`) : warn("One-writer election not started on this client (reload Foundry)."));
+  const mine = sceneTab.sections().filter(x => x.moduleId === ID);
+  const want = F.on("zoneTitles") || F.on("vendorTrash") || F.on("restedInn");
+  if (want) out.push(mine.length ? ok("Table Tools tab in Scene Configuration: the toolkit's section is registered.") : warn("Table Tools tab: the toolkit's section isn't registered, so scene title cards, Dungeon and inns can't be set (reload Foundry)."));
+  return out;
+}
+
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
@@ -340,7 +352,7 @@ function updateNotes() {
 
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards, who's online and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */
@@ -353,6 +365,26 @@ export async function run(api) {
   }
   return out;
 }
+
+/**
+ * The report in wanderers-core's health format, for the hub module and other readers (api.healthReport()):
+ *   [{ title, lines: [{ level: "ok" | "warn" | "bad" | "off" | "info", text }] }]
+ * Text is plain (no HTML: buttons and markup are dropped), empty sections are left out, each section is wrapped and time-limited by
+ * core's collector (a section that throws or takes longer than `timeoutMs` becomes one "warn" line). Read-only; never throws.
+ * GM only: other users get [] (the report names hidden things such as boss tables and inns).
+ */
+export async function report(api, { timeoutMs = 20000 } = {}) {
+  if (!game.user?.isGM) return [];
+  const c = healthCollector({ timeoutMs });
+  for (const [title, fn] of SECTIONS) {
+    await c.checkAsync(title, async add => {
+      for (const l of (await fn(api)) ?? []) add(l.level, toPlain(l.text));
+    });
+  }
+  return c.report();
+}
+/** A line's HTML as plain text: buttons dropped, tags removed, entities read. */
+export const toPlain = html => plain(String(html ?? "").replace(/<button[^>]*>[\s\S]*?<\/button>/g, " "));
 
 /** The report as HTML (for the chat card and the window). */
 export function html(api, sections) {

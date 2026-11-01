@@ -146,7 +146,7 @@ test("inn: rested benefit selection and clearing", () => {
 });
 
 test("inn: socket messages", () => {
-  assert.deepEqual(Inn.readRoomRequest({ action: "roomRequest", sceneId: "s", userId: "u" }), { sceneId: "s", userId: "u" });
+  assert.deepEqual(Inn.readRoomRequest({ action: "roomRequest", sceneId: "s", userId: "u" }), { sceneId: "s" }, "a payload user id is ignored");
   assert.equal(Inn.readRoomRequest({ action: "roomRequest" }), null); assert.equal(Inn.readRoomRequest({ action: "x", sceneId: "s" }), null);
   assert.deepEqual(Inn.readRestReport({ action: "restedRest", actorId: "a", sceneId: 3 }), { actorId: "a", sceneId: null });
   assert.equal(Inn.readRestReport({ action: "restedRest" }), null);

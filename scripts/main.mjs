@@ -13,7 +13,7 @@ import * as Loot from "./loot.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
-import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, newRequestId, firstTime, cardPosted } from "./gm.mjs";
+import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, cardPosted, handle, request, notify } from "./gm.mjs";
 import * as Updates from "./updates.mjs";
 import { MACROS, macroData, macroOn } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
@@ -24,8 +24,8 @@ import { log } from "./log.mjs";
 import * as Pace from "./travel-pace.mjs";
 import * as FlightMap from "./flight-map.mjs";
 import * as Gold from "./gold.mjs";
-import * as SettingsIO from "./settings-io.mjs";
 import { DEFAULT_CURVE, curveText } from "./gold-model.mjs";
+import { RECORD_SETTINGS } from "./panel-model.mjs";
 import * as ZoneTitles from "./zone-titles.mjs";
 import * as Online from "./online.mjs";
 import * as Inn from "./inn.mjs";
@@ -93,7 +93,6 @@ const DEFAULTS = {
 const OLD_RIDER = "Trained Rider";
 /** The riding feat's name for this world: the setting, with the old default read as the new one. */
 const riderName = () => { const n = String(setting("riderFeat") || "").trim(); return !n || n === OLD_RIDER ? DEFAULTS.riderFeat : n; };
-const SOCKET = `module.${ID}`;
 
 // ---------------------------------------------------------------- coins
 /**
@@ -334,6 +333,8 @@ export const WCT = {
   },
   /** GM: checks the world and whispers the report (also the Health check button in the settings and the Toolkit Health Check macro). */
   health(opts = {}) { if (!this.gmOnly()) return; return Health.post(this, opts); },
+  /** GM: the health report in wanderers-core's format, plain text: [{ title, lines: [{ level, text }] }] (README › Public API). Players get []. */
+  healthReport(opts = {}) { return Health.report(this, opts); },
   /** For the health check: coin settings, Item Piles' currencies and the active GM helpers. */
   internals: { ipCoinsMatch, riderName, activeGM, isActiveGM, checkZones },
   /** Party size (1–8) from the world setting. */
@@ -471,16 +472,13 @@ export const WCT = {
     const f = await this.form("Travel pace", content, gm ? "Set pace" : "Ask the GM"); if (!f?.pace) return;
     if (gm) return this.setTravelPace(f.pace);
     if (!activeGM()) return ui.notifications.warn("A GM needs to be connected.");
-    game.socket.emit(SOCKET, { action: "paceRequest", pace: Pace.normPace(f.pace), userId: game.user.id, rid: newRequestId() });
+    if (!request("paceRequest", { pace: Pace.normPace(f.pace) })) return ui.notifications.warn("Travel pace: the request couldn't be sent.");
     ui.notifications.info("Travel pace: request sent to the GM.");
   },
-  /** Active GM: a player's pace request becomes a whisper with an Accept button. */
-  async paceRequest(msg, senderId) {
-    const r = Pace.readRequest(msg); if (!r || !game.user.isGM) return;
-    await gmSettled(); if (!isActiveGM() || !setting("paceRequests") || !firstTime(msg)) return;
-    const rid = typeof msg.rid === "string" ? msg.rid : null; if (cardPosted("paceRequest", rid)) return;
-    const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : r.userId; const u = game.users.get(uid);
-    if (!u || u.isGM) return;
+  /** Leader: a player's pace request becomes a whisper with an Accept button. `u` is Foundry's sender (core refuses unknown users). */
+  async paceRequest(data, u, { rid } = {}) {
+    const r = Pace.readRequest({ action: "paceRequest", ...data }); if (!r || !u || u.isGM || !setting("paceRequests")) return;
+    if (cardPosted("paceRequest", rid)) return;
     return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name, rid } } },
       content: `<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>` });
   },
@@ -580,7 +578,7 @@ export const WCT = {
     if (!go) return;
     if (!gm) {
       if (!activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
-      game.socket.emit(SOCKET, { action: "flight", from: f.from, to: f.to, pax, userId: game.user.id, rid: newRequestId() });
+      if (!request("flight", { from: String(f.from), to: String(f.to), pax })) return ui.notifications.warn("Flight Master: the booking couldn't be sent.");
       ui.notifications.info("Booking sent to the flight master…");
       return r;
     }
@@ -593,7 +591,7 @@ export const WCT = {
     return this.doFlight({ from, to, pax, free: !!free, scene });
   },
   /** Tells a player how their booking went (the player's client shows it). */
-  tellFlight(userId, ok, text) { if (userId && userId !== game.user.id) game.socket.emit(SOCKET, { action: "flightResult", userId, ok, text }); },
+  tellFlight(userId, ok, text) { if (userId && userId !== game.user.id) notify(userId, `Flight Master: ${text}`, ok ? "info" : "warn"); },
   /**
    * Carries out a flight on the GM's client: checks everything again (a player's request can't set its own price or ask for a free
    * flight), charges the fare, opens the destination scene when the point has one (refunding the fare if that fails), then sound,
@@ -711,15 +709,15 @@ export const WCT = {
     };
   },
 
-  // ------------------------------------------------------------ 1.20: flight map, party gold, settings export / import
+  // ------------------------------------------------------------ 1.20: flight map, party gold
   /** Opens the flight route map (everyone; players see the unlocked points). */
   flightMap() { return F.need("flightMap") && F.need("flightMaster") ? FlightMap.open(this) : undefined; },
   /** GM: opens the party gold tracker. */
   partyGold() { return F.need("partyGold") && this.gmOnly() ? Gold.open(this) : undefined; },
   /** Party gold numbers (GM): { coin, gear, wealth, size, rows, … } in the smallest coin; undefined when the feature is off. */
   get gold() { return F.on("partyGold") ? { read: () => Gold.read(this), open: () => Gold.open(this), snapshot: note => Gold.snapshot(this, note), snapshots: Gold.snapshots } : undefined; },
-  /** Settings export / import (GM): export() downloads the file, import() opens the import window, read(text) checks a file's text. */
-  get settingsIO() { return F.on("settingsIO") ? { export: () => SettingsIO.exportFile(this), import: () => SettingsIO.openImport(this), read: text => SettingsIO.readText(text), apply: rows => SettingsIO.apply(rows) } : undefined; },
+  /** Record settings a settings file must leave out (stored lists and bookkeeping): for the hub's settings export / import. */
+  settingsRecords: () => [...RECORD_SETTINGS],
 
   // ------------------------------------------------------------ 1.22: zone titles, who's online, rested at the inn
   /** Zone title cards: show(scene | { title, subtitle, sound }) on this client, config(scene); undefined when the feature is off. */
@@ -833,22 +831,19 @@ Hooks.once("ready", () => {
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
   // GM clients find out which of them acts (one GM user can have several tabs open); GM-only ready work waits for that.
   startGMSessions();
-  if (F.on("travelPace") && F.on("hexTravel")) game.socket.on(SOCKET, (msg, senderId) => { if (msg?.action === "paceRequest") WCT.paceRequest(msg, senderId).catch(e => console.warn(`${ID} | pace request`, e)); });
+  // Requests reach the leader only, schema-checked by core with Foundry's sender user (never a payload field; unknown senders refused).
+  if (F.on("travelPace") && F.on("hexTravel")) handle("paceRequest", (data, user, meta) => WCT.paceRequest(data, user, meta));
   if (F.on("flightMaster")) {
-    game.socket.on(SOCKET, async (msg, senderId) => {
-      if (msg?.action === "flightResult") {
-        if (msg.userId === game.user.id && typeof msg.text === "string") ui.notifications[msg.ok ? "info" : "warn"](`Flight Master: ${msg.text.slice(0, 300)}`);
-        return;
-      }
-      if (msg?.action !== "flight" || !game.user.isGM) return;
-      await gmSettled(); if (!isActiveGM() || !firstTime(msg)) return;
-      const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
-      if (!setting("playerFlights")) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
-      // A player's booking: always charged, always changes the scene when the point has one (a "free" field is ignored).
-      try { await WCT.doFlight({ ...Flight.socketBooking(msg), userId: uid }); }
+    handle("flight", async (data, user) => {
+      const uid = user.id;
+      if (!setting("playerFlights") && !user.isGM) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
+      // A player's booking: always charged, always changes the scene when the point has one (a "free" field doesn't exist here).
+      try { await WCT.doFlight({ ...Flight.socketBooking(data), userId: uid }); }
       catch (e) { console.error(`${ID} | player flight failed`, e); ui.notifications.error(`Wayfarer's Toolkit: a player's flight failed (${e.message}).`); WCT.tellFlight(uid, false, `the flight failed (${e.message}).`); }
     });
   }
+  // A GM tab that isn't the leader asks the leader to tell everyone something (quest objective lines).
+  handle("notifyAll", data => notify(null, data.text));
   if (F.on("questLog")) Quests.ready();
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("restedInn")) Inn.ready();

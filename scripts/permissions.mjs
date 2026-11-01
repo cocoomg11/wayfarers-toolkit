@@ -1,5 +1,5 @@
 /**
- * Permission checks for the health check (feature "permissionChecks"). Each tool that's on says which permissions it relies on, and
+ * Permission checks for the health check (always part of the health check since 1.27.0). Each tool that's on says which permissions it relies on, and
  * the world's facts are checked against them: pass (ok), warn or fail (bad) lines, each with a fix hint. Pure (tested in Node): the
  * health check gathers the facts (health.mjs) and nothing here touches Foundry.
  *

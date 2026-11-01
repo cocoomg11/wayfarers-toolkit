@@ -4,7 +4,7 @@ import "./_globals.mjs";
 import { FEATURES } from "../scripts/features.mjs";
 import { FEATURE_IDS, FEATURE_CARDS, TABS, tabKeys, LABELS, PRESETS, condOn } from "../scripts/panel-model.mjs";
 import { NOTES } from "../scripts/update-notes.mjs";
-import { SKIP } from "../scripts/settings-io-model.mjs";
+import { RECORD_SETTINGS as SKIP } from "../scripts/panel-model.mjs";
 const Flight = await import("../scripts/flight.mjs");
 
 const BOX = { x: 60, y: 60, width: 880, height: 520 };

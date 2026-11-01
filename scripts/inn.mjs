@@ -6,11 +6,10 @@
  * client only (renting is a GM action; rest results go to the active GM). Pure rules: inn-model.mjs.
  */
 import * as M from "./inn-model.mjs";
-import { isActiveGM, activeGM, settled, newRequestId, firstTime, cardPosted } from "./gm.mjs";
+import { isActiveGM, activeGM, settled, cardPosted, handle, request } from "./gm.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
-const SOCKET = `module.${ID}`;
 const STATUS = "wct-rested";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
@@ -103,16 +102,15 @@ function requestRooms(scene, inn) {
   if (!inn.on) return ui.notifications.warn("Rooms can only be asked for on an Inn scene.");
   if (!get("innRequests", true)) return ui.notifications.info(`Ask your GM for rooms at ${inn.name}.`);
   if (!activeGM()) return ui.notifications.warn("A GM needs to be connected.");
-  game.socket.emit(SOCKET, { action: "roomRequest", sceneId: scene.id, userId: game.user.id, rid: newRequestId() });
+  if (!request("roomRequest", { sceneId: scene.id })) return ui.notifications.warn("Rent rooms: the request couldn't be sent.");
   ui.notifications.info(`Asked the GM for rooms at ${inn.name} (${API.fmtMoney(inn.price)} per person).`);
 }
 
 /** Active GM: a player's room request becomes a whisper with a Rent rooms button. */
-async function onRoomRequest(msg, senderId) {
-  const r = M.readRoomRequest(msg); if (!r || !game.user.isGM) return;
-  await settled(); if (!isActiveGM() || !get("innRequests", true) || !firstTime(msg)) return;
-  const rid = typeof msg.rid === "string" ? msg.rid : null; if (cardPosted("roomRequest", rid)) return;
-  const u = game.users.get(typeof senderId === "string" && game.users.has(senderId) ? senderId : r.userId); if (!u || u.isGM) return;
+async function onRoomRequest(data, u, { rid } = {}) {
+  const r = M.readRoomRequest({ action: "roomRequest", ...data }); if (!r || !get("innRequests", true)) return;
+  if (cardPosted("roomRequest", rid)) return;
+  if (!u || u.isGM) return;
   const scene = game.scenes.get(r.sceneId); if (!scene) return;
   const inn = innFor(scene); if (!inn.on) return;
   return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: inn.name }, flags: { [ID]: { roomRequest: { sceneId: scene.id, user: u.name, rid } } },
@@ -151,22 +149,19 @@ async function onRestCompleted(actor, result, config) {
   const long = result?.longRest === true || result?.type === "long" || config?.type === "long";
   if (!long || actor?.type !== "character" || !rested(actor)) return;
   const sceneId = canvas?.scene?.id ?? null;
-  const rid = newRequestId();
   if (game.user.isGM) await settled();
-  if (isActiveGM()) return afterLongRest(actor, sceneId, rid).catch(e => console.warn(`${ID} | Rested`, e));
+  if (isActiveGM()) return afterLongRest(actor, sceneId, null).catch(e => console.warn(`${ID} | Rested`, e));
   if (!activeGM()) return ui.notifications.warn(`${actor.name} is Rested, but no GM is connected to apply it; it stays until the next long rest with a GM online.`);
   // Another client acts: a player's rest, or a GM tab that isn't the acting one (it sends to the one that is).
-  game.socket.emit(SOCKET, { action: "restedRest", actorId: actor.id, sceneId, userId: game.user.id, rid });
+  request("restedRest", { actorId: actor.id, ...(sceneId ? { sceneId } : {}) });
 }
 
-async function onRestReport(msg, senderId) {
-  const r = M.readRestReport(msg); if (!r || !game.user.isGM) return;
-  await settled(); if (!isActiveGM() || !firstTime(msg)) return;
+async function onRestReport(data, sender, { rid } = {}) {
+  const r = M.readRestReport({ action: "restedRest", ...data }); if (!r || !sender) return;
   const a = game.actors.get(r.actorId); if (!a) return;
-  const sender = game.users.get(senderId);
   // Only someone who owns the character (or a GM) can report its rest.
-  if (sender && !sender.isGM && !a.testUserPermission(sender, "OWNER")) return;
-  return afterLongRest(a, r.sceneId, typeof msg.rid === "string" ? msg.rid : null).catch(e => console.warn(`${ID} | Rested`, e));
+  if (!sender.isGM && !a.testUserPermission(sender, "OWNER")) return;
+  return afterLongRest(a, r.sceneId, rid ?? null).catch(e => console.warn(`${ID} | Rested`, e));
 }
 
 /** Inn fields in the scene configuration (GM). */
@@ -197,8 +192,6 @@ export function init(api) {
   });
 }
 export function ready() {
-  game.socket.on(SOCKET, (msg, senderId) => {
-    if (msg?.action === "roomRequest") onRoomRequest(msg, senderId)?.catch?.(e => console.warn(`${ID} | room request`, e));
-    else if (msg?.action === "restedRest") onRestReport(msg, senderId).catch(e => console.warn(`${ID} | Rested`, e));
-  });
+  handle("roomRequest", (data, user, meta) => onRoomRequest(data, user, meta));
+  handle("restedRest", (data, user, meta) => onRestReport(data, user, meta));
 }

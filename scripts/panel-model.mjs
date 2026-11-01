@@ -24,8 +24,6 @@ export const FEATURE_CARDS = [
   { id: "flightMapBackground", icon: "fa-solid fa-image", text: "Put a map picture of your own behind the flight route map, so the routes sit on your world's map. Needs the flight route map." },
   { id: "travelPace", icon: "fa-solid fa-person-hiking", text: "Fast, normal or slow (careful) pace for Hex Travel, with what each does to Perception, Survival and Stealth. Needs Hex Travel." },
   { id: "partyGold", icon: "fa-solid fa-scale-balanced", text: "GM only: how much coin the party carries, against a wealth curve per act that you can edit." },
-  { id: "settingsIO", icon: "fa-solid fa-file-export", text: "Save the toolkit's settings to a file and load them into another world, with a preview first." },
-  { id: "permissionChecks", icon: "fa-solid fa-user-shield", text: "The health check also checks the permissions your players need for the tools turned on, with a fix for each." },
   { id: "zoneTitles", icon: "fa-solid fa-signs-post", text: "The scene's name fades in over the map when you activate it, with an optional subtitle and sound." },
   { id: "whosOnline", icon: "fa-solid fa-users", text: "Who's connected, with their character's portrait, on scenes you mark Hub. Says \"Everyone's here\" when the party is complete." },
   { id: "restedInn", icon: "fa-solid fa-bed", text: "Rent rooms at an inn scene; the characters wake from their next long rest with Heroic Inspiration (or an extra Hit Die, or temporary hit points)." },
@@ -239,7 +237,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "settingsIO", "permissionChecks", "zoneTitles", "whosOnline", "restedInn", "mapPins"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "sessionStart", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "whosOnline", "restedInn", "mapPins"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
@@ -255,6 +253,12 @@ export function presetSettings(preset) {
   return Object.fromEntries(FEATURE_IDS.map(id => [`feature-${id}`, p.on.includes(id)]));
 }
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
+/**
+ * Record-type settings (stored lists, bookkeeping), never exported, imported or offered by the wizard: a settings file (the hub's
+ * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE).
+ */
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown"]);
+
 export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default

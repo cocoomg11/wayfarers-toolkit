@@ -6,9 +6,10 @@
  * settings (when ticked). Other flags, items and documents are never changed. It doesn't need to be the active GM.
  */
 import { pinsByScene } from "./pins-model.mjs";
+import { hasFlags, confirmed, CONFIRM_WORD } from "../vendor/wanderers-core/index.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const ours = doc => { const f = doc?._source?.flags?.[ID] ?? doc?.flags?.[ID]; return !!(f && typeof f === "object" && Object.keys(f).length); };
+const ours = doc => hasFlags(doc, ID);
 /** Items the toolkit created on a body or the party: vendor trash and boss loot. */
 export const toolkitItem = i => !!(i?.flags?.[ID]?.trash || i?.flags?.[ID]?.bossLoot);
 /** The Rested status effect Rent rooms adds when "Rested token status" is on (an active effect, not a flag). */
@@ -121,7 +122,7 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
     const p = plan();
     div.innerHTML = `<p>Removes what Wayfarer's Toolkit stored in this world. Counts below are what would go now; nothing is changed until you confirm. Your own documents, other modules' data and items the toolkit didn't create are never touched. Item Piles piles stay piles (revert them with Reset loot first if you want normal tokens back).</p>
       ${CATEGORIES.map(([k, label]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${["deleteItems", "pins", "messages", "macros", "settings"].includes(k) ? "" : "checked"}> ${esc(label)}</label><span class="hint" style="margin-left:auto;">${count(p, k)}</span></div>`).join("")}
-      <div class="form-group"><label for="wct-cleanup-confirm">Type <strong>REMOVE</strong> to confirm</label><div class="form-fields"><input type="text" id="wct-cleanup-confirm" name="confirm" autocomplete="off"></div></div>
+      <div class="form-group"><label for="wct-cleanup-confirm">Type <strong>${CONFIRM_WORD}</strong> to confirm</label><div class="form-fields"><input type="text" id="wct-cleanup-confirm" name="confirm" autocomplete="off"></div></div>
       <footer class="form-footer"><button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="submit" data-action="remove"><i class="fa-solid fa-broom"></i> Remove</button></footer>`;
     return div;
   }
@@ -131,7 +132,7 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
     const cancel = form.querySelector("[data-action=cancel]"); if (cancel) cancel.onclick = ev => { ev.preventDefault(); this.close(); };
     form.onsubmit = async ev => {
       ev.preventDefault();
-      if (String(form.elements.confirm?.value ?? "").trim() !== "REMOVE") return ui.notifications.warn("Remove toolkit data: type REMOVE to confirm.");
+      if (!confirmed(form.elements.confirm?.value)) return ui.notifications.warn("Remove toolkit data: type REMOVE to confirm.");
       const pick = Object.fromEntries(CATEGORIES.map(([k]) => [k, !!form.elements[k]?.checked]));
       if (!Object.values(pick).some(Boolean)) return ui.notifications.info("Remove toolkit data: nothing ticked.");
       form.querySelector("[data-action=remove]").disabled = true;

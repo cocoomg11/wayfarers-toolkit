@@ -4,7 +4,7 @@ import "./_globals.mjs";
 const OM = await import("../scripts/online-model.mjs");
 const Flight = await import("../scripts/flight.mjs");
 const { TABS, LABELS, tabKeys, WIZARD_IGNORE } = await import("../scripts/panel-model.mjs");
-const { SKIP } = await import("../scripts/settings-io-model.mjs");
+const { RECORD_SETTINGS: SKIP } = await import("../scripts/panel-model.mjs");
 const { NOTES } = await import("../scripts/update-notes.mjs");
 
 // Measured in a v14 world: controls 16–88, scene navigation column 104–304, players list from y 1108.
