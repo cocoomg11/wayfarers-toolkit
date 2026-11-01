@@ -240,28 +240,26 @@
 @container (max-width: 620px) { .wct-quests .wctq-body { grid-template-columns: 1fr; grid-template-rows: minmax(140px, 40%) 1fr; } }
 .application.wct-quests#wct-quest-log .window-content { container-type: inline-size; }
 
-/* ---------------------------------------------------------------- editor (uses Foundry's own form styles) */
-.application.wct-quest-edit .window-content { padding: 0; background: var(--wctq-parch); }
+/* ---------------------------------------------------------------- editor (1.30: Foundry's own form styles on wanderers-core's look;
+   the window carries core's root classes, so colours follow the Foundry theme) */
+.application.wct-quest-edit .window-content { padding: 0; }
 .wct-quest-edit .wctq-orow .otarget { width: 56px; height: 24px; }
-.wct-quest-edit .wctq-chip { border-left: 3px solid var(--q, transparent); }
-.wct-quest-edit form.wctq-edit { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; color: var(--wctq-ink); min-height: 100%; box-sizing: border-box; }
-.wct-quest-edit form.wctq-edit label, .wct-quest-edit form.wctq-edit legend { color: var(--wctq-ink); }
-.wct-quest-edit form.wctq-edit input[type=text], .wct-quest-edit form.wctq-edit textarea, .wct-quest-edit form.wctq-edit select { color: var(--wctq-ink); background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(90, 60, 20, 0.5); }
-.wct-quest-edit form.wctq-edit .hint, .wct-quest-edit form.wctq-edit small { color: var(--wctq-ink-soft); }
-.wct-quest-edit fieldset { border: 1px solid rgba(90, 60, 20, 0.45); border-radius: 4px; padding: 6px 8px 8px; margin: 0; }
-.wct-quest-edit legend { font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.15em; color: #6b2a0c !important; padding: 0 4px; }
+.wct-quest-edit form.wctq-edit { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 0; color: var(--wc-text); min-height: 100%; box-sizing: border-box; }
+.wct-quest-edit form.wctq-edit .hint, .wct-quest-edit form.wctq-edit small { color: var(--wc-text-3); }
+.wct-quest-edit fieldset { border: 1px solid var(--wc-line); border-radius: var(--wc-radius); padding: 6px 10px 10px; margin: 0; background: var(--wc-surface); }
+.wct-quest-edit legend { padding: 0 4px; font-size: var(--font-size-11, 11px); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wc-text-3); }
 .wct-quest-edit .wctq-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .wct-quest-edit .form-group.stacked { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .wct-quest-edit .form-group.stacked > label { flex: none; line-height: 1.6; }
 .wct-quest-edit .form-group.stacked textarea { width: 100%; resize: vertical; }
 .wct-quest-edit .wctq-desc { min-height: 200px; }
-.wct-quest-edit .wctq-desc prose-mirror { min-height: 200px; background: rgba(255, 255, 255, 0.45); border: 1px solid rgba(90, 60, 20, 0.5); border-radius: 3px; color: var(--wctq-ink); }
+.wct-quest-edit .wctq-desc prose-mirror { min-height: 200px; border: 1px solid var(--wc-line); border-radius: var(--wc-radius-sm); }
 .wct-quest-edit .wctq-desc textarea { display: block; width: 100%; min-height: 200px; }
 .wct-quest-edit .wctq-giver { flex: 2; display: flex; align-items: center; gap: 4px; }
-.wct-quest-edit .wctq-giver .linked { display: flex; align-items: center; gap: 2px; color: var(--wctq-good); }
+.wct-quest-edit .wctq-giver .linked { display: flex; align-items: center; gap: 2px; color: var(--wc-ok); }
 .wct-quest-edit .wctq-giver .linked.off { display: none; }
 .wct-quest-edit .wctq-giver .linked button { width: 20px; height: 20px; line-height: 18px; padding: 0; margin: 0; font-size: 0.75em; }
-.wct-quest-edit .over { outline: 2px dashed #6b2a0c; outline-offset: 2px; }
+.wct-quest-edit .over { outline: 2px dashed var(--wc-accent); outline-offset: 2px; }
 .wct-quest-edit .wctq-olist { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .wct-quest-edit .wctq-orow { display: flex; align-items: center; gap: 6px; }
 .wct-quest-edit .wctq-orow .otext { flex: 1; min-width: 120px; }
@@ -269,13 +267,14 @@
 .wct-quest-edit .wctq-orow label input { margin: 0; }
 .wct-quest-edit .wctq-orow .omove { display: flex; gap: 2px; }
 .wct-quest-edit .wctq-orow .omove button { width: 22px; height: 22px; line-height: 20px; padding: 0; margin: 0; font-size: 0.75em; }
-.wct-quest-edit .wctq-items { list-style: none; margin: 0; padding: 4px; min-height: 40px; display: flex; flex-wrap: wrap; gap: 4px; border: 1px dashed rgba(90, 60, 20, 0.5); border-radius: 3px; }
-.wct-quest-edit .wctq-items:empty::before { content: "Drag items here"; color: var(--wctq-ink-soft); font-style: italic; align-self: center; padding: 0 4px; }
-.wct-quest-edit .wctq-chip { display: flex; align-items: center; gap: 4px; padding: 2px 2px 2px 2px; border: 1px solid rgba(90, 60, 20, 0.5); border-radius: 3px; background: rgba(255, 255, 255, 0.4); }
+.wct-quest-edit .wctq-items { list-style: none; margin: 0; padding: 4px; min-height: 40px; display: flex; flex-wrap: wrap; gap: 4px; border: 1px dashed var(--wc-line-strong); border-radius: var(--wc-radius-sm); }
+.wct-quest-edit .wctq-items:empty::before { content: "Drag items here"; color: var(--wc-text-3); font-style: italic; align-self: center; padding: 0 4px; }
+.wct-quest-edit .wctq-chip { display: flex; align-items: center; gap: 4px; padding: 2px; border: 1px solid var(--wc-line); border-left: 3px solid var(--wc-q, var(--wc-line)); border-radius: var(--wc-radius-sm); background: var(--wc-surface-2); }
+.wct-quest-edit .wctq-chip span { color: var(--wc-q, var(--wc-text)); }
 .wct-quest-edit .wctq-chip img { width: 24px; height: 24px; border: none; }
 .wct-quest-edit .wctq-chip button { width: 18px; height: 18px; line-height: 16px; padding: 0; margin: 0; font-size: 0.7em; }
 .wct-quest-edit .coinprev { flex: 0 0 auto; margin-left: 6px; }
-.wct-quest-edit .wctq-bar { position: sticky; bottom: 0; margin: auto -12px 0; padding: 8px 12px; background: var(--wctq-parch-2); border-top: 1px solid rgba(90, 60, 20, 0.45); }
+.wct-quest-edit .wctq-bar { position: sticky; bottom: 0; margin: auto -14px 0; padding: 8px 14px; background: var(--color-cool-5, var(--wc-side-bg)); border-top: 1px solid var(--wc-line); }
 
 /* ---------------------------------------------------------------- tracker HUD */
 #wct-quest-tracker {
@@ -284,54 +283,57 @@
   position: fixed; top: 72px; left: auto; z-index: 50;
   width: 250px; max-height: 45vh; overflow-y: auto; box-sizing: border-box;
   pointer-events: auto;
-  color: #f2ead8; font-size: 0.9em;
+  /* 1.30: wanderers-core's root classes are on the tracker; it stays a light-on-dark overlay over the canvas in both themes. */
+  --wc-text: #f2ead8; --wc-text-2: #d6ccb6; --wc-text-3: #a99d86; --wc-accent: #e9b949; --wc-ok: #8fd16a;
+  color: var(--wc-text); font-size: 0.9em;
   text-shadow: 0 1px 1px #000, 0 0 3px #000;
-  padding: 4px 8px 6px; border-radius: 4px;
+  padding: 4px 8px 6px; border-radius: var(--wc-radius, 6px);
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.35) 30%);
 }
-#wct-quest-tracker:hover, #wct-quest-tracker:focus-within, #wct-quest-tracker.dragging { background: rgba(0, 0, 0, 0.55); }
+#wct-quest-tracker:hover, #wct-quest-tracker:focus-within, #wct-quest-tracker.dragging { background: rgba(0, 0, 0, 0.6); box-shadow: inset 0 0 0 1px rgba(242, 234, 216, 0.12); }
 #wct-quest-tracker[hidden] { display: none; }
 #wct-quest-tracker header {
   display: flex; align-items: center; gap: 6px; cursor: grab; touch-action: none; user-select: none;
-  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; color: #ffd100; letter-spacing: 0.04em;
+  font-size: 0.85em; font-weight: 600; text-transform: uppercase; color: var(--wc-accent); letter-spacing: 0.06em;
 }
 #wct-quest-tracker.dragging header { cursor: grabbing; }
-#wct-quest-tracker header .grip { color: #a99d86; font-size: 0.8em; padding: 0 2px; border-radius: 2px; }
-#wct-quest-tracker header .grip:focus-visible { outline: 1px solid #ffd100; color: #ffd100; }
+#wct-quest-tracker header .grip { color: var(--wc-text-3); font-size: 0.8em; padding: 0 2px; border-radius: 2px; }
+#wct-quest-tracker header .grip:focus-visible { outline: 2px solid var(--wc-accent); color: var(--wc-accent); }
 #wct-quest-tracker header .label { flex: 1; }
-#wct-quest-tracker header .n { font-size: 0.8em; color: #a99d86; }
-#wct-quest-tracker header button { flex: 0 0 auto; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; font-size: 0.7em; color: #ffd100; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(201, 162, 39, 0.5); cursor: pointer; }
+#wct-quest-tracker header .n { font-size: 0.9em; color: var(--wc-text-3); font-variant-numeric: tabular-nums; }
+#wct-quest-tracker header button { flex: 0 0 auto; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; font-size: 0.7em; color: var(--wc-text-2); background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(242, 234, 216, 0.25); border-radius: var(--wc-radius-sm, 4px); cursor: pointer; }
+#wct-quest-tracker header button:focus-visible { outline: 2px solid var(--wc-accent); outline-offset: 1px; }
 #wct-quest-tracker ol { list-style: none; margin: 2px 0 0; padding: 0; }
 #wct-quest-tracker ol > li { margin: 6px 0 0; }
 #wct-quest-tracker .ttl { display: block; color: #ffd100; font-weight: bold; cursor: pointer; }
 #wct-quest-tracker .ttl:hover { color: #fff; text-shadow: 0 0 4px #000; }
 #wct-quest-tracker ul { list-style: none; margin: 1px 0 0; padding: 0 0 0 10px; }
 #wct-quest-tracker ul li { position: relative; padding-left: 10px; line-height: 1.3; }
-#wct-quest-tracker ul li::before { content: "-"; position: absolute; left: 0; color: #c9a227; }
-#wct-quest-tracker ul li.opt { color: #c8bfae; }
-#wct-quest-tracker ul li.ready { color: #8fd16a; }
-#wct-quest-tracker ul li.ready::before { content: "✔"; color: #8fd16a; font-size: 0.85em; }
+#wct-quest-tracker ul li::before { content: "-"; position: absolute; left: 0; color: var(--wc-text-3); }
+#wct-quest-tracker ul li.opt { color: var(--wc-text-2); }
+#wct-quest-tracker ul li.ready { color: var(--wc-ok); }
+#wct-quest-tracker ul li.ready::before { content: "✔"; color: var(--wc-ok); font-size: 0.85em; }
 /* 1.29: difficulty colours on tracked titles, counters n/m. */
 #wct-quest-tracker .ttl.wctq-d-trivial { color: #9d9d9d; } #wct-quest-tracker .ttl.wctq-d-easy { color: #40bf40; }
 #wct-quest-tracker .ttl.wctq-d-even { color: #ffd100; } #wct-quest-tracker .ttl.wctq-d-hard { color: #ff8040; }
 #wct-quest-tracker .ttl.wctq-d-deadly { color: #ff3030; } #wct-quest-tracker .ttl.wctq-d-none { color: #ffd100; }
-#wct-quest-tracker .cnt { font-variant-numeric: tabular-nums; color: #f2ead8; font-weight: bold; }
+#wct-quest-tracker .cnt { font-variant-numeric: tabular-nums; color: var(--wc-text); font-weight: bold; }
 
-/* ---------------------------------------------------------------- chat cards */
+/* ---------------------------------------------------------------- chat cards (1.30: inside core's root, colours from its tokens) */
 .wct-quest-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .wct-quest-card header .wct-glyph { font-size: 2em; }
-.wct-quest-card header small { display: block; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary, #7a6a52); }
-.wct-quest-card header h3 { margin: 0; padding: 0; border: none; font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.4em; line-height: 1.1; }
-.wct-quest-card .meta { margin: 0 0 4px; font-size: 0.85em; color: var(--color-text-secondary, #7a6a52); }
+.wct-quest-card header small { display: block; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--wc-text-3, var(--color-text-secondary)); }
+.wct-quest-card header h3 { margin: 0; padding: 0; border: none; font-size: 1.3em; line-height: 1.1; }
+.wct-quest-card .meta { margin: 0 0 4px; font-size: 0.85em; color: var(--wc-text-3, var(--color-text-secondary)); }
 .wct-quest-card .lbl { margin: 6px 0 2px; font-weight: bold; }
 .wct-quest-card ul.rewards { list-style: none; margin: 0 0 6px; padding: 0; }
 .wct-quest-card ul.rewards li { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
 .wct-quest-card ul.rewards img { width: 22px; height: 22px; border: none; }
-.wct-quest-card ul.rewards li.coin::before { content: "\f51e"; font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free"; font-weight: 900; color: #b8860b; }
+.wct-quest-card ul.rewards li.coin::before { content: "\f51e"; font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free"; font-weight: 900; color: var(--wc-q-artifact, #b8860b); }
 .wct-quest-card button { margin-top: 4px; }
-.wct-quest-card.failed h3 { text-decoration: line-through; text-decoration-color: rgba(179, 38, 30, 0.6); }
+.wct-quest-card.failed h3 { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--wc-bad, #b3261e) 60%, transparent); }
 .wct-quest-line .wct-glyph { font-size: 1em; }
-.wct-quest-line.done .wct-glyph { color: #8fd16a; }
+.wct-quest-line.done .wct-glyph { color: var(--wc-ok, #8fd16a); }
 
 /* 1.28: Updated glow (players; until the quest is opened) and objective → map pin. */
 @keyframes wct-upd-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 0, 0); } 50% { box-shadow: 0 0 6px 2px rgba(255, 209, 0, 0.55); } }

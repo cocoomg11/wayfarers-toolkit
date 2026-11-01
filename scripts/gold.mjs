@@ -101,23 +101,23 @@ export class PartyGoldApp extends foundry.applications.api.ApplicationV2 {
     if (!game.user.isGM) { div.innerHTML = `<p class="wct-pad">The party gold tracker is for GMs.</p>`; return div; }
     const r = read(API); const m = API.fmtMoney.bind(API);
     const cur = r.rows.find(x => x.current);
-    const people = r.people.length ? `<table class="wct-grid"><thead><tr><th>Who</th><th>Coin</th><th>Mundane gear</th></tr></thead><tbody>${r.people.map(p => `<tr><td>${esc(p.name)}${p.kind === "party" ? ' <span class="hint">(party actor)</span>' : ""}</td><td>${esc(m(p.coin))}</td><td class="${r.includeGear ? "" : "wct-dim"}">${esc(m(p.gear))}</td></tr>`).join("")}</tbody></table>`
+    const people = r.people.length ? `<table class="wct-grid wc-table"><thead><tr><th>Who</th><th>Coin</th><th>Mundane gear</th></tr></thead><tbody>${r.people.map(p => `<tr><td>${esc(p.name)}${p.kind === "party" ? ' <span class="hint">(party actor)</span>' : ""}</td><td>${esc(m(p.coin))}</td><td class="${r.includeGear ? "" : "wct-dim"}">${esc(m(p.gear))}</td></tr>`).join("")}</tbody></table>`
       : `<p class="hint">No player characters (characters a player owns) and no party actor yet.</p>`;
     const rows = r.rows.map(x => `<tr class="${x.current ? "current" : ""}"><td>Act/Tier ${x.act}${x.current ? " <strong>(now)</strong>" : ""}</td><td>${esc(m(x.perChar * r.gpVal))}</td><td>${esc(m(x.target))}</td><td>${x.ratio == null ? "–" : `${Math.round(x.ratio * 100)}%`}</td><td class="wct-gold-status ${x.status}"><i class="fa-solid ${DOT[x.status]}"></i> ${esc(x.direction)}</td></tr>`).join("");
     const snaps = snapshots().slice(0, 10);
     div.innerHTML = `<div class="wct-main">
       ${r.curveError ? `<p class="wct-note warn"><i class="fa-solid fa-triangle-exclamation"></i> The wealth curve setting couldn't be read (${esc(r.curveError)}), so the default curve is shown. Fix it in control panel › Loot.</p>` : ""}
-      <div class="wct-banner ${cur?.status === "green" ? "ok" : "warn"}"><i class="fa-solid ${DOT[cur?.status ?? "green"]}"></i><div>
+      <div class="wc-alert wc-${cur?.status === "green" ? "ok" : "warn"} wct-banner ${cur?.status === "green" ? "ok" : "warn"}"><i class="fa-solid ${DOT[cur?.status ?? "green"]}"></i><div>
         <strong>${esc(m(r.wealth))}</strong> party wealth${r.includeGear ? " (coin and mundane gear)" : " (coin)"} · ${esc(m(r.perChar))} per character
         <p>Act/Tier ${r.act} expects ${esc(m(cur?.target ?? 0))} for ${r.size} character${r.size === 1 ? "" : "s"}: ${esc(cur?.direction ?? "")}.</p></div></div>
       <h3>Who carries it</h3>${people}
       <h3>Against the wealth curve</h3>
-      <table class="wct-grid"><thead><tr><th>Act / tier</th><th>Per character</th><th>× ${r.size} party</th><th>Party has</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="wct-grid wc-table"><thead><tr><th>Act / tier</th><th>Per character</th><th>× ${r.size} party</th><th>Party has</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
       <p class="hint">Green: 75% to 150% of the target. Amber: 50% to 75% or 150% to 200%. Red: further off. Edit the curve, the current act and whether gear counts in control panel › Loot; party size there too.</p>
       <h3>Snapshots</h3>
-      ${snaps.length ? `<table class="wct-grid"><thead><tr><th>When</th><th>Note</th><th>Wealth</th><th>Act</th><th>Status</th></tr></thead><tbody>${snaps.map(s => `<tr><td>${esc(new Date(s.at).toLocaleString())}</td><td>${esc(s.note)}</td><td>${esc(m(s.wealth))}</td><td>${esc(s.act)}</td><td class="wct-gold-status ${esc(s.status)}"><i class="fa-solid ${DOT[s.status] ?? DOT.green}"></i></td></tr>`).join("")}</tbody></table>` : `<p class="hint">None yet. Take snapshot saves the party's wealth now (the last 50 are kept).</p>`}
+      ${snaps.length ? `<table class="wct-grid wc-table"><thead><tr><th>When</th><th>Note</th><th>Wealth</th><th>Act</th><th>Status</th></tr></thead><tbody>${snaps.map(s => `<tr><td>${esc(new Date(s.at).toLocaleString())}</td><td>${esc(s.note)}</td><td>${esc(m(s.wealth))}</td><td>${esc(s.act)}</td><td class="wct-gold-status ${esc(s.status)}"><i class="fa-solid ${DOT[s.status] ?? DOT.green}"></i></td></tr>`).join("")}</tbody></table>` : `<p class="hint">None yet. Take snapshot saves the party's wealth now (the last 50 are kept).</p>`}
       </div>
-      <footer class="wct-footer"><span class="hint">Read-only: nothing on the characters is changed.</span><button type="button" data-do="snap"><i class="fa-solid fa-camera"></i> Take snapshot</button><button type="button" data-do="again"><i class="fa-solid fa-rotate"></i> Refresh</button></footer>`;
+      <footer class="wct-footer"><span class="hint">Read-only: nothing on the characters is changed.</span><button type="button" class="wc-btn" data-do="snap"><i class="fa-solid fa-camera"></i> Take snapshot</button><button type="button" class="wc-btn" data-do="again"><i class="fa-solid fa-rotate"></i> Refresh</button></footer>`;
     return div;
   }
   _replaceHTML(result, content) {

@@ -93,14 +93,14 @@ export class CoinLogApp extends foundry.applications.api.ApplicationV2 {
     const all = entries(); const raw = Vault.get("coinLog", null);
     const rows = all.map(e => {
       const can = M.undoable(raw, e.id);
-      const amt = `${e.delta > 0 ? "+" : "−"}${esc(API.fmtMoney(Math.abs(e.delta)))}`;
+      const amt = `${e.delta > 0 ? "+" : "−"} ${money(Math.abs(e.delta))}`;
       return `<tr data-id="${esc(e.id)}" class="${e.undoneAt ? "undone" : ""}"><td class="when">${esc(when(e))}</td><td>${esc(e.actorName)}</td>
-        <td class="amt ${e.delta > 0 ? "in" : "out"}">${amt} <small>(${esc(M.coinText(e.coins))})</small></td><td>${esc(e.reason)}</td>
-        <td>${e.undoneAt ? "<em>undone</em>" : can ? `<button type="button" data-undo="${esc(e.id)}"><i class="fa-solid fa-rotate-left"></i> Undo</button>` : ""}</td></tr>`;
+        <td class="amt ${e.delta > 0 ? "in" : "out"}"><span class="wc-sr">${e.delta > 0 ? "Received" : "Paid"}</span>${amt}</td><td>${esc(e.reason)}</td>
+        <td>${e.undoneAt ? "<em>undone</em>" : can ? `<button type="button" class="wc-btn wc-btn-sm" data-undo="${esc(e.id)}"><i class="fa-solid fa-rotate-left"></i> Undo</button>` : ""}</td></tr>`;
     }).join("");
     div.innerHTML = `<div class="wct-history-filters"><span class="hint">Coin the toolkit moved, newest first. Undo is offered on the latest ${M.UNDO_WINDOW}: it gives back what was paid, or takes back what was given if the character still has it.</span><span class="spacer"></span>
       <button type="button" data-act="clear" class="wc-btn wc-btn-danger wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear…</button></div>
-      <div class="wct-history-list">${all.length ? `<table><thead><tr><th>When</th><th>Who</th><th>Coin</th><th>Why</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">Nothing yet. Quest rewards, rooms, flight fares, vendor trash sales, loot coin and Split coin show up here.</p>`}</div>
+      <div class="wct-history-list">${all.length ? `<table class="wc-table"><thead><tr><th>When</th><th>Who</th><th>Coin</th><th>Why</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">Nothing yet. Quest rewards, rooms, flight fares, vendor trash sales, loot coin and Split coin show up here.</p>`}</div>
       <p class="hint">${all.length} entr${all.length === 1 ? "y" : "ies"}. The last ${M.COINLOG_MAX} are kept.</p>`;
     return div;
   }
@@ -110,6 +110,9 @@ export class CoinLogApp extends foundry.applications.api.ApplicationV2 {
     result.querySelector("[data-act=clear]")?.addEventListener("click", () => clear());
   }
 }
+/** An amount as core's coin markup (api.moneyHTML), else the toolkit's text. */
+const money = amount => (typeof API?.moneyHTML === "function" ? API.moneyHTML(amount) : esc(API.fmtMoney(amount)));
+
 /** GM: opens the Coin log window. */
 export function open() {
   if (!game.user?.isGM) return ui.notifications.warn("The coin log is for GMs.");
@@ -135,8 +138,8 @@ export async function split(party = API?.partyActor?.()) {
   const list = members(party);
   const plan = M.splitPlan({ total: API.totalMoney(party), members: list.map(a => ({ id: a.id, name: a.name })) });
   if (!plan.ok) { await API.info("Split coin", `<p><strong>${esc(party.name)}</strong> holds ${esc(API.purse(party))}.</p><p>${esc(plan.error)}</p>`); return null; }
-  const go = await API.confirm("Split coin", `<p><strong>${esc(party.name)}</strong> holds ${esc(API.fmtMoney(API.totalMoney(party)))}.</p>
-    <ul>${plan.give.map(g => `<li>${esc(g.name)}: <strong>${esc(API.fmtMoney(g.amount))}</strong></li>`).join("")}</ul>
+  const go = await API.confirm("Split coin", `<p><strong>${esc(party.name)}</strong> holds ${money(API.totalMoney(party))}.</p>
+    <ul>${plan.give.map(g => `<li>${esc(g.name)}: <strong>${money(g.amount)}</strong></li>`).join("")}</ul>
     <p>${plan.remainder ? `${esc(API.fmtMoney(plan.remainder))} doesn't divide evenly and stays with the party.` : "Nothing is left over."}</p><p>Share it out?</p>`);
   if (!go) return null;
   // Check again: the purse may have changed while the preview was open.

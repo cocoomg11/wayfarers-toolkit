@@ -85,7 +85,7 @@
 /* Overview. */
 .wct-banner:not(.wc-alert) { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--wc-radius, 6px); border: 1px solid var(--wct-line); background: var(--wct-card); }
 .wct-banner > i { font-size: 1.6em; }
-.wct-banner strong { font-size: 1.2em; }
+.wct-banner strong { font-size: 1.05em; }
 .wct-banner p { margin: 2px 0 0; color: var(--wct-muted); }
 .wct-banner.ok > i { color: var(--wct-ok); }
 .wct-banner.warn > i { color: var(--wct-warn); }
@@ -195,3 +195,35 @@
 .wct-fm-pan { fill: transparent; }
 .wct-fm-svg { touch-action: none; }
 .wct-fm-svg.panning { cursor: grabbing; }
+
+/* 1.30: toolkit dialogs (DialogV2 with the wct-dialog class and core's root classes): lists, tables, hints and item rows on core's
+   tokens, the same in both themes as Foundry's own dialogs. */
+.wct-dialog .window-content { color: var(--wc-text); }
+.wct-dialog .hint { color: var(--wc-text-3); font-size: var(--font-size-12, 12px); }
+.wct-dialog ul { margin: 4px 0; padding-left: 1.2em; }
+.wct-dialog li { margin: 2px 0; }
+.wct-dialog .wct-check { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.wct-dialog .wct-check img { width: 24px; height: 24px; border: none; border-radius: var(--wc-radius-sm); }
+.wct-dialog table { width: 100%; border-collapse: collapse; background: none; border: none; }
+.wct-dialog :is(th, td) { padding: 4px 8px; text-align: left; border: none; border-top: 1px solid var(--wc-line); background: none; }
+.wct-dialog thead th { border-top: none; font-size: var(--font-size-11, 11px); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wc-text-3); }
+.wct-dialog strong .wc-coins, .wct-dialog .wc-coins { vertical-align: middle; }
+
+/* Chat cards on core's look (look-model.mjs card()). */
+.wct-chat-card { color: var(--wc-text); }
+.wct-chat-card h3 { margin: 0 0 4px; border: none; font-size: 1.1em; }
+.wct-chat-card h4 { margin: 8px 0 2px; padding-bottom: 2px; border: none; border-bottom: 1px solid var(--wc-line); font-size: 0.95em; }
+.wct-chat-card .hint { color: var(--wc-text-3); font-size: 0.88em; }
+.wct-chat-card ul { margin: 2px 0; padding-left: 1.2em; }
+.wct-chat-card button:not(.wc-btn) { margin-top: 4px; }
+.wct-chat-card .wct-hc-counts { display: flex; gap: 12px; margin: 2px 0 4px; font-variant-numeric: tabular-nums; }
+.wct-chat-card .wct-hc-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; }
+.wct-chat-card.wct-health h4 { margin-top: 8px; }
+.wct-chat-card .wc-lines { gap: 2px; }
+
+/* Coin log and loot history tables (core tokens), the coin log's amounts as core coins. */
+.wct-coinlog .amt.in { color: var(--wc-ok); }
+.wct-coinlog .amt.out { color: var(--wc-bad); }
+.wct-coinlog tr.undone td { opacity: 0.55; text-decoration: line-through; }
+.wct-coinlog tr.undone td:last-child { text-decoration: none; }
+.wct-history-list td .wc-item-slot { margin-right: 2px; }

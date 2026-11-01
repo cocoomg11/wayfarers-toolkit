@@ -51,7 +51,7 @@ export async function clear({ confirm = true } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (confirm) {
     const n = entries().length;
-    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Clear loot history" }, content: `<p>Delete all ${n} loot roll${n === 1 ? "" : "s"} from the history? This can't be undone. Export a CSV first if you want a copy.</p>`, rejectClose: false });
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Clear loot history" }, content: `<p>Delete all ${n} loot roll${n === 1 ? "" : "s"} from the history? This can't be undone. Export a CSV first if you want a copy.</p>`, rejectClose: false });
     if (!ok) return false;
   }
   await save([]);
@@ -108,9 +108,9 @@ export class LootHistoryApp extends foundry.applications.api.ApplicationV2 {
         <button type="button" data-act="clear" class="wc-btn wc-btn-danger wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear history…</button>
       </div>
       <details class="wct-history-tally" open><summary>Per player${this.filter.day ? ` on ${this.filter.day}` : ""}</summary>
-        ${tally.length ? `<table><thead><tr><th>Player</th><th>Rolls</th><th>Items received</th><th>Need wins</th><th>Greed wins</th><th>GM assigned</th></tr></thead><tbody>${tally.map(t => `<tr><td>${esc(t.label)}</td><td>${t.rolls}</td><td>${t.won}</td><td>${t.need}</td><td>${t.greed}</td><td>${t.assigned}</td></tr>`).join("")}</tbody></table>` : `<p class="hint">Nobody yet.</p>`}
+        ${tally.length ? `<table class="wc-table"><thead><tr><th>Player</th><th>Rolls</th><th>Items received</th><th>Need wins</th><th>Greed wins</th><th>GM assigned</th></tr></thead><tbody>${tally.map(t => `<tr><td>${esc(t.label)}</td><td>${t.rolls}</td><td>${t.won}</td><td>${t.need}</td><td>${t.greed}</td><td>${t.assigned}</td></tr>`).join("")}</tbody></table>` : `<p class="hint">Nobody yet.</p>`}
       </details>
-      <div class="wct-history-list">${list.length ? `<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">${all.length ? "No loot rolls match these filters." : "No loot rolls recorded yet. Finished loot rolls appear here."}</p>`}</div>
+      <div class="wct-history-list">${list.length ? `<table class="wc-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">${all.length ? "No loot rolls match these filters." : "No loot rolls recorded yet. Finished loot rolls appear here."}</p>`}</div>
       <p class="hint">${list.length} of ${all.length} roll${all.length === 1 ? "" : "s"} shown. The last ${H.HISTORY_MAX} are kept.</p>`;
     return div;
   }

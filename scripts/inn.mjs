@@ -24,6 +24,8 @@ const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return 
 const newInnId = () => foundry.utils.randomID(12);
 /** @type {any} */
 let API = null;
+/** An amount as core's coin markup (api.moneyHTML, 1.30), else the toolkit's text. */
+const money = amount => (typeof API?.moneyHTML === "function" ? API.moneyHTML(amount) : esc(API.fmtMoney(amount)));
 
 export function registerSettings() {
   const s = (key, name, hint, type, def, extra = {}) => game.settings.register(ID, key, { name, hint, scope: "world", config: false, type, default: def, ...extra });
@@ -100,7 +102,7 @@ async function innForm(scene, inn = {}) {
     <div class="form-group"><label>Room price (per person, per night)</label><div class="form-fields"><input type="text" name="price" value="${esc(inn.price ?? "")}" placeholder="${esc(get("innDefaultPrice", M.DEFAULT_PRICE))}"></div><p class="hint">Like 5s or 1g 20s. Blank: the default price from the control panel.</p></div>
     ${regions.length ? `<div class="form-group"><label>Region</label><div class="form-fields"><select name="region"><option value="">The whole scene</option>${regions.map(r => `<option value="${esc(r.id)}" ${r.id === inn.region ? "selected" : ""}>${esc(r.name || r.id)}</option>`).join("")}</select></div><p class="hint">Optional: a long rest counts as at this inn when the character's token is inside the region.</p></div>` : ""}
     ${k ? `<p class="hint">Innkeeper: ${esc(scene.tokens.get(k.token ?? "")?.name ?? (k.actor ? fromUuidSync(k.actor, { strict: false })?.name : null) ?? "a token no longer on this scene")}. Set it with <em>Make innkeeper here…</em> on a token's HUD.</p>` : ""}`;
-  return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title: inn.id ? "Edit inn" : "New inn" }, content, position: { width: 440 }, rejectClose: false, ok: { label: "Save", icon: "fa-solid fa-bed", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
+  return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: inn.id ? "Edit inn" : "New inn" }, content, position: { width: 440 }, rejectClose: false, ok: { label: "Save", icon: "fa-solid fa-bed", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
 }
 
 /** GM, token HUD: makes this token the innkeeper of a new or existing inn on its scene. */
@@ -110,7 +112,7 @@ export async function makeInnkeeper(tokenDoc) {
   const current = M.innOfToken(scene.getFlag(ID, "inns"), tokenDoc.id);
   const content = `<p><strong>${esc(tokenDoc.name)}</strong> keeps an inn on ${esc(scene.name)}.</p>
     <div class="form-group"><label>Inn</label><div class="form-fields"><select name="inn"><option value="">A new inn…</option>${list.map(i => `<option value="${esc(i.id)}" ${i.id === current?.id ? "selected" : ""}>${esc(M.innView(i, { sceneName: scene.name }).displayName)}</option>`).join("")}</select></div></div>`;
-  const pick = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Make innkeeper here" }, content, rejectClose: false, ok: { label: "Next", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
+  const pick = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Make innkeeper here" }, content, rejectClose: false, ok: { label: "Next", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
   if (!pick) return null;
   const base = list.find(i => i.id === pick.inn) ?? { name: tokenDoc.name ? `${tokenDoc.name}'s inn` : "" };
   const f = await innForm(scene, base); if (!f) return null;
@@ -138,14 +140,14 @@ export async function rentRooms({ scene, actors, inn: innId } = {}) {
   const from = get("innPayFrom", "party"); const party = API.partyActor?.();
   const rows = chosenList.map(a => `<label class="wct-check" style="display:flex;align-items:center;gap:6px;margin:3px 0;"><input type="checkbox" name="a_${a.id}" checked data-wct-room> <img src="${esc(a.img)}" alt="" style="width:24px;height:24px;border:none;"> ${esc(a.name)}${rested(a) ? ' <span class="hint">(already Rested)</span>' : ""}${from === "each" ? ` <span class="hint">${esc(API.purse(a))}</span>` : ""}</label>`).join("");
   const purse = from === "party" ? (party ? `Paid from ${esc(party.name)}: ${esc(API.purse(party))}.` : `No party actor named ${esc(API.PARTY)}: choose Each character's own coin in the control panel, or Run setup.`) : "Each character pays for their own room.";
-  const content = `<p><strong>${esc(inn.name)}</strong>: ${esc(API.fmtMoney(inn.price))} per person per night.</p>${rows}
-    <p>Total: <strong data-wct-room-total>${esc(API.fmtMoney(M.roomCost(inn.price, chosenList.length)))}</strong></p><p class="hint">${purse}</p>`;
+  const content = `<p><strong>${esc(inn.name)}</strong>: ${money(inn.price)} per person per night.</p>${rows}
+    <p>Total: <strong data-wct-room-total>${money(M.roomCost(inn.price, chosenList.length))}</strong></p><p class="hint">${purse}</p>`;
   const f = await foundry.applications.api.DialogV2.prompt({
-    classes: ["wct-window", ...UI_CLASSES], window: { title: "Rent rooms" }, content, position: { width: 420 }, rejectClose: false,
+    classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Rent rooms" }, content, position: { width: 420 }, rejectClose: false,
     ok: { label: "Rent rooms", icon: "fa-solid fa-bed", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object },
     render: (ev, dlg) => {
       const root = dlg?.element ?? ev?.target?.element; if (!root?.querySelector) return;
-      const upd = () => { const n = root.querySelectorAll("[data-wct-room]:checked").length; const el = root.querySelector("[data-wct-room-total]"); if (el) el.textContent = API.fmtMoney(M.roomCost(inn.price, n)); };
+      const upd = () => { const n = root.querySelectorAll("[data-wct-room]:checked").length; const el = root.querySelector("[data-wct-room-total]"); if (el) el.innerHTML = money(M.roomCost(inn.price, n)); };
       root.addEventListener("change", upd);
     }
   });
@@ -170,7 +172,7 @@ export async function restOffer(actors, innName = "the inn") {
     ${hours ? `<label class="wct-check"><input type="checkbox" name="advance" checked> Move world time on by ${hours} hour${hours === 1 ? "" : "s"}</label>` : ""}
     <p class="hint">Each character gets dnd5e's long rest (with its chat card) and their Rested benefit. You can also let the players rest themselves later.</p>`;
   const f = await foundry.applications.api.DialogV2.prompt({
-    classes: ["wct-window", ...UI_CLASSES], window: { title: "Rest at the inn" }, content, position: { width: 420 }, rejectClose: false,
+    classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Rest at the inn" }, content, position: { width: 420 }, rejectClose: false,
     ok: { label: "Long rest everyone", icon: "fa-solid fa-moon", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }
   });
   if (!f) return null;
@@ -188,7 +190,7 @@ export async function restOffer(actors, innName = "the inn") {
 
 async function pickInn(scene, list) {
   const content = `<div class="form-group"><label>Inn</label><div class="form-fields"><select name="inn">${list.map(i => { const v = innFor(scene, i.id); return `<option value="${esc(i.id)}">${esc(v.name)} (${esc(API.fmtMoney(v.price))})</option>`; }).join("")}</select></div></div>`;
-  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Which inn?" }, content, rejectClose: false, ok: { label: "OK", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Which inn?" }, content, rejectClose: false, ok: { label: "OK", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object } });
   return f?.inn ?? null;
 }
 

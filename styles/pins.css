@@ -1,23 +1,24 @@
-/* Map pins (feature mapPins): ink-on-parchment dialogs. The marks themselves are drawn on the canvas by core's Note, tinted. */
+/* Map pins (feature mapPins). 1.30: the dialogs are on wanderers-core's look (root classes on the window; colours follow the theme).
+   The marks themselves are drawn on the canvas by core's Note, tinted. */
 #board.wct-pin-armed { cursor: crosshair; }
-.wct-pin-dialog .window-content { background: #efe4c6; color: #2b2118; font-family: var(--font-body, serif); }
-.wct-pin-dialog .window-content input[type="text"],
-.wct-pin-dialog .window-content textarea,
-.wct-pin-dialog .window-content select { background: #f7efda; color: #2b2118; border: 1px solid #a48a62; }
-.wct-pin-dialog .hint { color: #6b5a44; }
+.wct-pin-dialog .window-content { color: var(--wc-text); }
+.wct-pin-dialog .hint { color: var(--wc-text-3); }
 .wct-pin-glyph {
   display: inline-block; width: 28px; height: 28px; flex: none;
   background-color: var(--wct-pin-ink, #2b2118);
   -webkit-mask: var(--wct-pin-src) center / contain no-repeat; mask: var(--wct-pin-src) center / contain no-repeat;
 }
 .wct-pin-choices, .wct-pin-inks { flex-wrap: wrap; gap: 4px; }
+/* Ink previews sit on a small parchment disc (as on the map), so dark inks read in both themes. */
+.wct-pin-choice { background: #efe4c6; }
 .wct-pin-choice, .wct-pin-ink { position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 3px; border: 1px solid transparent; border-radius: 50%; cursor: pointer; }
 .wct-pin-choice input, .wct-pin-ink input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.wct-pin-choice:has(input:checked), .wct-pin-ink:has(input:checked) { border-color: #6b4423; background: rgba(107, 68, 35, 0.12); }
-.wct-pin-choice:has(input:focus-visible), .wct-pin-ink:has(input:focus-visible) { outline: 2px solid #22406b; }
+.wct-pin-choice:has(input:checked), .wct-pin-ink:has(input:checked) { border-color: var(--wc-accent); box-shadow: 0 0 0 1px var(--wc-accent); }
+.wct-pin-choice:has(input:focus-visible), .wct-pin-ink:has(input:focus-visible) { outline: 2px solid var(--wc-accent); }
 .wct-pin-ink > span:not(.sr-only) { display: block; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.35); }
-.wct-pin-card-head { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #a48a62; margin-bottom: 6px; }
+.wct-pin-disc { display: inline-flex; padding: 3px; border-radius: 50%; background: #efe4c6; flex: none; }
+.wct-pin-card-head { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--wc-line); margin-bottom: 6px; }
 .wct-pin-card-head h3 { margin: 0; border: none; font-style: italic; }
 .wct-pin-text { white-space: normal; line-height: 1.4; }
-.wct-pin-quest, .wct-pin-meta { font-size: 0.9em; color: #6b5a44; }
+.wct-pin-quest, .wct-pin-meta { font-size: 0.9em; color: var(--wc-text-3); }
 .wct-pin-dialog .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

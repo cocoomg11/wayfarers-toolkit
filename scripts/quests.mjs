@@ -12,7 +12,7 @@ import * as TM from "./tracker-model.mjs";
 import * as UX from "./quest-ux-model.mjs";
 import * as QL from "./quest-log-model.mjs";
 import { breakdown } from "./coinlog-model.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, quality as coreQuality } from "../vendor/wanderers-core/index.mjs";
 import { notify, request, isActiveGM, handle } from "./gm.mjs";
 import { card as lookCard } from "./look-model.mjs";
 
@@ -563,7 +563,7 @@ function renderTracker() {
   }
   const list = tracked().map(find).filter(j => j && canSee(j) && data(j).status === "active");
   if (!hud) {
-    hud = document.createElement("section"); hud.id = "wct-quest-tracker"; hud.setAttribute("aria-label", "Tracked quests");
+    hud = document.createElement("section"); hud.id = "wct-quest-tracker"; hud.classList.add(...UI_CLASSES); hud.setAttribute("aria-label", "Tracked quests");
     document.body.append(hud);
     hud.addEventListener("click", ev => {
       const t = ev.target.closest("[data-action]"); if (!t) return;
@@ -896,7 +896,7 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
       <span class="omove"><button type="button" data-action="up" aria-label="Move up"><i class="fa-solid fa-arrow-up"></i></button><button type="button" data-action="down" aria-label="Move down"><i class="fa-solid fa-arrow-down"></i></button><button type="button" data-action="rm" aria-label="Remove"><i class="fa-solid fa-trash"></i></button></span>
     </li>`;
   }
-  itemChip(i) { return `<li class="wctq-chip q-${QL.quality(i.rarity)}" data-uuid="${esc(i.uuid)}" data-name="${esc(i.name)}" data-img="${esc(i.img)}" data-rarity="${esc(i.rarity ?? "")}"><img src="${esc(i.img)}" alt=""><span>${esc(i.name)}</span><button type="button" data-action="rmitem" aria-label="Remove ${esc(i.name)}"><i class="fa-solid fa-xmark"></i></button></li>`; }
+  itemChip(i) { return `<li class="wctq-chip q-${QL.quality(i.rarity)}" data-quality="${coreQuality(i.rarity)}" data-uuid="${esc(i.uuid)}" data-name="${esc(i.name)}" data-img="${esc(i.img)}" data-rarity="${esc(i.rarity ?? "")}"><img src="${esc(i.img)}" alt=""><span>${esc(i.name)}</span><button type="button" data-action="rmitem" aria-label="Remove ${esc(i.name)}"><i class="fa-solid fa-xmark"></i></button></li>`; }
 
   async _renderHTML() {
     const q = this.q; const name = this.quest?.name ?? "";

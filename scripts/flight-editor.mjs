@@ -31,7 +31,7 @@ export async function importFlow(api) {
   try {
     const dry = await api.importLegacyFlights({ dryRun: true });
     const n = (k, one) => `${dry.counts[k]} ${one}${dry.counts[k] === 1 ? "" : "s"}`;
-    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Import flight routes" }, rejectClose: false,
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Import flight routes" }, rejectClose: false,
       content: `<p>Import ${n("points", "flight point")} (${dry.counts.noScene} without a scene) and ${n("routes", "route")} from the Flight Routes journal page? Routes come in two-way, as they always flew. The journal page isn't changed.</p>${dry.report.length ? `<p>Worth a look afterwards:</p><ul>${dry.report.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}` });
     if (!ok) return false;
     await api.importLegacyFlights(); ui.notifications.info("Flight Master: flight routes imported. The journal page is no longer read.");
@@ -77,19 +77,19 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
     const scenes = this.scenes(); const canImport = !this.net.points.length && !!API.legacyFlightRows();
     const unit = { gp: "gold", sp: "silver", cp: "copper" }[game.settings.get(ID, "fareUnit")] ?? "gold";
     div.innerHTML = `<div class="wct-main">
-      ${canImport ? `<div class="wct-banner warn"><i class="fa-solid fa-file-import"></i><div><strong>Flight Routes journal page found</strong><p>Your flight points and routes are on the old journal page. Import them here; the page isn't changed (delete it yourself afterwards if you like).</p><p><button type="button" data-do="import"><i class="fa-solid fa-file-import"></i> Import from the Flight Routes journal page</button></p></div></div>` : ""}
+      ${canImport ? `<div class="wc-alert wc-warn wct-banner warn"><i class="fa-solid fa-file-import"></i><div><strong>Flight Routes journal page found</strong><p>Your flight points and routes are on the old journal page. Import them here; the page isn't changed (delete it yourself afterwards if you like).</p><p><button type="button" class="wc-btn" data-do="import"><i class="fa-solid fa-file-import"></i> Import from the Flight Routes journal page</button></p></div></div>` : ""}
       <h2><i class="fa-solid fa-location-dot"></i> Flight points</h2>
       <p class="hint">Only unlocked points can be flown from or to. A point with no scene still works: the party lands there and the scene stays where it is.</p>
-      <table class="wct-grid"><thead><tr><th>Name</th><th>Scene on arrival</th><th class="c">Unlocked</th><th>Note</th><th></th></tr></thead>
+      <table class="wct-grid wc-table"><thead><tr><th>Name</th><th>Scene on arrival</th><th class="c">Unlocked</th><th>Note</th><th></th></tr></thead>
         <tbody data-t="points">${this.net.points.map((p, i) => this.pointRow(p, i, scenes)).join("")}</tbody></table>
-      <p><button type="button" data-do="add-point"><i class="fa-solid fa-plus"></i> Add flight point</button></p>
+      <p><button type="button" class="wc-btn" data-do="add-point"><i class="fa-solid fa-plus"></i> Add flight point</button></p>
       <h2><i class="fa-solid fa-route"></i> Routes</h2>
       <p class="hint">Fare per passenger: type <em>2s</em>, <em>1g 20s</em> or <em>75c</em>; a plain number is in ${unit} (Fares without a coin are in, Travel tab). Flight Master takes the cheapest way through unlocked points. One-way routes fly only from <em>From</em> to <em>To</em>.</p>
-      <table class="wct-grid"><thead><tr><th>From</th><th>To</th><th>Fare</th><th>Hours</th><th class="c">Two-way</th><th class="c">Free</th><th></th></tr></thead>
+      <table class="wct-grid wc-table"><thead><tr><th>From</th><th>To</th><th>Fare</th><th>Hours</th><th class="c">Two-way</th><th class="c">Free</th><th></th></tr></thead>
         <tbody data-t="routes">${this.net.routes.map((r, i) => this.routeRow(r, i)).join("")}</tbody></table>
-      <p><button type="button" data-do="add-route" ${this.net.points.length < 2 ? "disabled" : ""}><i class="fa-solid fa-plus"></i> Add route</button></p>
+      <p><button type="button" class="wc-btn" data-do="add-route" ${this.net.points.length < 2 ? "disabled" : ""}><i class="fa-solid fa-plus"></i> Add route</button></p>
       <ul class="wct-problems" data-problems></ul></div>
-      <footer class="wct-footer"><span class="hint" data-note></span><button type="button" data-do="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="button" class="wct-primary" data-do="save"><i class="fa-solid fa-floppy-disk"></i> Save</button></footer>`;
+      <footer class="wct-footer"><span class="hint" data-note></span><button type="button" class="wc-btn" data-do="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="button" class="wc-btn wc-btn-primary wct-primary" data-do="save"><i class="fa-solid fa-floppy-disk"></i> Save</button></footer>`;
     return div;
   }
 
@@ -136,7 +136,7 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
     return probs;
   }
 
-  discardOk() { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Flight network" }, content: "<p>Throw away your unsaved changes?</p>", rejectClose: false }); }
+  discardOk() { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Flight network" }, content: "<p>Throw away your unsaved changes?</p>", rejectClose: false }); }
 
   async act(what, btn) {
     try {
@@ -144,7 +144,7 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
       if (what === "add-route") { const [a, b] = this.net.points; this.net.routes.push({ id: Flight.newId(), from: a?.id ?? "", to: b?.id ?? "", fareCp: 0, hours: 1, twoWay: true, free: false }); this.dirty = true; return this.render(); }
       if (what === "rm-point") {
         const i = +btn.closest("tr").dataset.i; const p = this.net.points[i]; const used = this.net.routes.filter(r => r.from === p.id || r.to === p.id).length;
-        if (used && !await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Remove flight point" }, content: `<p>Remove <strong>${esc(p.name || "this point")}</strong> and its ${used} route${used === 1 ? "" : "s"}?</p>`, rejectClose: false })) return;
+        if (used && !await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: "Remove flight point" }, content: `<p>Remove <strong>${esc(p.name || "this point")}</strong> and its ${used} route${used === 1 ? "" : "s"}?</p>`, rejectClose: false })) return;
         this.net.points.splice(i, 1); this.net.routes = this.net.routes.filter(r => r.from !== p.id && r.to !== p.id); this.dirty = true; return this.render();
       }
       if (what === "rm-route") { this.badFare.delete(this.net.routes[+btn.closest("tr").dataset.i]?.id); this.net.routes.splice(+btn.closest("tr").dataset.i, 1); this.dirty = true; return this.render(); }

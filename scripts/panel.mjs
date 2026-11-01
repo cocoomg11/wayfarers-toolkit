@@ -27,7 +27,7 @@ const isOn = id => id === "coins" ? get("coinSystem") === "threeCoin" : F.on(id)
 const featureLabel = id => id === "coins" ? "Three-coin economy" : F.FEATURES.find(f => f.id === id)?.label ?? id;
 const help = anchor => `<a class="wct-help" href="${M.README}#${anchor}" target="_blank" rel="noopener" data-tooltip="Help for this tab (README)" aria-label="Help"><i class="fa-solid fa-circle-question"></i></a>`;
 const reload = () => { const SC = foundry.applications?.settings?.SettingsConfig; if (SC?.reloadConfirm) return SC.reloadConfirm({ world: true }); foundry.utils.debouncedReload?.() ?? location.reload(); };
-const confirm = (title, content) => foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, rejectClose: false });
+const confirm = (title, content) => foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", "wct-dialog", ...UI_CLASSES], window: { title }, content, rejectClose: false });
 
 export function init(api) { API = api; }
 
@@ -131,21 +131,21 @@ function partiesPicker(v, off) {
 }
 function settingsTab(tab) {
   const advanced = (tab.advanced ?? []).map(rowHTML).join("");
-  const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>
-    ${F.on("flightMap") ? `<div class="wct-actions"><button type="button" data-act="flight-map" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-map-location-dot"></i> Flight route map…</button><span class="hint">The network drawn as a map. Drag points to arrange it; players see the same layout.</span></div>` : ""}
-    ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
-  const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
-    ${F.on("coinLog") ? `<div class="wct-actions"><button type="button" data-act="coin-log"><i class="fa-solid fa-receipt"></i> Coin log…</button><span class="hint">Every coin movement the toolkit made (quest rewards, rooms, fares, sales, loot coin), with Undo on the latest.</span></div>` : ""}
-    ${F.on("splitCoin") ? `<div class="wct-actions"><button type="button" data-act="split-coin"><i class="fa-solid fa-divide"></i> Split coin…</button><span class="hint">Shares the party actor's coin evenly among its members, after a preview. Also in the party sheet's header menu.</span></div>` : ""}
-    ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
-  const places = tab.id === "places" ? `<div class="wct-actions"><button type="button" data-act="zone-preview" ${F.on("zoneTitles") ? "" : "disabled"}><i class="fa-solid fa-signs-post"></i> Preview title card</button><span class="hint">Shows this scene's card on your screen only. Set each scene's title, subtitle and sound in its configuration.</span></div>
-    <div class="wct-actions"><button type="button" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Add inns (name, room price, innkeeper) in the scene configuration's Table Tools tab, or with <em>Make innkeeper here…</em> on a token's HUD.</span></div>` : "";
-  const quests = tab.id === "quests" && F.on("questLog") && F.on("questTracker") ? `<div class="wct-actions"><button type="button" data-act="tracker-reset"><i class="fa-solid fa-arrows-to-dot"></i> Reset quest tracker position</button><span class="hint">Just for you, on this computer: puts the on-screen tracker back in its starting spot (and shows it if you closed it). Each player can drag theirs, or reset it from the quest log.</span></div>` : "";
-  const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
+  const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>
+    ${F.on("flightMap") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="flight-map" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-map-location-dot"></i> Flight route map…</button><span class="hint">The network drawn as a map. Drag points to arrange it; players see the same layout.</span></div>` : ""}
+    ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
+  const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
+    ${F.on("coinLog") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="coin-log"><i class="fa-solid fa-receipt"></i> Coin log…</button><span class="hint">Every coin movement the toolkit made (quest rewards, rooms, fares, sales, loot coin), with Undo on the latest.</span></div>` : ""}
+    ${F.on("splitCoin") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="split-coin"><i class="fa-solid fa-divide"></i> Split coin…</button><span class="hint">Shares the party actor's coin evenly among its members, after a preview. Also in the party sheet's header menu.</span></div>` : ""}
+    ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
+  const places = tab.id === "places" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="zone-preview" ${F.on("zoneTitles") ? "" : "disabled"}><i class="fa-solid fa-signs-post"></i> Preview title card</button><span class="hint">Shows this scene's card on your screen only. Set each scene's title, subtitle and sound in its configuration.</span></div>
+    <div class="wct-actions"><button type="button" class="wc-btn" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Add inns (name, room price, innkeeper) in the scene configuration's Table Tools tab, or with <em>Make innkeeper here…</em> on a token's HUD.</span></div>` : "";
+  const quests = tab.id === "quests" && F.on("questLog") && F.on("questTracker") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="tracker-reset"><i class="fa-solid fa-arrows-to-dot"></i> Reset quest tracker position</button><span class="hint">Just for you, on this computer: puts the on-screen tracker back in its starting spot (and shows it if you closed it). Each player can drag theirs, or reset it from the quest log.</span></div>` : "";
+  const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
     <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${places}${quests}${actions}
     ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
-    <p class="wct-reset"><button type="button" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
+    <p class="wct-reset"><button type="button" class="wc-btn" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
 
 function featuresTab() {
@@ -167,12 +167,12 @@ function overviewTab() {
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> Overview</h2>${help(tab.anchor)}</header>
     <div class="wct-status" data-status><p class="hint"><i class="fa-solid fa-spinner fa-spin"></i> Checking your world…</p></div>
     <div class="wct-actions wrap">
-      <button type="button" data-act="setup"><i class="fa-solid fa-hammer"></i> Run setup</button>
-      <button type="button" data-act="health"><i class="fa-solid fa-stethoscope"></i> Full health report (to chat)</button>
-      <button type="button" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
-      <button type="button" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
-      <button type="button" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
-      <button type="button" data-act="cleanup" class="wc-btn wc-btn-danger wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
+      <button type="button" class="wc-btn" data-act="setup"><i class="fa-solid fa-hammer"></i> Run setup</button>
+      <button type="button" class="wc-btn" data-act="health"><i class="fa-solid fa-stethoscope"></i> Full health report (to chat)</button>
+      <button type="button" class="wc-btn" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
+      <button type="button" class="wc-btn" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
+      <button type="button" class="wc-btn" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
+      <button type="button" class="wc-btn wc-btn-danger wct-danger" data-act="cleanup"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
     <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
       <div class="wct-row-control">${switchHTML("updateNotes", get("updateNotes") !== false, false, 'data-instant')}</div></div></div>
@@ -301,7 +301,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       ? `<div class="wc-alert wc-warn wct-banner warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><div><strong class="wc-alert-title">${issues.length} thing${issues.length === 1 ? " needs" : "s need"} attention</strong><p>Each has a button to fix it where there's a quick fix.</p></div></div>`
       : `<div class="wc-alert wc-ok wct-banner ok"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><div><strong class="wc-alert-title">Everything looks good</strong><p>Setup is complete and nothing needs fixing for the tools turned on.</p></div></div>`;
     this.issues = issues;
-    box.innerHTML = `${head}${issues.length ? `<ul class="wct-issues">${issues.map((i, n) => `<li class="${i.level}"><span class="wct-issue-text">${i.text}</span>${i.fix ? `<button type="button" data-act="fix" data-issue="${n}">${esc(i.fix.label)}</button>` : ""}</li>`).join("")}</ul>` : ""}
+    box.innerHTML = `${head}${issues.length ? `<ul class="wct-issues">${issues.map((i, n) => `<li class="${i.level}"><span class="wct-issue-text">${i.text}</span>${i.fix ? `<button type="button" class="wc-btn" data-act="fix" data-issue="${n}">${esc(i.fix.label)}</button>` : ""}</li>`).join("")}</ul>` : ""}
       <p class="hint">Tools on: ${on.length ? on.map(esc).join(", ") : "none"}. Coins: ${get("coinSystem") === "threeCoin" ? "three coins" : "standard 5e"}. Party size: ${esc(get("partySize"))}. Version ${esc(API.version ?? "")}.</p>`;
   }
 
@@ -442,8 +442,8 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
       <div class="wct-presets two">${[["standard", "Standard 5e coins", "Copper, silver, electrum, gold and platinum, as in the rules."], ["threeCoin", "Three coins", "Copper, silver and gold only, 100 to 1. Item prices aren't changed; see the README."]].map(([k, l, t]) => `<label class="wct-preset ${d.coinSystem === k ? "on" : ""}"><input type="radio" name="coinSystem" value="${k}" ${d.coinSystem === k ? "checked" : ""}><i class="fa-solid fa-coins"></i><strong>${l}</strong><span>${t}</span></label>`).join("")}</div>
       ${M.PRESETS[d.preset]?.suggestCoins === "threeCoin" && d.coinSystem !== "threeCoin" ? `<p class="hint">Tip: the Classic MMO style pairs well with three coins.</p>` : ""}`;
     div.innerHTML = `<div class="wct-steps">${dots}<span class="hint">Step ${this.step + 1} of 3</span></div>${body}
-      <footer class="wct-footer"><button type="button" data-w="skip">Skip, I'll set it up myself</button><span class="spacer"></span>
-      ${this.step ? `<button type="button" data-w="back"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ""}
+      <footer class="wct-footer"><button type="button" class="wc-btn" data-w="skip">Skip, I'll set it up myself</button><span class="spacer"></span>
+      ${this.step ? `<button type="button" class="wc-btn" data-w="back"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ""}
       ${this.step < 2 ? `<button type="button" class="wc-btn wc-btn-primary wct-primary" data-w="next">Next <i class="fa-solid fa-arrow-right"></i></button>` : `<button type="button" class="wc-btn wc-btn-primary wct-primary" data-w="finish"><i class="fa-solid fa-check"></i> Finish (reloads Foundry)</button>`}</footer>`;
     return div;
   }

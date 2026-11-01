@@ -351,9 +351,9 @@ export const WCT = {
   gmWhisper(content) { return ChatMessage.create({ content: card(content), whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" } }); },
   say(content, alias = "Narrator") { return ChatMessage.create({ content: card(content), speaker: { alias } }); },
   /** An information or refusal window with a single OK button. */
-  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
-  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
-  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, rejectClose: false }); },
+  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
+  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
+  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, rejectClose: false }); },
   gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
   opt(v, label, sel) { return `<option value="${esc(v)}" ${sel ? "selected" : ""}>${esc(label ?? v)}</option>`; },
   campaign() { return setting("campaignName") || game.world.title; },

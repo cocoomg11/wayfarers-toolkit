@@ -96,7 +96,7 @@ export async function phaseDialog(t) {
   const content = `<p class="hint">Health percentages where the fight changes phase, highest first, e.g. <em>66, 33</em>. The boss frame shows a mark at each; you get a whisper when health drops below one. Leave blank for none.</p>
     <div class="form-group"><label>Phase marks (%)</label><input type="text" name="phases" value="${esc(P.phasesText(phasesOf(doc)))}" placeholder="66, 33" autofocus></div>
     ${world && !doc.actorLink ? `<div class="form-group"><label>Every token of ${esc(world.name)}</label><input type="checkbox" name="world" ${onWorld ? "checked" : ""}><p class="hint">Save on the creature itself, so every token of it gets the marks. Unticked: only this token.</p></div>` : ""}`;
-  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title: `Phase marks: ${doc.name}` }, content, position: { width: 420 },
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title: `Phase marks: ${doc.name}` }, content, position: { width: 420 },
     ok: { label: "Save", icon: "fa-solid fa-floppy-disk", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false });
   if (!f) return;
   const list = P.parsePhases(f.phases);
@@ -311,7 +311,7 @@ function render() {
   const list = bosses();
   if (!list.length) { if (drag) endDrag(null); el?.remove(); el = null; nodes.clear(); return; }
   if (!el) {
-    el = document.createElement("section"); el.id = "wct-boss-frames"; el.setAttribute("aria-label", "Boss health");
+    el = document.createElement("section"); el.id = "wct-boss-frames"; el.classList.add(...UI_CLASSES); el.setAttribute("aria-label", "Boss health");
     el.addEventListener("pointerdown", dragStart); el.addEventListener("dblclick", resetPos);
     el.addEventListener("contextmenu", ev => {
       const n = /** @type {HTMLElement} */ (/** @type {Element} */ (ev.target).closest(".wct-boss")); if (!n || !game.user.isGM) return;
