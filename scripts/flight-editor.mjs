@@ -46,6 +46,7 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
     window: { title: "Flight network", icon: "fa-solid fa-feather-pointed", resizable: true },
     position: { width: 880, height: 640 }
   };
+  /** @type {any} */
   net = null; dirty = false; badFare = new Map();
 
   scenes() { return game.scenes.map(s => ({ uuid: s.uuid, name: s.name })).sort((a, b) => a.name.localeCompare(b.name)); }

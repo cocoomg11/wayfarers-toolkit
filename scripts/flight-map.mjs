@@ -52,6 +52,7 @@ export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
   /** GM drags not saved yet: { pointId: { x, y } }. */
   moved = {};
   /** This window's zoom and pan (view only). */
+  /** @type {{ k: number, tx: number, ty: number }} */
   view = { ...Flight.VIEW_IDENTITY };
 
   model() {
@@ -115,6 +116,7 @@ export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
       const at = FlightMapApp.toView(svg, ev); if (!at) return; ev.preventDefault();
       this.view = Flight.zoomAt(this.view, Flight.wheelFactor(ev.deltaY, ev.deltaMode), at, SIZE); this.applyView();
     }, { passive: false });
+    /** @type {any} */
     let pan = null;
     svg.addEventListener("pointerdown", ev => {
       if (ev.button !== 0 || ev.target.closest(".wct-fm-node")) return;
@@ -131,6 +133,7 @@ export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
 
   wireDrag(svg) {
     if (!svg) return;
+    /** @type {any} */
     let drag = null;
     // Screen → viewBox → map units (undoing this window's zoom and pan) → the 0–1 `pos` space.
     const toUnit = ev => {

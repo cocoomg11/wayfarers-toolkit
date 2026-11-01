@@ -13,7 +13,7 @@ import { publicQuest, isPublic, stripSecrets } from "./quests-model.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
-const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? /** @type {any} */ (globalThis).TextEditor;
 const MAX_TRACKED = 5;
 
 /** The module API object from main.mjs (money helpers, party actor, dialogs). Set by init(). */
@@ -262,6 +262,7 @@ async function run(op, ...args) {
 // ---------------------------------------------------------------- tracking (per user, stored in this browser)
 export function tracked() { try { const v = JSON.parse(S("trackedQuests") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } }
 async function setTracked(list) { await game.settings.set(ID, "trackedQuests", JSON.stringify([...new Set(list)])); refresh(); }
+/** @param {any} ref @param {boolean | null} [on] */
 export async function track(ref, on = null) {
   const j = find(ref); if (!j) return false; const list = tracked(); const has = list.includes(j.id);
   on ??= !has; if (on === has) return on;
@@ -341,7 +342,7 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
 
     const zones = new Map();
     for (const x of here) { const z = x.q.zone || "General"; if (!zones.has(z)) zones.set(z, []); zones.get(z).push(x); }
-    const zoneNames = [...zones.keys()].sort((a, b) => (a === "General") - (b === "General") || a.localeCompare(b));
+    const zoneNames = [...zones.keys()].sort((a, b) => +(a === "General") - +(b === "General") || a.localeCompare(b));
     const tr = tracked();
     const glyph = q => q.status === "active" ? `<span class="wct-glyph ${allDone(q) ? "" : "dim"}">?</span>` : `<span class="wct-glyph ${q.status}">${STATUS[q.status].glyph}</span>`;
     const row = ({ j, q }) => `<li class="wctq-row ${j.id === this.selected ? "sel" : ""} ${q.status}" data-quest-id="${j.id}" tabindex="0">${glyph(q)}<span class="name">${esc(j.name)}</span>${q.level ? `<span class="lvl">${esc(q.level)}</span>` : ""}${q.hidden ? `<i class="fa-solid fa-eye-slash" data-tooltip="Hidden from players"></i>` : ""}${TRACKER && q.status === "active" && tr.includes(j.id) ? `<i class="fa-solid fa-location-crosshairs" data-tooltip="Tracked"></i>` : ""}</li>`;
@@ -504,10 +505,11 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
       <footer class="wctq-bar"><button type="submit" class="primary"><i class="fa-solid fa-floppy-disk"></i> Save</button><button type="button" data-action="cancel">Cancel</button></footer>`;
     // Rich text: Foundry's ProseMirror element when available, else a plain HTML textarea.
     const PM = foundry.applications?.elements?.HTMLProseMirrorElement;
+    /** @type {any} */
     let ed = null;
     try { if (PM?.create) ed = PM.create({ name: "description", value: q.description, toggled: false, height: 200, documentUUID: this.quest?.uuid }); } catch (e) { console.warn(`${ID} | ProseMirror editor unavailable`, e); }
     if (!ed) { ed = document.createElement("textarea"); ed.name = "description"; ed.rows = 8; ed.value = q.description; }
-    div.querySelector(".wctq-desc").append(ed);
+    /** @type {HTMLElement} */ (div.querySelector(".wctq-desc")).append(ed);
     return div;
   }
 

@@ -9,11 +9,12 @@
  * `from` / `to` are point ids; fareCp is the fare per passenger in the smallest coin in use; `free` makes a route cost nothing.
  */
 export const VERSION = 1;
+/** @returns {{ version: number, points: any[], routes: any[] }} */
 export const emptyNetwork = () => ({ version: VERSION, points: [], routes: [] });
 
 let idSeq = 0;
 /** A short id; Foundry's randomID when it's there (in the browser), a counter in Node. */
-export const newId = () => globalThis.foundry?.utils?.randomID?.(12) ?? `id${Date.now().toString(36)}${(++idSeq).toString(36)}`;
+export const newId = () => /** @type {any} */ (globalThis).foundry?.utils?.randomID?.(12) ?? `id${Date.now().toString(36)}${(++idSeq).toString(36)}`;
 const str = v => (v == null ? "" : String(v)).trim();
 const nameKey = n => str(n).toLowerCase();
 
@@ -143,6 +144,7 @@ export const clampPax = pax => Math.min(20, Math.max(1, Math.floor(+pax || 1)));
  * What happens to the scene on arrival: { sceneUuid, change, reason } with reason "ok" (open it), "none" (the point has no scene) or
  * "missing" (its scene was deleted). Without a scene the flight still happens; only the scene stays where it is.
  */
+/** @param {any} dest @param {(uuid: any) => boolean} [sceneExists] */
 export function landing(dest, sceneExists = () => true) {
   if (!dest?.sceneUuid) return { sceneUuid: null, change: false, reason: "none" };
   if (!sceneExists(dest.sceneUuid)) return { sceneUuid: dest.sceneUuid, change: false, reason: "missing" };
@@ -153,6 +155,10 @@ export function landing(dest, sceneExists = () => true) {
  * Every check before a flight, in order: { ok: true, r, q, dest, land, free } or { ok: false, error }. `from` / `to` are point ids or names.
  * `purse` is the party's total (null when there's no party actor, which flies free). `free`: a GM's free flight (no fare, no purse check).
  * Nothing is charged here.
+ */
+/**
+ * @returns {any}
+ * @param {{ net?: any, from?: any, to?: any, pax?: number, purse?: any, fmt?: (n: number) => string, free?: boolean, sceneExists?: (uuid: any) => boolean }} opts
  */
 export function check({ net, from, to, pax = 1, purse = null, fmt = String, free = false, sceneExists }) {
   const a = findPoint(net, from), b = findPoint(net, to);
@@ -170,7 +176,7 @@ export function check({ net, from, to, pax = 1, purse = null, fmt = String, free
   }
   r.names = r.path.map(id => pname(net, id));
   const q = free ? { ...quote(0, pax, null), charge: false } : quote(r.f, pax, purse);
-  if (!q.canPay) return { ok: false, error: `The party can't afford this: needs ${fmt(q.total)}, has ${fmt(q.have)} (short ${fmt(q.short)}).`, r, q };
+  if (!q.canPay) return { ok: false, error: `The party can't afford this: needs ${fmt(q.total)}, has ${fmt(/** @type {number} */ (q.have))} (short ${fmt(q.short)}).`, r, q };
   return { ok: true, r, q, dest: b, from: a, land: landing(b, sceneExists), free: !!free };
 }
 
@@ -180,6 +186,7 @@ export function check({ net, from, to, pax = 1, purse = null, fmt = String, free
  * purse (0 for a free flight or with no party actor); `changeScene` is whether to open the destination scene (`wantScene` and the
  * point has an existing scene); `tellNoScene` is whether to whisper the GM that the scene stayed put because the point has none.
  */
+/** @param {{ byPlayer?: boolean, free?: boolean, wantScene?: boolean, [k: string]: any }} opts */
 export function decide({ byPlayer = false, free = false, wantScene = true, ...args }) {
   free = !byPlayer && !!free;
   const c = check({ ...args, free });
@@ -275,11 +282,12 @@ export function parseZones(text) {
     return { zones: z, error: null };
   } catch (e) {
     const msg = String(e?.message ?? e);
+    /** @type {any} */
     let pos = msg.match(/position (\d+)/)?.[1]; pos = pos == null ? null : +pos;
     let where = "";
     const lc = msg.match(/line (\d+) column (\d+)/);
     if (lc) where = `line ${lc[1]}, column ${lc[2]}`;
-    else if (pos != null) { const before = src.slice(0, pos).split("\n"); where = `line ${before.length}, column ${before.at(-1).length + 1}`; }
+    else if (pos != null) { const before = src.slice(0, pos).split("\n"); where = `line ${before.length}, column ${/** @type {string} */ (before.at(-1)).length + 1}`; }
     return { zones: {}, error: `invalid JSON${where ? ` at ${where}` : ""} (${msg.replace(/^JSON\.parse: /, "").replace(/\s*\(line \d+ column \d+\)/, "").replace(/\s+/g, " ").slice(0, 160)})` };
   }
 }
