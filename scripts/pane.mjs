@@ -10,6 +10,8 @@ import * as PM from "./pane-model.mjs";
 import { BENEFITS } from "./inn-model.mjs";
 import { UI_CLASSES, coins as coinHTML } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
+import { remembered, WINDOW_KEYS } from "./windows.mjs";
+import { savedPlacement } from "../vendor/wanderers-core/foundry/index.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -539,10 +541,13 @@ const OPEN = new Map();
 // Window size. The sheet needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
 const MIN_W = 540, MIN_H = 780, DEF_W = 580, DEF_H = 880;
 const SLOT_MIN = 42, SLOT_MAX = 72;
+// Before 1.30 the pane kept its own size and position in the client setting paneWindow. Since 1.30 core's remembered placement
+// (windows.mjs, key "pane") does it; the old value is only read once, to open where it was until the pane is next moved.
 const SIZE_KEY = "paneWindow";
 
-/** The size and position this client last left the pane at, if it still fits on screen and isn't below the minimum. */
-function savedPosition() {
+/** The pre-1.30 size and position (paneWindow), if no remembered placement exists yet and it still fits and isn't below the minimum. */
+function legacyPosition() {
+  if (savedPlacement(ID, WINDOW_KEYS.pane)) return null;
   /** @type {any} */
   let p = null;
   try { p = game.settings.get(ID, SIZE_KEY); } catch { return null; }
@@ -555,7 +560,7 @@ function defaultPosition() {
   return { width: DEF_W, height: Math.max(MIN_H, Math.min(DEF_H, window.innerHeight - 40)) };
 }
 
-export class CharacterPane extends foundry.applications.api.ApplicationV2 {
+export class CharacterPane extends remembered(foundry.applications.api.ApplicationV2, "pane") {
   static DEFAULT_OPTIONS = {
     classes: ["wct-pane", "wct-window", ...UI_CLASSES],
     window: { title: "Character", icon: "fa-solid fa-shirt", resizable: true },
@@ -563,7 +568,8 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   };
 
   constructor(actor, options = {}) {
-    super({ id: `wct-pane-${actor.uuid.replace(/\./g, "-")}`, position: savedPosition() ?? defaultPosition(), ...options });
+    // No left/top in the default, so core's remembered placement (key "pane", shared by every actor's pane) wins when there is one.
+    super({ id: `wct-pane-${actor.uuid.replace(/\./g, "-")}`, position: legacyPosition() ?? defaultPosition(), ...options });
     this.actor = actor;
     this._hooks = [];
     const mine = d => d?.parent === actor || d === actor || (d?.parent?.parent === actor);
@@ -747,16 +753,9 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
   }
 
   _onPosition(position) {
+    // Core's RememberedWindow saves the placement (debounced, not while minimised); _updatePosition keeps it at the minimum size.
     super._onPosition?.(position);
     this._fit();
-    // Remember this client's size and position (not while minimised).
-    if (this.minimized) return;
-    clearTimeout(this._saveT);
-    this._saveT = setTimeout(() => {
-      const { left, top, width, height } = this.position;
-      if (this.minimized || ![left, top, width, height].every(Number.isFinite)) return;
-      try { game.settings.set(ID, SIZE_KEY, { left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) }); } catch { /* not registered */ }
-    }, 300);
   }
 
   /** Sizes the slots (and with them the portrait) to the window: as big as the width and height both allow. */
@@ -1031,7 +1030,7 @@ function addItemFlagBoxes(app, element) {
 
 /** Header button on dnd5e character and NPC sheets, and slot bookkeeping. */
 export function registerHooks() {
-  // This client's pane size and position (only registered while the pane is turned on).
+  // Pre-1.30 pane size and position: read once (legacyPosition), no longer written; core's windowPlacement holds it now.
   game.settings.register(ID, SIZE_KEY, { scope: "client", config: false, type: Object, default: {} });
   // An item equipped or unequipped outside the pane (the dnd5e sheet, a macro) that disagrees with its weapon set leaves the set,
   // so the sets never claim something the sheet says otherwise. Runs on the client that made the change.

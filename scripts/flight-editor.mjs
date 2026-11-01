@@ -5,6 +5,7 @@
  */
 import * as Flight from "./flight.mjs";
 import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -41,7 +42,7 @@ export async function importFlow(api) {
 
 const sw = (attr, on, label) => `<label class="wct-switch" data-tooltip="${esc(label)}"><input type="checkbox" ${attr} ${on ? "checked" : ""} aria-label="${esc(label)}"><span class="wct-track" aria-hidden="true"></span></label>`;
 
-export class FlightEditor extends foundry.applications.api.ApplicationV2 {
+export class FlightEditor extends remembered(foundry.applications.api.ApplicationV2, "flightEditor") {
   static DEFAULT_OPTIONS = {
     id: `${ID}-flight-editor`, classes: ["wct-panel", "wct-window", "wct-flight-editor", ...UI_CLASSES],
     window: { title: "Flight network", icon: "fa-solid fa-feather-pointed", resizable: true },

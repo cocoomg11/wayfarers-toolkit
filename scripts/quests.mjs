@@ -15,6 +15,8 @@ import { breakdown } from "./coinlog-model.mjs";
 import { UI_CLASSES, quality as coreQuality } from "../vendor/wanderers-core/index.mjs";
 import { notify, request, isActiveGM, handle } from "./gm.mjs";
 import { card as lookCard } from "./look-model.mjs";
+import { remembered } from "./windows.mjs";
+import { registerOpenKeybinding } from "../vendor/wanderers-core/foundry/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -622,7 +624,7 @@ function coinsHTML(amount) {
   return [["gp", "g"], ["sp", "s"], ["cp", "c"]].filter(([k]) => c[k]).map(([k, l]) => `<span class="wctq-coin ${k}">${c[k]}<b>${l}</b></span>`).join("") || `<span class="wctq-coin cp">0<b>c</b></span>`;
 }
 
-export class QuestLog extends foundry.applications.api.ApplicationV2 {
+export class QuestLog extends remembered(foundry.applications.api.ApplicationV2, "questLog") {
   static DEFAULT_OPTIONS = {
     id: "wct-quest-log",
     classes: ["wct-quests", "wct-window", ...UI_CLASSES],
@@ -1073,8 +1075,9 @@ function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (L
  */
 export function init(wct, { tracker = true, goToPin: pinFn = null, glow = false, hooks = false } = {}) {
   WCT = wct; TRACKER = !!tracker; GO_TO_PIN = pinFn; GLOW = !!glow; HOOKS = !!hooks;
+  // Core's open-keybinding helper (1.30): same action id "questLog" and default key L, so users' own bindings carry over.
   try {
-    game.keybindings.register(ID, "questLog", { name: "Open quest log", hint: "Opens or closes the Wanderer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
+    registerOpenKeybinding({ moduleId: ID, action: "questLog", name: "Open quest log", hint: "Opens or closes the Wanderer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
   } catch (e) { console.warn(`${ID} | quest log key binding not registered`, e); }
 
   Hooks.on("getSceneControlButtons", controls => {

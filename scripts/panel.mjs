@@ -14,6 +14,7 @@ import { MACRO_HINT, isToolkitFolderName } from "./macros.mjs";
 import * as M from "./panel-model.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { remembered, resetWindows } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -142,9 +143,11 @@ function settingsTab(tab) {
     <div class="wct-actions"><button type="button" class="wc-btn" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Add inns (name, room price, innkeeper) in the scene configuration's Table Tools tab, or with <em>Make innkeeper here…</em> on a token's HUD.</span></div>` : "";
   const quests = tab.id === "quests" && F.on("questLog") && F.on("questTracker") ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="tracker-reset"><i class="fa-solid fa-arrows-to-dot"></i> Reset quest tracker position</button><span class="hint">Just for you, on this computer: puts the on-screen tracker back in its starting spot (and shows it if you closed it). Each player can drag theirs, or reset it from the quest log.</span></div>` : "";
   const actions = tab.id === "boss" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="autolink" ${F.on("bossLoot") ? "" : "disabled"}><i class="fa-solid fa-link"></i> Link boss tables by name</button><span class="hint">Links each creature to the roll table named "<em>creature name</em> · Loot". Existing links are kept.</span></div>` : "";
+  // General tools under the Advanced section of the tab that holds the General settings (Debug logging, Show module data folder).
+  const general = tab.id === M.GENERAL_TAB ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="reset-windows"><i class="fa-solid fa-window-restore"></i> Reset window positions</button><span class="hint">Just for you, on this computer: the toolkit's windows (control panel, quest log, character pane, flight map and editor, coin log, loot history, party gold, health check) open at their default place and size again. Open windows move the next time they open.</span></div>` : "";
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> ${esc(tab.label)}</h2>${help(tab.anchor)}</header>
     <div class="wct-rows">${tab.basic.map(rowHTML).join("")}</div>${flights}${loot}${places}${quests}${actions}
-    ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div></details>` : ""}
+    ${advanced ? `<details class="wct-advanced"><summary>Advanced</summary><div class="wct-rows">${advanced}</div>${general}</details>` : ""}
     <p class="wct-reset"><button type="button" class="wc-btn" data-act="reset-tab" data-tab="${tab.id}"><i class="fa-solid fa-rotate-left"></i> Reset this tab to defaults</button></p>`;
 }
 
@@ -197,7 +200,7 @@ function issuesFrom(sections) {
 }
 
 // ---------------------------------------------------------------- the window
-export class ControlPanel extends foundry.applications.api.ApplicationV2 {
+export class ControlPanel extends remembered(foundry.applications.api.ApplicationV2, "panel") {
   static DEFAULT_OPTIONS = {
     id: `${ID}-panel`, classes: ["wct-panel", "wct-window", ...UI_CLASSES],
     window: { title: "Wanderer's Toolkit", icon: "fa-solid fa-toolbox", resizable: true },
@@ -325,6 +328,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "split-coin") return API.splitCoin();
       if (act === "zone-preview") return API.zoneTitles?.show(canvas?.scene);
       if (act === "rent-rooms") return API.rentRooms();
+      if (act === "reset-windows") { await resetWindows(); return ui.notifications.info("Wanderer's Toolkit: window positions reset. Windows open at their default place next time."); }
       if (act === "tracker-reset") { await API.quests?.showTracker(true); return await API.quests?.resetTrackerPosition(); }
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);

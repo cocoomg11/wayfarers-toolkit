@@ -14,6 +14,7 @@ import * as F from "./features.mjs";
 import * as Vault from "./vault.mjs";
 import { log } from "./log.mjs";
 import { esc, UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const APP_ID = `${ID}-coin-log`;
@@ -81,7 +82,7 @@ export async function clear() {
 
 // ---------------------------------------------------------------- the window
 const when = e => { const d = new Date(e.at); return Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-export class CoinLogApp extends foundry.applications.api.ApplicationV2 {
+export class CoinLogApp extends remembered(foundry.applications.api.ApplicationV2, "coinLog") {
   static DEFAULT_OPTIONS = {
     id: APP_ID, classes: ["wct-history", "wct-coinlog", "wct-window", ...UI_CLASSES],
     window: { title: "Coin log", icon: "fa-solid fa-receipt", resizable: true },

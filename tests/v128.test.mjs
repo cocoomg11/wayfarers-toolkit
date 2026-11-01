@@ -178,10 +178,11 @@ test("flights never advance time from the inn offer; the offer uses dnd5e's long
 test("key bindings: registered in init with no default keys, gated by the feature", () => {
   const m = src("scripts/main.mjs");
   assert.match(m, /if \(F\.on\("keybindings"\)\) registerKeybindings\(\);/);
-  assert.match(m, /game\.keybindings\.register\(ID, key, \{ name, hint, editable: \[\]/);
+  // Since 1.30: core's registerOpenKeybinding (no editable given = no default key); same action ids.
+  assert.match(m, /registerOpenKeybinding\(\{ moduleId: ID, action, name, hint, gmOnly, onDown/);
   for (const k of ["characterPane", "controlPanel"]) assert.match(m, new RegExp(`reg\\("${k}"`));
   // The quest log keeps its own binding (and its L default) in quests.mjs.
-  assert.match(src("scripts/quests.mjs"), /keybindings\.register\(ID, "questLog"/);
+  assert.match(src("scripts/quests.mjs"), /registerOpenKeybinding\(\{ moduleId: ID, action: "questLog",[^\n]*editable: \[\{ key: "KeyL" \}\]/);
 });
 
 // ---------------------------------------------------------------- registry, panel, docs, version

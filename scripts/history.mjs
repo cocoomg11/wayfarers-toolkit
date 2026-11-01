@@ -10,6 +10,7 @@ import { isActiveGM } from "./gm.mjs";
 import { log } from "./log.mjs";
 import { UI_CLASSES, itemSlot } from "../vendor/wanderers-core/index.mjs";
 import * as PM from "./pane-model.mjs";
+import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const KEY = "lootHistoryData";
@@ -76,7 +77,7 @@ export function exportCSV(list = entries()) {
 const HEADS = [["date", "Date"], ["scene", "Scene"], ["item", "Item"], ["outcome", "How it ended"], ["winner", "Received by"]];
 const fmtWhen = at => { const d = new Date(at); return Number.isNaN(d.getTime()) ? "" : `${H.dayKey(at)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
-export class LootHistoryApp extends foundry.applications.api.ApplicationV2 {
+export class LootHistoryApp extends remembered(foundry.applications.api.ApplicationV2, "lootHistory") {
   static DEFAULT_OPTIONS = {
     id: `${ID}-loot-history`, classes: ["wct-history", "wct-window", ...UI_CLASSES],
     window: { title: "Loot history", icon: "fa-solid fa-clock-rotate-left", resizable: true },

@@ -36,6 +36,7 @@ import * as CoinLog from "./coinlog.mjs";
 import * as CL from "./coinlog-model.mjs";
 import * as UX from "./quest-ux-model.mjs";
 import { UI_CLASSES, coins as coinsMarkup } from "../vendor/wanderers-core/index.mjs";
+import { registerOpenKeybinding, hideDataFolder, registerWindowPlacement } from "../vendor/wanderers-core/foundry/index.mjs";
 import { card } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -216,6 +217,10 @@ function registerSettings() {
   for (const [key, def] of [["onlineCount", "characters"], ["onlineList", ""], ["onlinePosition", "top-left"]]) game.settings.register(ID, key, { scope: "world", config: false, type: String, default: def });
   game.settings.register(ID, "onlineDrag", { scope: "world", config: false, type: Boolean, default: true });
   game.settings.register(ID, "onlineHudPos", { scope: "client", config: false, type: Object, default: {} });
+  // 1.30 (core 0.5.0): this user's switch for the shared "Module data" journal folder (the GM-only records journal lives there).
+  game.settings.register(ID, "showModuleData", { name: "General: Show module data folder", hint: "Shows the shared Module data folder in the Journal sidebar (the toolkit's GM-only records journal, and other modules' stores). Off: hidden. Tidiness only, not secrecy.", scope: "client", config: false, type: Boolean, default: false, onChange: () => ui.journal?.render() });
+  // Core's remembered window placement (windows.mjs): one hidden client setting, registered here so cleanup and settings lists see it.
+  registerWindowPlacement(ID);
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
@@ -905,6 +910,8 @@ Hooks.once("init", () => {
   if (F.on("mapPins")) Pins.init();
   // One section in the shared Table Tools scene tab (title card, Dungeon, inns) for the tools that are on.
   SceneConfig.init();
+  // The shared "Module data" journal folder stays out of the Journal sidebar unless a GM shows it (any module's switch shows it).
+  hideDataFolder(ID, { shown: () => { try { return !!game.settings.get(ID, "showModuleData"); } catch { return false; } } });
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
@@ -946,14 +953,17 @@ Hooks.once("ready", () => {
 // Item Piles applies its system defaults shortly after its own ready hook; set the three-coin currencies after that.
 Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000));
 
-/** Configure Controls entries (feature keybindings), no keys set: each user picks their own. The quest log's L key is the quest log's own. */
+/**
+ * Configure Controls entries (feature keybindings), no keys set: each user picks their own. The quest log's L key is the quest log's
+ * own (quests.mjs). Core's registerOpenKeybinding (1.30) with the same action ids as before, so bindings users set carry over.
+ */
 function registerKeybindings() {
-  const reg = (key, name, hint, fn) => {
-    try { game.keybindings.register(ID, key, { name, hint, editable: [], onDown: () => { fn(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL }); }
-    catch (e) { console.warn(`${ID} | key binding ${key} not registered`, e); }
+  const reg = (action, name, hint, fn, gmOnly = false) => {
+    try { registerOpenKeybinding({ moduleId: ID, action, name, hint, gmOnly, onDown: () => { fn(); }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL }); }
+    catch (e) { console.warn(`${ID} | key binding ${action} not registered`, e); }
   };
   if (F.on("characterPane")) reg("characterPane", "Open character pane", "Opens the character pane for the selected token's actor, or your character.", () => WCT.characterPane());
-  reg("controlPanel", "Open the control panel (GM)", "Opens the Wanderer's Toolkit control panel. GM only.", () => { if (game.user.isGM) WCT.panel(); });
+  reg("controlPanel", "Open the control panel (GM)", "Opens the Wanderer's Toolkit control panel. GM only.", () => WCT.panel(), true);
 }
 
 /**

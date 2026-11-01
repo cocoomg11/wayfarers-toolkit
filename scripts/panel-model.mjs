@@ -37,6 +37,8 @@ export const FEATURE_CARDS = [
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
+/** The tab whose Advanced section holds the General settings (Debug logging, Show module data folder) and Reset window positions. */
+export const GENERAL_TAB = "loot";
 /**
  * Tabs. Each setting row: key, the feature(s) it needs ("a", or "a:b" for both; null for always) and an optional picker kind.
  * `basic` is what most GMs touch; `advanced` goes under a collapsed Advanced section.
@@ -54,7 +56,7 @@ export const TABS = [
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
     advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashWeight", "vendorTrash"], ["trashWeightMult", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
-      ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null]]
+      ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null], ["showModuleData", null]]
   },
   {
     id: "boss", label: "Boss & Combat", icon: "fa-solid fa-crown", anchor: "boss--combat-tab",
@@ -113,6 +115,7 @@ export const LABELS = {
   trashWeightMult: ["Weight multiplier", "Scales the weight given to junk loot: 1 is as listed, 0.5 half, 2 double."],
   trashPacks: ["Where junk loot comes from", "The item compendiums junk loot is drawn from. Tick none to use the default item compendium when its module is installed (see the README)."],
   itemPilesCoins: ["Keep Item Piles' coins in step", "With the three-coin economy, Item Piles is set to copper, silver and gold each time the world loads. Turn off to manage Item Piles' coins yourself."],
+  showModuleData: ["Show module data folder", "Just for you, on this computer: shows the shared Module data folder in the Journal sidebar, where the toolkit's GM-only records journal (and other modules' stores) live. Hidden by default to keep the sidebar tidy; it is not a secret, and ownership still keeps players out."],
   debugLog: ["Debug logging", "Writes why the toolkit did what it did (loot chosen, which GM ran it) to the browser console (F12). For troubleshooting."],
   bossHpDisplay: ["Boss health players see", "How much of a boss's health shows on its frame for players. You always see exact hit points."],
   bossPhasePlayers: ["Show phase marks to players", "Players also see the phase marks on boss health bars. You always see them. Set a boss's marks by right-clicking its crown button or its frame."],
@@ -268,9 +271,9 @@ export function presetSettings(preset) {
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE). questParties holds
  * this world's actor ids, which mean nothing in another world.
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement"]);
 
-export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen"]);
+export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

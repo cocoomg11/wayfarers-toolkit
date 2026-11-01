@@ -137,3 +137,68 @@ test("store wiring: leader files the entry at ready; cleanup uses the store's re
   assert.match(cl, /VAULT_FLAGS = \["vaultEntry", "vault", "dataFolderFiled"\]/);
   assert.doesNotMatch(src("scripts/vault.mjs"), /JournalEntry\.create/, "creation is core's");
 });
+
+// ---------------------------------------------------------------- windows, keybindings, Module data folder
+const W = await import("../scripts/windows.mjs");
+const { isWindowKey } = await import("../vendor/wanderers-core/index.mjs");
+const { RememberedWindow } = await import("../vendor/wanderers-core/foundry/index.mjs");
+const { FakeApplicationV2 } = await import("../vendor/wanderers-core/testing/index.mjs");
+const PM = await import("../scripts/panel-model.mjs");
+
+test("windows: every main window is remembered under its own stable key", () => {
+  assert.deepEqual({ ...W.WINDOW_KEYS }, { panel: "panel", questLog: "questLog", pane: "pane", flightMap: "flightMap", flightEditor: "flightEditor", coinLog: "coinLog", lootHistory: "lootHistory", partyGold: "partyGold", health: "health" }, "never rename a key");
+  for (const k of Object.values(W.WINDOW_KEYS)) assert.ok(isWindowKey(k), k);
+  const where = { panel: ["panel.mjs", "ControlPanel"], questLog: ["quests.mjs", "QuestLog"], pane: ["pane.mjs", "CharacterPane"], flightMap: ["flight-map.mjs", "FlightMapApp"], flightEditor: ["flight-editor.mjs", "FlightEditor"], coinLog: ["coinlog.mjs", "CoinLogApp"], lootHistory: ["history.mjs", "LootHistoryApp"], partyGold: ["gold.mjs", "PartyGoldApp"], health: ["health.mjs", "HealthApp"] };
+  for (const [key, [file, cls]] of Object.entries(where)) assert.match(src(`scripts/${file}`), new RegExp(`class ${cls} extends remembered\\(foundry\\.applications\\.api\\.ApplicationV2, "${key}"\\)`), cls);
+  assert.doesNotMatch(src("scripts/quests.mjs"), /class QuestEditor extends remembered/, "the quest editor opens per quest, not remembered");
+});
+
+test("windows: placement saved on the fake ApplicationV2 under the toolkit's setting; reset forgets it", async () => {
+  const w = fakeWorld({ users: [{ id: "gm", isGM: true }] });
+  const restore = installFakes(w, "gm");
+  Object.assign(globalThis, { innerWidth: 1600, innerHeight: 1000, addEventListener: () => {}, removeEventListener: () => {} });
+  try {
+    const R = RememberedWindow(FakeApplicationV2, { moduleId: ID, key: W.WINDOW_KEYS.pane, saveMs: 1 });
+    const a = new R({ position: { width: 580, height: 880 } }); await a.render(); a.setPosition({ left: 300, top: 40, width: 600, height: 900 });
+    await new Promise(r => setTimeout(r, 5)); await a.close();
+    assert.deepEqual(game.settings.get(ID, W.PLACEMENT_SETTING).windows.pane, { left: 300, top: 40, width: 600, height: 900 });
+    const b = new R({ position: { width: 580, height: 880 } });
+    assert.equal(b.position.left, 300, "reopens where it was"); assert.equal(b.position.height, 900);
+    await W.resetWindows();
+    assert.deepEqual(game.settings.get(ID, W.PLACEMENT_SETTING).windows, {});
+  } finally { restore(); }
+});
+
+test("character pane: own size memory replaced by core's; the 540 x 780 minimum still enforced; old value read once", () => {
+  const p = src("scripts/pane.mjs");
+  assert.match(p, /const MIN_W = 540, MIN_H = 780/);
+  assert.match(p, /position\.width = Math\.max\(MIN_W, position\.width\)/);
+  assert.match(p, /position\.height = Math\.max\(MIN_H, position\.height\)/);
+  assert.doesNotMatch(p, /game\.settings\.set\(ID, SIZE_KEY/, "paneWindow is no longer written");
+  assert.match(p, /if \(savedPlacement\(ID, WINDOW_KEYS\.pane\)\) return null;/, "the old value only until core has one");
+});
+
+test("keybindings: core's helper, same action ids and defaults", () => {
+  const m = src("scripts/main.mjs"); const q = src("scripts/quests.mjs");
+  assert.doesNotMatch(m + q, /game\.keybindings\.register/);
+  assert.match(m, /reg\("characterPane", /); assert.match(m, /reg\("controlPanel", [^\n]*, true\);/, "control panel is GM only");
+  assert.match(q, /action: "questLog"[^\n]*editable: \[\{ key: "KeyL" \}\]/);
+  const nKeys = (m.match(/editable:/g) ?? []).length; assert.equal(nKeys, 0, "pane and panel: no default key");
+});
+
+test("Module data folder: hidden client setting, hide hook in init, panel row, record lists", () => {
+  const m = src("scripts/main.mjs");
+  assert.match(m, /register\(ID, "showModuleData", \{[^\n]*scope: "client", config: false, type: Boolean, default: false, onChange: \(\) => ui\.journal\?\.render\(\)/);
+  assert.match(m, /hideDataFolder\(ID, \{ shown: /);
+  assert.match(m, /registerWindowPlacement\(ID\)/);
+  for (const k of ["showModuleData", "windowPlacement"]) { assert.ok(PM.RECORD_SETTINGS.has(k), k); assert.ok(PM.WIZARD_IGNORE.has(k), k); }
+  const general = PM.TABS.find(t => t.id === PM.GENERAL_TAB);
+  assert.ok(general.advanced.some(([k]) => k === "showModuleData")); assert.ok(PM.LABELS.showModuleData[0]);
+  assert.match(src("scripts/panel.mjs"), /data-act="reset-windows"[^\n]*Reset window positions/);
+  assert.match(src("scripts/panel.mjs"), /act === "reset-windows"\) \{ await resetWindows\(\)/);
+});
+
+test("cleanup: settings reset covers client settings (windowPlacement, showModuleData)", () => {
+  // plan() lists every setting of the namespace; client ones on every client, world ones for GMs.
+  assert.match(src("scripts/cleanup.mjs"), /c\.namespace === ID && \(c\.scope === "world" \? game\.user\.isGM : true\)/);
+});

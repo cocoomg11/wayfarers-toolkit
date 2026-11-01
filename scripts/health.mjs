@@ -20,6 +20,7 @@ import * as Migrate from "./migrate.mjs";
 import * as Card from "./health-card-model.mjs";
 import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
 import { sceneTab } from "../vendor/wanderers-core/foundry/index.mjs";
+import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -435,7 +436,7 @@ export async function post(api, { window = false } = {}) {
 /** @type {any} */
 let API = null;
 /** The report in a window (api.health({ window: true })), with Post to chat and Run setup. */
-export class HealthApp extends foundry.applications.api.ApplicationV2 {
+export class HealthApp extends remembered(foundry.applications.api.ApplicationV2, "health") {
   static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window", "wct-health-window", ...UI_CLASSES], window: { title: "Wanderer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
   async _renderHTML() {
     const div = document.createElement("div"); div.style.overflowY = "auto";
