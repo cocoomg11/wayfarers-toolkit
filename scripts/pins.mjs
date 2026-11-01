@@ -308,7 +308,8 @@ function pinNoteClass(Base) {
       const pin = M.pinOf(this.document);
       if (!pin) return super.isVisible;
       const lv = this.document.levels; const cur = canvas?.level?.id ?? null;
-      const levelOk = !cur || !lv?.size && !lv?.length ? true : (lv.has?.(cur) ?? lv.includes?.(cur) ?? true);
+      const named = lv ? (lv.size ?? lv.length ?? 0) > 0 : false;
+      const levelOk = !cur || !named || (typeof lv.has === "function" ? lv.has(cur) : lv.includes(cur));
       return M.pinVisible({ pin, isGM: game.user.isGM, levelOk });
     }
     // Core lets only notes with a journal entry be viewed (double-clicked); a pin has none, so the pin's own rule decides.

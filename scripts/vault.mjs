@@ -49,7 +49,9 @@ export function update(fn) {
   const run = chain.then(async () => {
     const j = await ensure();
     const next = M.normalizeVault(fn(M.normalizeVault(j.getFlag(ID, "vault"))));
-    await j.update({ [`flags.${ID}.vault`]: next }, { diff: false, recursive: false });
+    const prev = M.normalizeVault(j.getFlag(ID, "vault"));
+    // A merge update, plus a "-=" deletion for every key that went away (so a removed pin or quest is really gone).
+    await j.update({ [`flags.${ID}.vault`]: next, ...M.deletions(prev, next, `flags.${ID}.vault`) });
     return next;
   });
   chain = run.catch(e => console.warn(`${ID} | GM-only records`, e));

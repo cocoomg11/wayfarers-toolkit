@@ -60,3 +60,17 @@ export function withKey(vault, name, key, value) {
 /** Whether a one-time migration has run. */
 export const migrated = (vault, id) => !!obj(bucket(vault, "migrations", {}))[id];
 export const markMigrated = (vault, id, at = new Date().toISOString()) => withKey(vault, "migrations", id, { at: Date.parse(at) || 0, iso: at });
+
+/**
+ * The "-=" deletion keys for an update that turns `prev` into `next` under `base` (Foundry merges object updates, so keys removed
+ * from a bucket would otherwise stay). Two levels deep: removed buckets, and removed keys of keyed buckets.
+ */
+export function deletions(prev, next, base) {
+  const out = {}; const P = normalizeVault(prev).buckets; const N = normalizeVault(next).buckets;
+  for (const k of Object.keys(P)) {
+    if (!(k in N)) { out[`${base}.buckets.-=${k}`] = null; continue; }
+    const a = P[k], b = N[k];
+    if (CAPS[k] && a && b && typeof a === "object" && typeof b === "object") for (const key of Object.keys(a)) if (!(key in b)) out[`${base}.buckets.${k}.-=${key}`] = null;
+  }
+  return out;
+}

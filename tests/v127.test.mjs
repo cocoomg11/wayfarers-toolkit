@@ -271,3 +271,11 @@ test("Session Start and Who's online are gone; their stored settings stay readab
   assert.doesNotMatch(src("macros.mjs"), /fn: "(sessionStart|whosOnline)"/);
   assert.doesNotMatch(src("cleanup.mjs"), /unsetFlag\(ID, "hub"\)/, "cleanup doesn't single out the hub flag");
 });
+
+test("GM-only store: an update also deletes the keys that went away", () => {
+  const prev = V.withKey(V.withKey(null, "pins", "a", { at: 1 }), "pins", "b", { at: 2 });
+  const next = V.withKey(prev, "pins", "a", null);
+  assert.deepEqual(V.deletions(prev, next, "flags.x.vault"), { "flags.x.vault.buckets.pins.-=a": null });
+  assert.deepEqual(V.deletions(V.withBucket(null, "lootHistory", { v: 1, entries: [] }), V.normalizeVault(null), "f"), { "f.buckets.-=lootHistory": null });
+  assert.deepEqual(V.deletions(prev, prev, "f"), {});
+});
