@@ -894,8 +894,10 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
 /** Re-renders every open pane on this client (a weapon-set setting changed). */
 export function refreshOpen() { for (const app of OPEN.values()) if (app.rendered) app.render(); }
 
-/** Opens (or brings forward) the character pane for an actor: the given one, else the selected token's, else the user's character. */
-/** @param {any} [actor] */
+/**
+ * Opens (or brings forward) the character pane for an actor: the given one, else the selected token's, else the user's character.
+ * @param {any} [actor]
+ */
 export function characterPane(actor = null) {
   if (!game.settings.get(ID, "characterPane")) return ui.notifications.warn("The character pane is turned off in Wayfarer's Toolkit's settings.");
   if (typeof actor === "string") actor = fromUuidSync(actor) ?? game.actors.get(actor) ?? game.actors.getName(actor);

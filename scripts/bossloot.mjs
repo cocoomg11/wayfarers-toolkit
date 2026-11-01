@@ -51,8 +51,8 @@ export function resultUuid(r) {
  * Whether a boss's body falls back to vendor trash, and why: null (draw as normal), "table" (the linked table is missing),
  * "empty" (the table has no result that can drop) or "items" (the draw produced no item because the items it points at are missing).
  * Pure: `tableFound`, `usable` (results with weight > 0), `items` (resolved drops) and `missing` (results whose item wasn't found).
+ * @param {{ tableFound?: boolean, usable?: number, items?: number, missing?: number }} [opts]
  */
-/** @param {{ tableFound?: boolean, usable?: number, items?: number, missing?: number }} [opts] */
 export function fallbackReason({ tableFound, usable = 1, items = 0, missing = 0 } = {}) {
   if (!tableFound) return "table";
   if (!usable) return "empty";
@@ -326,8 +326,11 @@ ${!piles && !empty ? `<button type="button" data-wct-action="give-bossloot"><i c
   return ChatMessage.create(single);
 }
 
-/** GM: manual drop for the given (or selected) tokens. Tokens that already dropped are skipped (Reset loot first). */
-/** @param {any} api @param {any} [tokens] */
+/**
+ * GM: manual drop for the given (or selected) tokens. Tokens that already dropped are skipped (Reset loot first).
+ * @param {any} api
+ * @param {any} [tokens]
+ */
 export async function drop(api, tokens = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens ??= canvas.tokens?.controlled?.length ? canvas.tokens.controlled : [...game.user.targets];
@@ -366,8 +369,11 @@ function tokensFor(actor) {
 }
 
 // ---------------------------------------------------------------- preview
-/** GM: whispers a card per selected (or given) token or actor: table, draws, every result with its weight and its chance per draw. */
-/** @param {any} api @param {any} [targets] */
+/**
+ * GM: whispers a card per selected (or given) token or actor: table, draws, every result with its weight and its chance per draw.
+ * @param {any} api
+ * @param {any} [targets]
+ */
 export async function preview(api, targets = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (targets && !Array.isArray(targets)) targets = [targets];
@@ -404,8 +410,9 @@ export async function preview(api, targets = null) {
  * or "Loot: <Actor name>"). Draws 1 and no coin, unless the table carries flags.wayfarers-toolkit.bossLootDefaults { draws, coinCp, note }.
  * `folder` (a Folder, its id or name) limits it to actors in that folder. Existing links are kept unless `overwrite`.
  * Returns { linked: [{ actor, table }], skipped: [{ actor, why }] } and reports in a notification and a GM whisper.
+ * @param {any} api
+ * @param {{ folder?: any, overwrite?: boolean, quiet?: boolean }} [opts]
  */
-/** @param {any} api @param {{ folder?: any, overwrite?: boolean, quiet?: boolean }} [opts] */
 export async function autoLink(api, { folder = null, overwrite = false, quiet = false } = {}) {
   if (!game.user.isGM) { ui.notifications.warn("GM only."); return null; }
   const byOwner = new Map();

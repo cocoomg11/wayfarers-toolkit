@@ -44,8 +44,9 @@ function view(scene, inn) {
 }
 /**
  * An inn on a scene: by id, else the first. { on: false, … } when the scene has none (kept for callers of api.inn.inn(scene)).
+ * @param {any} scene
+ * @param {string | null} [innId]
  */
-/** @param {any} scene @param {string | null} [innId] */
 export function innFor(scene, innId = null) {
   const s = sceneOf(scene); const list = s ? inns(s) : [];
   const inn = (innId && list.find(x => x.id === innId)) || list[0];
@@ -116,8 +117,10 @@ export async function makeInnkeeper(tokenDoc) {
 }
 
 // ---------------------------------------------------------------- renting
-/** GM: the Rent rooms dialog and payment. Players: a request to the leader. `inn`: an inn id on the scene (default: the first). */
-/** @param {{ scene?: any, actors?: any, inn?: string }} [opts] */
+/**
+ * GM: the Rent rooms dialog and payment. Players: a request to the leader. `inn`: an inn id on the scene (default: the first).
+ * @param {{ scene?: any, actors?: any, inn?: string }} [opts]
+ */
 export async function rentRooms({ scene, actors, inn: innId } = {}) {
   scene = sceneOf(scene) ?? canvas?.scene;
   if (!scene) return ui.notifications.warn("Rent rooms: no scene.");
@@ -191,8 +194,12 @@ function requestRooms(scene, inn) {
   ui.notifications.info(`Asked the GM for rooms at ${inn.name} (${API.fmtMoney(inn.price)} per person).`);
 }
 
-/** Leader: a player's room request becomes a whisper with a Rent rooms button. `u` is Foundry's sender. */
-/** @param {any} data @param {any} u @param {{ rid?: string }} [meta] */
+/**
+ * Leader: a player's room request becomes a whisper with a Rent rooms button. `u` is Foundry's sender.
+ * @param {any} data
+ * @param {any} u
+ * @param {{ rid?: string }} [meta]
+ */
 async function onRoomRequest(data, u, { rid } = {}) {
   const r = M.readRoomRequest({ action: "roomRequest", ...data }); if (!r || !get("innRequests", true)) return;
   if (cardPosted("roomRequest", rid)) return;
@@ -204,8 +211,12 @@ async function onRoomRequest(data, u, { rid } = {}) {
 }
 
 // ---------------------------------------------------------------- the long rest
-/** Leader: what a long rest does to a Rested character. `sceneId`: the scene the resting client was viewing. */
-/** @param {any} actor @param {string} sceneId @param {string | null} [rid] */
+/**
+ * Leader: what a long rest does to a Rested character. `sceneId`: the scene the resting client was viewing.
+ * @param {any} actor
+ * @param {string} sceneId
+ * @param {string | null} [rid]
+ */
 export async function afterLongRest(actor, sceneId, rid = null) {
   if (!game.user.isGM || !actor) return null;
   if (applying.has(actor.id) || cardPosted("restedRest", rid)) return null;

@@ -55,8 +55,11 @@ export function tagsFor(name, type = "loot") {
  * Creature words: matched against a creature's name and subtype. `tags` are the materials such a creature may drop, `core` (default
  * all of `tags`) the ones an item needs at least one of. `family: true` also makes the word a family word: an item whose name contains
  * it only drops from creatures matching the same group ("bear" items only from bears).
+ * @param {string} id
+ * @param {string} list
+ * @param {string[]} tags
+ * @param {{ kind?: string, core?: string[] | null, family?: boolean }} [opts]
  */
-/** @param {string} id @param {string} list @param {string[]} tags @param {{ kind?: string, core?: string[] | null, family?: boolean }} [opts] */
 const W = (id, list, tags, { kind = "beast", core = null, family = true } = {}) => ({ id, re: new RegExp(`\\b(${list})\\b`, "i"), tags, core: core ?? tags, kind, family });
 const BEAST = ["fur", "tooth", "flesh", "insect", "venom", "egg", "scale", "avian", "wing", "aquatic", "shell"];
 export const CREATURE_WORDS = [

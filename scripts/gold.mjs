@@ -48,8 +48,10 @@ function actorWealth(actor, vals) {
   return { coin, gear: G.gearBase(items, vals) };
 }
 
-/** GM: everything the window shows. */
-/** @param {any} [api] */
+/**
+ * GM: everything the window shows.
+ * @param {any} [api]
+ */
 export function read(api = API) {
   const vals = coinVals(api); const gpVal = vals.gp ?? 100;
   const { curve, error } = G.parseCurve(get("goldCurve", G.curveText()));

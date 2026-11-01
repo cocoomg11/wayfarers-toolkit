@@ -17,8 +17,8 @@ const tokenDoc = t => t?.document ?? t;
 /**
  * Boss or not, from plain values (tested in Node): an explicit crown flag (true or false) wins; with no flag, a token with boss loot
  * counts as a boss when `auto` (the "Treat tokens with boss loot as bosses" setting) is on.
+ * @param {{ crown?: boolean | null, hasBossLoot?: boolean, auto?: boolean }} [opts]
  */
-/** @param {{ crown?: boolean | null, hasBossLoot?: boolean, auto?: boolean }} [opts] */
 export function resolveBoss({ crown, hasBossLoot = false, auto = true } = {}) {
   if (crown === true || crown === false) return crown;
   return !!(auto && hasBossLoot);
@@ -33,8 +33,11 @@ function hasBossLoot(doc) {
 /** Whether a token (Token or TokenDocument) is a boss: crowned, or (setting on) carrying boss loot and not explicitly uncrowned. */
 export const isBoss = t => { const d = tokenDoc(t); if (!d?.getFlag) return false; return resolveBoss({ crown: d.getFlag(ID, "boss"), hasBossLoot: hasBossLoot(d), auto: autoOn() }); };
 
-/** Marks or unmarks tokens as bosses (GM only). `on` null toggles each. Defaults to the controlled tokens. */
-/** @param {any} [tokens] @param {boolean | null} [on] */
+/**
+ * Marks or unmarks tokens as bosses (GM only). `on` null toggles each. Defaults to the controlled tokens.
+ * @param {any} [tokens]
+ * @param {boolean | null} [on]
+ */
 export async function toggle(tokens = null, on = null) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens = (tokens ?? canvas.tokens?.controlled ?? []).map(tokenDoc).filter(Boolean);
@@ -62,8 +65,9 @@ export function phasesOf(t) {
 /**
  * Sets phase thresholds (GM only), e.g. setPhases(tokens, [66, 33]). An empty list removes them. `actor: true` stores them on each
  * token's world actor (every token of it) instead of the token. Defaults to the controlled tokens.
+ * @param {any} [tokens]
+ * @param {any[] | null} [list]
  */
-/** @param {any} [tokens] @param {any[] | null} [list] */
 export async function setPhases(tokens = null, list = [], { actor = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   tokens = (tokens ?? canvas.tokens?.controlled ?? []).map(tokenDoc).filter(Boolean);

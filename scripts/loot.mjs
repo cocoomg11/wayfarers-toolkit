@@ -131,8 +131,10 @@ async function moveTo(item, actor) {
 /**
  * Who hears "You won": every non-GM user who owns the receiving actor or has it as their assigned character (the same way a roller's
  * character is found), plus `extra` (the user who won the roll). A party actor with no player owners gets nobody. Pure over `users`.
+ * @param {any} actor
+ * @param {any} [users]
+ * @param {any} [extra]
  */
-/** @param {any} actor @param {any} [users] @param {any} [extra] */
 export function winnerRecipients(actor, users = game.users, extra = null) {
   const ids = new Set();
   if (actor) for (const u of users) if (!u.isGM && ((u.character?.id ?? u.character) === actor.id || actor.testUserPermission?.(u, "OWNER"))) ids.add(u.id);

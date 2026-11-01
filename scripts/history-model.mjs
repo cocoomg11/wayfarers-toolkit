@@ -22,8 +22,9 @@ export function splitName(label = "") {
 /**
  * Builds an entry from a finished roll's card state `st` (loot.mjs). `who`: { uid, actor, tier, roll } for the winner, or for an
  * assigned item { actor } only. `at`: when it ended; `id`: a unique id.
+ * @param {any} [st]
+ * @param {{ outcome?: string, who?: any, at?: number, id?: string | null, note?: string }} [opts]
  */
-/** @param {any} [st] @param {{ outcome?: string, who?: any, at?: number, id?: string | null, note?: string }} [opts] */
 export function makeEntry(st = {}, { outcome = "won", who = null, at = Date.now(), id = null, note = "" } = {}) {
   const people = uid => st.people?.[uid] ?? splitName(st.names?.[uid] ?? "?");
   const choices = Object.entries(st.choices ?? {}).map(([uid, c]) => {

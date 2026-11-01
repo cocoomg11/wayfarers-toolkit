@@ -15,7 +15,7 @@ jobs:
   checks:
     uses: cocoomg11/wanderers-core/.github/workflows/module-checks.yml@v0.2.0
     with:
-      types: false # JSDoc type check: on once scripts/ is JSDoc-clean (see CLAUDE.md)
+      types: true # JSDoc type check (npm run types); keep scripts/ JSDoc-clean
 
   packs:
     name: Macro pack sources match scripts/macros.mjs

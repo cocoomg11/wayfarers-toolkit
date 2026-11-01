@@ -143,8 +143,9 @@ export const clampPax = pax => Math.min(20, Math.max(1, Math.floor(+pax || 1)));
 /**
  * What happens to the scene on arrival: { sceneUuid, change, reason } with reason "ok" (open it), "none" (the point has no scene) or
  * "missing" (its scene was deleted). Without a scene the flight still happens; only the scene stays where it is.
+ * @param {any} dest
+ * @param {(uuid: any) => boolean} [sceneExists]
  */
-/** @param {any} dest @param {(uuid: any) => boolean} [sceneExists] */
 export function landing(dest, sceneExists = () => true) {
   if (!dest?.sceneUuid) return { sceneUuid: null, change: false, reason: "none" };
   if (!sceneExists(dest.sceneUuid)) return { sceneUuid: dest.sceneUuid, change: false, reason: "missing" };
@@ -185,8 +186,8 @@ export function check({ net, from, to, pax = 1, purse = null, fmt = String, free
  * booking came from a player, so `free` is ignored (only a route marked Free costs a player nothing). `charge` is what comes out of the
  * purse (0 for a free flight or with no party actor); `changeScene` is whether to open the destination scene (`wantScene` and the
  * point has an existing scene); `tellNoScene` is whether to whisper the GM that the scene stayed put because the point has none.
+ * @param {{ byPlayer?: boolean, free?: boolean, wantScene?: boolean, [k: string]: any }} opts
  */
-/** @param {{ byPlayer?: boolean, free?: boolean, wantScene?: boolean, [k: string]: any }} opts */
 export function decide({ byPlayer = false, free = false, wantScene = true, ...args }) {
   free = !byPlayer && !!free;
   const c = check({ ...args, free });
@@ -197,8 +198,11 @@ export function decide({ byPlayer = false, free = false, wantScene = true, ...ar
 /** A booking a player sent over the socket, cleaned: a player can't ask for a free flight or skip the scene change. */
 export const socketBooking = msg => ({ from: str(msg?.from), to: str(msg?.to), pax: clampPax(msg?.pax), free: false, scene: true });
 
-/** Health-check facts about a network: points without a scene, routes into locked points, references to unknown points. */
-/** @param {any} net @param {(uuid: string) => boolean} [sceneExists] */
+/**
+ * Health-check facts about a network: points without a scene, routes into locked points, references to unknown points.
+ * @param {any} net
+ * @param {(uuid: string) => boolean} [sceneExists]
+ */
 export function networkFacts(net, sceneExists = () => true) {
   const ids = new Set(net.points.map(p => p.id)); const locked = new Set(net.points.filter(p => !p.unlocked).map(p => p.id));
   return {
@@ -233,6 +237,7 @@ export function formatCoins(amount, coins, abbr, tight = false) {
  * The old tables → a network, plus a report of what needs a look: { network, report: [text], counts }. pointRows: [name, scene name,
  * unlocked]; routeRows: [from, to, fare, hours]. Scenes match by exact name (`scenes`: [{ name, uuid }]); a missing or ambiguous name
  * imports as "No scene". Fares go through `parse` (the old reader's parseMoney). Old routes flew both ways, so every route is two-way.
+ * @param {{ pointRows?: string[][], routeRows?: string[][], scenes?: { name: string, uuid: string }[], parse?: (s: any) => number, idFn?: () => string }} [opts]
  */
 export function importLegacy({ pointRows = [], routeRows = [], scenes = [], parse = s => Math.round(+s || 0), idFn = newId } = {}) {
   const report = []; const points = []; const byName = new Map();

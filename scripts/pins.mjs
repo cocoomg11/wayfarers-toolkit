@@ -83,8 +83,11 @@ async function gmWrite(op, scene, note, data) {
   return note.update(data);
 }
 
-/** Create a pin at { x, y } on a scene from dialog input. GM: written at once. Player: sent to the GM. */
-/** @param {any} input @param {{ scene?: any, x?: number, y?: number, level?: any }} [at] */
+/**
+ * Create a pin at { x, y } on a scene from dialog input. GM: written at once. Player: sent to the GM.
+ * @param {any} input
+ * @param {{ scene?: any, x?: number, y?: number, level?: any }} [at]
+ */
 export async function create(input, { scene, x, y, level } = {}) {
   const s = sceneOf(scene); if (!s) return tell("no scene");
   level ??= canvas?.scene?.id === s.id ? canvas?.level?.id ?? null : null;
@@ -198,8 +201,10 @@ function refuse(userId, reason) { notify(userId, `Map pins: ${String(reason ?? "
 const inkCss = id => M.INKS[id]?.hex ?? M.INKS.iron.hex;
 function iconSwatch(id, ink) { return `<span class="wct-pin-glyph" style="--wct-pin-src:url('${esc(foundry.utils.getRoute?.(M.iconPath(id)) ?? `/${M.iconPath(id)}`)}');--wct-pin-ink:${esc(inkCss(ink))}"></span>`; }
 
-/** The new-pin / edit dialog. Returns the form input or null. */
-/** @param {{ pin?: any, title?: string }} [opts] */
+/**
+ * The new-pin / edit dialog. Returns the form input or null.
+ * @param {{ pin?: any, title?: string }} [opts]
+ */
 async function pinForm({ pin = null, title = "New map pin" } = {}) {
   const gm = game.user.isGM; const p = M.normalize(pin ?? { ink: "iron", icon: "pin", kind: gm ? "gm" : "party" });
   const quests = F.on("questLog") ? M.questChoices(Quests.all(), { canSee: j => { try { return Quests.canSee(j); } catch { return false; } } }) : [];

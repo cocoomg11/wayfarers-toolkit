@@ -35,8 +35,10 @@ export function configFor(scene) {
 
 function reducedMotion() { try { return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true; } catch { return false; } }
 
-/** Shows a card now on this client: show(scene) uses the scene's config; show({ title, subtitle, sound }) shows any text. */
-/** @param {any} what */
+/**
+ * Shows a card now on this client: show(scene) uses the scene's config; show({ title, subtitle, sound }) shows any text.
+ * @param {any} what
+ */
 export function show(what) {
   const cfg = what?.title !== undefined && !(what instanceof foundry.abstract.Document) ? { enabled: true, title: String(what.title ?? ""), subtitle: String(what.subtitle ?? ""), sound: String(what.sound ?? "") } : configFor(what ?? canvas?.scene);
   if (!cfg.title) return null;

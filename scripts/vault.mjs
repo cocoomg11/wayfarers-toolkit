@@ -22,8 +22,10 @@ export function entry() {
   try { return game.journal?.find(j => j.getFlag?.(ID, "vaultEntry") === true) ?? null; } catch { return null; }
 }
 
-/** The normalized vault ({ v, buckets }); empty for players and before it exists. */
-/** @returns {{ v: number, buckets: Record<string, any> }} */
+/**
+ * The normalized vault ({ v, buckets }); empty for players and before it exists.
+ * @returns {{ v: number, buckets: Record<string, any> }}
+ */
 export function read() {
   const j = entry(); const raw = j ? j.getFlag(ID, "vault") : null;
   // Normalizing clones the whole store; quest and pin drawing read it often, so keep the result until the stored object changes.

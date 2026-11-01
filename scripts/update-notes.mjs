@@ -223,8 +223,8 @@ export const entriesBetween = (notes = NOTES, from = null, to = null) => C.entri
  * Builds the notice (core's buildNotice): { from, to, entries: [{ version, changes: [text] }], actions: [action], post }. Lines and
  * actions for features that are off are dropped, actions are deduped by id (the newest entry's wins, then ALWAYS_ACTIONS), and an
  * action whose check says it's done (or throws) is left out. `post` is false when there's nothing to say. `check` gets { on, ...ctx }.
+ * @param {{ notes?: any, always?: any, from?: string | null, to?: string, on?: (id: string) => boolean, ctx?: any }} [opts]
  */
-/** @param {{ notes?: any, always?: any, from?: string | null, to?: string, on?: (id: string) => boolean, ctx?: any }} [opts] */
 export const build = ({ notes = NOTES, always = ALWAYS_ACTIONS, from = null, to, on = () => true, ctx = {} } = {}) => C.buildNotice({ notes, always, from, to: /** @type {string} */ (to), on, ctx });
 
 /** For a manual re-show without a version: the newest entry older than `to`, so only `to`'s own notes show. */

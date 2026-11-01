@@ -134,11 +134,14 @@ async function convertOldCoins({ manual = false } = {}) {
   if (names.length) await WCT.gmWhisper(`<p><strong>Three-coin economy:</strong> converted platinum (1 pp = 10g) and electrum (1 ep = 50s) on: ${[...new Set(names)].map(esc).join(", ")}.</p>`);
   return names;
 }
-/** Coins in use, most valuable first: [key, value in the smallest coin]. */
+/**
+ * Coins in use, most valuable first: [key, value in the smallest coin].
+ * @returns {[string, number][]}
+ */
 function coins() {
-  const C = CONFIG.DND5E.currencies; const list = Object.entries(C).filter(([, c]) => c.conversion > 0);
+  const C = CONFIG.DND5E.currencies; const list = /** @type {[string, any][]} */ (Object.entries(C)).filter(([, c]) => c.conversion > 0);
   const base = Math.max(...list.map(([, c]) => c.conversion));
-  return list.map(([k, c]) => [k, Math.round(base / c.conversion)]).sort((a, b) => b[1] - a[1]);
+  return list.map(([k, c]) => /** @type {[string, number]} */ ([k, Math.round(base / c.conversion)])).sort((a, b) => b[1] - a[1]);
 }
 const COIN_ALIAS = { g: "gp", gold: "gp", s: "sp", silver: "sp", c: "cp", copper: "cp", p: "pp", platinum: "pp", e: "ep", electrum: "ep" };
 const coinKey = s => { s = String(s).toLowerCase().replace(/\.$/, ""); if (CONFIG.DND5E.currencies[s]) return s; for (const [k, c] of Object.entries(CONFIG.DND5E.currencies)) if (String(c.abbreviation).toLowerCase() === s) return k; return COIN_ALIAS[s] ?? COIN_ALIAS[s.replace(/s$/, "")] ?? null; };
@@ -151,11 +154,11 @@ function fmtMoney(amount) {
 }
 
 /** Item Piles' currency list for the three-coin economy, copper first: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
-const IP_COINS = [
+const IP_COINS = /** @type {[string, string, string, number, boolean, string][]} */ ([
   ["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"],
   ["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"],
   ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"]
-].map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
+]).map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
 /** Whether Item Piles' currencies are the three-coin set (null when Item Piles isn't active and set up). */
 function ipCoinsMatch() {
   const IP = game.modules.get("item-piles")?.active ? game.itempiles?.API : null;
@@ -296,8 +299,11 @@ const TRACKER_PAGES = {
  * An API object whose functions refuse non-GM callers (a warning, undefined), except the pure helpers listed in `open`. Used for the
  * GM tool APIs players could otherwise call from the console (the server still checks writes; this keeps players from running GM
  * flows and reading GM-only previews).
+ * @param {Record<string, any>} obj
+ * @param {{ open?: string[] }} [opts]
  */
 function gmOnlyApi(obj, { open = [] } = {}) {
+  /** @type {Record<string, any>} */
   const out = {};
   for (const [k, v] of Object.entries(obj)) {
     out[k] = typeof v !== "function" || open.includes(k) ? v : (...args) => {
@@ -499,6 +505,7 @@ export const WCT = {
     ui.notifications.info("Travel pace: request sent to the GM.");
   },
   /** Leader: a player's pace request becomes a whisper with an Accept button. `u` is Foundry's sender (core refuses unknown users). */
+  /** @param {any} data @param {any} u @param {{ rid?: string }} [meta] */
   async paceRequest(data, u, { rid } = {}) {
     const r = Pace.readRequest({ action: "paceRequest", ...data }); if (!r || !u || u.isGM || !setting("paceRequests")) return;
     if (cardPosted("paceRequest", rid)) return;
@@ -616,6 +623,7 @@ export const WCT = {
     return this.doFlight({ from: f.from, to: f.to, pax, scene: !!f.scene, free });
   },
   /** GM, no dialog: flies the party now. `opts`: { pax, free, scene }. From and to are flight point names or ids. */
+  /** @param {any} from @param {any} to @param {{ pax?: number, free?: boolean, scene?: boolean }} [opts] */
   async flyNow(from, to, { pax, free = false, scene = true } = {}) {
     if (!F.need("flightMaster") || !this.gmOnly()) return null;
     pax ??= this.partyActor()?.system.members?.length || 4;

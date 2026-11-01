@@ -14,8 +14,8 @@ export const MAX_WAIT_MS = 6000;
  * Merges queued parts into one card's pieces: { trash: { rows, coin, value, flag } | null, boss: { rows, coin, flag } | null }.
  * A part is { kind: "trash" | "boss", rows: [html], coin, value, flag } where `flag` is that card's own flag
  * (trash: { drops?, coin, value?, piles?, dungeon, given }; boss: { token, piles, drops, coin, given }).
+ * @param {any[]} [parts]
  */
-/** @param {any[]} [parts] */
 export function mergeParts(parts = []) {
   /** @type {{ trash: any, boss: any }} */
   const out = { trash: null, boss: null };

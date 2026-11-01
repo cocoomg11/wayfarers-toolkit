@@ -24,8 +24,10 @@ export function registerSettings() {
   game.settings.register(ID, "updateNotes", { name: "Show update notes after updating", hint: "After the module is updated, the GM gets a whispered chat card saying what changed and what needs doing.", scope: "world", config: false, type: Boolean, default: true });
 }
 
-/** Builds the notice from `from` (exclusive; null = every entry) to the running version. */
-/** @param {string | null | undefined} [from] */
+/**
+ * Builds the notice from `from` (exclusive; null = every entry) to the running version.
+ * @param {string | null | undefined} [from]
+ */
 export function build(from = null) {
   return N.build({ from, to: API.version ?? "", on: F.on, ctx: ctx() });
 }
