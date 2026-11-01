@@ -9,7 +9,7 @@ const H = await import("../scripts/health.mjs");
 const src = f => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 
 test("FIXES: each is a readable core fix with a label and a confirm text (they change data)", async () => {
-  let ran = [];
+  const ran = [];
   const api = { setup: () => { ran.push("setup"); return []; }, bossLoot: { autoLink: () => { ran.push("autolink"); } } };
   for (const [k, f] of Object.entries({ setup: H.FIXES.setup(api), autolink: H.FIXES.autolink(api), vaultPrivate: H.FIXES.vaultPrivate(), fileVault: H.FIXES.fileVault() })) {
     const r = readFix(f);
