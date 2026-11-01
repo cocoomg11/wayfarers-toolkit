@@ -30,6 +30,11 @@
         "reason": "Vendor Trash and Boss loot turn defeated creatures into lootable piles; Loot rolls hand out items from piles with Need / Greed / Pass; Open shop for players opens its merchants on players' screens."
       },
       {
+        "id": "red-book",
+        "type": "module",
+        "reason": "The Loot history window can group loot rolls by the Red Book's sessions (otherwise by date)."
+      },
+      {
         "id": "itempilesdnd5e",
         "type": "module",
         "reason": "Sets Item Piles up for dnd5e, which Vendor Trash's lootable piles need."

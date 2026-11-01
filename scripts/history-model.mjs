@@ -137,3 +137,56 @@ export function toCSV(entries = []) {
   });
   return [CSV_HEADER, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
+
+// ---------------------------------------------------------------- by session (1.31)
+/**
+ * Session list from another module (the Red Book's `api.session.list()` + `get(id)`), read into
+ * [{ key: "s:<id>", label, start, end }] sorted newest first. `end` 0 on an open session means "until now". Rows without a usable
+ * id or start time are dropped; anything that isn't an array is no sessions. At most 500 sessions.
+ * @param {any} raw [{ id, name, n, startedAt, endedAt, open }]
+ */
+export function normalizeSessions(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const s of raw.slice(0, 500)) {
+    if (!s || typeof s !== "object" || typeof s.id !== "string" || !s.id) continue;
+    const start = Number(s.startedAt); if (!Number.isFinite(start) || start <= 0) continue;
+    let end = Number(s.endedAt); if (!Number.isFinite(end) || end < start || s.open) end = 0;
+    const label = String(s.name ?? "").trim() || (Number.isFinite(Number(s.n)) && Number(s.n) > 0 ? `Session ${Number(s.n)}` : `Session of ${dayKey(start)}`);
+    out.push({ key: `s:${s.id}`, label, start, end });
+  }
+  return out.sort((a, b) => b.start - a.start);
+}
+
+/** The session a time falls in (the latest one that started at or before it and hadn't ended), or null. */
+export function sessionOf(at, sessions = []) {
+  const t = Number(at); if (!Number.isFinite(t)) return null;
+  for (const s of sessions) if (t >= s.start && (s.end === 0 || t <= s.end)) return s;
+  return null;
+}
+
+/** The group key of one entry: its session ("s:<id>"), else its local date ("d:2026-10-31"); "" for a bad time. */
+export function groupKey(e, sessions = []) {
+  const s = sessionOf(e?.at, sessions); if (s) return s.key;
+  const d = dayKey(e?.at); return d ? `d:${d}` : "";
+}
+
+/**
+ * The groups the entries fall in, newest first: [{ key, label, count, session (bool) }]. With no sessions every group is a date
+ * (the fallback without the Red Book); entries outside every session fall back to their date.
+ */
+export function sessionGroups(entries = [], sessions = []) {
+  const by = new Map(); const order = new Map();
+  for (const e of entries) {
+    const k = groupKey(e, sessions); if (!k) continue;
+    by.set(k, (by.get(k) ?? 0) + 1);
+    order.set(k, Math.max(order.get(k) ?? 0, Number(e.at) || 0));
+  }
+  return [...by.keys()].sort((a, b) => order.get(b) - order.get(a)).map(k => {
+    const s = sessions.find(x => x.key === k);
+    return { key: k, label: s ? `${s.label} (${dayKey(s.start)})` : k.slice(2), count: by.get(k), session: !!s };
+  });
+}
+
+/** Entries of one group (`key` "" = all). */
+export const inGroup = (entries = [], key = "", sessions = []) => key ? entries.filter(e => groupKey(e, sessions) === key) : entries;

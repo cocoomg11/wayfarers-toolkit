@@ -27,7 +27,9 @@ export const NOTES = [
   {
     version: "1.31.0",
     changes: [
-      { text: "New: Open shop for players. Open an Item Piles merchant on your players' screens, each shopping with their own character, from the merchant window's title bar or the merchant token's HUD, and close it for everyone again. Switch it off on the control panel's Features tab.", feature: "merchantShop" }
+      { text: "New: Open shop for players. Open an Item Piles merchant on your players' screens, each shopping with their own character, from the merchant window's title bar or the merchant token's HUD, and close it for everyone again. Switch it off on the control panel's Features tab.", feature: "merchantShop" },
+      { text: "Loot history: a Session filter and a By session view. With the Red Book module, rolls are grouped by its sessions; without it, by date.", feature: "lootRolls" },
+      { text: "Loot roll cards: each player sees the item compared with what their own character has in that slot (follows Item comparison tooltips).", feature: "lootRolls" }
     ],
     actions: []
   },

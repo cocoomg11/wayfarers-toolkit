@@ -14,7 +14,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - `vault.mjs` / `vault-model.mjs` the GM-only store (core `createStore` since 1.30; one None-ownership journal in "Module data", `flags.wayfarers-toolkit.vault`, buckets, caps); `windows.mjs` remembered window placement keys (core `RememberedWindow`, 1.30); `migrate.mjs` the one-time 1.27 moves; `scene-config.mjs` the toolkit's Table Tools section; `quests-model.mjs` quests' public view (`publicQuest`, `stripSecrets`).
 - `flight.mjs` network model, checks, importer, encounter-zone parser (pure); `flight-editor.mjs` network editor window.
 - `trash.mjs` Vendor Trash; `trash-rules.mjs` pure rules (CR bands, tags); `summary.mjs` merges batched death cards.
-- `merchant.mjs` Sell all junk on Item Piles merchants; `junk-rules.mjs` pure junk rules.
+- `merchant.mjs` Sell all junk on Item Piles merchants; `junk-rules.mjs` pure junk rules. `shop.mjs` / `shop-model.mjs` Open shop for players (1.31; UI / pure user pick, per-player calls, close targets).
 - `bosses.mjs` boss frames; `phases.mjs` pure phase thresholds; `bossloot.mjs` boss loot tables.
 - `loot.mjs` Need/Greed/Pass; `history.mjs` / `history-model.mjs` loot roll history (UI / pure).
 - `pane.mjs` character pane; `pane-model.mjs` (1.30, pure) the sheet's header, HP bar, purse, stat boxes, Attack box and slot outlines; `weapon-sets.mjs` pure weapon-set rules; `compare.mjs` pure item comparison tooltips.
@@ -120,6 +120,12 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Health card** (`health-card-model.mjs`, pure): `counts`, `overall`, `countText`, `shortCard` (Satchel active: one line + `data-wct-action="open-satchel"`, GM only on render), `fullCard`. `health.mjs` `post()` picks by `satchelOn()` (module active and `api.health` a function); the button calls the Satchel's `api.health({ window: true, ids: [ID] })`, else `api.open()`, else our `HealthApp`. `healthReport()` unchanged (the Satchel reads it).
 - **Quest fixes**: `parseLevel` finds `Lv|Lvl|Level N` inside text (text kept; ranges / two levels / no word → text only; no lower bound). `normalizeQuest` fills a null v2 `level` from `levelText`; `QL.levelInput(q)` is what the editor shows. `quests.mjs` `fillRarity(q)` (GM, every `save()` and `create`): compendium items via `pack.getIndex({ fields: ["system.rarity"] })` once per pack, others `fromUuidSync`; never `fromUuid` per item (test).
 - Tests: `tests/v130.test.mjs`, `tests/v130-core.test.mjs` (store, windows, keys, data folder on core's fakes), `tests/v130-fixes.test.mjs` (health fixes).
+
+## 1.31 notes
+- **Open shop for players** (feature `merchantShop`, setting `shopChatLine`): Item Piles does the remote open itself: `game.itempiles.API.renderItemPileInterface(merchant, { userIds: [id], inspectingTarget: characterUuid })`, one call per player (Item Piles takes one inspecting target per call; checked in 3.3.4 `src/API/api.js`), close with `unrenderItemPileInterface(merchant, { userIds })`. No toolkit socket kind, nothing stored; who it was opened for lives in a Map on the GM client. Merchant passed as its TokenDocument when it has one. Sell all junk and comparison tooltips attach to the pushed window through the same Item Piles hooks.
+- **Loot history by session**: Red Book is optional (`recommends`); read only through `api.session.list()` + `get(id).startedAt/endedAt` (GM only), defensively (`H.normalizeSessions`); fallback is local date (`d:YYYY-MM-DD` keys). Window state only, nothing stored.
+- **Loot card comparison**: `addCompare` in loot.mjs, players only (`showOnLootCard` in compare.mjs), built per render on the viewer's client with `pane.mjs` `comparisonHTML`; never put it in `cardHTML` (test).
+- Tests: `tests/v131-shop.test.mjs`, `tests/v131-history.test.mjs`, `tests/v131-compare.test.mjs`.
 
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.5.1` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).

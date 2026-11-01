@@ -99,3 +99,14 @@ export function diffItems(a, b, { fmtMoney = n => `${n}`, fmtWeight = n => `${n}
   push(numRow("weight", "Weight", a.weight, b ? bb.weight : null, { lower: true, fmt: fmtWeight }));
   return { rows, empty: false };
 }
+
+/**
+ * Loot roll card (1.31): whether this viewer gets a comparison on an open Need / Greed card. Players only, while the roll is open, when
+ * they are one of the roll's players, have a character they own, and both the character pane and its "Item comparison tooltips" setting
+ * are on. Rendered on the viewer's own client from the card's item; nothing is stored in the message.
+ * @param {{ status?: string, isGM?: boolean, userId?: string, eligible?: string[], hasCharacter?: boolean, compareOn?: boolean, paneOn?: boolean }} v
+ */
+export function showOnLootCard(v = {}) {
+  return v.status === "open" && !v.isGM && !!v.hasCharacter && !!v.compareOn && !!v.paneOn
+    && Array.isArray(v.eligible) && typeof v.userId === "string" && v.eligible.includes(v.userId);
+}

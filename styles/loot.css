@@ -74,3 +74,17 @@
 .item-piles-merchant-sheet .window-header .wct-shop-close { white-space: nowrap; }
 .wct-dialog .wct-shop-users { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; }
 .wct-dialog .wct-shop-row { display: flex; align-items: center; gap: 6px; }
+/* Loot history by session (1.31). */
+.wct-history-list tr.group th { text-align: left; padding: 8px 4px 4px; color: var(--wc-text-2); border-bottom: 1px solid var(--wc-line); font-weight: 600; }
+.wct-history-filters .wct-history-bygroup { display: inline-flex; align-items: center; gap: 4px; }
+/* Loot roll card: the player's own comparison (1.31), built on their client only. Theme tokens; tones like the tooltips. */
+.wct-chat-card .wct-loot-compare { margin: 6px 0; padding: 4px 6px; border: 1px solid var(--wc-line); border-radius: 4px; font-size: 0.9em; }
+.wct-chat-card .wct-loot-compare summary { cursor: pointer; color: var(--wc-text-2); }
+.wct-chat-card .wct-loot-compare .wct-compare p { margin: 2px 0; }
+.wct-chat-card .wct-loot-compare .wct-compare .head small, .wct-chat-card .wct-loot-compare .wct-compare .same { color: var(--wc-text-3); }
+.wct-chat-card .wct-loot-compare table { width: 100%; border-collapse: collapse; margin: 2px 0; background: none; border: none; }
+.wct-chat-card .wct-loot-compare th, .wct-chat-card .wct-loot-compare td { padding: 1px 3px; text-align: left; border: none; background: none; }
+.wct-chat-card .wct-loot-compare td.was { color: var(--wc-text-3); }
+.wct-chat-card .wct-loot-compare tr.better td:not(.was) { color: var(--wc-ok); }
+.wct-chat-card .wct-loot-compare tr.worse td:not(.was) { color: var(--wc-bad); }
+.wct-chat-card .wct-loot-compare tr.diff td:not(.was) { color: var(--wc-warn); }

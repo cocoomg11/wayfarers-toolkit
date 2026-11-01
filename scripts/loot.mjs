@@ -5,7 +5,9 @@
  * active GM's client, which makes and records the d100 rolls, settles ties, moves the item with Item Piles and posts the result.
  * Players only ever send a choice, so they can't set a roll. Turned off with the "Loot rolls" feature, nothing here is registered.
  */
-import { qualityColor, qualityOf } from "./pane.mjs";
+import { qualityColor, qualityOf, comparisonHTML, compareOn } from "./pane.mjs";
+import { showOnLootCard } from "./compare.mjs";
+import * as F from "./features.mjs";
 import * as PM from "./pane-model.mjs";
 import { itemSlot } from "../vendor/wanderers-core/index.mjs";
 import { isActiveGM, activeGM, settled, onLeader, handle, request } from "./gm.mjs";
@@ -267,6 +269,7 @@ function onRender(message, html) {
   });
   if (!root.querySelector(".wct-loot-buttons button")) root.querySelector(".wct-loot-buttons")?.remove();
   cards.set(root, !!mine); gmState(root, !!mine);
+  addCompare(root, st).catch(e => console.warn(`${ID} | loot card comparison`, e));
   const span = root.querySelector("[data-wct-loot-ends]"); if (!span) return;
   const tick = () => {
     if (!span.isConnected && iv) { clearInterval(iv); return; }
@@ -276,6 +279,29 @@ function onRender(message, html) {
   };
   /** @type {any} */
   let iv = null; tick(); iv = setInterval(tick, 1000);
+}
+
+/** This player's character for the comparison: their assigned character, else the first character they own. */
+function myCharacter() {
+  const c = game.user.character; if (c?.isOwner) return c;
+  return game.actors?.find?.(a => a.type === "character" && a.isOwner) ?? null;
+}
+/**
+ * Players: the rolled item compared with what their own character has in that slot (pane.mjs comparisonHTML, the same as the
+ * comparison tooltips), added to their copy of an open card only. Built here on each render; nothing goes into the message.
+ * @param {HTMLElement} root @param {any} st
+ */
+async function addCompare(root, st) {
+  root.querySelector(".wct-loot-compare")?.remove();
+  const actor = myCharacter();
+  if (!showOnLootCard({ status: st.status, isGM: game.user.isGM, userId: game.user.id, eligible: st.eligible, hasCharacter: !!actor, compareOn: compareOn(), paneOn: F.on("characterPane") })) return;
+  const item = st.itemUuid ? await fromUuid(st.itemUuid) : null;
+  if (!(item instanceof Item) || !root.isConnected || root.querySelector(".wct-loot-compare")) return;
+  const html = comparisonHTML(actor, item); if (!html) return;
+  const box = document.createElement("details"); box.className = "wct-loot-compare"; box.open = true;
+  box.innerHTML = `<summary>For ${esc(actor.name)}</summary>${html}`;
+  const at = root.querySelector(".wct-loot-buttons") ?? root.querySelector(".wct-loot-timer");
+  at ? at.before(box) : root.querySelector(".wct-loot-card")?.append(box);
 }
 
 /** Open cards on this client with choice buttons, so they can be enabled and disabled as GMs connect and leave. */

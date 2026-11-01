@@ -67,6 +67,7 @@ Since 1.30 every toolkit window, dialog and chat card uses the shared look of th
 None of these are required; the toolkit works on its own.
 
 - **[Item Piles](https://foundryvtt.com/packages/item-piles)** with **Item Piles: D&D 5e** (`itempilesdnd5e`): Vendor Trash turns defeated creatures into lootable piles, and Loot rolls hand out items from piles. See [Setting up Item Piles](#setting-up-item-piles).
+- **Red Book** (optional): the Loot history window groups loot rolls by the Red Book's sessions, read through its public API (`api.session.list()` and `get(id)`, GM only). Without it, by date.
 - **Monk's Active Tiles**: tiles can drive quests and the other tools through the module API (`game.modules.get("wayfarers-toolkit").api`). See [Scripting](#scripting).
 - **A classic MMO item compendium module** (package id `wow-classic-items`): optional. If it is installed, the toolkit reads its items (grey items for Vendor Trash, tooltip slots and quality colours in the character pane). No items or art from it are bundled.
 
@@ -796,6 +797,8 @@ Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without
 
 **Assign to…** The GM's copy of an open card has a dropdown of the player characters and the party actor and an **Assign to…** button: it ends the roll and moves the item there straight away.
 
+**Compare on the card** (1.31). While a roll is open, each player who can roll sees, on their own copy of the card, the item compared with what their character has in that slot or weapon-set hand (the same comparison as the character pane's tooltips: armour class, damage, bonuses, properties, value, weight). It is built on that player's screen when the card is shown; nothing is added to the chat message, and the GM and other players never see it. It follows **Item comparison tooltips** (control panel › Character) and needs the character pane turned on.
+
 The players of the receiving character (everyone who owns it or has it as their character) get a whisper, "You won *item*", as well as the public line; the same goes for a GM Assign. Given to the party actor, its player owners get the whisper, if it has any.
 
 A GM must be connected for players' choices to count. While none is, players' Need / Greed / Pass buttons are disabled with "A GM needs to be connected." and come back when a GM connects. An open roll survives a GM reload and closes when its time is up.
@@ -807,8 +810,9 @@ With **Keep a loot roll history** on (control panel › Loot › Advanced; on by
 Open the **Loot history** window (GM only) from **control panel › Loot › Loot history…**, the **Loot History** macro (compendium folder *Loot Rolls*) or `api.lootRoll.history()`:
 
 - **The list.** Click a column heading (Date, Scene, Item, How it ended, Received by) to sort by it; click again to reverse. Under each roll, everyone's choice and roll.
-- **Filters.** *Player* (anyone who chose, or received an item) and *Session date* (each day with rolls).
-- **Per player.** For each player: rolls taken part in, items received, Need wins, Greed wins and items the GM assigned. It follows the date filter.
+- **Filters.** *Player* (anyone who chose, or received an item) and *Session* (1.31): with the [Red Book](https://github.com/cocoomg11/red-book) module active, each of its sessions (rolls between its start and end time; a session past midnight stays one session, an open session runs until now); without it, or for rolls outside every session, each date with rolls (*Session date*). Each choice shows how many rolls it holds.
+- **By session** (1.31): groups the list under a heading per session (or date), newest first, keeping the column sort inside each group.
+- **Per player.** For each player: rolls taken part in, items received, Need wins, Greed wins and items the GM assigned. It follows the session filter.
 - **Export CSV** downloads what's shown, in the order shown (spreadsheet-safe: a value starting with `=`, `+`, `-` or `@` gets a leading apostrophe).
 - **Clear history…** deletes every recorded roll after asking. Export first if you want a copy.
 
