@@ -31,6 +31,19 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Rested at the inn** | Mark a scene as an Inn with a room price. Rent rooms for the party (players can ask); their next long rest gives Heroic Inspiration, an extra Hit Die or temporary hit points. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
+## Contents
+
+- [Features](#features) · [Compatibility](#compatibility) · [Optional integrations](#optional-integrations)
+- [Install](#install) · [Quick start](#quick-start) · [Setup](#setup)
+- [Macro compendium](#macro-compendium) · [Control panel](#control-panel)
+- Travel: [Hex Travel](#hex-travel) · [Session Start](#session-start) · [Flight Master](#flight-master) · [Travel pace](#travel-pace) · [Riding Training](#riding-training-and-long-road)
+- Loot: [Vendor Trash](#vendor-trash) · [Loot rolls](#loot-rolls) · [Boss loot](#boss-loot) · [Party gold tracker](#party-gold-tracker) · [Three-coin economy](#three-coin-economy-copper-silver-gold)
+- Characters and story: [Character pane](#character-pane) · [Quest log](#quest-log) · [Boss frames](#boss-frames)
+- Places: [Zone title cards](#zone-title-cards) · [Who's online](#whos-online) · [Rested at the inn](#rested-at-the-inn)
+- Housekeeping: [Health check](#health-check) · [Settings export / import](#settings-export--import) · [Remove toolkit data](#remove-toolkit-data) · [Update notes](#update-notes)
+- For scripters: [Macros and scripting](#macros-and-scripting) · [Public API and hooks](#public-api-and-hooks-whats-stable)
+- [License](#license) · [Building from source](#building-from-source)
+
 ## Compatibility
 
 - **Foundry VTT** v13 and v14 (verified on v14).
@@ -42,7 +55,7 @@ None of these are required; the toolkit works on its own.
 
 - **[Item Piles](https://foundryvtt.com/packages/item-piles)** with **Item Piles: D&D 5e** (`itempilesdnd5e`): Vendor Trash turns defeated creatures into lootable piles, and Loot rolls hand out items from piles. See [Setting up Item Piles](#setting-up-item-piles).
 - **Monk's Active Tiles**: tiles can drive quests and the other tools through the module API (`game.modules.get("wayfarers-toolkit").api`). See [Scripting](#scripting).
-- **wow-classic-items**: optionally reads items from the `wow-classic-items` module if installed (grey items for Vendor Trash, tooltip slots and quality colours in the character pane). No items or art from it are bundled.
+- **A classic MMO item compendium module** (package id `wow-classic-items`): optional. If it is installed, the toolkit reads its items (grey items for Vendor Trash, tooltip slots and quality colours in the character pane). No items or art from it are bundled.
 
 ## Install
 
@@ -51,6 +64,22 @@ In Foundry's setup screen, go to **Add-on Modules → Install Module** and paste
 ```
 https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.json
 ```
+
+## Quick start
+
+From "installed" to your first tool, in about five minutes. You need a world that uses the **dnd5e** system, and you need to be the GM.
+
+1. **Enable it.** Open your world, go to **Game Settings › Manage Modules**, tick **Wayfarer's Toolkit** and save. Foundry reloads.
+2. **Answer the welcome wizard.** The first time a GM loads the world, a wizard asks for a style (*Minimal*, *Classic MMO* or *Everything*), your party size and your coin system. Pick what fits and click **Finish (reloads Foundry)**. It then offers to **Run setup**: say yes. This makes the tracker journal, the party actor and the macros. (Skipped it? Go to **Game Settings › Configure Settings › Wayfarer's Toolkit › Open the control panel**, then use **Run the welcome wizard** or **Run setup** on the Overview tab.)
+3. **Check the control panel.** On the **Overview** tab you should see "Everything looks good". If it lists problems, each has a button that fixes it. On the **Features** tab, switch off tools you won't use and click **Save features**.
+4. **Grab your macros.** Open the **Macro Directory**, find the *Wayfarer's Toolkit* folder and drag the ones you want onto your hotbar. Setup never touches a hotbar by itself.
+5. **Try one thing.** The easiest first steps:
+   - Press **L** to open the **Quest log**, then click **New quest**.
+   - Open a character sheet and click the shirt button in its header for the **Character pane**.
+   - Place a few NPC tokens on a scene. Each one rolls its own **Vendor Trash**; reduce one to 0 HP and its body becomes lootable.
+6. **Optional extras.** Install **Item Piles** and **Item Piles: D&D 5e** if you want lootable bodies, loot rolls and merchants. See [Setting up Item Piles](#setting-up-item-piles).
+
+<!-- screenshot: control panel Overview tab showing "Everything looks good" -->
 
 ## Setup
 
@@ -105,13 +134,13 @@ A world can have more than one GM logged in. Everything the toolkit does on its 
 
 ## Macro compendium
 
-The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
+The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Rent Rooms and Who's Online (*Places*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
 Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
 ## Control panel
 
-All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Quest tracker: Show on screen**, which each player sets for themselves.
+All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Show the quest tracker on my screen**, which each player sets for themselves.
 
 The panel has eight tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
@@ -121,6 +150,8 @@ The panel has eight tabs down the left. Each settings tab shows the few settings
 2. Open the control panel. **Overview** says "Everything looks good" or lists what needs attention, each with a button that fixes it.
 3. On **Features**, switch off anything you won't use and click **Save features** (Foundry reloads).
 4. Go through **Travel**, **Loot**, **Boss & Combat** and **Quests**, change what you need and click **Save changes**.
+
+<!-- screenshot: the control panel Features tab with the tool switches -->
 
 The settings kept their keys from earlier versions, so anything you set before is still set, and macros and the API work as before.
 
@@ -183,7 +214,27 @@ See [Zone title cards](#zone-title-cards), [Who's online](#whos-online) and [Res
 | **Basics** | **Show the quest tracker on my screen** (just for you), **Announce objectives in chat**, sounds when a quest is given and completed |
 | **Advanced** | Quest sound volume, quest folder |
 
+## Hex Travel
+
+**How to use:** run the **Hex Travel** macro (GM only), or `api.hexTravel()`. You need at least one encounter zone first: **control panel › Travel › Encounter zones**, with **Add zone** (a zone name and the roll table its encounters come from).
+
+The window asks for the **Zone**, the number of **Road hexes** and **Off-road hexes**, the **Pace** and whether the party is **Mounted**, then you click **Travel**. One hex is one mile.
+
+- Roads are safe. Each off-road hex takes longer (*Off-road hexes take*, 2 times by default) and rolls the *Encounter die*: a 1 is an encounter, drawn from the zone's roll table.
+- Mounted travel multiplies the speed (*Riding speeds travel up by*). With [Riding Training](#riding-training-and-long-road), the *Mounted* box starts ticked only when every party member has the feat.
+- The trip advances world time, is written to the **Travel Log** page of the tracker journal, whispers the trip and any encounters to the GM, and posts a short line to chat.
+- Choosing "Other (no encounter table)" as the zone still moves time; any encounter roll just says "no table for this zone".
+- Speeds come from the *Slow / Normal / Fast pace* settings (Travel › Advanced). With [Travel pace](#travel-pace) on, the pace is the party's pace.
+
+## Session Start
+
+**How to use:** run the **Session Start** macro (GM only), or `api.sessionStart()`.
+
+Pick a scene, then click **Start session**. The scene is activated for players (untick *Activate it for players* to skip that), the game is unpaused (untick *Unpause the game* to skip that), and the start is written to the Travel Log. Test maps and the like can be left out of the list with *Scenes left out of Session Start* (control panel › Travel).
+
 ## Flight Master
+
+**How to use:** click the feather button in the token controls (or run the **Flight Master** macro), pick From, To and the number of passengers, then click **Check route**. Set up your flight points and routes first, in **control panel › Travel › Flight network…**.
 
 Flight Master flies the party between **flight points** along **routes** you set up in the module itself. Nothing is read from a journal page, and a flight point opens a scene only if you pick one for it.
 
@@ -197,6 +248,8 @@ Open **control panel › Travel › Flight network…** (or `api.flight.editor()
 Problems show under the tables as you type, and the rows are outlined: a point with no name or the same name as another, a route from a point to itself, a route naming a point that no longer exists, or a fare that can't be read stop **Save**; a route listed twice is only a warning (the cheaper one is flown). Removing a flight point asks first and removes its routes too.
 
 Flight Master always takes the cheapest way through unlocked points, so the party can fly *Harbor Town → Hill Fort → River Camp* in one booking if each leg is a route.
+
+<!-- screenshot: the flight network editor with a few points and routes -->
 
 ### Flying
 
@@ -243,6 +296,8 @@ With **Flight route map** on (Features tab), the token controls get a map button
 
 ## Vendor Trash
 
+**How to use:** just place NPC tokens; each rolls its own loot. When one dies, its body becomes lootable. To cash in, run **Sell Vendor Trash**, or click **Sell all junk** on an Item Piles merchant.
+
 Grey "vendor trash" from defeated creatures, in the style of classic MMOs.
 
 1. Place NPC tokens as usual. Each unlinked NPC token gets its drop and coin rolled the moment it's placed. The loot waits on the token's own copy of the actor; players can't see it.
@@ -259,11 +314,10 @@ Every item is priced at its vendor value and marked as vendor trash. Each token 
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| **Roll trash loot when NPC tokens are placed** | on | Pre-rolls the drop of every unlinked NPC token as it's placed. Off: the drop is rolled when the body is looted. |
-| **Make bodies lootable automatically on death** | on | At 0 HP or when marked defeated, the body becomes an Item Piles pile (or, without Item Piles, the GM gets the Give to Party card). Off: run the Vendor Trash macro yourself. |
-
-| **Items the GM adds to an NPC count as loot** | on | A weapon, armour, consumable, tool, loot item or container a GM adds to an NPC is marked *Lootable* and shows in its body's pile. See [Adding your own loot](#adding-your-own-loot). |
-| **Unconscious bodies become lootable** | off | The Unconscious condition also makes an unlinked NPC's body lootable, as if it had died. No loot and one-loot-per-body still apply. |
+| **Roll loot when creatures are placed** | on | Pre-rolls the drop of every unlinked NPC token as it's placed. Off: the drop is rolled when the body is looted. |
+| **Bodies can be looted when they die** | on | At 0 HP or when marked defeated, the body becomes an Item Piles pile (or, without Item Piles, the GM gets the Give to Party card). Off: run the Vendor Trash macro yourself. |
+| **Items you give a creature count as loot** | on | A weapon, armour, consumable, tool, loot item or container a GM adds to an NPC is marked *Lootable* and shows in its body's pile. See [Adding your own loot](#adding-your-own-loot). |
+| **Unconscious creatures can be looted** | off | The Unconscious condition also makes an unlinked NPC's body lootable, as if it had died. No loot and one-loot-per-body still apply. |
 
 All of these are on the control panel's **Loot** tab (greyed out while Vendor Trash is switched off). The rolling and looting happen on the active GM's client, so a GM has to be logged in.
 
@@ -279,7 +333,7 @@ Switch it off with **Sell all junk button** (control panel › Loot › Advanced
 
 ### With Item Piles: loot the bodies
 
-When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is active (and *Vendor Trash: Use Item Piles* is on, the default), Vendor Trash puts each creature's drop and coin on that creature and turns its token into an Item Pile. The token keeps its image and name. Players double-click the body (standing next to it) to open it and take the items and coin, which go onto their own character. The GM gets a short summary card. A creature that dropped nothing is left as it is.
+When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is active (and *Loot stays on the body (Item Piles)* is on, the default), Vendor Trash puts each creature's drop and coin on that creature and turns its token into an Item Pile. The token keeps its image and name. Players double-click the body (standing next to it) to open it and take the items and coin, which go onto their own character. The GM gets a short summary card. A creature that dropped nothing is left as it is.
 
 - **Only the loot shows.** The creature's own weapons, armor and features stay on it but are hidden from the pile, so players see just the trash, coin and anything you [marked as loot](#adding-your-own-loot).
 - **The world actor isn't touched** for ordinary unlinked tokens: the loot goes onto the token's own copy of the actor. (If an NPC's token is linked to its actor, the loot goes onto that actor.)
@@ -293,7 +347,7 @@ When the [Item Piles](https://foundryvtt.com/packages/item-piles) module is acti
 
 ### Without Item Piles: Give to Party
 
-The GM gets a loot card listing each creature's drop and its vendor value. Click **Give to Party** on the card: items go into the party actor's inventory and coin into its purse. This is also what happens when *Vendor Trash uses Item Piles* is off.
+The GM gets a loot card listing each creature's drop and its vendor value. Click **Give to Party** on the card: items go into the party actor's inventory and coin into its purse. This is also what happens when *Loot stays on the body (Item Piles)* is off.
 
 ### What drops
 
@@ -315,13 +369,13 @@ What drops depends on the creature: its type, its subtype and the words in its n
 
 **Family words.** If an item's name contains a creature-family word, only creatures of that family drop it. The family words are the animal words above plus the first word of every NPC name in your world (skipping words such as *Young*, *Mangy* or colours) and any listed on the rules page. So once a "Duskwing Stalker" exists in the world, a "Duskwing Chitin" only drops from creatures whose name contains *Duskwing*, never from ordinary spiders, without that name being written anywhere in the module. Items named after the creature are picked first (75% of the time). Items matching no rule fall back to the creature type's usual kinds of junk.
 
-**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional `wow-classic-items` module installed, it uses that compendium's grey-quality items, their item levels and their vendor sell prices, which is what you want with the three-coin economy. To use other items, list compendium IDs in **Vendor Trash: Compendiums**; in those, loot-type items with no rarity count as trash.
+**Where the items come from.** The tool reads an item compendium; it ships no items. With the optional classic MMO item module installed (see [Optional integrations](#optional-integrations)), it uses that compendium's grey-quality items, their item levels and their vendor sell prices, which is what you want with the three-coin economy. To use other items, tick compendiums in **Where junk loot comes from** (control panel › Loot › Advanced); in those, loot-type items with no rarity count as trash.
 
 ### Adding your own loot
 
 Any item can be loot, not just vendor trash: a key, a letter, the bandit captain's sword.
 
-- **Drag it onto the NPC.** With *Items the GM adds to an NPC count as loot* on (the default), an item a GM adds to an NPC actor or an unlinked token's sheet is marked **Lootable** and shows in the pile when the body becomes lootable, next to its trash and coin. The items that came with the stat block (imported or created with the actor) are never marked, so the creature's own gear stays hidden as before.
+- **Drag it onto the NPC.** With *Items you give a creature count as loot* on (the default), an item a GM adds to an NPC actor or an unlinked token's sheet is marked **Lootable** and shows in the pile when the body becomes lootable, next to its trash and coin. The items that came with the stat block (imported or created with the actor) are never marked, so the creature's own gear stays hidden as before.
 - **Mark or unmark by hand.** On an NPC's item sheet the GM sees a **Lootable** checkbox in the header; in the NPC sheet's inventory, right-click an item for **Mark as loot** / **Unmark loot**. Unmarking an item the GM added keeps it on the creature but out of the pile.
 - **Everything is lootable.** For a creature whose whole kit should be lootable (a fallen adventurer), use the NPC sheet's header menu: **Everything is lootable: turn on**. Its pile then shows every physical item (weapons, equipment, consumables, tools, loot and containers), never features, spells or classes. Items explicitly unmarked stay hidden. On an unlinked token's sheet this affects only that token.
 - **Bodies that are already piles** update straight away when a mark changes or *Everything is lootable* is toggled.
@@ -383,11 +437,13 @@ Mark a scene as a dungeon to make its creatures richer: open the scene's configu
 | --- | --- | --- |
 | **Dungeon coin multiplier** | 2 | Coin a creature drops is multiplied by this. |
 | **Dungeon drop bonus (%)** | 25 | Percentage points added to every item-drop chance (a 70% body part becomes 95%), never above 100%. |
-| **Dungeon extra item roll** | on | The creature's item drops are rolled a second time (coin is not). |
+| **Dungeons roll items twice** | on | The creature's item drops are rolled a second time (coin is not). |
 
 The dungeon bonus comes on top of the creature's CR band. The trash pool is grey items only by design, so instead of raising item quality the dungeon bonus gives an extra roll. A pre-rolled token gets the bonus of the scene it was placed on. Whether coin drops at all is unchanged; only the amount goes up. Scenes not marked as dungeons drop exactly as before. The GM's Vendor Trash card shows a small **Dungeon** tag when the bonus applied. The checkbox and settings belong to Vendor Trash and disappear when it's turned off.
 
 ## Travel pace
+
+**How to use:** run the **Travel Pace** macro (or **control panel › Travel › Travel pace…**) to set the party's pace. Players open the same window to ask for one.
 
 With **Travel pace** on (it needs Hex Travel), the party has a pace: **fast**, **normal** or **slow (careful)**. The effects follow the SRD 5.2 travel pace rules, in the module's words:
 
@@ -406,6 +462,8 @@ Without Travel pace, Hex Travel's pace list is as before. There's no hex trail.
 
 ## Zone title cards
 
+**How to use:** open a scene's configuration, find *Title card* on the Basics tab, give it a title and subtitle, and activate the scene. **Preview title card** (control panel › Places) shows one on your screen only.
+
 With **Zone title cards** on, activating a scene shows its title over the map on every screen viewing it: large gold serif lettering in the upper third, a thin ornament line and an optional subtitle. It fades in, holds (*Seconds on screen*, 4 by default) and fades out, over the canvas without moving anything; with the browser's *reduce motion* preference it appears and disappears without fading.
 
 - **Per scene** (Scene configuration › Basics › *Title card*): **Show a title card**, **Title** (blank: the scene's navigation name, or its name if that is empty), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
@@ -415,6 +473,8 @@ With **Zone title cards** on, activating a scene shows its title over the map on
 - **Preview title card** (Places tab) shows the current scene's card on your screen only. Macros: `api.zoneTitles.show(scene)` or `api.zoneTitles.show({ title, subtitle, sound })` on the client running it.
 
 ## Who's online
+
+**How to use:** tick **Hub scene (show who's online)** in a scene's configuration (Basics), or open the board any time with the **Who's Online** macro.
 
 With **Who's online** on, tick **Hub scene (show who's online)** in a scene's configuration (Basics) and everyone on that scene sees a small panel with each connected user: their assigned character's portrait and name, or their user name and colour when they have none. It updates as people join and leave. The **Who's Online** macro (shared with players) and `api.whosOnline()` open the same board in a window; `api.online.read()` returns the numbers.
 
@@ -439,7 +499,9 @@ Hooks.on("wayfarers-toolkit.allPlayersOnline", async () => {
 
 ## Rested at the inn
 
-With **Rested at the inn** on, tick **Inn** in a scene's configuration (Basics › *Inn*) and give it an **Inn name** (blank: the scene's name) and a **Room price** per person per night (like `5s` or `1g 20s`; blank: *Room price per person per night* on the Places tab, 5 silver to start; a plain number is read in *Fares without a coin are in*). Prices follow your coin system: 5s is 50 copper with standard coins and 500 with three coins.
+**How to use:** tick **Inn** in a scene's configuration (Basics), then click **Rent rooms…** (control panel › Places) or run the **Rent Rooms** macro.
+
+With **Rested at the inn** on, tick **Inn** in a scene's configuration (Basics › *Inn*) and give it an **Inn name** (blank: the scene's name) and a **Room price (per person, per night)** (like `5s` or `1g 20s`; blank: *Room price per person per night* on the Places tab, 5 silver to start; a plain number is read in *Fares without a coin are in*). Prices follow your coin system: 5s is 50 copper with standard coins and 500 with three coins.
 
 **Renting rooms** (GM): **Rent rooms…** on the Places tab, the **Rent Rooms** macro or `api.rentRooms({ scene, actors })`. The dialog lists the party's player characters (the party actor's members, or player-owned characters with a token on the scene) with a tick each, the price per person and the total. Payment comes from the party actor's coin (default) or each character's own (*Rooms are paid from*), smallest coins first with change, as flight fares are. If there isn't enough, nothing is charged and the dialog says who's short. On a scene that isn't an Inn you're asked first.
 
@@ -450,6 +512,8 @@ The chosen characters become **Rested** (`flags.wayfarers-toolkit.rested = { sce
 **Players can ask for rooms**: on an Inn scene a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
 
 ## Party gold tracker
+
+**How to use:** run the **Party Gold** macro (GM only) or click **Party gold…** in control panel › Loot.
 
 With **Party gold tracker** on, GMs get a **Party gold** window (*control panel › Loot › Party gold…*, the **Party Gold** macro or `api.partyGold()`). It's read-only.
 
@@ -462,12 +526,16 @@ With **Party gold tracker** on, GMs get a **Party gold** window (*control panel 
 
 ## Settings export / import
 
+**How to use:** open the control panel's **Overview** tab and click **Export settings** or **Import settings…**.
+
 With **Settings export / import** on, the Overview tab has **Export settings** and **Import settings…** (also `api.settingsIO.export()` and `.import()`).
 
 - **Export** downloads `wayfarers-toolkit-settings-<world>-<date>.json` with two sections: **world** (the GM's settings for this world, feature switches and the flight network included) and **client** (this browser's own: window positions, tracked quests). Stored records (the loot history, the last version seen, gold snapshots) aren't included.
 - **Import** reads a file and checks it: it must be a toolkit export of a format this version reads. Each setting's value is checked against the setting (on/off, a number in range, one of the choices); settings this version doesn't have, and values that don't fit, are listed and ignored. A preview lists every setting with its current value and the file's, the ones that differ ticked; only ticked ones are written after you confirm. Client settings apply to the browser you import in. Foundry reloads if a feature switch changed.
 
 ## Riding Training and Long Road
+
+**How to use:** click **Run setup**, then drag the *Riding Training* feat from the Items directory (*Wayfarer's Toolkit* folder) onto each character who has learned to ride.
 
 **Run setup** adds a feat called *Riding Training* to an Items folder named *Wayfarer's Toolkit* (players can see it, so they can drag it onto their sheets). It's granted on completing riding training with a stablemaster or riding instructor:
 
@@ -480,11 +548,15 @@ Hex Travel enforces Long Road: when the party actor has members, the *Mounted* b
 
 ## Character pane
 
+**How to use:** click the shirt button in a dnd5e character sheet's header, then drag items from the sheet onto the slots.
+
 A paper doll in the style of a classic MMO character screen. The character's portrait sits in the middle with their stats underneath (the six ability scores, Armor, Health and attuned items), and the gear slots run around it.
 
-**Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under **Choose features**.
+**Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under control panel › Features.
 
 The window is resizable: the slots and portrait grow with it, the *Equippable items* list scrolls inside it, and each player's size and position are remembered on their own computer.
+
+<!-- screenshot: the character pane with portrait, stats and equipment slots -->
 
 ### Slots
 
@@ -566,11 +638,13 @@ The same comparison shows when you hover an item in an Item Piles loot pile, bod
 
 ### Items with MMO-style tooltips
 
-Items whose description holds an MMO-style item tooltip, like those in the optional `wow-classic-items` compendium, are placed by the tooltip's slot line: Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist, Hands, Waist, Legs, Feet, Finger, Trinket, Main Hand, One-Hand (either hand), Two-Hand, Off Hand / Held In Off-hand, and Ranged / Thrown / Relic in the Ranged slot. Their border uses the tooltip's quality colour, and hovering shows that tooltip. When a description has no slot line, the compendium folder the item came from decides (Head, Two-Hand, Finger, Wands…). Nothing from that module is bundled; icons come from the items.
+Items whose description holds an MMO-style item tooltip, like those in the optional classic MMO item compendium, are placed by the tooltip's slot line: Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist, Hands, Waist, Legs, Feet, Finger, Trinket, Main Hand, One-Hand (either hand), Two-Hand, Off Hand / Held In Off-hand, and Ranged / Thrown / Relic in the Ranged slot. Their border uses the tooltip's quality colour, and hovering shows that tooltip. When a description has no slot line, the compendium folder the item came from decides (Head, Two-Hand, Finger, Wands…). Nothing from that module is bundled; icons come from the items.
 
 **Armour pieces and AC.** MMO-style helms, shoulders, gloves, boots and the like are often typed as light, medium or heavy armour with no AC of their own, and dnd5e only counts one piece of armour for AC. So that a helm doesn't replace the chest armour, armour-typed items worn in a slot other than **Chest** are left out of dnd5e's AC calculation while the character pane is on. Armour in the Chest slot, and equipped armour that isn't in any slot, counts as usual.
 
 ## Quest log
+
+**How to use:** press **L**, click the scroll button in the token controls, or run the **Quest Log** macro. The GM clicks **New quest**; players only read.
 
 Quests stay narrative: each one has a few objectives written as things to do ("Handle the bandit camp", "Find out who hired them"), and the GM ticks them off when the story says so. There are no kill or collect counters.
 
@@ -578,7 +652,9 @@ Quests stay narrative: each one has a few objectives written as things to do ("H
 
 1. Make sure **Quest log** (and, if you want it, **Quest tracker**) is switched on in the control panel's Features tab.
 2. Run setup to add a **Quest Log** macro (shared with players). Everyone can also open the log with the scroll button in the token controls or the **L** key (change it under **Configure Controls**).
-3. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Quest objectives in chat**, and **Quest accepted / complete sound** with a volume (blank by default; pick your own audio files).
+3. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Announce objectives in chat**, and **Sound when a quest is given** / **Sound when a quest is completed** with a **Quest sound volume** (blank by default; pick your own audio files).
+
+<!-- screenshot: the quest log with a quest open -->
 
 ### Making quests (GM)
 
@@ -588,7 +664,7 @@ Click **New quest** in the log. A quest has:
 - **Quest giver**: type a name or drop an actor on the field to link it.
 - **Summary** (a line or two, used in chat) and a rich-text **Description**.
 - **Objectives**: add, remove and reorder rows. Each can be **Hidden** (players don't see it until you reveal it) or **Optional**.
-- **Rewards**: coin written like `1g 20s` or `50c` (a plain number uses the *Fare unit*; works with either coin system), items dropped from the sidebar or a compendium, and free text such as renown.
+- **Rewards**: coin written like `1g 20s` or `50c` (a plain number is read in *Fares without a coin are in*, control panel › Travel; works with either coin system), items dropped from the sidebar or a compendium, and free text such as renown.
 - **Status**: *Not given*, *Active*, *Completed* or *Failed*, and **Hidden from players**.
 
 In the log the GM sees every quest, including ones not given yet (*Not given* tab) and hidden ones (marked with a crossed-out eye). Buttons under each quest: **Give quest**, **Complete**, **Fail**, **Reopen**, **Pay rewards**, **Show / Hide from players**, **Edit**, **Journal** and **Delete**. Click an objective's box to tick it; **Reveal** shows a hidden objective.
@@ -597,7 +673,7 @@ In the log the GM sees every quest, including ones not given yet (*Not given* ta
 
 Players only read. They see quests that have been given and aren't hidden, under **Active** and **Completed** (failed quests sit in Completed, struck through), with visible objectives, the description and rewards. The journal entries follow the same rule: players get Observer permission only once a quest is given and not hidden.
 
-**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker sits at the top right of the canvas, left of the sidebar, listing each tracked quest's open objectives. Collapse it with its arrow, or turn it off per player with the **Quest tracker** client setting.
+**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker sits at the top right of the canvas, left of the sidebar, listing each tracked quest's open objectives. Collapse it with its arrow, or turn it off per player with **Show the quest tracker on my screen** (Quests tab).
 
 ### Moments
 
@@ -632,7 +708,7 @@ Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payR
 
 ## Boss frames
 
-Select a token, open its token HUD (right-click) and click the **crown** button to mark it as a boss; click again to unmark it. The mark is on the token, so each copy of a creature can be marked separately. From a macro: `api.bosses.toggle(tokens, true)`.
+**How to use:** select a token, open its token HUD (right-click) and click the **crown** button to mark it as a boss; click again to unmark it. The mark is on the token, so each copy of a creature can be marked separately. From a macro: `api.bosses.toggle(tokens, true)`.
 
 While a combat is running and a marked boss is one of its combatants, every connected client sees its frame at the top centre of the screen: the token image, its name and a health bar that updates as it takes damage (temporary hit points show as a striped segment). Several bosses stack. The frame goes away when the combat ends, the boss is removed from it or unmarked. A boss at 0 HP or marked defeated stays on screen, greyed out, until the combat ends. Hidden combatants and hidden tokens aren't shown to players.
 
@@ -640,9 +716,11 @@ With the **Carousel Combat Tracker** module showing its dock along the top of th
 
 Each user can arrange the frames on their own screen. Drag a group's top frame to move the whole group; drag any other frame to pull it out on its own. Drop a frame within a few pixels of another frame's edge and it snaps flush against it (a dashed outline shows where) and joins that group; new bosses join the main stack. The layout is remembered on that browser and kept on-screen after a resize. Double-click any frame to put them all back in one stack at the top centre.
 
-**Boss frames: what players see** (world setting): *Bar only*, *Bar and percentage* or *Exact HP*. The GM always sees exact hit points.
+**Boss health players see** (control panel › Boss & Combat): *Bar only*, *Bar and percentage* or *Exact HP*. The GM always sees exact hit points.
 
-**Boss frames: treat tokens with boss loot as bosses** (world setting, on by default, with Boss loot turned on): a creature with a boss loot table gets a frame in combat without the crown. Turning the crown off on such a token hides its frame (the token stores an explicit "not a boss").
+**Creatures with boss loot get a boss frame** (control panel › Boss & Combat, on by default, with Boss loot turned on): a creature with a boss loot table gets a frame in combat without the crown. Turning the crown off on such a token hides its frame (the token stores an explicit "not a boss").
+
+<!-- screenshot: boss frame at the top of the screen with phase marks -->
 
 ### Phase marks
 
@@ -655,6 +733,8 @@ Give a boss phase marks to see its fight change at set health levels. **Right-cl
 Frames show only for the combat on the scene you're viewing, and a frame disappears straight away when its token, combatant or actor is deleted mid-combat.
 
 ## Loot rolls
+
+**How to use:** as GM, open an Item Piles pile or body and click the **dice** button on an item's row.
 
 Needs Item Piles set up for your system (for dnd5e, Item Piles: D&D 5e). Without it the feature just adds nothing.
 
@@ -687,6 +767,8 @@ Scripting: `api.lootRoll.history()` opens the window, `api.lootRoll.historyEntri
 
 ## Boss loot
 
+**How to use:** open a creature's token HUD (right-click the token), click the **gem** button and pick a roll table of drops.
+
 Hand-picked drops for named creatures, alongside (or instead of) vendor trash. Works with linked and unlinked tokens.
 
 1. Make a **roll table** with one result per possible drop. Each result is a document result pointing at an Item (a world item or a compendium item); its **weight** is its relative chance. Text results (such as "Nothing") drop nothing.
@@ -694,13 +776,13 @@ Hand-picked drops for named creatures, alongside (or instead of) vendor trash. W
 3. When the creature drops to 0 HP or is marked defeated, the active GM's client draws the table once: `draws` results, weighted, without replacement (the same item never drops twice in one draw). The roll table itself is never changed, so "drawn" marks on it don't matter. The items are copied onto the body and, with Item Piles, it becomes a lootable pile showing only loot (vendor trash and boss loot) and coin; the creature's own gear stays hidden. Without Item Piles the GM's card has a **Give to Party** button.
 4. The GM gets a card "*Name* dropped:" with a link per item and, when Loot rolls is on, a **Start loot roll** button per item.
 
-**Party size.** Boss coin is scaled by the **Party size** setting: `coinCp × party size / 4`, rounded to the copper (a 1,000c boss drops 1,250c for five). The flag itself is not changed. With **Boss loot: extra drop for parties above 4** on (the default), a boss with 3 or more draws draws one more for a party of 5 or more, never more than its table's usable results. Preview Boss Loot and the health check show the adjusted coin and draws next to the ones set.
+**Party size.** Boss coin is scaled by the **Party size** setting: `coinCp × party size / 4`, rounded to the copper (a 1,000c boss drops 1,250c for five). The flag itself is not changed. With **Extra boss drop for parties over 4** on (the default), a boss with 3 or more draws draws one more for a party of 5 or more, never more than its table's usable results. Preview Boss Loot and the health check show the adjusted coin and draws next to the ones set.
 
 **Link boss tables by name.** If your tables are named after their creatures, link them all at once: **Link boss tables by name** (control panel › Boss & Combat, or the Overview tab when it applies), the button in the health check, or `api.bossLoot.autoLink({ folder, overwrite })`. Every world NPC actor without a boss loot link gets the world roll table named exactly "*Actor name* · Loot" (also "*Actor name* - Loot" or "Loot: *Actor name*"), with 1 draw and no coin, unless the table says otherwise: a table flag `flags.wayfarers-toolkit.bossLootDefaults = { draws, coinCp, note }`, or "draws: 2" / "coin: 1500" (copper) in the table's description. Existing links are never changed unless `overwrite: true`. `folder` (a folder, its id or name) limits it to actors in that folder. You get a notification and a whisper listing what was linked and skipped.
 
 **Fallback.** If the linked table has been deleted, has no results that can drop, or the draw finds none of the items its results point at, the body gets the normal vendor-trash drop instead (unless it's marked No loot) and the GM is whispered which creature, why and what happened: "vendor trash dropped instead", "no vendor trash rolled for it either", "its vendor trash is already on the body", or why there's none (Vendor Trash off, No loot, no compendium). A linked boss has no pre-rolled trash, so its fallback drop is rolled then (up to three tries before it counts as empty). The health check lists these links in advance.
 
-Each death draws once: healing and dying again doesn't draw again. **Reset loot** (token HUD) removes the boss loot items as well as vendor trash and lets it draw again. **Boss loot: drop automatically on death** (world setting, on by default) can be turned off; then drop it yourself with `api.bossLoot.drop(tokens)`.
+Each death draws once: healing and dying again doesn't draw again. **Reset loot** (token HUD) removes the boss loot items as well as vendor trash and lets it draw again. **Boss loot drops on death** (control panel › Boss & Combat, on by default) can be turned off; then drop it yourself with `api.bossLoot.drop(tokens)`.
 
 **Preview Boss Loot** (macro) whispers the GM a card per selected token: the table, the number of draws and coin (adjusted for the party size), note, and every result with its weight and its chance per draw.
 
@@ -735,6 +817,8 @@ await api.bossLoot.autoLink();   // link tables named "<creature> · Loot"; { fo
 ```
 
 ## Three-coin economy (copper, silver, gold)
+
+**How to use:** in control panel › Features, switch on **Three-coin economy** and click **Save features**. The steps are below.
 
 An optional classic-MMO-style economy: no electrum or platinum, and **100 copper = 1 silver, 100 silver = 1 gold**. Character, NPC, group, vehicle and container sheets, the currency manager and award dialogs show only copper, silver and gold, in that order (abbreviated c, s, g); dnd5e's currency **Convert** button changes coins at the new rates, and Flight Master charges and gives change in the new coins.
 
