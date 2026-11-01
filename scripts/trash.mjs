@@ -10,6 +10,8 @@ import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log, byWhom } from "./log.mjs";
 import * as Summary from "./summary.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { card } from "./look-model.mjs";
 /** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
 export const rules = R;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -199,7 +201,7 @@ export async function showPreview(api, tokens = null, n = 12) {
     const coin = prof.coin ? `${Math.round(prof.coin * 100)}% chance of ${money(band.coin[0])}–${money(band.coin[1])}${coinMult}` : "none";
     out.push(await ChatMessage.create({
       whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" },
-      content: `<h3>Preview: ${esc(doc.name)}${dungeon ? DUNGEON_TAG : ""}</h3>
+      content: card(`<h3>Preview: ${esc(doc.name)}${dungeon ? DUNGEON_TAG : ""}</h3>
 <p><strong>${esc(prof.kind)}</strong> · CR ${esc(cr)} (${esc(band.label)}, ilvl ${band.ilvl[0]}–${band.ilvl[1]})</p>
 <p><strong>Allowed:</strong> ${list([...prof.tags])}<br><strong>Denied:</strong> ${list([...prof.deny])}${prof.gear ? "<br>Drops worn gear" : ""}</p>
 <p><strong>Rules matched:</strong> ${list(prof.rules.map(r => r === "*" ? "* (all)" : r))}</p>
@@ -208,7 +210,7 @@ export async function showPreview(api, tokens = null, n = 12) {
 ${fold(`Possible drops (${Math.min(n, it.normal.length)} of ${it.normal.length})`, sampleRows(it.normal))}
 ${it.strong.length ? fold(`Named for it (${Math.min(n, it.strong.length)} of ${it.strong.length})`, sampleRows(it.strong)) : ""}
 ${gear ? fold(`Gear (${Math.min(n, gear.normal.length)} of ${gear.normal.length})`, sampleRows(gear.normal)) : ""}
-<p><strong>Coin:</strong> ${coin}</p>`
+<p><strong>Coin:</strong> ${coin}</p>`, "wct-trash")
     }));
   }
   return out;
@@ -665,7 +667,7 @@ const ownItem = (actor, i) => !actor?.isToken || !actor.token?.delta?._source?.i
 /** Asks the GM to confirm a reset, with "Also clear coin" and "Also remove hand-added loot" checkboxes. */
 export async function confirmReset(api, docs) {
   const names = docs.map(d => esc(d.name)).join(", ");
-  const opts = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"],
+  const opts = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES],
     window: { title: "Reset loot" },
     content: `<p>Reset the loot on <strong>${names}</strong>? Vendor trash and boss loot items are removed and the token can be looted again; other items stay, including items marked Lootable.</p><div class="form-group"><label><input type="checkbox" name="clearCoin"> Also clear coin</label></div><div class="form-group"><label><input type="checkbox" name="removeHandAdded"> Also remove hand-added loot (items marked Lootable)</label></div>`,
     ok: { label: "Reset", icon: "fa-solid fa-rotate-left", callback: (ev, button) => ({ clearCoin: !!button.form.elements.clearCoin?.checked, removeHandAdded: !!button.form.elements.removeHandAdded?.checked }) },
@@ -782,7 +784,7 @@ async function lootCard(docs, api, { auto = false, report = {}, tries = 1 } = {}
   if (!rows.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3><ul>${rows.join("")}</ul>${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>${drops.length || extra.length || coinTotal ? `<button type="button" data-wct-action="give-trash"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
   const flag = { drops, extra, coin: coinTotal, value: total, given: false, dungeon };
-  const single = { content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
+  const single = { content: card(content, "wct-trash"), whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
   // Automatic deaths are gathered into one GM summary when several happen together.
   if (auto) return Summary.queue({ kind: "trash", body: todo[0]?.uuid, rows, coin: coinTotal, value: total, flag, single }, a => api.fmtMoney(a));
   return ChatMessage.create(single);
@@ -828,7 +830,7 @@ async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {
   if (!rows.length && !empty.length) return ui.notifications.info(`Vendor Trash: ${skipped.length ? `already looted (${skipped.join(", ")})` : "no creatures selected"}.`);
   const content = `<h3>Vendor Trash${dungeon ? DUNGEON_TAG : ""}</h3>${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${empty.length ? `<p class="hint">Nothing on: ${empty.map(esc).join(", ")}.</p>` : ""}${skipped.length ? `<p class="hint">Already looted: ${skipped.map(esc).join(", ")}.</p>` : ""}<p>${piles} ${piles === 1 ? "body is" : "bodies are"} ready to loot. Coin ${api.fmtMoney(coinTotal)} · trash worth ${api.fmtMoney(total)} at a vendor.</p>`;
   const flag = { piles: true, coin: coinTotal, value: total, dungeon };
-  const single = { content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
+  const single = { content: card(content, "wct-trash"), whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Vendor Trash" }, flags: { [ID]: { trash: flag } } };
   if (auto) return Summary.queue({ kind: "trash", body: todo[0]?.uuid, rows, coin: coinTotal, value: total, flag, single }, a => api.fmtMoney(a));
   return ChatMessage.create(single);
 }
@@ -914,7 +916,7 @@ export async function sellTrash(api, actor = null) {
   if (!trash.length) return ui.notifications.info(`${actor.name} has no vendor trash to sell.`);
   const each = trash.map(i => ({ i, v: Math.round((i.system.price?.value || 0) * (i.system.quantity || 1)) * cpVal }));
   const total = each.reduce((a, x) => a + x.v, 0);
-  const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
+  const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
   if (!ok) return;
   await actor.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
   await api.addMoney(actor, Math.round(total / cpVal) * cpVal, { consolidate: true, reason: "Sold vendor trash" });

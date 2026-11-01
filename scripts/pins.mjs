@@ -12,6 +12,7 @@ import { activeGM, handle, request, notify } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as Vault from "./vault.mjs";
 import * as UX from "./quest-ux-model.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -223,7 +224,7 @@ async function pinForm({ pin = null, title = "New map pin" } = {}) {
     <div class="form-group"><label>Hidden from players</label><div class="form-fields"><input type="checkbox" name="hidden" ${p.hidden ? "checked" : ""}></div><p class="hint">GM pins only. Players don't see it until you reveal it.</p></div>` : ""}
   </div>`;
   const f = await foundry.applications.api.DialogV2.prompt({
-    classes: ["wct-window", "wct-pin-dialog"], window: { title, icon: "fa-solid fa-map-pin" }, content, position: { width: 440 }, rejectClose: false,
+    classes: ["wct-window", "wct-pin-dialog", ...UI_CLASSES], window: { title, icon: "fa-solid fa-map-pin" }, content, position: { width: 440 }, rejectClose: false,
     ok: { label: "Save", icon: "fa-solid fa-feather", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object },
     render: (ev, dlg) => {
       const root = dlg?.element ?? ev?.target?.element; if (!root?.querySelector) return;
@@ -262,7 +263,7 @@ export async function open(ref, scene) {
     may("delete") && { action: "delete", label: "Delete", icon: "fa-solid fa-trash" },
     { action: "close", label: "Close", icon: "fa-solid fa-xmark", default: true }
   ].filter(Boolean);
-  const act = await foundry.applications.api.DialogV2.wait({ classes: ["wct-window", "wct-pin-dialog"], window: { title: "Map pin", icon: "fa-solid fa-map-pin" }, content, buttons, position: { width: 380 }, rejectClose: false });
+  const act = await foundry.applications.api.DialogV2.wait({ classes: ["wct-window", "wct-pin-dialog", ...UI_CLASSES], window: { title: "Map pin", icon: "fa-solid fa-map-pin" }, content, buttons, position: { width: 380 }, rejectClose: false });
   // Everything below re-checks through the write functions (and the GM's client re-checks a player's request again).
   if (act === "quest" && q) return Quests.open(q.id);
   if (act === "edit") { const input = await pinForm({ pin, title: "Edit map pin" }); return input ? update(target, input) : null; }
@@ -270,7 +271,7 @@ export async function open(ref, scene) {
   if (act === "show") return reveal(target, false);
   if (act === "hide") return reveal(target, true);
   if (act === "delete") {
-    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Delete map pin" }, content: `<p>Delete the pin <strong>${esc(pin.label)}</strong>?</p>`, rejectClose: false });
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Delete map pin" }, content: `<p>Delete the pin <strong>${esc(pin.label)}</strong>?</p>`, rejectClose: false });
     return ok ? remove(target) : null;
   }
   return null;
@@ -423,7 +424,7 @@ export async function goToQuest(questId, { quiet = false } = {}) {
   if (t.kind === "here" && canvas?.ready) { await panPing(pin); return "here"; }
   const scene = game.scenes.get(pin.sceneId); const name = scene?.navName || scene?.name || "another scene";
   if (!game.user.isGM) { ui.notifications.info(`This quest's map pin is on ${name}.`); return "other"; }
-  const go = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Quest map pin" }, content: `<p>This quest's map pin is on <strong>${esc(name)}</strong>. View that scene? (Only you move; players stay where they are.)</p>`, rejectClose: false });
+  const go = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Quest map pin" }, content: `<p>This quest's map pin is on <strong>${esc(name)}</strong>. View that scene? (Only you move; players stay where they are.)</p>`, rejectClose: false });
   if (!go || !scene) return "other";
   Hooks.once("canvasReady", () => { panPing(pin).catch(() => {}); });
   await scene.view();

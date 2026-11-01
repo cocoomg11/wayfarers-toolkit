@@ -13,7 +13,7 @@ import * as M from "./coinlog-model.mjs";
 import * as F from "./features.mjs";
 import * as Vault from "./vault.mjs";
 import { log } from "./log.mjs";
-import { esc } from "../vendor/wanderers-core/index.mjs";
+import { esc, UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const APP_ID = `${ID}-coin-log`;
@@ -83,7 +83,7 @@ export async function clear() {
 const when = e => { const d = new Date(e.at); return Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 export class CoinLogApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: APP_ID, classes: ["wct-history", "wct-coinlog", "wct-window"],
+    id: APP_ID, classes: ["wct-history", "wct-coinlog", "wct-window", ...UI_CLASSES],
     window: { title: "Coin log", icon: "fa-solid fa-receipt", resizable: true },
     position: { width: 720, height: 560 }
   };
@@ -99,7 +99,7 @@ export class CoinLogApp extends foundry.applications.api.ApplicationV2 {
         <td>${e.undoneAt ? "<em>undone</em>" : can ? `<button type="button" data-undo="${esc(e.id)}"><i class="fa-solid fa-rotate-left"></i> Undo</button>` : ""}</td></tr>`;
     }).join("");
     div.innerHTML = `<div class="wct-history-filters"><span class="hint">Coin the toolkit moved, newest first. Undo is offered on the latest ${M.UNDO_WINDOW}: it gives back what was paid, or takes back what was given if the character still has it.</span><span class="spacer"></span>
-      <button type="button" data-act="clear" class="wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear…</button></div>
+      <button type="button" data-act="clear" class="wc-btn wc-btn-danger wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear…</button></div>
       <div class="wct-history-list">${all.length ? `<table><thead><tr><th>When</th><th>Who</th><th>Coin</th><th>Why</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">Nothing yet. Quest rewards, rooms, flight fares, vendor trash sales, loot coin and Split coin show up here.</p>`}</div>
       <p class="hint">${all.length} entr${all.length === 1 ? "y" : "ies"}. The last ${M.COINLOG_MAX} are kept.</p>`;
     return div;

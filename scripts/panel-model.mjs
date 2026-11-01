@@ -309,3 +309,18 @@ export function issueFix(section, text, { hasAutolink = false } = {}) {
 export const LEGACY_HIDDEN = "Hex Test|NPC Gallery";
 /** The hidden-scenes setting → ticked names, or null when it's a hand-written pattern the checklist can't show. */
 export const hiddenToScenes = re => String(re ?? "") === LEGACY_HIDDEN ? LEGACY_HIDDEN.split("|") : regexToScenes(re);
+
+/**
+ * Sidebar keys (1.30, core's sidebar): the tab index a key moves to from `i` of `n` tabs, or null for other keys. Arrow up/left and
+ * down/right step (wrapping), Home and End jump.
+ * @param {string} key @param {number} i @param {number} n
+ * @returns {number | null}
+ */
+export function navKey(key, i, n) {
+  if (!(n > 0)) return null;
+  if (key === "ArrowDown" || key === "ArrowRight") return (i + 1) % n;
+  if (key === "ArrowUp" || key === "ArrowLeft") return (i - 1 + n) % n;
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  return null;
+}

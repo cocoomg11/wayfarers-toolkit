@@ -12,6 +12,8 @@ export const HP_MODES = { bar: "Bar only", percent: "Bar and percentage", exact:
 import { on as featureOn } from "./features.mjs";
 import * as P from "./phases.mjs";
 import { isActiveGM } from "./gm.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { card } from "./look-model.mjs";
 const tokenDoc = t => t?.document ?? t;
 
 /**
@@ -94,7 +96,7 @@ export async function phaseDialog(t) {
   const content = `<p class="hint">Health percentages where the fight changes phase, highest first, e.g. <em>66, 33</em>. The boss frame shows a mark at each; you get a whisper when health drops below one. Leave blank for none.</p>
     <div class="form-group"><label>Phase marks (%)</label><input type="text" name="phases" value="${esc(P.phasesText(phasesOf(doc)))}" placeholder="66, 33" autofocus></div>
     ${world && !doc.actorLink ? `<div class="form-group"><label>Every token of ${esc(world.name)}</label><input type="checkbox" name="world" ${onWorld ? "checked" : ""}><p class="hint">Save on the creature itself, so every token of it gets the marks. Unticked: only this token.</p></div>` : ""}`;
-  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title: `Phase marks: ${doc.name}` }, content, position: { width: 420 },
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title: `Phase marks: ${doc.name}` }, content, position: { width: 420 },
     ok: { label: "Save", icon: "fa-solid fa-floppy-disk", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false });
   if (!f) return;
   const list = P.parsePhases(f.phases);
@@ -119,7 +121,7 @@ function checkToken(doc) {
     if (!r.crossed.length || !inStartedCombat(doc)) return;
     const gms = game.users.filter(u => u.isGM).map(u => u.id);
     const text = r.crossed.map(c => P.phaseLine(doc.name, c)).join(" ");
-    await ChatMessage.create({ whisper: gms, speaker: { alias: "Boss frames" }, content: `<p class="wct-phase"><i class="fa-solid fa-crown"></i> ${esc(text)}</p>` });
+    await ChatMessage.create({ whisper: gms, speaker: { alias: "Boss frames" }, content: card(`<p class="wct-phase"><i class="fa-solid fa-crown"></i> ${esc(text)}</p>`) });
   }).catch(e => console.warn(`${ID} | boss phases`, e));
   phaseQueue.set(doc.uuid, next);
 }

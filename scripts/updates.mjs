@@ -9,6 +9,7 @@ import * as N from "./update-notes.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT } from "./macros.mjs";
+import { card } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
 /** @type {any} */
@@ -35,7 +36,7 @@ export function build(from = null) {
 /** Whispers the card to the GMs. Returns the message. */
 export function post(notice) {
   return ChatMessage.create({
-    content: N.cardHTML(notice), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" },
+    content: card(N.cardHTML(notice), "wct-update-card"), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" },
     flags: { [ID]: { updateNotes: { from: notice.from, to: notice.to, actions: notice.actions.map(a => a.id), done: [] } } }
   });
 }

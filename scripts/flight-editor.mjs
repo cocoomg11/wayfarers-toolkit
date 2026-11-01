@@ -4,6 +4,7 @@
  * than two points are open, or api.flight.editor(). Saves the flightNetwork world setting; nothing is written until Save.
  */
 import * as Flight from "./flight.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -30,7 +31,7 @@ export async function importFlow(api) {
   try {
     const dry = await api.importLegacyFlights({ dryRun: true });
     const n = (k, one) => `${dry.counts[k]} ${one}${dry.counts[k] === 1 ? "" : "s"}`;
-    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Import flight routes" }, rejectClose: false,
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Import flight routes" }, rejectClose: false,
       content: `<p>Import ${n("points", "flight point")} (${dry.counts.noScene} without a scene) and ${n("routes", "route")} from the Flight Routes journal page? Routes come in two-way, as they always flew. The journal page isn't changed.</p>${dry.report.length ? `<p>Worth a look afterwards:</p><ul>${dry.report.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}` });
     if (!ok) return false;
     await api.importLegacyFlights(); ui.notifications.info("Flight Master: flight routes imported. The journal page is no longer read.");
@@ -42,7 +43,7 @@ const sw = (attr, on, label) => `<label class="wct-switch" data-tooltip="${esc(l
 
 export class FlightEditor extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-flight-editor`, classes: ["wct-panel", "wct-window", "wct-flight-editor"],
+    id: `${ID}-flight-editor`, classes: ["wct-panel", "wct-window", "wct-flight-editor", ...UI_CLASSES],
     window: { title: "Flight network", icon: "fa-solid fa-feather-pointed", resizable: true },
     position: { width: 880, height: 640 }
   };
@@ -135,7 +136,7 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
     return probs;
   }
 
-  discardOk() { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Flight network" }, content: "<p>Throw away your unsaved changes?</p>", rejectClose: false }); }
+  discardOk() { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Flight network" }, content: "<p>Throw away your unsaved changes?</p>", rejectClose: false }); }
 
   async act(what, btn) {
     try {
@@ -143,7 +144,7 @@ export class FlightEditor extends foundry.applications.api.ApplicationV2 {
       if (what === "add-route") { const [a, b] = this.net.points; this.net.routes.push({ id: Flight.newId(), from: a?.id ?? "", to: b?.id ?? "", fareCp: 0, hours: 1, twoWay: true, free: false }); this.dirty = true; return this.render(); }
       if (what === "rm-point") {
         const i = +btn.closest("tr").dataset.i; const p = this.net.points[i]; const used = this.net.routes.filter(r => r.from === p.id || r.to === p.id).length;
-        if (used && !await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Remove flight point" }, content: `<p>Remove <strong>${esc(p.name || "this point")}</strong> and its ${used} route${used === 1 ? "" : "s"}?</p>`, rejectClose: false })) return;
+        if (used && !await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Remove flight point" }, content: `<p>Remove <strong>${esc(p.name || "this point")}</strong> and its ${used} route${used === 1 ? "" : "s"}?</p>`, rejectClose: false })) return;
         this.net.points.splice(i, 1); this.net.routes = this.net.routes.filter(r => r.from !== p.id && r.to !== p.id); this.dirty = true; return this.render();
       }
       if (what === "rm-route") { this.badFare.delete(this.net.routes[+btn.closest("tr").dataset.i]?.id); this.net.routes.splice(+btn.closest("tr").dataset.i, 1); this.dirty = true; return this.render(); }

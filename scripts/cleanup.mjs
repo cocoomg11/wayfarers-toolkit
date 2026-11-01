@@ -8,7 +8,8 @@
  */
 import { isToolkitFolderName } from "./macros.mjs";
 import { pinsByScene } from "./pins-model.mjs";
-import { hasFlags, confirmed, CONFIRM_WORD } from "../vendor/wanderers-core/index.mjs";
+import { hasFlags, confirmed, CONFIRM_WORD, UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { card } from "./look-model.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ours = doc => hasFlags(doc, ID);
@@ -128,7 +129,7 @@ export async function remove(pick = {}) {
 }
 
 export class CleanupApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup", "wct-window"], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wanderer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
+  static DEFAULT_OPTIONS = { id: `${ID}-cleanup`, classes: ["wct-cleanup", "wct-window", ...UI_CLASSES], tag: "form", form: { closeOnSubmit: false }, window: { title: "Wanderer's Toolkit · Remove toolkit data", icon: "fa-solid fa-broom", resizable: true }, position: { width: 560, height: "auto" } };
   async _renderHTML() {
     const div = document.createElement("div");
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
@@ -156,7 +157,7 @@ export class CleanupApp extends foundry.applications.api.ApplicationV2 {
       const lines = Object.entries(done).map(([k, n]) => `${label[k].replace(/ \(.*\)$/, "")}: ${n}`);
       const text = lines.length ? lines.join("; ") : "nothing";
       ui.notifications.info(`Wanderer's Toolkit data removed: ${text}.`);
-      await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" }, content: `<h3>Toolkit data removed</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("") || "<li>nothing</li>"}</ul>` });
+      await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" }, content: card(`<h3>Toolkit data removed</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("") || "<li>nothing</li>"}</ul>`) });
       if (pick.settings && done.settings) foundry.applications?.settings?.SettingsConfig?.reloadConfirm?.({ world: true });
     };
   }

@@ -14,6 +14,7 @@ import * as QL from "./quest-log-model.mjs";
 import { breakdown } from "./coinlog-model.mjs";
 import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 import { notify, request, isActiveGM, handle } from "./gm.mjs";
+import { card as lookCard } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -238,7 +239,7 @@ function card(kind, j, q, body = "") {
 /** Posts a quest card: since 1.29 whispered to the GMs and the players who see the quest (its party's owners); older records to all. */
 function say(content, j, extra = {}) {
   const whisper = legacy(j) ? undefined : viewers(j).map(u => u.id);
-  return ChatMessage.create({ content, speaker: { alias: "Quest Log" }, ...(whisper ? { whisper } : {}), flags: { [ID]: { quest: { id: j.id, ...extra } } } });
+  return ChatMessage.create({ content: lookCard(content, "wct-quest-chat"), speaker: { alias: "Quest Log" }, ...(whisper ? { whisper } : {}), flags: { [ID]: { quest: { id: j.id, ...extra } } } });
 }
 async function announceStatus(j, q, prev) {
   if (q.status === "active") {
@@ -874,7 +875,7 @@ function toggle() { if (LOG?.rendered) LOG.close(); else open(); }
 // ---------------------------------------------------------------- the editor (GM)
 export class QuestEditor extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    classes: ["wct-quests", "wct-quest-edit", "wct-window"],
+    classes: ["wct-quests", "wct-quest-edit", "wct-window", ...UI_CLASSES],
     window: { title: "Quest", icon: "fa-solid fa-pen", resizable: true },
     position: { width: 600, height: 720 }
   };

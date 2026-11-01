@@ -5,11 +5,14 @@
  * active GM's client, which makes and records the d100 rolls, settles ties, moves the item with Item Piles and posts the result.
  * Players only ever send a choice, so they can't set a roll. Turned off with the "Loot rolls" feature, nothing here is registered.
  */
-import { qualityColor } from "./pane.mjs";
+import { qualityColor, qualityOf } from "./pane.mjs";
+import * as PM from "./pane-model.mjs";
+import { itemSlot } from "../vendor/wanderers-core/index.mjs";
 import { isActiveGM, activeGM, settled, onLeader, handle, request } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as History from "./history.mjs";
 import { makeEntry } from "./history-model.mjs";
+import { card } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -53,15 +56,16 @@ function cardHTML(st) {
   });
   const waiting = (st.eligible ?? []).filter(uid => !st.choices?.[uid]).map(uid => esc(st.names?.[uid] ?? game.users.get(uid)?.name ?? "?"));
   let foot;
-  if (st.status === "open") foot = `<div class="wct-loot-buttons">${Object.entries(CHOICES).map(([k, c]) => `<button type="button" data-wct-loot="${k}" class="${k}"><i class="fa-solid ${c.icon}"></i> ${c.label}</button>`).join("")}</div>
+  if (st.status === "open") foot = `<div class="wct-loot-buttons">${Object.entries(CHOICES).map(([k, c]) => `<button type="button" data-wct-loot="${k}" class="wc-btn wc-btn-sm ${k}"><i class="fa-solid ${c.icon}" aria-hidden="true"></i> ${c.label}</button>`).join("")}</div>
       <p class="wct-loot-timer"><i class="fa-solid fa-hourglass-half"></i> <span data-wct-loot-ends="${st.ends}"></span>${waiting.length ? ` · waiting on ${waiting.join(", ")}` : ""}</p>
       <p class="wct-loot-nogm" hidden><i class="fa-solid fa-plug-circle-xmark"></i> A GM needs to be connected.</p>
-      <button type="button" data-wct-loot="close" class="wct-loot-close"><i class="fa-solid fa-gavel"></i> Close the roll now</button>
-      <div class="wct-loot-assign" data-wct-loot-assign><select aria-label="Assign to"></select><button type="button" data-wct-loot="assign"><i class="fa-solid fa-hand-holding"></i> Assign to…</button></div>`;
+      <button type="button" data-wct-loot="close" class="wc-btn wc-btn-sm wc-btn-ghost wct-loot-close"><i class="fa-solid fa-gavel"></i> Close the roll now</button>
+      <div class="wct-loot-assign" data-wct-loot-assign><select aria-label="Assign to"></select><button type="button" class="wc-btn wc-btn-sm" data-wct-loot="assign"><i class="fa-solid fa-hand-holding"></i> Assign to…</button></div>`;
   else foot = `<p class="wct-loot-result">${st.result ?? ""}</p>`;
-  return `<div class="wct-loot-card" style="--q:${esc(st.color)}">
-    <header><img src="${esc(st.img)}" alt=""><div><small>Loot roll${st.pileName ? ` · ${esc(st.pileName)}` : ""}</small><h3>${esc(st.name)}${st.quantity > 1 ? ` <span class="qty">×${st.quantity}</span>` : ""}</h3></div></header>
-    ${rows.length ? `<ul class="wct-loot-rolls">${rows.join("")}</ul>` : ""}${foot}</div>`;
+  const q = st.quality || PM.qualityKey({ color: st.color });
+  return card(`<div class="wct-loot-card" data-quality="${esc(q)}">
+    <header>${itemSlot({ img: st.img, quality: q, name: st.name, size: "lg" })}<div><small>Loot roll${st.pileName ? ` · ${esc(st.pileName)}` : ""}</small><h3 class="wc-q-text">${esc(st.name)}${st.quantity > 1 ? ` <span class="qty">×${st.quantity}</span>` : ""}</h3></div></header>
+    ${rows.length ? `<ul class="wct-loot-rolls">${rows.join("")}</ul>` : ""}${foot}</div>`, "wct-loot");
 }
 
 // ---------------------------------------------------------------- GM side
@@ -101,7 +105,7 @@ export async function start(itemRef, { seconds = null } = {}) {
   const pile = item.parent;
   const st = {
     itemUuid: item.uuid, itemId: item.id, pileUuid: pile.uuid, pileName: pile.token?.name ?? pile.name,
-    name: item.name, img: item.img, color: qualityColor(item), quantity: Number(foundry.utils.getProperty(item, itemPiles().ITEM_QUANTITY_ATTRIBUTE)) || 1,
+    name: item.name, img: item.img, color: qualityColor(item), quality: qualityOf(item), quantity: Number(foundry.utils.getProperty(item, itemPiles().ITEM_QUANTITY_ATTRIBUTE)) || 1,
     eligible: players.map(u => u.id), names: Object.fromEntries(players.map(u => [u.id, `${u.name} (${characterOf(u).name})`])),
     people: Object.fromEntries(players.map(u => [u.id, { user: u.name, actor: characterOf(u).name }])),
     sceneName: pile.token?.parent?.name ?? canvas?.scene?.name ?? "", rarity: item.system?.rarity ?? "",
@@ -145,10 +149,10 @@ export function winnerRecipients(actor, users = game.users, extra = null) {
 function tellWinner(actor, st, extra = null) {
   const whisper = winnerRecipients(actor, game.users, extra);
   if (!whisper.length) return;
-  return ChatMessage.create({ whisper, speaker: { alias: "Loot" }, content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> You won <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}${actor ? `; it's on ${esc(actor.name)}` : ""}.</p>` });
+  return ChatMessage.create({ whisper, speaker: { alias: "Loot" }, content: card(`<p class="wct-loot-won" data-quality="${esc(st.quality || PM.qualityKey({ color: st.color }))}">${itemSlot({ img: st.img, quality: st.quality || PM.qualityKey({ color: st.color }), name: st.name, size: "sm" })} You won <span class="item wc-q-text">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}${actor ? `; it's on ${esc(actor.name)}` : ""}.</p>`) });
 }
 async function announce(actor, st) {
-  await ChatMessage.create({ content: `<p class="wct-loot-won" style="--q:${esc(st.color)}"><img src="${esc(st.img)}" alt=""> <strong>${esc(actor.name)}</strong> receives <span class="item">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}.</p>`, speaker: { alias: "Loot" } });
+  await ChatMessage.create({ content: card(`<p class="wct-loot-won" data-quality="${esc(st.quality || PM.qualityKey({ color: st.color }))}">${itemSlot({ img: st.img, quality: st.quality || PM.qualityKey({ color: st.color }), name: st.name, size: "sm" })} <strong>${esc(actor.name)}</strong> receives <span class="item wc-q-text">${esc(st.name)}</span>${st.quantity > 1 ? ` ×${st.quantity}` : ""}.</p>`), speaker: { alias: "Loot" } });
 }
 
 /**

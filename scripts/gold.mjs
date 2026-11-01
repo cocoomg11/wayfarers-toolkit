@@ -7,6 +7,7 @@
  */
 import * as G from "./gold-model.mjs";
 import * as Vault from "./vault.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -90,7 +91,7 @@ const DOT = { green: "fa-circle-check", amber: "fa-circle-exclamation", red: "fa
 
 export class PartyGoldApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-party-gold`, classes: ["wct-panel", "wct-window", "wct-gold"],
+    id: `${ID}-party-gold`, classes: ["wct-panel", "wct-window", "wct-gold", ...UI_CLASSES],
     window: { title: "Party gold", icon: "fa-solid fa-scale-balanced", resizable: true },
     position: { width: 640, height: 640 }
   };

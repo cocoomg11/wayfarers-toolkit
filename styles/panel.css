@@ -1,31 +1,21 @@
-/* Wanderer's Toolkit: the control panel and the welcome wizard. Colours come from Foundry's theme variables (v13/v14, dark and light),
-   with plain fallbacks. No backdrop blur (the shared wct-window rule in pane.css turns it off). */
-.wct-panel, .wct-wizard {
-  --wct-fg: var(--color-text-primary, var(--color-text-light-highlight, #e8e4dc));
-  --wct-muted: var(--color-text-secondary, var(--color-text-light-6, #a8a29a));
-  --wct-line: var(--color-border, var(--color-border-light-tertiary, rgba(128, 128, 128, 0.35)));
-  --wct-card: var(--color-cool-4, rgba(128, 128, 128, 0.08));
-  --wct-hover: rgba(128, 128, 128, 0.14);
-  --wct-accent: var(--color-warm-1, var(--color-text-hyperlink, #ee9b3a));
-  --wct-ok: #3fa34d; --wct-warn: #d39b14; --wct-bad: #d0453a;
-}
-.theme-light .wct-panel, .theme-light .wct-wizard, .wct-panel.theme-light, .wct-wizard.theme-light {
-  --wct-card: rgba(0, 0, 0, 0.04); --wct-hover: rgba(0, 0, 0, 0.07); --wct-ok: #2b7a37; --wct-warn: #9a6c00; --wct-bad: #a8261c;
+/* Wanderer's Toolkit: the control panel, the welcome wizard and the other toolkit windows. 1.30: on wanderers-core's shared look
+   (the windows carry its root classes): the sidebar, buttons, alerts, tables and colours are core's; these rules only lay out the
+   toolkit's own parts and read core's --wc-* tokens. No theme selectors: the tokens follow Foundry's theme. */
+.wct-panel, .wct-wizard, .wct-history, .wct-gold, .wct-flight-map, .wct-flight-editor, .wct-quest-edit, .wct-cleanup, .wct-health-window {
+  --wct-fg: var(--wc-text); --wct-muted: var(--wc-text-3); --wct-line: var(--wc-line); --wct-card: var(--wc-surface);
+  --wct-hover: var(--wc-surface-2); --wct-accent: var(--wc-accent); --wct-ok: var(--wc-ok); --wct-warn: var(--wc-warn); --wct-bad: var(--wc-bad);
 }
 .wct-panel .window-content { padding: 0; overflow: hidden; }
-.wct-panel-body { flex: 1; display: grid; grid-template-columns: 168px 1fr; grid-template-rows: 1fr auto; height: 100%; min-height: 0; color: var(--wct-fg); }
+.wct-panel-body.wc-shell { height: 100%; }
+.wct-panel-page { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.wct-panel-page > .wc-main { flex: 1; gap: 0; }
 .wct-pad { padding: 1rem; }
+/* Pages outside the panel shell (party gold, flight editor) keep their own scrolling body. */
+.wct-main:not(.wc-main) { overflow-y: auto; min-height: 0; padding: 14px 18px 8px; }
+.wct-tabs .wc-nav[aria-selected="true"] { font-weight: 600; }
 
-/* Tabs down the left. */
-.wct-tabs { grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; border-right: 1px solid var(--wct-line); overflow-y: auto; }
-.wct-tabs button { display: flex; align-items: center; gap: 10px; justify-content: flex-start; width: 100%; margin: 0; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--wct-muted); font-size: var(--font-size-14, 14px); text-align: left; line-height: 1.2; box-shadow: none; }
-.wct-tabs button i { width: 1.2em; text-align: center; }
-.wct-tabs button:hover { background: var(--wct-hover); color: var(--wct-fg); }
-.wct-tabs button.active { background: var(--wct-hover); color: var(--wct-fg); font-weight: 600; box-shadow: inset 3px 0 0 var(--wct-accent); }
-
-.wct-main { overflow-y: auto; min-height: 0; padding: 14px 18px 8px; }
 .wct-tab-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.wct-tab-head h2 { flex: 1; margin: 0; border: 0; font-size: 1.35em; display: flex; align-items: center; gap: 8px; }
+.wct-tab-head h2 { flex: 1; margin: 0; border: 0; font-size: var(--font-size-20, 1.25rem); font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .wct-help { color: var(--wct-muted); font-size: 1.15em; }
 .wct-help:hover { color: var(--wct-accent); text-shadow: none; }
 .wct-panel .hint, .wct-wizard .hint { color: var(--wct-muted); font-size: var(--font-size-12, 12px); margin: 2px 0 0; line-height: 1.35; }
@@ -59,7 +49,7 @@
 
 /* Feature cards. */
 .wct-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 10px 0; }
-.wct-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--wct-line); border-radius: 8px; background: var(--wct-card); }
+.wct-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--wct-line); border-radius: var(--wc-radius, 6px); background: var(--wct-card); }
 .wct-card.on { border-color: color-mix(in srgb, var(--wct-ok) 55%, transparent); }
 .wct-card-icon { flex: 0 0 28px; font-size: 1.5em; text-align: center; color: var(--wct-muted); padding-top: 2px; }
 .wct-card.on .wct-card-icon { color: var(--wct-accent); }
@@ -75,7 +65,7 @@
 .wct-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
 .wct-actions.wrap { flex-wrap: wrap; }
 .wct-actions.wrap button { flex: 0 1 auto; width: auto; }
-.wct-actions.sticky { position: sticky; bottom: -8px; padding: 8px 0; background: var(--color-cool-5, var(--background, transparent)); justify-content: flex-end; }
+.wct-actions.sticky { position: sticky; bottom: -18px; padding: 8px 0; background: var(--color-cool-5, var(--background, transparent)); justify-content: flex-end; }
 .wct-actions button { width: auto; flex: 0 0 auto; white-space: nowrap; }
 .wct-panel button.wct-primary, .wct-wizard button.wct-primary { font-weight: 600; border-color: var(--wct-accent); }
 .wct-panel button.wct-danger { color: var(--wct-bad); }
@@ -88,13 +78,13 @@
 .wct-icon-btn { width: 30px; height: 28px; padding: 0; margin: 0; }
 
 /* Advanced. */
-.wct-advanced { margin-top: 12px; border: 1px solid var(--wct-line); border-radius: 8px; padding: 0 12px; }
+.wct-advanced { margin-top: 12px; border: 1px solid var(--wct-line); border-radius: var(--wc-radius, 6px); padding: 0 12px; background: var(--wct-card); }
 .wct-advanced > summary { cursor: pointer; padding: 9px 0; font-weight: 600; color: var(--wct-muted); list-style: revert; }
 .wct-advanced[open] > summary { border-bottom: 1px solid var(--wct-line); }
 
 /* Overview. */
-.wct-banner { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--wct-line); background: var(--wct-card); }
-.wct-banner > i { font-size: 2em; }
+.wct-banner:not(.wc-alert) { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--wc-radius, 6px); border: 1px solid var(--wct-line); background: var(--wct-card); }
+.wct-banner > i { font-size: 1.6em; }
 .wct-banner strong { font-size: 1.2em; }
 .wct-banner p { margin: 2px 0 0; color: var(--wct-muted); }
 .wct-banner.ok > i { color: var(--wct-ok); }
@@ -144,7 +134,8 @@
 .wct-wizard .wct-footer { padding: 12px 0 0; margin-top: 12px; }
 .wct-wizard .wct-footer .spacer { flex: 1; }
 
-@media (max-width: 900px) { .wct-panel-body { grid-template-columns: 54px 1fr; } .wct-tabs button span { display: none; } .wct-row { grid-template-columns: 1fr; } .wct-row-control { justify-content: flex-start; } }
+@container wct-panel (max-width: 560px) { .wct-row { grid-template-columns: 1fr; } .wct-row-control { justify-content: flex-start; } }
+.wct-panel-page { container: wct-panel / inline-size; }
 .wct-tab[hidden] { display: none; }
 
 /* Flight network editor. */

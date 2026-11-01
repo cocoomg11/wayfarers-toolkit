@@ -9,6 +9,7 @@ import { on as featureOn } from "./features.mjs";
 import * as PM from "./pane-model.mjs";
 import { BENEFITS } from "./inn-model.mjs";
 import { UI_CLASSES, coins as coinHTML } from "../vendor/wanderers-core/index.mjs";
+import { card } from "./look-model.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
@@ -368,7 +369,7 @@ export async function ensureSets(actor) {
 /** Whether the actor is a combatant in a combat that has started. */
 const inCombat = actor => (game.combats ?? []).some(c => c.started && c.combatants.some(cb => cb.actor === actor || (cb.actorId === actor.id && !actor.isToken)));
 async function postLine(actor, text) {
-  try { await ChatMessage.create({ content: `<p class="wct-swap">${esc(text)}</p>`, speaker: ChatMessage.getSpeaker({ actor }) }); } catch (e) { console.warn(`${ID} | weapon swap chat line`, e); }
+  try { await ChatMessage.create({ content: card(`<p class="wct-swap">${esc(text)}</p>`), speaker: ChatMessage.getSpeaker({ actor }) }); } catch (e) { console.warn(`${ID} | weapon swap chat line`, e); }
 }
 
 /** Puts an owned item in a set's hand (main or off). Whatever was there comes out; a two-handed weapon empties the off hand. */

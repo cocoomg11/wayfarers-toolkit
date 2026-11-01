@@ -35,7 +35,7 @@ const countIcons = c => LEVELS.map(k => `<span class="wct-hc-count wc-${k}">${ic
 export function shortCard(o) {
   const c = o.counts; const t = overall(c);
   const head = t === "ok" ? "Everything looks good" : t === "warn" ? "Some things need a look" : "Problems found";
-  return `<div class="${UI_CLASSES.join(" ")} wct-card wct-health wct-health-short">`
+  return `<div class="${UI_CLASSES.join(" ")} wct-chat-card wct-health wct-health-short">`
     + `<h3>Wanderer's Toolkit ${esc(o.version ?? "")}: health check</h3>`
     + `<p class="wc-status wc-${t}">${icon(t)}<span class="wc-grow">${esc(head)}: ${esc(countText(c))}.</span></p>`
     + `<p class="wct-hc-counts">${countIcons(c)}</p>`
@@ -52,7 +52,7 @@ export function fullCard(o) {
   const c = counts(o.sections);
   const line = (/** @type {any} */ l) => `<li class="wc-status wc-${tone(l.level)}">${icon(tone(l.level))}<span class="wc-grow">${l.text}</span></li>`;
   const body = (o.sections ?? []).map((/** @type {any} */ s) => `<h4>${esc(s.title)}</h4><ul class="wc-lines">${(s.lines ?? []).map(line).join("")}</ul>`).join("");
-  return `<div class="${UI_CLASSES.join(" ")} wct-card wct-health"><h3>Wanderer's Toolkit ${esc(o.version ?? "")}: health check</h3>`
+  return `<div class="${UI_CLASSES.join(" ")} wct-chat-card wct-health"><h3>Wanderer's Toolkit ${esc(o.version ?? "")}: health check</h3>`
     + `<p class="wct-hc-counts">${countIcons(c)}</p>${body}`
     + `${o.setup ? `<p><button type="button" class="wc-btn wc-btn-sm" data-wct-action="run-setup"><i class="fa-solid fa-hammer" aria-hidden="true"></i> Run setup</button></p>` : ""}</div>`;
 }

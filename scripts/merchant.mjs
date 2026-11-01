@@ -8,6 +8,7 @@
 import * as J from "./junk-rules.mjs";
 import * as WS from "./weapon-sets.mjs";
 import { wowInfo } from "./pane.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -64,7 +65,7 @@ export async function sellJunk(sellerRef, merchantRef) {
   const total = sell.reduce((t, d) => t + smallestOf(IP, d.price), 0);
   const line = d => `<li><img src="${esc(d.img)}" alt="" width="20" height="20" style="vertical-align:middle;border:none"> ${esc(d.name)}${d.quantity > 1 ? ` ×${d.quantity}` : ""}: ${esc(d.priceString || money(smallestOf(IP, d.price)))}</li>`;
   const ok = await foundry.applications.api.DialogV2.confirm({
-    classes: ["wct-window"], window: { title: `Sell all junk to ${merchant.name}` }, rejectClose: false,
+    classes: ["wct-window", ...UI_CLASSES], window: { title: `Sell all junk to ${merchant.name}` }, rejectClose: false,
     content: `<p><strong>${esc(seller.name)}</strong> sells:</p><ul class="wct-junk-list">${sell.map(line).join("")}</ul>
       <p>Total: <strong>${esc(money(total))}</strong> (the merchant's prices).</p>
       ${kept.length ? `<p class="hint">Kept: ${kept.map(k => `${esc(k.name)} (${esc(k.reasonText)})`).join(", ")}.</p>` : ""}`

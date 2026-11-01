@@ -13,6 +13,7 @@
  */
 import * as Flight from "./flight.mjs";
 import { on } from "./features.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -45,7 +46,7 @@ const px = n => ({ x: PAD + n.x * (W - 2 * PAD), y: PAD + n.y * (H - 2 * PAD) })
 
 export class FlightMapApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-flight-map`, classes: ["wct-panel", "wct-window", "wct-flight-map"],
+    id: `${ID}-flight-map`, classes: ["wct-panel", "wct-window", "wct-flight-map", ...UI_CLASSES],
     window: { title: "Flight route map", icon: "fa-solid fa-map-location-dot", resizable: true },
     position: { width: 820, height: 620 }
   };

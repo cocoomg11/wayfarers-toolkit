@@ -13,6 +13,7 @@ import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT, isToolkitFolderName } from "./macros.mjs";
 import * as M from "./panel-model.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -26,7 +27,7 @@ const isOn = id => id === "coins" ? get("coinSystem") === "threeCoin" : F.on(id)
 const featureLabel = id => id === "coins" ? "Three-coin economy" : F.FEATURES.find(f => f.id === id)?.label ?? id;
 const help = anchor => `<a class="wct-help" href="${M.README}#${anchor}" target="_blank" rel="noopener" data-tooltip="Help for this tab (README)" aria-label="Help"><i class="fa-solid fa-circle-question"></i></a>`;
 const reload = () => { const SC = foundry.applications?.settings?.SettingsConfig; if (SC?.reloadConfirm) return SC.reloadConfirm({ world: true }); foundry.utils.debouncedReload?.() ?? location.reload(); };
-const confirm = (title, content) => foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title }, content, rejectClose: false });
+const confirm = (title, content) => foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, rejectClose: false });
 
 export function init(api) { API = api; }
 
@@ -158,7 +159,7 @@ function featuresTab() {
   return `<header class="wct-tab-head"><h2><i class="${tab.icon}"></i> Features</h2>${help(tab.anchor)}</header>
     <p class="hint">Switch off what this world doesn't use: it then adds no buttons, macros or chat cards. Nothing in your world is deleted, and its settings stay (greyed out) in the other tabs.</p>
     <div class="wct-cards">${M.FEATURE_CARDS.map(card).join("")}</div>
-    <div class="wct-actions sticky"><button type="button" class="wct-primary" data-act="save-features"><i class="fa-solid fa-rotate"></i> Save features (reloads Foundry for everyone)</button></div>`;
+    <div class="wct-actions sticky"><button type="button" class="wc-btn wc-btn-primary wct-primary" data-act="save-features"><i class="fa-solid fa-rotate"></i> Save features (reloads Foundry for everyone)</button></div>`;
 }
 
 function overviewTab() {
@@ -171,7 +172,7 @@ function overviewTab() {
       <button type="button" data-act="recheck"><i class="fa-solid fa-rotate"></i> Check again</button>
       <button type="button" data-act="wizard"><i class="fa-solid fa-wand-magic-sparkles"></i> Run the welcome wizard</button>
       <button type="button" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
-      <button type="button" data-act="cleanup" class="wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
+      <button type="button" data-act="cleanup" class="wc-btn wc-btn-danger wct-danger"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
     <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
       <div class="wct-row-control">${switchHTML("updateNotes", get("updateNotes") !== false, false, 'data-instant')}</div></div></div>
@@ -198,20 +199,21 @@ function issuesFrom(sections) {
 // ---------------------------------------------------------------- the window
 export class ControlPanel extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-panel`, classes: ["wct-panel", "wct-window"],
+    id: `${ID}-panel`, classes: ["wct-panel", "wct-window", ...UI_CLASSES],
     window: { title: "Wanderer's Toolkit", icon: "fa-solid fa-toolbox", resizable: true },
     position: { width: 820, height: 640 }
   };
   tab = "overview";
 
   async _renderHTML() {
-    const div = document.createElement("div"); div.className = "wct-panel-body";
-    if (!game.user.isGM) { div.innerHTML = `<p class="wct-pad">The control panel is for GMs.</p>`; return div; }
+    const div = document.createElement("div"); div.className = "wc-shell wct-panel-body";
+    if (!game.user.isGM) { div.innerHTML = `<main class="wc-main"><p>The control panel is for GMs.</p></main>`; return div; }
     const tabs = M.TABS;
     const body = t => t.id === "overview" ? overviewTab() : t.id === "features" ? featuresTab() : settingsTab(t);
-    div.innerHTML = `<nav class="wct-tabs" role="tablist">${tabs.map(t => `<button type="button" role="tab" data-tab="${t.id}"><i class="${t.icon}"></i><span>${esc(t.label)}</span></button>`).join("")}</nav>
-      <div class="wct-main">${tabs.map(t => `<section class="wct-tab" data-tab="${t.id}" role="tabpanel">${body(t)}</section>`).join("")}</div>
-      <footer class="wct-footer"><span class="hint" data-dirty-note></span><button type="button" class="wct-primary" data-act="save"><i class="fa-solid fa-floppy-disk"></i> Save changes</button></footer>`;
+    div.innerHTML = `<nav class="wc-side wct-tabs" role="tablist" aria-label="Wanderer's Toolkit sections">${tabs.map(t => `<button type="button" class="wc-nav" role="tab" data-tab="${t.id}"><i class="${t.icon}" aria-hidden="true"></i><span class="wc-nav-label">${esc(t.label)}</span></button>`).join("")}
+        <span class="wc-side-foot">Wanderer's Toolkit <code>${esc(API?.version ?? "")}</code></span></nav>
+      <div class="wct-panel-page"><main class="wc-main wct-main">${tabs.map(t => `<section class="wct-tab" data-tab="${t.id}" role="tabpanel">${body(t)}</section>`).join("")}</main>
+      <footer class="wct-footer"><span class="hint" data-dirty-note></span><button type="button" class="wc-btn wc-btn-primary wct-primary" data-act="save"><i class="fa-solid fa-floppy-disk"></i> Save changes</button></footer></div>`;
     return div;
   }
 
@@ -220,6 +222,14 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     if (!game.user.isGM) return;
     const root = result;
     root.querySelectorAll(".wct-tabs [data-tab]").forEach(b => b.addEventListener("click", () => this.show(b.dataset.tab)));
+    // Sidebar keys: arrows / Home / End move between tabs; Space and Enter never reach Foundry's own key bindings (Space pauses).
+    root.querySelector(".wct-tabs")?.addEventListener("keydown", ev => {
+      const list = [...root.querySelectorAll(".wct-tabs [data-tab]")]; const i = list.indexOf(ev.target.closest("[data-tab]"));
+      if (ev.key === " " || ev.key === "Enter") { ev.stopPropagation(); return; }
+      const to = M.navKey(ev.key, i, list.length); if (to === null || i < 0) return;
+      ev.preventDefault(); ev.stopPropagation(); this.show(list[to].dataset.tab); list[to].focus();
+    });
+    root.querySelector(".wct-tabs")?.addEventListener("keyup", ev => { if (ev.key === " " || ev.key === "Enter") ev.stopPropagation(); });
     this.show(this.tab);
     root.addEventListener("click", ev => { const b = ev.target.closest("[data-act]"); if (b) { ev.preventDefault(); this.act(b.dataset.act, b); } });
     // Live bits: range values, dirty markers, the zones editor and the features page.
@@ -242,7 +252,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
   show(tab) {
     if (!M.TABS.some(t => t.id === tab)) tab = "overview";
     this.tab = tab; const root = this.element; if (!root) return;
-    root.querySelectorAll(".wct-tabs [data-tab]").forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle("active", on); b.setAttribute("aria-selected", on); });
+    root.querySelectorAll(".wct-tabs [data-tab]").forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle("active", on); b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     root.querySelectorAll(".wct-tab").forEach(s => { s.hidden = s.dataset.tab !== tab; });
     root.querySelector(".wct-footer").hidden = tab === "overview" || tab === "features";
   }
@@ -288,8 +298,8 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     const issues = issuesFrom(sections);
     const on = F.FEATURES.filter(f => F.on(f.id)).map(f => f.label);
     const head = issues.length
-      ? `<div class="wct-banner warn"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>${issues.length} thing${issues.length === 1 ? " needs" : "s need"} attention</strong><p>Each has a button to fix it where there's a quick fix.</p></div></div>`
-      : `<div class="wct-banner ok"><i class="fa-solid fa-circle-check"></i><div><strong>Everything looks good</strong><p>Setup is complete and nothing needs fixing for the tools turned on.</p></div></div>`;
+      ? `<div class="wc-alert wc-warn wct-banner warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><div><strong class="wc-alert-title">${issues.length} thing${issues.length === 1 ? " needs" : "s need"} attention</strong><p>Each has a button to fix it where there's a quick fix.</p></div></div>`
+      : `<div class="wc-alert wc-ok wct-banner ok"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><div><strong class="wc-alert-title">Everything looks good</strong><p>Setup is complete and nothing needs fixing for the tools turned on.</p></div></div>`;
     this.issues = issues;
     box.innerHTML = `${head}${issues.length ? `<ul class="wct-issues">${issues.map((i, n) => `<li class="${i.level}"><span class="wct-issue-text">${i.text}</span>${i.fix ? `<button type="button" data-act="fix" data-issue="${n}">${esc(i.fix.label)}</button>` : ""}</li>`).join("")}</ul>` : ""}
       <p class="hint">Tools on: ${on.length ? on.map(esc).join(", ") : "none"}. Coins: ${get("coinSystem") === "threeCoin" ? "three coins" : "standard 5e"}. Party size: ${esc(get("partySize"))}. Version ${esc(API.version ?? "")}.</p>`;
@@ -410,7 +420,7 @@ async function runSetup(after) {
 // ---------------------------------------------------------------- welcome wizard
 export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-wizard`, classes: ["wct-wizard", "wct-window"],
+    id: `${ID}-wizard`, classes: ["wct-wizard", "wct-window", ...UI_CLASSES],
     window: { title: "Welcome to Wanderer's Toolkit", icon: "fa-solid fa-wand-magic-sparkles", resizable: true },
     position: { width: 620, height: "auto" }
   };
@@ -434,7 +444,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
     div.innerHTML = `<div class="wct-steps">${dots}<span class="hint">Step ${this.step + 1} of 3</span></div>${body}
       <footer class="wct-footer"><button type="button" data-w="skip">Skip, I'll set it up myself</button><span class="spacer"></span>
       ${this.step ? `<button type="button" data-w="back"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ""}
-      ${this.step < 2 ? `<button type="button" class="wct-primary" data-w="next">Next <i class="fa-solid fa-arrow-right"></i></button>` : `<button type="button" class="wct-primary" data-w="finish"><i class="fa-solid fa-check"></i> Finish (reloads Foundry)</button>`}</footer>`;
+      ${this.step < 2 ? `<button type="button" class="wc-btn wc-btn-primary wct-primary" data-w="next">Next <i class="fa-solid fa-arrow-right"></i></button>` : `<button type="button" class="wc-btn wc-btn-primary wct-primary" data-w="finish"><i class="fa-solid fa-check"></i> Finish (reloads Foundry)</button>`}</footer>`;
     return div;
   }
 

@@ -18,6 +18,8 @@ import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log, byWhom } from "./log.mjs";
 import * as Summary from "./summary.mjs";
+import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { card as lookCard } from "./look-model.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tokenDoc = t => t?.document ?? t;
@@ -301,7 +303,7 @@ async function fallback(doc, api, why, d, { auto }) {
   else { try { what = await Trash.fallbackDrop(doc, api); } catch (e) { console.warn(`${ID} | Boss loot fallback for ${doc.name}`, e); what = `vendor trash failed too (${e.message})`; } }
   const table = d?.table ? esc(d.table.name) : esc(get(doc)?.table ?? "");
   const extra = why === "items" && d?.missing?.length ? ` (${d.missing.map(esc).join(", ")})` : "";
-  await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: ${esc(doc.name)}</h3><p>No boss loot dropped: ${FALLBACK_TEXT[why]}${extra}. ${what[0].toUpperCase()}${what.slice(1)}.</p><p class="hint">Table: ${table || "none"}. Fix the link (gem button), then Reset loot to draw again.</p>` });
+  await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: lookCard(`<h3>Boss loot: ${esc(doc.name)}</h3><p>No boss loot dropped: ${FALLBACK_TEXT[why]}${extra}. ${what[0].toUpperCase()}${what.slice(1)}.</p><p class="hint">Table: ${table || "none"}. Fix the link (gem button), then Reset loot to draw again.</p>`, "wct-bossloot") });
   return { token: doc.name, table: d?.table?.name ?? null, items: [], nothing: d?.nothing ?? [], coin: 0, fallback: why, then: what };
 }
 
@@ -317,7 +319,7 @@ async function card(doc, d, api, { created, coin, piles, auto = false }) {
 ${d.flag.note ? `<p class="hint">${esc(d.flag.note)}</p>` : ""}<p class="hint">From ${esc(d.table.name)} · ${d.draws ?? d.flag.draws} draw${(d.draws ?? d.flag.draws) === 1 ? "" : "s"}${piles && !empty ? " · the body is ready to loot" : ""}.</p>
 ${!piles && !empty ? `<button type="button" data-wct-action="give-bossloot"><i class="fas fa-sack"></i> Give to Party</button>` : ""}`;
   const flag = { token: doc.uuid, piles, given: false, drops: piles ? [] : d.items.map(i => i.uuid), coin: piles ? 0 : coin };
-  const single = { content, whisper: gmIds(), speaker: { alias: "Boss loot" }, flags: { [ID]: { bossLootCard: flag } } };
+  const single = { content: lookCard(content, "wct-bossloot"), whisper: gmIds(), speaker: { alias: "Boss loot" }, flags: { [ID]: { bossLootCard: flag } } };
   if (auto) {
     // One line per creature in a batched summary; the Start loot roll buttons stay on it.
     const line = `<li><strong>${esc(doc.name)}</strong>: ${empty ? `<span class="hint">nothing</span>` : `<ul>${rows.join("")}</ul>`}</li>`;
@@ -399,7 +401,7 @@ export async function preview(api, targets = null) {
 <table><thead><tr><th>Result</th><th>Weight</th><th>Per draw</th></tr></thead><tbody>${rows.join("")}</tbody></table>
 <p class="hint">${drawn ? `Already dropped: ${(drawn.items ?? []).map(esc).join(", ") || "nothing"}.` : "Not dropped yet."}</p>`;
     }
-    out.push(await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: ${esc(name)}</h3>${body}` }));
+    out.push(await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: lookCard(`<h3>Boss loot: ${esc(name)}</h3>${body}`, "wct-bossloot") }));
   }
   return out;
 }
@@ -433,7 +435,7 @@ export async function autoLink(api, { folder = null, overwrite = false, quiet = 
   log("Boss loot: auto-link", { linked, skipped });
   if (!quiet) {
     ui.notifications.info(`Boss loot: linked ${linked.length} creature${linked.length === 1 ? "" : "s"}${skipped.length ? `, skipped ${skipped.length}` : ""}.`);
-    await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: `<h3>Boss loot: link tables by name</h3>${linked.length ? `<p><strong>Linked:</strong></p><ul>${linked.map(l => `<li>${esc(l.actor)} → ${esc(l.table)}</li>`).join("")}</ul>` : "<p>Nothing new to link.</p>"}${skipped.length ? `<p><strong>Skipped:</strong></p><ul>${skipped.map(x => `<li>${esc(x.actor)} (${esc(x.why)})</li>`).join("")}</ul>` : ""}<p class="hint">Tables named "&lt;creature&gt; · Loot", "&lt;creature&gt; - Loot" or "Loot: &lt;creature&gt;" are linked to the world NPC actor with that exact name.</p>` });
+    await ChatMessage.create({ whisper: gmIds(), speaker: { alias: "Boss loot" }, content: lookCard(`<h3>Boss loot: link tables by name</h3>${linked.length ? `<p><strong>Linked:</strong></p><ul>${linked.map(l => `<li>${esc(l.actor)} → ${esc(l.table)}</li>`).join("")}</ul>` : "<p>Nothing new to link.</p>"}${skipped.length ? `<p><strong>Skipped:</strong></p><ul>${skipped.map(x => `<li>${esc(x.actor)} (${esc(x.why)})</li>`).join("")}</ul>` : ""}<p class="hint">Tables named "&lt;creature&gt; · Loot", "&lt;creature&gt; - Loot" or "Loot: &lt;creature&gt;" are linked to the world NPC actor with that exact name.</p>`, "wct-bossloot") });
   }
   return { linked, skipped };
 }
@@ -454,7 +456,7 @@ export async function openDialog(api, target) {
 <div class="form-group"><label>Coin (copper)</label><input type="number" name="coinCp" min="0" step="1" value="${cur.coinCp ?? 0}"></div>
 <div class="form-group"><label>Note</label><input type="text" name="note" value="${esc(cur.note ?? "")}"></div>
 ${worldActor ? `<div class="form-group"><label>Every token of ${esc(worldActor.name)}</label><input type="checkbox" name="world" ${worldActor.getFlag(ID, "bossLoot") ? "checked" : ""}><p class="hint">Save on the world actor, so new tokens get it too. Unticked: only this token.</p></div>` : ""}`;
-  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"],
+  const f = await foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES],
     window: { title: `Boss loot: ${doc?.name ?? actor.name}` }, content, position: { width: 480 },
     ok: { label: "Save", icon: "fa-solid fa-floppy-disk", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object },
     render: (ev, dialog) => {

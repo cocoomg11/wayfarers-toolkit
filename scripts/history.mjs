@@ -8,6 +8,8 @@ import * as H from "./history-model.mjs";
 import * as Vault from "./vault.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log } from "./log.mjs";
+import { UI_CLASSES, itemSlot } from "../vendor/wanderers-core/index.mjs";
+import * as PM from "./pane-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const KEY = "lootHistoryData";
@@ -49,7 +51,7 @@ export async function clear({ confirm = true } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   if (confirm) {
     const n = entries().length;
-    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Clear loot history" }, content: `<p>Delete all ${n} loot roll${n === 1 ? "" : "s"} from the history? This can't be undone. Export a CSV first if you want a copy.</p>`, rejectClose: false });
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title: "Clear loot history" }, content: `<p>Delete all ${n} loot roll${n === 1 ? "" : "s"} from the history? This can't be undone. Export a CSV first if you want a copy.</p>`, rejectClose: false });
     if (!ok) return false;
   }
   await save([]);
@@ -76,7 +78,7 @@ const fmtWhen = at => { const d = new Date(at); return Number.isNaN(d.getTime())
 
 export class LootHistoryApp extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
-    id: `${ID}-loot-history`, classes: ["wct-history", "wct-window"],
+    id: `${ID}-loot-history`, classes: ["wct-history", "wct-window", ...UI_CLASSES],
     window: { title: "Loot history", icon: "fa-solid fa-clock-rotate-left", resizable: true },
     position: { width: 760, height: 620 }
   };
@@ -93,7 +95,7 @@ export class LootHistoryApp extends foundry.applications.api.ApplicationV2 {
     const tally = H.tally(H.filterEntries(all, { day: this.filter.day }));
     const head = HEADS.map(([k, l]) => `<th><button type="button" data-sort="${k}" class="${this.sort.key === k ? `on ${this.sort.dir}` : ""}">${l}${this.sort.key === k ? ` <i class="fa-solid fa-caret-${this.sort.dir === "asc" ? "up" : "down"}"></i>` : ""}</button></th>`).join("");
     const rows = list.map(e => `<tr data-id="${esc(e.id)}"><td class="when">${esc(fmtWhen(e.at))}</td><td>${esc(e.scene)}</td>
-      <td class="item" style="--q:${esc(e.item?.color || "#ffffff")}">${e.item?.img ? `<img src="${esc(e.item.img)}" alt="">` : ""}<span>${esc(e.item?.name)}</span>${e.quantity > 1 ? ` <small>×${e.quantity}</small>` : ""}</td>
+      <td class="item" data-quality="${esc(PM.qualityKey({ color: e.item?.color, rarity: e.item?.rarity || "common" }))}">${e.item?.img ? itemSlot({ img: e.item.img, quality: PM.qualityKey({ color: e.item?.color, rarity: e.item?.rarity || "common" }), name: e.item?.name, size: "sm" }) : ""}<span class="wc-q-text">${esc(e.item?.name)}</span>${e.quantity > 1 ? ` <small>×${e.quantity}</small>` : ""}</td>
       <td class="outcome ${esc(e.outcome)}">${esc(H.OUTCOMES[e.outcome] ?? e.outcome)}</td>
       <td>${esc(H.winnerText(e))}${e.outcome === "won" && e.winner?.tier ? ` <small>(${H.CHOICE_LABELS[e.winner.tier]} ${esc(e.winner.roll ?? "")})</small>` : ""}</td></tr>
       ${e.choices?.length || e.note ? `<tr class="detail"><td></td><td colspan="4">${esc(H.choicesText(e))}${e.note ? `<span class="note">${esc(e.note)}</span>` : ""}</td></tr>` : ""}`).join("");
@@ -103,7 +105,7 @@ export class LootHistoryApp extends foundry.applications.api.ApplicationV2 {
         <label>Session date <select data-filter="day"><option value="">All dates</option>${dayList.map(d => `<option value="${d}" ${d === this.filter.day ? "selected" : ""}>${d}</option>`).join("")}</select></label>
         <span class="spacer"></span>
         <button type="button" data-act="csv" ${list.length ? "" : "disabled"}><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-        <button type="button" data-act="clear" class="wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear history…</button>
+        <button type="button" data-act="clear" class="wc-btn wc-btn-danger wct-danger" ${all.length ? "" : "disabled"}><i class="fa-solid fa-trash"></i> Clear history…</button>
       </div>
       <details class="wct-history-tally" open><summary>Per player${this.filter.day ? ` on ${this.filter.day}` : ""}</summary>
         ${tally.length ? `<table><thead><tr><th>Player</th><th>Rolls</th><th>Items received</th><th>Need wins</th><th>Greed wins</th><th>GM assigned</th></tr></thead><tbody>${tally.map(t => `<tr><td>${esc(t.label)}</td><td>${t.rolls}</td><td>${t.won}</td><td>${t.need}</td><td>${t.greed}</td><td>${t.assigned}</td></tr>`).join("")}</tbody></table>` : `<p class="hint">Nobody yet.</p>`}

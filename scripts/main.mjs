@@ -35,6 +35,8 @@ import * as Migrate from "./migrate.mjs";
 import * as CoinLog from "./coinlog.mjs";
 import * as CL from "./coinlog-model.mjs";
 import * as UX from "./quest-ux-model.mjs";
+import { UI_CLASSES, coins as coinsMarkup } from "../vendor/wanderers-core/index.mjs";
+import { card } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -157,6 +159,11 @@ function fmtMoney(amount) {
   const C = CONFIG.DND5E.currencies;
   return Flight.formatCoins(amount, coins(), Object.fromEntries(Object.entries(C).map(([k, c]) => [k, c.abbreviation])), setting("coinSystem") === "threeCoin");
 }
+
+/** The copper per silver (and silver per gold) of the coins in use: 100 with three coins, 10 in standard 5e. For core's coins(). */
+const coinRatio = () => { try { const v = Object.fromEntries(coins()); return v.sp > 0 && v.cp > 0 ? Math.round(v.sp / v.cp) : 10; } catch { return 10; } };
+/** Amount in the smallest coin → core's coin markup (gold / silver / copper dots and numbers; platinum and electrum folded in). 1.30. */
+function moneyHTML(amount) { return coinsMarkup(Math.max(0, Math.round(Number(amount) || 0)), { ratio: coinRatio() }); }
 
 /** Item Piles' currency list for the three-coin economy, copper first: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
 const IP_COINS = /** @type {[string, string, string, number, boolean, string][]} */ ([
@@ -341,12 +348,12 @@ export const WCT = {
   page(name) { const p = this.tracker().pages.getName(name); if (!p) throw new Error(`Wanderer's Toolkit: page "${name}" missing from "${this.JOURNAL}".`); return p; },
   async appendPage(name, html) { const p = this.page(name); await p.update({ "text.content": (p.text.content || "") + html }); },
   parseTable(html, i) { const t = new DOMParser().parseFromString(html, "text/html").querySelectorAll("table")[i]; return t ? [...t.querySelectorAll("tbody tr")].map(tr => [...tr.children].map(td => td.textContent.trim())) : []; },
-  gmWhisper(content) { return ChatMessage.create({ content, whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" } }); },
-  say(content, alias = "Narrator") { return ChatMessage.create({ content, speaker: { alias } }); },
+  gmWhisper(content) { return ChatMessage.create({ content: card(content), whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" } }); },
+  say(content, alias = "Narrator") { return ChatMessage.create({ content: card(content), speaker: { alias } }); },
   /** An information or refusal window with a single OK button. */
-  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
-  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window"], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
-  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title }, content, rejectClose: false }); },
+  info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
+  form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
+  confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", ...UI_CLASSES], window: { title }, content, rejectClose: false }); },
   gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
   opt(v, label, sel) { return `<option value="${esc(v)}" ${sel ? "selected" : ""}>${esc(label ?? v)}</option>`; },
   campaign() { return setting("campaignName") || game.world.title; },
@@ -521,7 +528,7 @@ export const WCT = {
     const r = Pace.readRequest({ action: "paceRequest", ...data }); if (!r || !u || u.isGM || !setting("paceRequests")) return;
     if (cardPosted("paceRequest", rid)) return;
     return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name, rid } } },
-      content: `<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>` });
+      content: card(`<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>`) });
   },
   // ------------------------------------------------------------ flight network
   // GMs read the full network from the GM-only store (vault.mjs); everyone else reads the flightNetwork world setting, which since
@@ -816,7 +823,7 @@ export const WCT = {
   log,
 
   // ------------------------------------------------------------ money (amounts are in the smallest coin in use)
-  parseMoney, fmtMoney, coins,
+  parseMoney, fmtMoney, coins, moneyHTML, coinRatio,
   totalMoney(a) { const c = a.system.currency ?? {}; return coins().reduce((t, [k, v]) => t + (c[k] || 0) * v, 0); },
   purse(a) { const c = a.system.currency ?? {}; const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; return coins().filter(([k]) => c[k]).map(([k]) => `${c[k]}${tight ? "" : " "}${C[k].abbreviation}`).join(" ") || "empty"; },
   /**
