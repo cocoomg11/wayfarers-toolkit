@@ -75,5 +75,5 @@ test("workflows: actions pinned by SHA, read-only by default, upload is the only
   assert.match(rel, /vendor\.mjs verify --remote/);
   assert.match(rel, /zip -r module\.zip [^\n]* vendor [^\n]*\\\n\s*-x 'vendor\/wanderers-core\/config\/\*' 'vendor\/wanderers-core\/vendor\.mjs'/);
   assert.match(rel, /--ignore-scripts/);
-  assert.match(tst, /module-checks\.yml@v0\.2\.0/);
+  assert.match(tst, /module-checks\.yml@v0\.4\.0/);
 });
