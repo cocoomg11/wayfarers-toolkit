@@ -25,6 +25,15 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.29.0",
+    changes: [
+      { feature: "questLog", text: "The quest log has a new look: a native Foundry window (dark or light theme) with a stone-framed quest list and a parchment page. Zones fold with + and −, names are coloured by difficulty, and finished quests say (Ready)." },
+      { feature: "questLog", text: "Each quest now belongs to one party (a group actor). Players only see their own party's quests: in the log, the tracker, journals, chat and on map pins. Your quests were given your party actor; add more parties under control panel › Quests › Parties, and filter the log by party." },
+      { feature: "questLog", text: "Quest levels set a difficulty against the party's level (Trivial, Easy, Even, Hard, Deadly). Objectives can have counters (3/8) you move with + and −. Rewards can include \"Choose one of these rewards\": a player in the party picks. Complete and pay sends coin and items to the quest's party." },
+      { feature: "questLog", text: "Quest cap (control panel › Quests › Advanced, default 25): you're warned when a party has more active quests than that. Shown as Quest Log (n / cap)." }
+    ]
+  },
+  {
     version: "1.28.0",
     changes: [
       { feature: "questMapPins", text: "Click an objective (or a quest's title) in the tracker, or an objective in the quest log, and the map moves to the quest's map pin and pings it. A pin on another scene: you're offered to view it; players are told which scene." },

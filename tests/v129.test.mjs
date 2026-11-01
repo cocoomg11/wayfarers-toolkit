@@ -275,3 +275,13 @@ test("no game-publisher wording in the 1.29 strings", () => {
 test("quest-log-model has no Foundry calls", () => {
   assert.doesNotMatch(src("scripts/quest-log-model.mjs"), /\b(game|ui|Hooks|foundry|canvas|document|window|CONST)\./);
 });
+
+test("1.29.0: version, download URL, update note", async () => {
+  const m = JSON.parse(src("module.json"));
+  assert.equal(m.version, "1.29.0");
+  assert.match(m.download, /releases\/download\/v1\.29\.0\/module\.zip$/);
+  const { NOTES } = await import("../scripts/update-notes.mjs");
+  assert.equal(NOTES[0].version, "1.29.0");
+  assert.doesNotMatch(JSON.stringify(NOTES[0]), /warcraft|blizzard|azeroth|\bwow\b/i);
+  assert.match(src("CHANGELOG.md"), /## 1\.29\.0[\s\S]*?Untested in Foundry/);
+});

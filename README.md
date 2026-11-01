@@ -219,8 +219,8 @@ See [Zone title cards](#zone-title-cards) and [Rested at the inn](#rested-at-the
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Show the quest tracker on my screen** (just for you), **Announce objectives in chat**, sounds when a quest is given and completed |
-| **Advanced** | Quest sound volume, quest folder |
+| **Basics** | **Show the quest tracker on my screen** (just for you), **Parties**, **Announce objectives in chat**, sounds when a quest is given and completed |
+| **Advanced** | Quest cap, quest sound volume, quest folder |
 
 ## Hex Travel
 
@@ -649,13 +649,16 @@ Items whose description holds an MMO-style item tooltip, like those in the optio
 
 **How to use:** press **L**, click the scroll button in the token controls, or run the **Quest Log** macro. The GM clicks **New quest**; players only read.
 
-Quests stay narrative: each one has a few objectives written as things to do ("Handle the bandit camp", "Find out who hired them"), and the GM ticks them off when the story says so. There are no kill or collect counters.
+Quests stay narrative: each one has a few objectives written as things to do ("Handle the bandit camp", "Find out who hired them"), and the GM ticks them off when the story says so. An objective can also have a counter ("Wolf pelts 3/8") that the GM moves with + and −; it ticks itself when the count is reached.
+
+Since 1.29 each quest belongs to **one party** (a group actor). Players see a quest only if they own a character in its party: in the log, the tracker, the journal, chat cards and on map pins. A quest with no party is GM-only until you pick one. The log looks like a native Foundry window in both the dark and the light theme; the quest list (a stone frame) and the quest page (parchment) look the same in either.
 
 ### Setup
 
 1. Make sure **Quest log** (and, if you want it, **Quest tracker**) is switched on in the control panel's Features tab.
 2. Run setup to add a **Quest Log** macro (shared with players). Everyone can also open the log with the scroll button in the token controls or the **L** key (change it under **Configure Controls**).
-3. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Announce objectives in chat**, and **Sound when a quest is given** / **Sound when a quest is completed** with a **Quest sound volume** (blank by default; pick your own audio files).
+3. **Parties** (control panel › Quests): tick the group actors quests can be given to. None ticked: the party actor (General tab). **Quest cap** (Advanced, default 25): how many active quests one party can have before you're warned; giving more still works. The list's header shows *Quest Log (n / cap)*.
+4. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Announce objectives in chat**, and **Sound when a quest is given** / **Sound when a quest is completed** with a **Quest sound volume** (blank by default; pick your own audio files).
 
 <!-- screenshot: the quest log with a quest open -->
 
@@ -663,20 +666,21 @@ Quests stay narrative: each one has a few objectives written as things to do ("H
 
 Click **New quest** in the log. A quest has:
 
-- **Title**, **Zone / region** (quests are grouped under zone headers) and an optional **Level / tier** label.
+- **Title**, **Zone / region** (quests are grouped under zone headers) and an optional **Level**. A number (`4`, or `Lv 4`) gives the quest a difficulty against its party: quest level minus the party's level (the average character level of its members) is **Trivial** (−5 or lower, grey), **Easy** (−4 to −2, green), **Even** (−1 to +1, yellow), **Hard** (+2 or +3, orange) or **Deadly** (+4 or more, red). Text that isn't a number (`3-5`, `Heroic`) is shown as it is, without a colour.
+- **Party**: the group actor the quest belongs to (new quests get the log's party filter, or the first party).
 - **Quest giver**: type a name or drop an actor on the field to link it.
 - **Summary** (a line or two, used in chat) and a rich-text **Description**.
-- **Objectives**: add, remove and reorder rows. Each can be **Hidden** (players don't see it until you reveal it) or **Optional**.
-- **Rewards**: coin written like `1g 20s` or `50c` (a plain number is read in *Fares without a coin are in*, control panel › Travel; works with either coin system), items dropped from the sidebar or a compendium, and free text such as renown.
+- **Objectives**: add, remove and reorder rows. Each can be **Hidden** (players don't see it until you reveal it) or **Optional**, and can have a count (blank for none).
+- **Rewards**: coin written like `1g 20s` or `50c` (a plain number is read in *Fares without a coin are in*, control panel › Travel; works with either coin system), **Items** dropped from the sidebar or a compendium (always given), **Choose one of** (items a party member picks from; the GM can change the pick), and free text such as renown. Item slots are bordered by rarity: mundane grey, common white, uncommon green, rare blue, very rare purple, legendary orange.
 - **Status**: *Not given*, *Active*, *Completed* or *Failed*, and **Hidden from players**.
 
-In the log the GM sees every quest, including ones not given yet (*Not given* tab) and hidden ones (marked with a crossed-out eye). Buttons under each quest: **Give quest**, **Complete**, **Fail**, **Reopen**, **Pay rewards**, **Show / Hide from players**, **Edit**, **Journal** and **Delete**. Click an objective's box to tick it; **Reveal** shows a hidden objective.
+In the log the GM sees every quest, including ones not given yet (*Not given* tab) and hidden ones (marked with a crossed-out eye), and filters by party with the chips at the top (**All parties**, or one party with its level). The list groups quests by zone (click a zone to fold it; remembered on this computer), each row with its Track box, `[level]` and name coloured by difficulty, *(Ready)* when every required objective is done, and the party's name when several parties are shown. The page shows the party badge (a drop-down for the GM: changing it moves the quest to another party) and the difficulty, the title, zone and giver, the description, objectives (with n/m counters), and the rewards: *You will receive*, *Choose one of these rewards* and *You will also receive* (the coin, "to" the party). Buttons: **Track**, **Edit**, **Hide from players**, **Give quest**, **Fail**, **Reopen**, **Journal**, **Delete** and **Complete and pay to *party*** (completes, then pays; with a reward still to choose it completes and leaves **Pay rewards** for later). Click an objective's box to tick it; **Reveal** shows a hidden objective.
 
 ### What players see
 
-Players only read. They see quests that have been given and aren't hidden, under **Active** and **Completed** (failed quests sit in Completed, struck through), with visible objectives, the description and rewards. The journal entries follow the same rule: players get Observer permission only once a quest is given and not hidden.
+Players only read, with one exception: a member of the quest's party picks the reward under *Choose one of these rewards* (the choice goes to the GM's client, which checks they're in the party). They see their party's quests that have been given and aren't hidden, under **Active** and **Completed** (failed quests sit in Completed, struck through), with visible objectives (counters as n/m), the description and rewards. There's no party filter for players. The journal entries follow the same rule: a player gets Observer on a quest's journal only once it is given, not hidden, and they own a character in its party (it's updated when a party's members change). Chat cards for a quest are whispered to the GMs and those players.
 
-**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker lists each tracked quest's open objectives. It starts at the top right, left of the sidebar, in the first spot that covers none of Foundry's own interface (scene controls and navigation, players list, hotbar, camera dock). **Drag it by its title** to put it anywhere (mouse or touch), or focus its grip (Tab) and use the **arrow keys** (Shift for bigger steps); it's kept inside the window, and each person's spot is remembered on their own computer. Double-click the title, press **Home** on the grip, or use the reset button next to **Show tracker** in the quest log (or *control panel › Quests › Reset quest tracker position*) to put it back. Collapse it with its arrow; close it with its **X** and bring it back with **Show tracker** at the top of the quest log (the same as **Show the quest tracker on my screen**, Quests tab). Tracking a quest while it's closed doesn't reopen it. Scripts: `api.quests.showTracker(on)` and `api.quests.resetTrackerPosition()` (this client only).
+**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker lists each tracked quest of the player's party, its title coloured by difficulty, and its open objectives with counters (n/m). It starts at the top right, left of the sidebar, in the first spot that covers none of Foundry's own interface (scene controls and navigation, players list, hotbar, camera dock). **Drag it by its title** to put it anywhere (mouse or touch), or focus its grip (Tab) and use the **arrow keys** (Shift for bigger steps); it's kept inside the window, and each person's spot is remembered on their own computer. Double-click the title, press **Home** on the grip, or use the reset button next to **Show tracker** in the quest log (or *control panel › Quests › Reset quest tracker position*) to put it back. Collapse it with its arrow; close it with its **X** and bring it back with **Show tracker** at the top of the quest log (the same as **Show the quest tracker on my screen**, Quests tab). Tracking a quest while it's closed doesn't reopen it. Scripts: `api.quests.showTracker(on)` and `api.quests.resetTrackerPosition()` (this client only).
 
 **Objective → map pin** (feature *Quest objectives find their map pin*, 1.28). Link a map pin to a quest from the pin's card. Then clicking one of the quest's open objectives in the tracker, or an objective or the quest's title in the quest log, moves the map to the pin and pings it (Foundry's own ping, seen by everyone on the scene; a GM's hidden pin is moved to but never pinged). Clicking the quest's title in the tracker opens the log and also moves to the pin, quietly. A pin on another scene: the GM is asked whether to view that scene (only the GM moves); a player is told which scene it's on. With several pins, one on the scene you're viewing wins.
 
@@ -686,14 +690,16 @@ Players only read. They see quests that have been given and aren't hidden, under
 
 - **Give quest** posts a *New quest* card with the summary (and plays the accepted sound).
 - Ticking or revealing an objective posts a short line (or a notification, with *Quest objectives in chat* off).
-- **Complete** posts a *Quest complete* card listing the rewards, with a **Pay rewards** button for the GM: the coin goes into the party actor's purse and the items onto the party actor. Each quest pays once.
+- **Complete** posts a *Quest complete* card listing the rewards, with a **Pay rewards** button for the GM: the coin goes into the purse of the quest's party actor and the items (fixed ones plus the chosen one) onto it, logged in the coin log as *Quest reward: …*. Each quest pays once; it waits while a reward is still to be chosen.
 - **Fail** posts a *Quest failed* card.
 
 Hidden quests announce nothing; showing an active quest to players announces it then.
 
 ### Journals
 
-Each quest is a journal entry with one text page in the quest folder. The page is rewritten from the quest's data whenever it changes, so it reads well on its own and in exports: status, level, zone, giver, summary, objectives (☑/☐), description and rewards. Hidden objectives go in a secret block that only the GM sees. Edit quests in the quest log rather than on the page, since the page is regenerated. The data is in `flags.wayfarers-toolkit.quest`.
+Each quest is a journal entry with one text page in the quest folder. The page is rewritten from the quest's data whenever it changes, so it reads well on its own and in exports: status, level, zone, party, giver, summary, objectives (☑/☐, counters), description and rewards. Hidden objectives and secret text never go on the page (the full quest is in the GM-only records). Edit quests in the quest log rather than on the page, since the page is regenerated. The players' view is in `flags.wayfarers-toolkit.quest` (record version `v: 2` since 1.29: `party`, numeric `level` with `levelText` for other text, objective `target` / `progress`, rewards `choice` / `pick`).
+
+**Upgrading to 1.29.** Once, on the acting GM's client, every existing quest is given the party actor (General › Party actor) as its party, levels like `Lv 4` become numbers (anything else is kept as text), reward items get their rarity, and each journal's ownership is set from its party. Until then old quests keep the old rule (every player sees given quests). Without a party actor the quests become GM-only until you choose a party for each (the health check lists them).
 
 ### Scripting
 
@@ -711,7 +717,7 @@ await q.complete("Trouble at the Old Mill");          // or q.fail(…), q.reset
 q.open("Trouble at the Old Mill");
 ```
 
-Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`, `showTracker(on)` and `resetTrackerPosition()` (the on-screen tracker on this client; experimental). Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
+Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`, `showTracker(on)` and `resetTrackerPosition()` (the on-screen tracker on this client; experimental). From 1.29 (experimental): `progressObjective(quest, objective, delta)` (counter +/−), `assign(quest, partyId)` (`""` = no party), `pickReward(quest, itemUuid)` (players: sent to the GM), `parties()` (`[{ id, name, level }]`) and `difficulty(quest)` (`{ id, label, colour }` or null). `create` takes `party` (a group actor id), `level` (number or text), objectives with `target`, and `rewards.choice`. Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
 
 ## Boss frames
 
@@ -871,7 +877,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition` | experimental |
+| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty` | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
@@ -897,7 +903,7 @@ Hooks.on("wayfarersToolkit.questUpdated", ({ questId, change }) => { … });
 Hooks.on("wayfarersToolkit.journey", ({ kind, fromId, toId, fromName, toName, hours, cost, partyId }) => { … });
 ```
 
-- **`wayfarersToolkit.questUpdated`** `{ questId, change }`: `questId` is the quest journal entry's 16-character id; `change` is one of `"started"` (given or reopened), `"completed"`, `"failed"`, `"objective"` (ticked, unticked, revealed or hidden), `"updated"` (anything else: text, hidden from or shown to players, rewards paid, set back to not given) or `"assigned"` (reserved for party assignment, not fired yet). It fires only **after** the quest is saved (the GM-only records and the quest journal), so reading the quest from inside the hook sees the change. Ids only: read the quest through `api.quests.get(questId)`.
+- **`wayfarersToolkit.questUpdated`** `{ questId, change }`: `questId` is the quest journal entry's 16-character id; `change` is one of `"started"` (given or reopened), `"completed"`, `"failed"`, `"objective"` (ticked, unticked, revealed or hidden), `"updated"` (anything else: text, hidden from or shown to players, rewards paid, set back to not given) or `"assigned"` (the quest moved to another party, or to none; since 1.29). It fires only **after** the quest is saved (the GM-only records and the quest journal), so reading the quest from inside the hook sees the change. Ids only: read the quest through `api.quests.get(questId)`.
 - **`wayfarersToolkit.journey`** after a hex trip or flight has happened: `kind` `"hex"` or `"flight"`; for a flight `fromId` / `toId` are flight point ids and the names their names; for hex travel `fromId` / `fromName` are the scene travelled from and `toName` the zone travelled through (`toId` null). `hours` is decimal hours (e.g. `2.5`); `cost` is `{ gp, sp, cp }`, whole coins of each kind (what was actually charged; 0 for free flights and hex travel); `partyId` the party actor's id or null.
 
 Earlier hooks: none from 1.27 to 1.27.2 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the acting GM client, and it isn't meant for other modules.
@@ -924,6 +930,8 @@ The first time the acting GM loads 1.27, each of these runs once (recorded in th
 | `quests1` | each quest's full data is copied into the GM-only records; its journal flag and page are rewritten to the public view | the hidden objectives and secret text live only in the GM-only records afterwards (1.26 would show them as missing) |
 | `pins1` | hidden GM pins are copied into the GM-only records and their map notes deleted | revealing a pin recreates its note with the same id; 1.26 doesn't see hidden pins |
 | `rested1` | characters already Rested get a room rental record, so they keep the benefit | the Rested flag on characters is unchanged |
+| `coinLog1` (1.28) | the coin log's empty record is created | nothing moved |
+| `quests2` (1.29) | each quest gets record version 2: the party actor as its party, a numeric level where the text was one, reward rarities, and journal ownership from its party | 1.28 reads version 2 records (unknown fields ignored; a numeric level shows as the number), but players' journal ownership is then per party; set the journals' default ownership back by hand if you go back |
 
 Moves for a tool that's off wait until it's turned on. Settings of Session Start and Who's online (`hiddenScenes`, `onlineCount`, `onlineList`, `onlinePosition`, `onlineDrag`, client `onlineHudPos`) and the scene flag `flags.wayfarers-toolkit.hub` are left untouched and stay registered (hidden), so the Red Book module's own one-time move can read them.
 

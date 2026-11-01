@@ -194,15 +194,12 @@ test("1.28 features: toggles, cards, panel rows with labels, needs", () => {
   const keys = PM.TABS.flatMap(PM.tabKeys);
   for (const k of ["travelConfirmSkip", "innRestHours"]) { assert.ok(keys.includes(k), k); assert.ok(PM.LABELS[k]?.[0], k); assert.ok(!PM.RECORD_SETTINGS.has(k), k); }
   assert.match(src("scripts/features.mjs"), /questMapPins: \["questLog", "mapPins"\]/);
-  const n = NOTES[0]; assert.equal(n.version, "1.28.0");
+  const n = NOTES.find(x => x.version === "1.28.0"); assert.ok(n, "1.28.0 update note");
   const text = JSON.stringify([n, FEATURES.filter(f => ids.includes(f.id)), PM.FEATURE_CARDS, PM.LABELS]) + src("scripts/coinlog.mjs") + src("scripts/quest-ux-model.mjs") + src("scripts/coinlog-model.mjs");
   assert.doesNotMatch(text, /warcraft|blizzard|azeroth|\bwow\b/i);
 });
 
-test("README documents both hooks; 1.28.0 version and download URL", () => {
+test("README documents both hooks", () => {
   const r = src("README.md");
   assert.match(r, /wayfarersToolkit\.questUpdated/); assert.match(r, /wayfarersToolkit\.journey/);
-  const m = JSON.parse(src("module.json"));
-  assert.equal(m.version, "1.28.0");
-  assert.match(m.download, /releases\/download\/v1\.28\.0\/module\.zip$/);
 });

@@ -2,6 +2,49 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.29.0
+
+The quest log's facelift: a party for every quest, difficulty colours, objective counters, chosen rewards and a quest cap, on wanderers-core's shared UI. One quest data migration (`quests2`). The quest log stays one feature switch (`questLog`); the tracker, glow and map-pin features keep their own.
+
+**Changed**
+- **Core 0.3.1 and the shared look.** `vendor/wanderers-core` updated from 0.2.0 to 0.3.1 with the vendor tool (adds `styles/wanderers-ui.css` and `ui-model.mjs`). `module.json` lists the core stylesheet first. The Quest Log window carries `...UI_CLASSES` (`wc-ui wc-r2`), so it is a native Foundry v14 window in the dark and light themes: tabs and party filters are `wc-chip`s, New quest and the tracker switch are `wc-btn`s. Inside it, the quest list (a stone frame with a bevelled rim) and the quest page (parchment with a centred title and a small CSS-drawn flourish) are in-world panels that look the same in both themes (CSS only, no images). The quest editor and the tracker keep their 1.28 look.
+- **Quest Log layout.** Tabs Active / Completed / Not given (GM), party chips (GM: *All parties* and each party with *· Lv N*; players get none), Show tracker and its reset button, New quest. Left: *Quest Log (n / cap)* header (one party: its active count over the cap; several parties together: just the count), collapsible zone rows (+/− and a count; folded zones per client in hidden client setting `questZonesCollapsed` = `{ v: 1, zones }`, ≤ 200), rows with a Track box, `[level]` and name coloured by difficulty, *(Ready)* when all required objectives are done, the party's name when several parties are listed (GM: *No party* on quests without one), and a colour legend. Right: party badge (GM: a drop-down to move the quest) and *[4] Even*, title, zone and giver line, Description (summary + text), Objectives (box, text, optional marked, n/m with GM − / +), Rewards (*You will receive:*, *Choose one of these rewards:* with the selection, *You will also receive:* g/s/c coins "to *party*"), item slots bordered by rarity (dnd5e `system.rarity`: mundane grey, common white, uncommon green, rare blue, very rare purple, legendary/artifact orange). Footer: Track switch, Edit, Hide from players, Give / Fail / Reopen, Journal, Delete and **Complete and pay to *party***. No Share or Abandon. Narrow windows stack the list above the page.
+- **Tracker**: lists only quests the player can see (so their party's), titles coloured by difficulty with `[level]`, counters `n/m` before an objective's text.
+
+**Added**
+- **Parties** (world setting `questParties`, Array of group actor ids, control panel › Quests; empty = the party actor, so the default is the current `partyActor`). Kept out of settings files (`RECORD_SETTINGS`: actor ids) and the wizard.
+- **Party visibility**: a player sees a quest only if it is given, not hidden, and they own a member of its party (`canSee`, `quest-log-model.mjs` `visibleTo`). A quest with no party is GM-only. Applied to: journal ownership (per user: Observer for those players, None for everyone else, default None; `questOwnership`), the log, the tracker, the glow, chat cards (whispered to the GMs and the quest's viewers; objective notices too) and map pins linked to a quest (`pinVisible` gets `questOk`). When a group's members (or a member's ownership) change, the leader rewrites those quests' journal ownership (`updateActor`, bails unless `system.members` or `ownership` changed).
+- **Numeric level and difficulty**: `level` is a number (`levelText` keeps text that isn't one). Party level = the rounded average of its characters' `system.details.level` (dnd5e). Difficulty = quest level − party level: Trivial ≤ −5, Easy −4..−2, Even −1..+1, Hard +2..+3, Deadly ≥ +4 (one table, `DIFFICULTY` in `quest-log-model.mjs`; colours grey / green / yellow / orange / red).
+- **Objective counters** `{ target, progress }` (target 0 = none): GM − / + in the log (op `progress`), auto-tick at the target and untick below it; ticking a counter by hand fills it, unticking drops it to target − 1. The editor has a count field per objective. Players see `n/m`.
+- **Chosen rewards**: `rewards.choice` (items) and `rewards.pick` (uuid). A member's owner picks (request `questPick` → the leader checks the sender with `canSee` and party membership, `decidePick`); the GM can pick or clear for them. Pay rewards gives fixed items + the picked item + coin to the quest's party actor (coin logged with *Quest reward: name*), and waits with a warning while a pick is missing. **Complete and pay** completes then pays (and marks the completion card paid).
+- **Quest cap** (world setting `questCap`, default 25, 1–200, Quests › Advanced): giving, reopening or moving an active quest beyond the cap warns the GM; it never blocks.
+- **`questUpdated` change `"assigned"`** now fires (after the save) when a quest's party changes (op `assign`, or `update` with a new `party`). Moving an active quest to a party posts its *New quest* card to that party.
+- API (experimental): `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties()`, `quests.difficulty()`; `create` / `update` take `party`, numeric `level`, objective `target`, `rewards.choice`.
+- Health check (Permissions): given quests with no party are listed (info); the unreadable-journal check only looks at each quest's own party's players.
+
+**Migration `quests2`** (quest record version 2, `QUEST_VERSION` = `quest-log-model.mjs` `QUEST_VERSION`)
+- Runs once on the leader with the quest log on, after `quests1`. Each quest without a party gets the party actor; a level like `4`, `Lv 4`, `Level 4` becomes a number (other text stays in `levelText`); reward items get their rarity; the GM-only record, the journal's public flag (`v: 2`), its ownership and its page are rewritten. Without a party actor the quests become GM-only (the whisper and the health check say so). The Parties setting isn't written (empty already means the party actor).
+- Before it runs, records without `v: 2` keep the 1.28 rule (`isLegacy`): every player sees given, unhidden quests. `normalize` reads versions 0, 1 and 2.
+- Glow: the stamp leaves out the party and item rarity, and the client's seen record re-baselines once for the new shape (`shape: 2`), so the move doesn't make every quest glow.
+
+**Decisions**
+- Parties default: an empty setting means "the party actor" instead of copying its id at migration, so changing *Party actor* later still works for worlds that never set Parties.
+- Players have no write path except `questPick`; everything else stays GM-only. The pick is sent with the quest id and the item uuid; the sender is Foundry's user.
+- Chat cards for version 2 quests are whispers (players outside the party shouldn't read them); old records still post publicly until moved.
+- "Complete and pay" with a reward still to choose completes and leaves Pay rewards (no blocking dialog).
+
+**Untested in Foundry**
+- Nothing in this release was run in Foundry. To check in a live world (v13 and v14, dnd5e 5.x and 6.x):
+  - The `quests2` move on a 1.28 world: quests get the party actor, levels become numbers, journals' ownership per party, the whisper; a world without a party actor (quests GM-only, health line); nothing glows afterwards for players.
+  - The Quest Log in the dark and light themes (top bar follows the theme; list and page look the same in both), a narrow window, the core stylesheet loaded first (no clash with other modules on core 0.3.x).
+  - Two parties with different players: each player sees only their party's quests in the log, tracker, journal sidebar, chat cards and map pins; the GM's party chips and *· Lv N*; moving a quest with the party drop-down (players' views update, `questUpdated` *assigned*, the new party gets the card).
+  - Adding or removing a member of a group actor updates the quests' journal ownership.
+  - Counters: − / + in the log, auto-tick at the target, objective chat line, n/m for players and in the tracker, the editor's count field.
+  - Choice rewards: a player picks (with a GM online; refused for a non-member), the GM overrides or clears, Pay rewards refuses without a pick, Complete and pay pays fixed + picked + coin to the party actor and the coin log line, the chat card's Pay button turns into *Rewards paid*.
+  - Rarity borders on reward slots (compendium items and world items), the editor's chips.
+  - Quest cap warning when giving the 26th active quest to a party; the header count.
+  - Zones fold and stay folded after reopening; the Track box in a row and the Track switch on the page; Show tracker / reset still work; objective click → map pin; the Updated glow.
+
 ## 1.28.0
 
 Eight quality-of-life tools, each with its own switch on the Features tab (all on by default). The quest data model is unchanged.

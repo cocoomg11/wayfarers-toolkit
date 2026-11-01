@@ -264,7 +264,7 @@ const OPS = {
     if (moved && next.status === "active") capWarn(next.party, j.id);
     await save(j, next, name);
     emit(j, moved ? "assigned" : "updated");
-    if (wasHidden && !next.hidden && next.status === "active") await announceStatus(j, next, "available");
+    if (((wasHidden && !next.hidden) || (moved && next.party && !next.hidden)) && next.status === "active") await announceStatus(j, next, "available");
     return j;
   },
   async setStatus(ref, status, { announce = true } = {}) {
@@ -313,6 +313,8 @@ const OPS = {
     if (q.status === "active") capWarn(id, j.id);
     q.party = id; await save(j, q);
     emit(j, "assigned");
+    // The new party's players get the quest's card (they didn't see it before).
+    if (id && !q.hidden && q.status === "active") await announceStatus(j, q, null);
     return j;
   },
   /** Stores the chosen reward (uuid; "" clears). `by`: the user choosing (a party member's owner or a GM). */
