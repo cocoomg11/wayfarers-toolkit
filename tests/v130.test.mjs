@@ -193,3 +193,71 @@ test("pane: core look (UI_CLASSES, item slots, coins), dark sheet in both themes
   assert.match(sheet, /\.wct-pane \.wct-frame \{[^}]*--wc-text: #/, "the sheet sets its own tokens");
   assert.doesNotMatch(src("scripts/pane-model.mjs"), /warcraft|blizzard|\bwow\b|azeroth/i);
 });
+
+// ---------------------------------------------------------------- Option A look: windows, dialogs and chat cards on core's look
+const Look = await import("../scripts/look-model.mjs");
+const PanelM = await import("../scripts/panel-model.mjs");
+const { readdirSync } = await import("node:fs");
+const scripts = readdirSync(new URL("../scripts/", import.meta.url)).filter(f => f.endsWith(".mjs")).map(f => [f, src(`scripts/${f}`)]);
+
+test("look: card() wraps once in core's root classes and escapes its extra class", () => {
+  const h = Look.card("<p>x</p>", "wct-loot");
+  assert.equal(h, `<div class="${UI_CLASSES.join(" ")} wct-chat-card wct-loot"><p>x</p></div>`);
+  assert.equal(Look.card(h), h, "not wrapped twice");
+  assert.match(Look.card("<p/>", `a"b`), /wct-chat-card a&quot;b"/);
+  assert.equal(Look.isCurrent(h), true); assert.equal(Look.isCurrent("<p>old</p>"), false);
+});
+
+test("look: every toolkit window and dialog carries core's UI_CLASSES; no literal revision anywhere", () => {
+  for (const [f, s] of scripts) {
+    for (const m of s.matchAll(/classes: \[([^\]]*)\]/g)) if (m[1].includes('"wct-')) assert.match(m[1], /\.\.\.UI_CLASSES/, `${f}: ${m[0]}`);
+    assert.doesNotMatch(s, /wc-r\d/, f);
+  }
+  for (const css of ["pane", "quests", "bosses", "loot", "panel", "places", "pins"]) assert.doesNotMatch(src(`styles/${css}.css`), /wc-r\d/, css);
+  // Overlays built outside windows carry the root classes too.
+  assert.match(src("scripts/quests.mjs"), /hud\.id = "wct-quest-tracker"; hud\.classList\.add\(\.\.\.UI_CLASSES\)/);
+  assert.match(src("scripts/bosses.mjs"), /el\.id = "wct-boss-frames"; el\.classList\.add\(\.\.\.UI_CLASSES\)/);
+  // Every DialogV2 has the shared dialog class.
+  for (const [f, s] of scripts) for (const m of s.matchAll(/DialogV2\.(?:prompt|confirm|wait)\(\{\s*classes: \[([^\]]*)\]/g)) assert.match(m[1], /"wct-dialog"/, f);
+});
+
+test("look: chat cards go through card() (loot, trash, boss loot, summary, quests, inn, travel pace, updates, health)", () => {
+  const S = Object.fromEntries(scripts);
+  assert.match(S["loot.mjs"], /return card\(`<div class="wct-loot-card"/);
+  assert.match(S["trash.mjs"], /content: card\(content, "wct-trash"\)/);
+  assert.match(S["bossloot.mjs"], /content: lookCard\(content, "wct-bossloot"\)/);
+  assert.match(S["summary.mjs"], /content: card\(content, "wct-loot-summary"\)/);
+  assert.match(S["quests.mjs"], /content: lookCard\(content, "wct-quest-chat"\)/);
+  assert.match(S["updates.mjs"], /content: card\(N\.cardHTML\(notice\), "wct-update-card"\)/);
+  assert.match(S["main.mjs"], /gmWhisper\(content\) \{ return ChatMessage\.create\(\{ content: card\(content\)/);
+  assert.match(S["main.mjs"], /say\(content, alias = "Narrator"\) \{ return ChatMessage\.create\(\{ content: card\(content\)/);
+  assert.match(S["inn.mjs"], /content: card\(`<p><strong>\$\{esc\(u\.name\)\}<\/strong> asks for rooms/);
+  assert.match(S["main.mjs"], /content: card\(`<p><strong>\$\{esc\(u\.name\)\}<\/strong> asks to travel/);
+});
+
+test("look: control panel on core's sidebar shell; sidebar keys", () => {
+  const p = src("scripts/panel.mjs");
+  assert.match(p, /div\.className = "wc-shell wct-panel-body"/);
+  assert.match(p, /<nav class="wc-side wct-tabs" role="tablist"/);
+  assert.match(p, /class="wc-nav" role="tab"/);
+  assert.match(p, /ev\.key === " " \|\| ev\.key === "Enter"\) \{ ev\.stopPropagation\(\)/, "Space never pauses the game");
+  assert.equal(PanelM.navKey("ArrowDown", 0, 5), 1); assert.equal(PanelM.navKey("ArrowDown", 4, 5), 0);
+  assert.equal(PanelM.navKey("ArrowUp", 0, 5), 4); assert.equal(PanelM.navKey("ArrowLeft", 2, 5), 1); assert.equal(PanelM.navKey("ArrowRight", 2, 5), 3);
+  assert.equal(PanelM.navKey("Home", 3, 5), 0); assert.equal(PanelM.navKey("End", 0, 5), 4);
+  assert.equal(PanelM.navKey("a", 0, 5), null); assert.equal(PanelM.navKey("Home", 0, 0), null);
+});
+
+test("look: core coins in money displays, ratio from the coins in use (100 three-coin, 10 standard)", () => {
+  const m = src("scripts/main.mjs");
+  assert.match(m, /function moneyHTML\(amount\) \{ return coinsMarkup\(/);
+  assert.match(m, /return v\.sp > 0 && v\.cp > 0 \? Math\.round\(v\.sp \/ v\.cp\) : 10;/);
+  assert.match(m, /parseMoney, fmtMoney, coins, moneyHTML, coinRatio,/);
+  for (const f of ["coinlog.mjs", "inn.mjs"]) assert.match(Object.fromEntries(scripts)[f], /API\.moneyHTML\(amount\)/, f);
+});
+
+test("look: toolkit CSS reads core tokens; only in-world surfaces keep their own palette, and none uses theme selectors", () => {
+  for (const f of ["panel", "loot", "pins"]) assert.doesNotMatch(src(`styles/${f}.css`), /\.theme-(dark|light)/, f);
+  assert.doesNotMatch(src("styles/quests.css"), /theme-(dark|light)/);
+  const bosses = src("styles/bosses.css"); assert.match(bosses, /#wct-boss-frames \{[^}]*--wc-text:/);
+  assert.doesNotMatch(src("styles/pins.css"), /\.window-content \{ background: #efe4c6/, "pin dialogs follow the theme");
+});
