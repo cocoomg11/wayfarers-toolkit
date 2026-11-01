@@ -2,6 +2,29 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.27.2
+
+**Fixed**
+- **The on-screen quest tracker covered buttons** and couldn't be moved. It was a fixed box at the top right of the canvas (72 px down, 320 px in from the right edge on v14), over whatever core or module buttons sat there. (The Quest Log window itself was already a normal, draggable window.)
+
+**Changed**
+- **Drag the quest tracker** by its title bar (mouse, pen or touch), or focus its grip with Tab and move it with the **arrow keys** (Shift: bigger steps, Home: back to the start, Escape during a drag: cancel). It's kept inside the window, and again after the window is resized, the sidebar is collapsed or the UI scale changes. Each person's spot is remembered on their own computer (hidden client setting `trackerPos`: `{ v: 1, fx, y }`, the across position as a share of the free width so a tracker against the right edge stays there, and its top in px).
+- **Where it starts:** the first spot, from the top right next to the sidebar, that overlaps none of Foundry's own interface (scene controls, scene navigation, players list, hotbar, camera dock and anything else in the left, right and bottom interface columns), 16 px clear. With nothing in the way that's the top right corner just left of the sidebar.
+- **Put it back** with a double-click on its title, Home on its grip, the reset button next to **Show tracker** in the quest log, or *control panel › Quests › Reset quest tracker position*.
+- **Close it with its X** and bring it back with **Show tracker** at the top of the quest log (it shows *Tracker shown* while it's on). Both just change this client's **Show the quest tracker on my screen** setting. Tracking a quest (by hand or automatically when a quest is given) never reopens a closed tracker; ticking Track while it's closed shows a short notice saying where to turn it back on. (Chosen over a "reopen when tracking" setting: the user closed it on purpose.)
+- Collapsing it with its arrow is still remembered per client (`trackerCollapsed`).
+- API (experimental, this client only): `api.quests.showTracker(on)` (omit `on` to toggle) and `api.quests.resetTrackerPosition()`.
+- Turned off (Quest log or Quest tracker feature off), nothing is drawn and no resize or settings listeners are added. The control panel's reset button only shows when both are on. **Remove toolkit data › Reset the module's settings** resets `trackerPos` with the other client settings; it's left out of the welcome wizard and of settings files (`RECORD_SETTINGS`).
+
+**Untested in Foundry**
+- Nothing in this release was run in Foundry. To check in a live world (v13 and v14):
+  - Dragging the tracker by its title with a mouse and on a touch screen; it doesn't pan the canvas or select tokens while dragging, and stays inside the window.
+  - Grip keyboard moves (arrows, Shift+arrows, Home), and that the arrows don't also pan the canvas while the grip has focus.
+  - The default spot with the sidebar open and collapsed, with the camera dock, and with a big UI scale; that it doesn't cover scene navigation (~x 104–304 px on v14), the players list or the hotbar.
+  - The saved spot after a reload and after resizing the browser; double-click reset.
+  - The X, the log's Show tracker / Tracker shown switch and its reset button, the control panel reset button, and that ticking Track with the tracker closed leaves it closed (and shows the notice).
+  - The tracker above the canvas and interface but below application windows (z-index 50) and tooltips.
+
 ## 1.27.1
 
 **Fixed**

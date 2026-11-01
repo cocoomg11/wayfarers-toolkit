@@ -22,7 +22,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - `permissions.mjs` pure permission checks; `health.mjs` gathers the facts (`permissionFacts`) for its *Permissions* section.
 - `zone-titles.mjs` / `zone-titles-model.mjs` zone title cards (UI / pure config and show rules); `inn.mjs` / `inn-model.mjs` inns and Rested (records, renting, token HUD, rest hook / pure records, price, pay, rentals, benefit rules).
 - `pins.mjs` / `pins-model.mjs` map pins (tool, dialogs, card, GM relay, Note class / pure flag shape, permissions, request reader and GM decision, quest guard, cleanup grouping).
-- `quests.mjs` quest log + tracker. Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
+- `quests.mjs` quest log + tracker; `tracker-model.mjs` the tracker's placement (pure: clamp, saved spot, default spot, nudges). Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
 
 ## Key patterns
 - **Feature registry:** one world setting per tool in `features.mjs`. A disabled feature registers nothing (no hooks, buttons, socket handlers, wrappers) and Run setup skips its macros. Gate registration with `on("<id>")`; API getters return undefined when off.
@@ -75,6 +75,12 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 ## 1.27.1 notes
 - Boss loot health check: `inspect(target, { checker })` asks `itemChecker()` / `liveChecker()` (bossloot.mjs) whether each result's item exists, from the pack index (one `getIndex` per pack, shared) or `game.items`; never `fromUuid` per result (single-document compendium loads are serialised by the server, ~250 ms each). The health section inspects all bosses at once with one shared checker. `draw()` still loads the picked items.
 - Tried and rejected: a GM-only (ownership NONE) world compendium as the vault. On 14.369 players can still read it (`getIndex`/`getDocuments`/`getDocument`/`fromUuid` return full data). Don't move the vault there.
+
+## 1.27.2 notes
+- Quest tracker (`#wct-quest-tracker`) is `position: fixed` on `document.body` (z-index 50: above the interface, below windows), placed by `placeTracker()` from client `trackerPos` (`{ v: 1, fx, y }`, read with `TM.parsePos`; `{}` = default spot from `TM.defaultPos(size, view, coreBoxes())`, which avoids core UI boxes). Re-placed on `resize`, `clientSettingChanged` (core.*), `collapseSidebar` (listeners only when the tracker feature is on).
+- Drag: pointer events on the header with pointer capture; no redraw while dragging (`hudDrag`; `hudUp` redraws). Grip (`.grip`, tabindex 0): arrows/Shift/Home/Escape. Double-click header = reset.
+- Close (X) and the log's **Show tracker** switch only set client `questTracker`; `track()` / `autoTrack()` never set it (test). API: `quests.showTracker(on)`, `quests.resetTrackerPosition()`. Reset also on control panel › Quests.
+- Tests: `tests/v127-2.test.mjs`.
 
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.2.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).

@@ -666,7 +666,7 @@ In the log the GM sees every quest, including ones not given yet (*Not given* ta
 
 Players only read. They see quests that have been given and aren't hidden, under **Active** and **Completed** (failed quests sit in Completed, struck through), with visible objectives, the description and rewards. The journal entries follow the same rule: players get Observer permission only once a quest is given and not hidden.
 
-**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker sits at the top right of the canvas, left of the sidebar, listing each tracked quest's open objectives. Collapse it with its arrow, or turn it off per player with **Show the quest tracker on my screen** (Quests tab).
+**Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker lists each tracked quest's open objectives. It starts at the top right, left of the sidebar, in the first spot that covers none of Foundry's own interface (scene controls and navigation, players list, hotbar, camera dock). **Drag it by its title** to put it anywhere (mouse or touch), or focus its grip (Tab) and use the **arrow keys** (Shift for bigger steps); it's kept inside the window, and each person's spot is remembered on their own computer. Double-click the title, press **Home** on the grip, or use the reset button next to **Show tracker** in the quest log (or *control panel › Quests › Reset quest tracker position*) to put it back. Collapse it with its arrow; close it with its **X** and bring it back with **Show tracker** at the top of the quest log (the same as **Show the quest tracker on my screen**, Quests tab). Tracking a quest while it's closed doesn't reopen it. Scripts: `api.quests.showTracker(on)` and `api.quests.resetTrackerPosition()` (this client only).
 
 ### Moments
 
@@ -697,7 +697,7 @@ await q.complete("Trouble at the Old Mill");          // or q.fail(…), q.reset
 q.open("Trouble at the Old Mill");
 ```
 
-Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`. Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
+Also `update(quest, patch)`, `hide(quest, true|false)`, `untickObjective`, `payRewards`, `delete`, `list()`, `get(quest)`, `track(quest, on)`, `showTracker(on)` and `resetTrackerPosition()` (the on-screen tracker on this client; experimental). Quests are found by journal id, UUID or name. All of these that change a quest are GM only: on a player's client they just warn, and no quest change is ever sent over the socket. Monk's Active Tiles runs its actions on the GM's client, so tiles work as usual.
 
 ## Boss frames
 
@@ -841,7 +841,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`) | experimental |
+| `healthReport`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition` | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
