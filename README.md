@@ -1,6 +1,6 @@
 # Wayfarer's Toolkit
 
-A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, a session-start helper, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
+A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
 
 The module supplies only the logic. Your own campaign content (encounter tables, flight points, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
 
@@ -12,7 +12,6 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | --- | --- |
 | **Hex Travel** | Enter road and off-road hexes and a pace. Roads are safe; each off-road hex rolls for an encounter on the zone's roll table. Tick *Mounted* to travel faster. Advances world time, logs the trip, whispers encounters to the GM. |
 | **Flight Master** | Flies the party between unlocked flight points on the cheapest route. Fares come out of a party group actor's purse (with change). Points, routes and fares are set up in a flight network editor inside the module; a point opens a scene only if you give it one. The GM can also fly the party for free. Players can book flights too (button in the token controls), and an optional sound plays for everyone on departure. |
-| **Session Start** | Pick a scene, activate it for players and unpause; the start is written to the Travel Log. |
 | **Vendor Trash** | Grey vendor-trash loot, pre-rolled on every NPC token when it's placed and lootable as soon as it dies: a wolf drops fur and fangs, a spider chitin, a bandit trinkets, worn gear and coin. Drops follow the creature's type and name, get better with CR, and follow extra rules you keep in a journal page. With Item Piles, bodies become lootable piles; without it, one click gives the loot to the party. Scenes marked as dungeons drop more. **Sell Vendor Trash** cashes it all in, and **Sell all junk** sells a character's grey items to an Item Piles merchant. |
 | **Riding Training** | A riding feat that setup adds to your world. When every party member has it, Hex Travel travels mounted by default. |
 | **Character pane** | A classic-MMO-style character frame: the portrait and stats in the middle, equipment slots around it. Slotting an item equips it on the dnd5e sheet; taking it out unequips it. Melee, Ranged and Utility weapon sets with a one-click swap (only the set in hand is equipped), a relic slot for chosen classes, and comparison tooltips against what you have on. Players can use it for their own characters. |
@@ -24,10 +23,8 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Flight map background** | A picture of your own (from your world's files, for example a map of your continent) behind the flight route map, for everyone who opens it. Fit (inside / fill / stretch), scale, offset and opacity under control panel › Travel › Advanced; drag the flight points onto the picture and **Save layout**. No picture: the map is unchanged. Needs the flight route map. |
 | **Travel pace** | Fast, normal or slow (careful) pace for Hex Travel, after the SRD 5.2 travel pace rules: what each pace does to Perception, Survival and Stealth checks shows in Hex Travel and chat. The GM sets the party's pace; players can ask for one. Needs Hex Travel. |
 | **Party gold tracker** | GM only, read-only: the coin the player characters and the party actor carry (optionally with their mundane gear), against an editable wealth curve per act or tier × party size, in green, amber or red. |
-| **Settings export / import** | Save every toolkit setting (world and this browser's) to a JSON file and load them back, with a preview of what changes. |
-| **Permission checks** | The health check also checks the permissions players need for each tool that's on, with a fix for each problem. |
+| **Permission checks** | Part of the health check: the permissions players need for each tool that's on, with a fix for each problem. |
 | **Zone title cards** | When a scene is activated, its title fades in over the map in classic-MMO style, with an optional subtitle ("Levels 1–3") and short sound. Per-scene title, subtitle, sound or off switch in the scene configuration. |
-| **Who's online** | A board of who's connected, with each player's character portrait and name: a small panel on scenes marked *Hub*, and a window. Says "Everyone's here" when the party is complete and fires a hook your own tiles and macros can use. |
 | **Rested at the inn** | Mark a scene as an Inn with a room price. Rent rooms for the party (players can ask); their next long rest gives Heroic Inspiration, an extra Hit Die or temporary hit points. |
 | **Map pins** | The party's own marks on any scene (the hex travel map, a zone map): an inked, hand-drawn mark (pin, flag, camp, cave, question, cross, skull, star) in one of six inks, with a label, a short note and an optional quest link. Players place and change the party's pins; the GM's own pins can stay hidden until revealed. Stored as ordinary map notes. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
@@ -37,11 +34,11 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 - [Features](#features) · [Compatibility](#compatibility) · [Optional integrations](#optional-integrations)
 - [Install](#install) · [Quick start](#quick-start) · [Setup](#setup)
 - [Macro compendium](#macro-compendium) · [Control panel](#control-panel)
-- Travel: [Hex Travel](#hex-travel) · [Session Start](#session-start) · [Flight Master](#flight-master) · [Travel pace](#travel-pace) · [Riding Training](#riding-training-and-long-road)
+- Travel: [Hex Travel](#hex-travel) · [Flight Master](#flight-master) · [Travel pace](#travel-pace) · [Riding Training](#riding-training-and-long-road)
 - Loot: [Vendor Trash](#vendor-trash) · [Loot rolls](#loot-rolls) · [Boss loot](#boss-loot) · [Party gold tracker](#party-gold-tracker) · [Three-coin economy](#three-coin-economy-copper-silver-gold)
 - Characters and story: [Character pane](#character-pane) · [Quest log](#quest-log) · [Boss frames](#boss-frames)
-- Places: [Zone title cards](#zone-title-cards) · [Who's online](#whos-online) · [Rested at the inn](#rested-at-the-inn) · [Map pins](#map-pins)
-- Housekeeping: [Health check](#health-check) · [Settings export / import](#settings-export--import) · [Remove toolkit data](#remove-toolkit-data) · [Update notes](#update-notes)
+- Places: [Zone title cards](#zone-title-cards) · [Rested at the inn](#rested-at-the-inn) · [Map pins](#map-pins)
+- Housekeeping: [Health check](#health-check) · [Remove toolkit data](#remove-toolkit-data) · [Update notes](#update-notes)
 - For scripters: [Macros and scripting](#macros-and-scripting) · [Public API and hooks](#public-api-and-hooks-whats-stable)
 - [License](#license) · [Building from source](#building-from-source)
 
@@ -109,7 +106,7 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 - problems on the Vendor Trash Rules page, scenes marked Dungeon, the flight network's size, flight points with no scene (⚠, information only: flying there still works) or a deleted scene, routes into locked points, routes naming a point that doesn't exist (✗), and an old Flight Routes journal page waiting to be imported;
 - encounter zones whose roll table doesn't exist (or a stored value an earlier version couldn't read);
 - the route map, travel pace, party gold and settings export / import (1.20), when they're on;
-- **Permissions** (with *Permission checks* on): for each tool that's on, what players need, each line ✓ / ⚠ / ✗ with a fix: the module socket (player flights, loot roll choices, pace requests, quest notices), a character each player owns (loot rolls, the character pane, looting bodies, Sell all junk), the *Use Script Macros* permission and Observer on the shared macros (Flight Master, Quest Log, Travel Pace, Flight Route Map), Observer on the party actor (players see the purse their flights use), quest journals players should be able to read, and Item Piles for lootable bodies;
+- **Permissions** (always, since 1.27): for each tool that's on, what players need, each line ✓ / ⚠ / ✗ with a fix: the module socket (player flights, loot roll choices, pace requests, quest notices), a character each player owns (loot rolls, the character pane, looting bodies, Sell all junk), the *Use Script Macros* permission and Observer on the shared macros (Flight Master, Quest Log, Travel Pace, Flight Route Map), Observer on the party actor (players see the purse their flights use), quest journals players should be able to read, and Item Piles for lootable bodies;
 - whether update notes are on, and the last version this world ran;
 - the active GM and how many GMs are online.
 
@@ -117,7 +114,7 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 
 **Remove toolkit data** (a button on the control panel's Overview tab, GM only; also `api.cleanup.open()`) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
-- toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, Hub, Inn), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal;
+- toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the journal entry *Wayfarer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots and loot history);
 - optionally, toolkit flags on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
 - optionally, **map pins** (the map notes placed with the Map pin tool, on every scene, party and GM pins alike: they're deleted);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
@@ -138,7 +135,7 @@ The same GM can also be logged in more than once (two browser tabs, or a laptop 
 
 ## Macro compendium
 
-The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Session Start and Quest Log (*Sessions and Quests*), Rent Rooms and Who's Online (*Places*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
+The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Quest Log (*Sessions and Quests*), Rent Rooms (*Places*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
 Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
@@ -161,11 +158,11 @@ The settings kept their keys from earlier versions, so anything you set before i
 
 ### Overview tab
 
-A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard**, **Show update notes**, **Export settings** and **Import settings…** (with [Settings export / import](#settings-export--import) on) and **Remove toolkit data…**, and the **Show update notes after updating** switch (saved as soon as you flip it; see [Update notes](#update-notes)).
+A plain-language health summary built from the [health check](#health-check): "Everything looks good", or "N things need attention" with one line per problem and, where there's a quick fix, a button: **Run setup** for anything setup hasn't made yet, **Link boss tables by name** for creatures with an unlinked table, a jump to the Travel tab for encounter zones or the Loot tab for compendiums, opening the flight network editor (or **Import from the Flight Routes journal page** when that's waiting), or opening the Vendor Trash Rules page. Below it: **Run setup**, **Full health report (to chat)** (the full ✓ / ⚠ / ✗ card), **Check again**, **Run the welcome wizard**, **Show update notes** and **Remove toolkit data…**, and the **Show update notes after updating** switch (saved as soon as you flip it; see [Update notes](#update-notes)).
 
 ### Features tab
 
-One card per tool, with a switch: Hex Travel, Flight Master, Session Start, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Flight route map, Travel pace, Party gold tracker, Settings export / import, Permission checks, Zone title cards, Who's online, Rested at the inn and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
+One card per tool, with a switch: Hex Travel, Flight Master, Vendor Trash, Riding Training, Character pane, Quest log, Quest tracker, Boss frames, Boss loot, Loot rolls, Flight route map, Travel pace, Party gold tracker, Zone title cards, Rested at the inn, Map pins and the Three-coin economy. All tools are on by default (the coins start on standard 5e). **Save features (reloads Foundry for everyone)** applies them.
 
 A tool that's switched off adds nothing: no buttons, macros, key bindings, chat buttons, hooks or sheet changes (the character pane's armour-class adjustment included). Its settings stay in the other tabs, greyed out with a note, so you can see them. **Run setup** skips its macros and items. Nothing already in your world is deleted, so switching a tool back on picks up where it left off. Calling a switched-off tool from a macro just shows a warning.
 
@@ -173,12 +170,11 @@ A tool that's switched off adds nothing: no buttons, macros, key bindings, chat 
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)), **Scenes left out of Session Start** (tick the scenes) |
+| **Basics** | **Encounter zones** (a table: zone name and the roll table its encounters come from, with **Add zone** and a remove button per row; problems such as a missing name, a zone listed twice or a table that doesn't exist show under the table), **Players can book flights**, **Fares without a coin are in** (gold, silver or copper), the **Flight network…** button (the [flight network editor](#the-flight-network-editor)) |
 | **Advanced** | **Announce new flight points** (on), **Flights advance world time** (off), **Locked flight points on players' map** (hidden or greyed), **Zoom and pan the route map** (on), **Players can ask for a travel pace** (on), encounter die, off-road time multiplier, mounted speed multiplier, slow / normal / fast pace, departure sound and its volume, riding feat name, tracker journal and party actor (pick from your journals and group actors, or type a name) |
 
 With the route map and travel pace on, the tab also has **Flight route map…** and **Travel pace…** buttons.
 
-If an earlier version's **Scenes hidden from Session Start** held a hand-written pattern, it's shown in Advanced as a text field with a note; ticking scenes replaces it.
 
 ### Loot tab
 
@@ -206,10 +202,10 @@ Greyed out while the character pane is switched off. See [Weapon sets](#weapon-s
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Title cards show** (when a scene is activated, or every time a scene is viewed), **Title cards are seen by** (everyone, or players only), **"Everyone's here" counts** (players with an assigned character by default), **Room price per person per night** (5s by default), **Rested gives** (Heroic Inspiration by default); and **Preview title card**, **Who's online…** and **Rent rooms…** buttons |
-| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, Who's online panel can be moved (on), rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on), players can place map pins (on), players can change any party pin (on), fade pins of finished quests (on), pin size (40), parchment behind pins (on), show map notes when a scene has pins (on) |
+| **Basics** | **Title cards show** (when a scene is activated, or every time a scene is viewed), **Title cards are seen by** (everyone, or players only), **Room price per person per night** (5s by default), **Rested gives** (Heroic Inspiration by default); and **Preview title card** and **Rent rooms…** buttons |
+| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on), players can place map pins (on), players can change any party pin (on), fade pins of finished quests (on), pin size (40), parchment behind pins (on), show map notes when a scene has pins (on) |
 
-See [Zone title cards](#zone-title-cards), [Who's online](#whos-online) and [Rested at the inn](#rested-at-the-inn).
+See [Zone title cards](#zone-title-cards) and [Rested at the inn](#rested-at-the-inn). Per-scene options (title card, Dungeon, inns) are in each scene's configuration, **Table Tools** tab.
 
 ### Quests tab
 
@@ -229,12 +225,6 @@ The window asks for the **Zone**, the number of **Road hexes** and **Off-road he
 - The trip advances world time, is written to the **Travel Log** page of the tracker journal, whispers the trip and any encounters to the GM, and posts a short line to chat.
 - Choosing "Other (no encounter table)" as the zone still moves time; any encounter roll just says "no table for this zone".
 - Speeds come from the *Slow / Normal / Fast pace* settings (Travel › Advanced). With [Travel pace](#travel-pace) on, the pace is the party's pace.
-
-## Session Start
-
-**How to use:** run the **Session Start** macro (GM only), or `api.sessionStart()`.
-
-Pick a scene, then click **Start session**. The scene is activated for players (untick *Activate it for players* to skip that), the game is unpaused (untick *Unpause the game* to skip that), and the start is written to the Travel Log. Test maps and the like can be left out of the list with *Scenes left out of Session Start* (control panel › Travel).
 
 ## Flight Master
 
@@ -435,7 +425,7 @@ Lists are separated by commas. Rows with an unknown tag or an empty first column
 
 ### Dungeon loot
 
-Mark a scene as a dungeon to make its creatures richer: open the scene's configuration and tick **Dungeon** on the *Basics* tab (it's stored as the scene flag `flags.wayfarers-toolkit.dungeon`). Creatures looted on that scene then get:
+Mark a scene as a dungeon to make its creatures richer: open the scene's configuration and tick **Dungeon** on the **Table Tools** tab (*Wayfarer's Toolkit* section) (it's stored as the scene flag `flags.wayfarers-toolkit.dungeon`). Creatures looted on that scene then get:
 
 | Setting | Default | Effect |
 | --- | --- | --- |
@@ -466,54 +456,31 @@ Without Travel pace, Hex Travel's pace list is as before. There's no hex trail.
 
 ## Zone title cards
 
-**How to use:** open a scene's configuration, find *Title card* on the Basics tab, give it a title and subtitle, and activate the scene. **Preview title card** (control panel › Places) shows one on your screen only.
+**How to use:** open a scene's configuration, find *Title card* on the **Table Tools** tab, give it a title and subtitle, and activate the scene. **Preview title card** (control panel › Places) shows one on your screen only.
 
 With **Zone title cards** on, activating a scene shows its title over the map on every screen viewing it: large gold serif lettering in the upper third, a thin ornament line and an optional subtitle. It fades in, holds (*Seconds on screen*, 4 by default) and fades out, over the canvas without moving anything; with the browser's *reduce motion* preference it appears and disappears without fading.
 
-- **Per scene** (Scene configuration › Basics › *Title card*): **Show a title card**, **Title** (blank: the scene's navigation name, or its name if that is empty), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
+- **Per scene** (Scene configuration › Table Tools › *Title card*): **Show a title card**, **Title** (blank: the scene's navigation name, or its name if that is empty), **Subtitle**, **Sound** (blank: the default sound, if any). The module bundles no audio: pick your own short clip.
 - **When** (*Title cards show*): when a scene is activated (default), or also every time someone's view moves to a scene (a player pulled to another scene, a GM looking around).
 - **World load**: the scene that's already active when someone joins shows no card, unless **Show a card when the world loads** is on.
 - **Who**: everyone (default) or players only. **Every scene gets a title card** off means only scenes you tick show one.
 - **Preview title card** (Places tab) shows the current scene's card on your screen only. Macros: `api.zoneTitles.show(scene)` or `api.zoneTitles.show({ title, subtitle, sound })` on the client running it.
 
-## Who's online
-
-**How to use:** tick **Hub scene (show who's online)** in a scene's configuration (Basics), or open the board any time with the **Who's Online** macro.
-
-With **Who's online** on, tick **Hub scene (show who's online)** in a scene's configuration (Basics) and everyone on that scene sees a small panel with each connected user: their assigned character's portrait and name, or their user name and colour when they have none. It updates as people join and leave. The **Who's Online** macro (shared with players) and `api.whosOnline()` open the same board in a window; `api.online.read()` returns the numbers.
-
-**Moving the panel.** *Who's online panel position* (Places › Advanced) is where it starts; *Top left* (default) sits just right of Foundry's scene navigation. Anyone can drag the panel by its title to a spot of their own (kept for that browser in the client setting `onlineHudPos`, and always pulled back on screen when the window is resized); double-click the title, or run `api.online.resetPosition()`, to put it back. Switch dragging off with *Who's online panel can be moved*.
-
-**"Everyone's here."** When every user who counts is connected, the board says *Everyone's here*. Who counts (*"Everyone's here" counts*): every player user, players with an assigned character (default), or only the user names you list. GMs never count unless listed.
-
-**Hooks for your own tiles and macros.** On every client:
-
-- `Hooks.on("wayfarers-toolkit.allPlayersOnline", data => …)` fires when the last missing user connects;
-- `Hooks.on("wayfarers-toolkit.playerCountChanged", data => …)` fires whenever the count changes (also once when the world loads).
-
-`data` is `{ online, expected, all, missing: [user names], users: [{ id, name, label, active, counts }] }`. The module never changes your scene or tiles; a world script can, for example make your own "Let's begin" tile glow. Since the hooks run on everyone's client, have only one client write documents:
-
-```js
-Hooks.on("wayfarers-toolkit.allPlayersOnline", async () => {
-  if (!game.users.activeGM?.isSelf) return;            // one client writes
-  const tile = canvas.scene?.tiles.getName?.("Let's begin") ?? canvas.scene?.tiles.find(t => t.name === "Let's begin");
-  await tile?.update({ "texture.tint": "#ffd100" });   // your own effect
-});
-```
-
 ## Rested at the inn
 
-**How to use:** tick **Inn** in a scene's configuration (Basics), then click **Rent rooms…** (control panel › Places) or run the **Rent Rooms** macro.
+**How to use:** open a scene's configuration, **Table Tools** tab › *Inns* › **Add inn**, or right-click an innkeeper's token and click the mug button (**Make innkeeper here…**). Then rent from that token's bed button, **Rent rooms…** (control panel › Places) or the **Rent Rooms** macro.
 
-With **Rested at the inn** on, tick **Inn** in a scene's configuration (Basics › *Inn*) and give it an **Inn name** (blank: the scene's name) and a **Room price (per person, per night)** (like `5s` or `1g 20s`; blank: *Room price per person per night* on the Places tab, 5 silver to start; a plain number is read in *Fares without a coin are in*). Prices follow your coin system: 5s is 50 copper with standard coins and 500 with three coins.
+**Inns** (since 1.27) are records on their scene, several per scene if you like. Each has a **name** (blank: the scene's name), a **room price** per person per night (like `5s` or `1g 20s`; blank: *Room price per person per night* on the Places tab, 5 silver to start; a plain number is read in *Fares without a coin are in*), an optional **innkeeper** (a token on the scene; its HUD gets a *Rent rooms* button) and, on v14 scenes with regions, an optional **Region** (a long rest counts as at the inn when the character's token is inside it). Stored as `flags.wayfarers-toolkit.inns = { v: 1, list: [{ id, name, price, innkeeper: { actor, token } | null, region | null }] }` (at most 20 per scene). Prices follow your coin system: 5s is 50 copper with standard coins and 500 with three coins.
 
-**Renting rooms** (GM): **Rent rooms…** on the Places tab, the **Rent Rooms** macro or `api.rentRooms({ scene, actors })`. The dialog lists the party's player characters (the party actor's members, or player-owned characters with a token on the scene) with a tick each, the price per person and the total. Payment comes from the party actor's coin (default) or each character's own (*Rooms are paid from*), smallest coins first with change, as flight fares are. If there isn't enough, nothing is charged and the dialog says who's short. On a scene that isn't an Inn you're asked first.
+**Renting rooms** (GM): the innkeeper's HUD button, **Rent rooms…** on the Places tab, the **Rent Rooms** macro or `api.rentRooms({ scene, inn, actors })`. With several inns on a scene you pick one. The dialog lists the party's player characters (the party actor's members, or player-owned characters with a token on the scene) with a tick each, the price per person and the total. Payment comes from the party actor's coin (default) or each character's own (*Rooms are paid from*), smallest coins first with change, as flight fares are. If there isn't enough, nothing is charged and the dialog says who's short. On a scene with no inn you're asked first.
 
-The chosen characters become **Rested** (`flags.wayfarers-toolkit.rested = { scene, inn, at }`, shown as *zzz* by their name in the character pane, and optionally as a *Rested* status icon on their token) and chat says "The party takes rooms at *inn*. Rested."
+The chosen characters become **Rested**: the GM's client records each rental in the toolkit's GM-only records, and the character gets `flags.wayfarers-toolkit.rested = { scene, inn, at }` for display (*zzz* by their name in the character pane, and optionally a *Rested* status icon on their token). Chat says "The party takes rooms at *inn*. Rested."
 
-**The next long rest** (dnd5e's `dnd5e.restCompleted` hook) of a Rested character gives **Rested gives**: Heroic Inspiration (default; nothing if they already have it), one extra Hit Die back (their largest spent die), or temporary hit points equal to their character level (if more than they have). Then Rested clears and a chat line says what they got. A long rest away from an Inn scene still counts while **Rested lasts until the next long rest anywhere** is on (default); off, Rested is lost with no benefit. A player's own long rest is sent to the active GM, who applies it; with no GM connected, Rested waits for the next long rest.
+**The next long rest** (dnd5e's `dnd5e.restCompleted` hook) of a Rested character gives **Rested gives**: Heroic Inspiration (default; nothing if they already have it), one extra Hit Die back (their largest spent die), or temporary hit points equal to their character level (if more than they have). It's checked against the GM's rental record, not the character's flag, so a player can't make their own character Rested. Then Rested clears and a chat line says what they got. A long rest away from an inn still counts while **Rested lasts until the next long rest anywhere** is on (default); off, Rested is lost with no benefit. A player's own long rest is sent to the acting GM client, which applies it; with no GM connected, Rested waits for the next long rest.
 
-**Players can ask for rooms**: on an Inn scene a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
+**Players can ask for rooms**: on a scene with an inn a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
+
+**Upgrading from 1.26**: a scene marked *Inn* becomes one inn record with the same name and price the first time the GM loads 1.27 (the old setting stays on the scene, unused). Characters already Rested keep it.
 
 ## Map pins
 
@@ -558,15 +525,6 @@ With **Party gold tracker** on, GMs get a **Party gold** window (*control panel 
 - **Take snapshot** saves the wealth now (the last 50 are kept, in a hidden world setting) to compare later. Nothing is taken automatically.
 
 `api.gold.read()` returns the same numbers.
-
-## Settings export / import
-
-**How to use:** open the control panel's **Overview** tab and click **Export settings** or **Import settings…**.
-
-With **Settings export / import** on, the Overview tab has **Export settings** and **Import settings…** (also `api.settingsIO.export()` and `.import()`).
-
-- **Export** downloads `wayfarers-toolkit-settings-<world>-<date>.json` with two sections: **world** (the GM's settings for this world, feature switches and the flight network included) and **client** (this browser's own: window positions, tracked quests). Stored records (the loot history, the last version seen, gold snapshots) aren't included.
-- **Import** reads a file and checks it: it must be a toolkit export of a format this version reads. Each setting's value is checked against the setting (on/off, a number in range, one of the choices); settings this version doesn't have, and values that don't fit, are listed and ignored. A preview lists every setting with its current value and the file's, the ones that differ ticked; only ticked ones are written after you confirm. Client settings apply to the browser you import in. Foundry reloads if a feature switch changed.
 
 ## Riding Training and Long Road
 
@@ -874,26 +832,58 @@ To switch back, switch **Three-coin economy** off again. Coin amounts stay as th
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash, `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash (everything under `api.trash`, `api.bossLoot`, `api.gold` and `api.cleanup` is GM only since 1.27: a player gets a warning and `undefined`), `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ### Public API and hooks: what's stable
 
-`game.modules.get("wayfarers-toolkit").api` is available from the `ready` hook. Getters for a tool return `undefined` while that tool is turned off. **Stable** means the name, arguments and result shape are kept across minor versions (a change goes through a deprecation note in the changelog first); **experimental** may still change in a minor version.
+`game.modules.get("wayfarers-toolkit").api` is available from the `ready` hook. Getters for a tool return `undefined` while that tool is turned off. **Stable** means the name, arguments and result shape are kept across minor versions (a change goes through a deprecation note in the changelog first); **experimental** may still change in a minor version. GM tools refuse players (a warning and `undefined`).
 
 | API | Status |
 |---|---|
-| `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online` (+ `resetPosition`), `rentRooms`, `inn`, `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
+| `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
+| `healthReport`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`) | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
-Hooks the module fires (with `Hooks.callAll`, on every client, after the world is ready):
+Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
 
-| Hook | Payload | When | Status |
-|---|---|---|---|
-| `wayfarers-toolkit.playerCountChanged` | `{ online, expected, all, missing, users }` | the Who's online count changes (and once when the world loads) | experimental |
-| `wayfarers-toolkit.allPlayersOnline` | same | the last missing user connects | experimental |
+**`api.healthReport()`** (GM; experimental) returns the health check in wanderers-core's shared health format, the same shape every module that uses the shared core returns, so a hub can show them together:
 
-The module fires no other hooks. Other modules should read and change toolkit data through this API rather than writing `flags.wayfarers-toolkit.*` directly; flag shapes are documented for reading, and may gain fields.
+```js
+const report = await game.modules.get("wayfarers-toolkit").api.healthReport({ timeoutMs: 20000 }); // timeoutMs optional
+// [{ title: "Boss loot", lines: [{ level: "ok" | "warn" | "bad" | "off" | "info", text: "…" }] }, …]
+```
+
+- A Promise of an array of sections in the order of the health card; sections with no lines are left out.
+- `text` is plain text (no HTML; buttons in the chat card are dropped). `level` is one of the five words.
+- Each section runs wrapped and time-limited (default 20 s per section): one that throws or runs out of time becomes a single `warn` line, and the others still run. Nothing in the world is changed. Nothing is posted to chat (use `api.health()` for the chat card).
+- Players get `[]` (the report names GM-only things).
+
+Hooks the module fires: **none** since 1.27 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the acting GM client, and it isn't meant for other modules.
+
+Other modules should read and change toolkit data through this API rather than writing `flags.wayfarers-toolkit.*` directly; flag shapes are documented for reading, and may gain fields.
+
+### GM-only data and players' clients
+
+Since 1.27 the toolkit keeps everything players mustn't read out of what their clients receive:
+
+- **GM-only records**: one journal entry, *Wayfarer's Toolkit (GM only)*, ownership None for players, with `flags.wayfarers-toolkit.vault = { v: 1, buckets }`: the full flight network (with locked points), hidden GM map pins (no map note exists until you reveal one), each quest's full data (hidden objectives and the description's secret sections), room rentals, party gold snapshots and the loot roll history. Don't share it with players; deleting it loses those records. The health check (*Shared core*) warns if a player can open it.
+- **What players' clients get**: the world setting `flightNetwork` holds only the unlocked points and their routes (greyed locked points as bare positions if you chose *Greyed out*); a quest journal's flag and page hold only what players may see (nothing at all for a quest that isn't given or is hidden); map notes exist only for pins players may see.
+- **Requests from players** (flight bookings, pace and room requests, loot roll choices, map pin changes, long rests) go over the shared core's checked socket requests: unknown kinds, unexpected fields, wrong types and oversized payloads are refused, the sender is always Foundry's own (never a field in the message; unknown senders are refused), repeats are dropped and each user is rate-limited. Notices back are accepted only from the acting GM client.
+- Foundry itself decides what a None-ownership journal entry sends to a player's client; the toolkit relies on Foundry's ownership rules for the GM-only entry.
+
+### Upgrading to 1.27: data moved once
+
+The first time the acting GM loads 1.27, each of these runs once (recorded in the GM-only records; `api.migrations.status()` lists them) and a whisper lists what moved:
+
+| Move | What happens | Kept / undo |
+|---|---|---|
+| `inns1` | each scene marked *Inn* becomes one inn record (same name and price) | the old `flags.wayfarers-toolkit.inn` stays on the scene; 1.26 still reads it |
+| `vault1` | the flight network, gold snapshots and loot history are copied into the GM-only records; `flightNetwork` is rewritten to the players' view, `goldSnapshots` and `lootHistoryData` are emptied | the full copies are in the GM-only records. Going back to 1.26 shows only unlocked flight points until you re-enter the rest, and no old snapshots or history |
+| `quests1` | each quest's full data is copied into the GM-only records; its journal flag and page are rewritten to the public view | the hidden objectives and secret text live only in the GM-only records afterwards (1.26 would show them as missing) |
+| `pins1` | hidden GM pins are copied into the GM-only records and their map notes deleted | revealing a pin recreates its note with the same id; 1.26 doesn't see hidden pins |
+| `rested1` | characters already Rested get a room rental record, so they keep the benefit | the Rested flag on characters is unchanged |
+
+Moves for a tool that's off wait until it's turned on. Settings of Session Start and Who's online (`hiddenScenes`, `onlineCount`, `onlineList`, `onlinePosition`, `onlineDrag`, client `onlineHudPos`) and the scene flag `flags.wayfarers-toolkit.hub` are left untouched and stay registered (hidden), so the Red Book module's own one-time move can read them.
 
 ## License
 
@@ -910,6 +900,8 @@ Bug reports and suggestions: [GitHub issues](https://github.com/cocoomg11/wayfar
 
 ## Building from source
 
-Tests: `npm test` runs the pure-logic tests in `tests/` with Node's built-in test runner (Node 22; nothing to install), and `npm run check` syntax-checks every script. Both run on GitHub Actions for every push and pull request to `main`.
+Tests: `npm test` runs the pure-logic tests in `tests/` with Node's built-in test runner (Node 22), `npm run check` syntax-checks every script and `npm run lint` runs ESLint on the shared core's config (`npm install` first for the linter). CI runs them through the shared core's reusable workflow (`module-checks.yml@v0.2.0`), which first checks that `vendor/wanderers-core/` matches its pin.
+
+**Shared core.** The toolkit bundles a pinned copy of **wanderers-core** (the small library its sister modules share) in `vendor/wanderers-core/`, with the pin in `wanderers-core.lock.json`. Never edit the copy by hand; update it with `node vendor/wanderers-core/vendor.mjs update X.Y.Z` and commit both. The release zip includes `vendor/` without core's `config/` folder and `vendor.mjs` (dev tools).
 
 The compendium sources live in `src/packs/macros` as JSON and are generated from `scripts/macros.mjs`, the same list Run setup uses. After changing a macro, run `node tools/build-packs.mjs sources` and commit the JSON. The release workflow installs `@foundryvtt/foundryvtt-cli`, checks the sources are current, compiles them into `packs/macros` (LevelDB) and adds `packs/` to `module.zip`. To build locally: `npm install`, then `node tools/build-packs.mjs compile`.

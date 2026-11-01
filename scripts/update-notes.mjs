@@ -27,9 +27,14 @@ export const NOTES = [
   {
     version: "1.27.0",
     changes: [
-      "The toolkit now runs on the shared core its sister modules use: the same one-GM-client rule, the same checked requests from players, the same health report. Nothing to set up.",
-      "Settings export / import moved to the hub module (it saves every module's settings in one file). The toolkit's own Export / Import buttons are gone; nothing you set is lost.",
-      "Permission checks are now always part of the health check (they were a switch on the Features tab)."
+      { feature: "restedInn", text: "Inns are now their own records, several per scene if you like: a name, a room price, an innkeeper token (its HUD gets a Rent rooms button) and, on v14, an optional region. Add them in the scene's Table Tools tab or with Make innkeeper here… on a token's HUD. Your Inn scenes became one inn each." },
+      "Per-scene options (title card, Dungeon, inns) moved to the new Table Tools tab of Scene Configuration, shared with the other modules.",
+      "GM secrets no longer reach players' computers: hidden quest objectives and GM text, hidden map pins, locked flight points, gold snapshots and the loot history now live in a GM-only journal, \"Wayfarer's Toolkit (GM only)\". Don't share it with players. Your data was moved once (see the whisper).",
+      { feature: "restedInn", text: "Rested is now checked against the rooms you rented, so players can't make their own characters Rested." },
+      { feature: "mapPins", text: "Players can see map pins again on Foundry v14. Hidden pins aren't on the map until you reveal them; you see them as faint ringed marks." },
+      "Session Start and Who's online moved to the Red Book module. Install it to keep them; it picks up your settings and Hub scenes.",
+      "Settings export / import moved to the hub module (one file for every module). Permission checks are now always part of the health check.",
+      { feature: "bossLoot", text: "The health check is much faster with boss loot tables." }
     ]
   },
   {

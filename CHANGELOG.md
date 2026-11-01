@@ -2,6 +2,62 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.27.0
+
+**Moved to the shared core**
+- The toolkit now runs on **wanderers-core 0.2.0**, the small library its sister modules share, bundled in `vendor/wanderers-core/` and pinned in `wanderers-core.lock.json` (CI fails if the copy differs from the pin). Core now does: the feature switches, debug logging, the "one GM client acts" rule (replacing the toolkit's own 1.25.1 version), checked socket requests from players, the update notes logic, the health report format and the shared **Table Tools** tab in Scene Configuration.
+- Every player request (flights, travel pace, room requests, long rests, loot roll choices, map pin changes) is read through a schema: unknown kinds, unexpected fields, wrong types and oversized payloads are refused, each user is rate-limited, repeats are dropped. The sender is always Foundry's own; there's no `userId` in any message any more.
+
+**Changed**
+- **Inns are their own records** (several per scene). Each has a name, a room price per person per night (5s by default), an optional innkeeper (a token: its HUD gets a **Rent rooms** button) and, on v14, an optional Region. Add them in the scene's **Table Tools** tab or with **Make innkeeper here…** (mug button) on a token's HUD. Players can still ask for rooms. Your existing Inn scenes become one inn each, automatically.
+- **Scene options moved to the Table Tools tab** of Scene Configuration (shared with the other modules): title card, Dungeon and inns. They're no longer on the Basics tab.
+- **Settings export / import is gone from the toolkit**: the hub module saves every module's settings in one file. Nothing you set is lost.
+- **Permission checks are always part of the health check** (no longer a switch).
+- **Session Start and Who's online moved to the Red Book module.** The toolkit no longer has them (no macros, no Hub panel, no hooks). Your settings and Hub scenes stay where they were, so Red Book picks them up.
+
+**Fixed (security)**
+- **Quest secrets stayed readable by players** once a quest was given: hidden objectives and GM text were in the quest's flag and page, which players' clients receive. The full quest now lives in the GM-only records; players' copy holds only what they may see (nothing for a quest that isn't given or is hidden).
+- **Hidden GM map pins were readable** in the scene's map note data. A hidden pin is now only a GM-only record; its map note is made when you reveal it (and removed when you hide it again).
+- **A player could give their own character Rested.** Rentals are now recorded on the GM's side, and the long-rest benefit is checked against that record.
+- **Requests fell back to a user id in the message**; now a request from an unknown sender is refused.
+- **Players could fake notices** ("your flight was booked", "your pin was refused", quest objective lines). Notices are now accepted only from the acting GM client.
+- **Spoilers in world settings**: the full flight network (locked points), party gold snapshots and the loot history were world settings every client could read. They're now GM-only; players get only the unlocked flight points.
+- **GM tools in the API** were callable by players (including `api.trash.preview` and the whole internal Vendor Trash module spread into `api.trash`). `api.trash`, `api.bossLoot`, `api.gold`, `api.cleanup`, `api.addMoney` and the boss loot preview now refuse players.
+
+**Fixed**
+- **Players saw no map pins at all** on Foundry v14 (v14 hides notes without a journal from players). Pins now decide their own visibility.
+- **The first health check could take about 30 seconds** with boss loot tables (each item was looked up one after another). Lookups now run eight at a time, once per item per check.
+
+**New**
+- `api.healthReport()` returns the health check in the shared health format (`[{ title, lines: [{ level, text }] }]`, plain text, GM only); see README › Public API.
+- `api.inn` gains `inns`, `all`, `rental`, `save`, `remove`, `makeInnkeeper`; `api.migrations` (`status`, `run`); `api.settingsRecords()`.
+- Remove toolkit data: a new box (off by default) deletes the GM-only records journal; *Delete map pins* also removes hidden pins.
+
+**Removed (API)**: `api.sessionStart`, `api.whosOnline`, `api.online`, `api.settingsIO`, the hooks `wayfarers-toolkit.playerCountChanged` / `allPlayersOnline` (Red Book fires its own, and the old names while the toolkit has no `api.online`), and the internal Vendor Trash functions under `api.trash` (the listed ones remain).
+
+**Data moved once** (on the acting GM's first load; each move runs once and is recorded; a whisper lists what moved; README › *Upgrading to 1.27* has what each keeps):
+- Inn scenes → inn records (old scene setting kept).
+- Flight network, gold snapshots, loot history → GM-only records (the setting keeps the players' view; snapshots and history settings emptied).
+- Quests → full data in GM-only records, journal flag and page rewritten to the players' view.
+- Hidden GM pins → GM-only records, their map notes deleted (revealing restores them with the same id).
+- Characters already Rested → a rental record, so they keep the benefit.
+
+**CI**: tests run through core's reusable `module-checks.yml@v0.2.0` (core pin, syntax, ESLint, tests; the JSDoc type step is off until the scripts are JSDoc-clean). The Release workflow has a read-only build job and a separate upload job (the only one that can write), every action pinned by commit SHA, the core pin checked against the published release, install scripts off, and `vendor/` in the zip without core's dev tools. There's no `package-lock.json` yet (it couldn't be generated here): the release still installs the exact versions from `package.json`, and switches to `npm ci` by itself once a lockfile is committed.
+
+**Tests**: `tests/v127.test.mjs` (request schemas refuse payload user ids, free flights and unknown fields; notices; update notes on core; settings IO and the permission switch gone; health report format; bounded parallel lookups; inn records, cap, legacy move; Rested only with a GM-side rental, rentals capped; Table Tools parts; GM-only store normalizer, caps and deletions; quests' public view strips hidden objectives and secret sections, nested ones too; flight network players' view; hidden pins as records, the move from notes, pin visibility without a journal; gated APIs; Session Start / Who's online gone with their settings still registered). The old GM-session tests moved to core with the code. `tests/house.test.mjs` checks the workflows (SHA pins, one writer job, vendor in the zip).
+
+**Untested in Foundry** (needs a live world, v13 and v14):
+- **Map pins visible to players**: a party pin and a revealed GM pin show on a player's client (no journal entry), on the right level in a scene with levels; double-click opens the card.
+- **Hidden pins absent from player client data**: with a hidden GM pin on the viewed scene, a player's `canvas.scene.notes` has no note for it and nothing in `game.journal` / world settings names it; the GM sees it as a faint ringed mark, opens it with the Map pin tool, edits, moves, reveals (players see it at once) and hides it again (the note goes away for players).
+- **Quest GM text absent from player clients**: a given quest with a hidden objective and a secret section in its description: on a player's client the quest's flag and journal page contain neither; a hidden or ungiven quest's flag and page are empty for players. The GM's quest log still shows and edits everything; ticking, revealing and completing still work and announce as before.
+- **Inn records, renting and Rested**: add an inn in Table Tools, and with Make innkeeper here… on a token; rent from that token's HUD, from the Places tab and the macro; several inns on one scene ask which one; a player's room request whispers a button; a long rest after renting grants the benefit once; a Rested flag set by a player on their own character (console) gives nothing and is cleared on their next long rest; an inn with a Region counts only inside it.
+- **Migrations from the dev world's existing data**: on the first 1.27 load as GM, the whisper lists the moves; Inn scenes appear as inn records with the same name and price; the flight network, gold snapshots and loot history are all still there for the GM (editor, map, Party gold, Loot history) while a player's client sees only unlocked flight points; existing quests keep their hidden objectives for the GM; hidden pins still exist for the GM and are gone from players' scene data; a character Rested before the update still gets the benefit. Reload: nothing moves twice. `api.migrations.status()` shows every move done.
+- **Table Tools tab**: the section shows title card, Dungeon and inns for the tools that are on (and not at all with all three off), saves the title card and Dungeon fields with the window, inn buttons save at once; other modules' sections appear in the same tab; nothing is added to the Basics tab any more.
+- Two GM tabs as the same user: one client acts (one whisper per request, one migration run); `api.healthReport()` on the GM returns sections, a player gets `[]`.
+- Notices: a player's refused pin and a booked flight show the message on that player only; objective lines show for everyone; a player can't fake one from the console.
+- The GM-only records journal: created on first use with ownership None; the health check warns if you share it.
+- Red Book 0.3.0 alongside: it reads the old Session Start / Who's online settings and Hub flags once; the toolkit's settings panel no longer shows them.
+
 ## 1.26.0
 
 **New**
