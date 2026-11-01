@@ -13,7 +13,8 @@
  *   coinLog1     (1.28.0) the coin log's bucket is created, empty, in the GM-only store (nothing moves; earlier versions logged nothing)
  *   quests2      (1.29.0) quest record version 2: every quest without a party gets the party actor (players then see it only when they
  *                own a member of that party), levels like "Lv 4" become numbers (other text is kept), and the journal's flag, page and
- *                ownership are rewritten. The Parties setting starts as the party actor. Old records keep working until this runs.
+ *                ownership are rewritten; reward items get their rarity (slot colour). The Parties setting is left empty (= the party
+ *                actor). Old records keep working until this runs.
  *
  * Undo: `api.migrations.status()` lists what ran; the README (Upgrading to 1.27) says what each move kept.
  */
@@ -113,9 +114,8 @@ async function coinLog1() {
 }
 
 async function quests2(api) {
+  // The Parties setting isn't written: left empty it means the party actor, so later changes to that setting still count.
   const party = api?.partyActor?.() ?? null;
-  let parties = []; try { parties = game.settings.get(ID, "questParties") ?? []; } catch { }
-  if (party && !(Array.isArray(parties) && parties.length)) await game.settings.set(ID, "questParties", [party.id]);
   let n = 0;
   for (const j of Q.all()) if (await Q.upgrade(j, party?.id ?? "")) n++;
   if (!n) return null;

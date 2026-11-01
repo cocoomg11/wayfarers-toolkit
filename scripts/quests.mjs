@@ -181,6 +181,10 @@ export async function upgrade(j, partyId) {
   // Already on version 2 with a party (quests1 in the same run writes version 2 without one: those still get the party).
   if (!QL.isLegacy(before) && full && Number(full.v) >= QL.QUEST_VERSION && full.party) return false;
   const q = data(j); if (!q.party && partyId) q.party = partyId;
+  for (const i of [...q.rewards.items, ...q.rewards.choice]) {
+    if (i.rarity) continue;
+    const src = await fromUuid(i.uuid).catch(() => null); i.rarity = String(src?.system?.rarity ?? "");
+  }
   await save(j, q);
   return true;
 }
@@ -231,8 +235,9 @@ async function announceStatus(j, q, prev) {
 async function announceObjective(j, o, verb) {
   const text = `${verb === "new" ? "New objective" : "Objective complete"}: ${o.text}`;
   // 1.29: a quest with a party tells only its viewers (a chat line whispered to them); the notice to everyone is for older records.
-  if (!legacy(j) && !S("questObjectiveChat")) { for (const u of viewers(j)) if (!notify(u.id, `${j.name}: ${text}`) && u.id === game.user.id) ui.notifications.info(`${j.name}: ${text}`); return; }
-  if (S("questObjectiveChat")) return say(`<div class="wct-quest-line ${verb}"><span class="wct-glyph">${verb === "new" ? "!" : "✔"}</span> <strong>${esc(j.name)}</strong>: ${verb === "new" ? "" : "<s>"}${esc(o.text)}${verb === "new" ? "" : "</s>"}${o.optional ? " <em>(optional)</em>" : ""}</div>`, j, { kind: "objective" });
+  // Only the leader can send a notice to one player; another GM tab posts the (whispered) chat line instead.
+  if (!legacy(j) && !S("questObjectiveChat") && isActiveGM()) { for (const u of viewers(j)) if (!notify(u.id, `${j.name}: ${text}`) && u.id === game.user.id) ui.notifications.info(`${j.name}: ${text}`); return; }
+  if (S("questObjectiveChat") || !legacy(j)) return say(`<div class="wct-quest-line ${verb}"><span class="wct-glyph">${verb === "new" ? "!" : "✔"}</span> <strong>${esc(j.name)}</strong>: ${verb === "new" ? "" : "<s>"}${esc(o.text)}${verb === "new" ? "" : "</s>"}${o.optional ? " <em>(optional)</em>" : ""}</div>`, j, { kind: "objective" });
   // Everyone (this client too) hears it as a notice hook from the leader, accepted only from the leader's GM session (gm.mjs).
   if (!notify(null, `${j.name}: ${text}`)) ui.notifications.info(`${j.name}: ${text}`);
 }
@@ -396,7 +401,13 @@ function autoTrack(j) {
 // ---------------------------------------------------------------- Updated glow (feature questGlow; players only, per client)
 /** This user's view of the quest, fingerprinted (players get the public view, so a GM-only change never glows). */
 // The party is left out (1.29): the one-time move gives every old quest a party, and that alone shouldn't make it glow.
-const stampOf = j => { const v = /** @type {any} */ ({ ...data(j) }); delete v.party; return UX.questStamp(j.name, v); };
+// Item rarity too: the move fills it in, and a player's client may not have read it from the item before.
+const stampOf = j => {
+  const v = /** @type {any} */ ({ ...data(j) }); delete v.party;
+  const plain = list => list.map(({ rarity, ...i }) => i);
+  v.rewards = { ...v.rewards, items: plain(v.rewards.items), choice: plain(v.rewards.choice) };
+  return UX.questStamp(j.name, v);
+};
 /** Whether the quest glows for this client: a player, the feature on, and a view they haven't opened since it changed. */
 export const isUpdated = j => GLOW && !game.user?.isGM && !!j && canSee(j) && UX.glowing(S("questSeen"), j.id, stampOf(j));
 /** Marks a quest seen on this client (opening it in the quest log). Writes only when it was glowing. */
@@ -788,7 +799,9 @@ async function completeAndPay(id) {
   const j = await run("setStatus", id, "completed"); if (!j) return null;
   const q = data(j);
   const has = !!((q.rewards.coin && WCT.parseMoney(q.rewards.coin) > 0) || q.rewards.items.length || q.rewards.choice.length);
-  if (has && q.party && !q.paid) await run("pay", id);
+  // The completion card just posted gets marked paid too (its Pay rewards button turns into Rewards paid).
+  const card = game.messages.contents.findLast(m => m.flags?.[ID]?.quest?.id === id && m.flags[ID].quest.kind === "completed");
+  if (has && q.party && !q.paid) await run("pay", id, card?.id ?? null);
   return j;
 }
 
@@ -937,8 +950,8 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
           const reached = base.progress >= target;
           return done === reached ? { ...base, done } : QL.tickObjective(base, done);
         }),
-        rewards: { coin: f.coin.value, other: f.other.value, pick: this.q.rewards.pick,
-          items: chips("items"), choice: chips("choice") }
+        // The chosen reward isn't sent: a player may pick while this is open (update() keeps the stored pick if it's still a choice).
+        rewards: { coin: f.coin.value, other: f.other.value, items: chips("items"), choice: chips("choice") }
       };
       const status = f.status.value;
       let j;
@@ -968,6 +981,12 @@ export const api = {
   hide: (ref, hidden = true) => run("setHidden", find(ref)?.id ?? ref, hidden),
   delete: (ref) => run("remove", find(ref)?.id ?? ref),
   payRewards: (ref) => run("pay", find(ref)?.id ?? ref),
+  /** 1.29: objective counters (+/− from the GM), the quest's party, the chosen reward, and party facts. */
+  progressObjective: (ref, objective, delta = 1) => run("progress", find(ref)?.id ?? ref, objective, delta),
+  assign: (ref, partyId) => run("assign", find(ref)?.id ?? ref, partyId),
+  pickReward: (ref, uuid) => { const j = find(ref); return j ? pickReward(j.id, uuid) : null; },
+  parties: () => parties().map(p => ({ id: p.id, name: p.name, level: partyLevelOf(p.id) })),
+  difficulty: (ref) => { const j = find(ref); if (!j || !canSee(j)) return null; const d = diffOf(data(j)); return d ? { id: d.id, label: d.label, colour: d.colour } : null; },
   track, tracked, find, normalize, pageHTML,
   /** This client's tracker: showTracker(on?) shows/hides it (omitted: toggles), resetTrackerPosition() puts it back. */
   showTracker, resetTrackerPosition
