@@ -2,6 +2,24 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.30.1
+
+Patch for the light theme. No data, setting or API changes.
+
+**Fixed**
+- **Character pane stats unreadable in the light theme.** Foundry sets text colours per theme on definition lists, so every value in the sheet's stat boxes (AC, HP, hit dice, initiative, speed, to hit, damage, range) turned dark grey on the dark sheet when Foundry's interface was set to light. The values now set `color: var(--wc-text)`.
+- **Same class of bug on the other in-world panels.** The character sheet, the item tooltip, the quest log's stone list and parchment page, the quest tracker and the boss frames each get a low-specificity rule that sets an explicit colour from their own tokens on the elements Foundry colours per theme (links, `dd`, `dt`, labels, headings, paragraphs, list items, table cells, form controls), so text no longer depends on the theme. Component rules still win. No theme selectors were added.
+- Audit of the windows that follow the theme (control panel, flight map and editor, travel pace, party gold, coin log, loot history, inn dialogs, vendor trash, pin dialogs, chat cards): none hard-codes a text colour; a test now keeps it that way.
+
+**Tests**: `tests/v130-1.test.mjs` scans the CSS (each in-world root's text rules set a colour, the pane's `dd` rule does, no theme selectors, no literal text colours in the theme-following sheets).
+
+**Untested in Foundry** (live check, Foundry's interface set to light and to dark)
+- Character pane: AC, HP, hit dice, initiative, speed, saves, to hit, damage and range are light on the dark sheet; item-pick list, set notes, tab buttons and the Attack dropdown still look as before.
+- Item tooltip (hover a slot and a bag item, with and without a comparison): text, links and comparison table readable.
+- Quest log: stone list (rows, zone headers, party tags, legend) and parchment page (title, headings, objectives, rewards, footer buttons and switch, the party select) unchanged in both themes.
+- Quest tracker and boss frames: titles, objectives, counters and header buttons unchanged.
+- Theme-following windows look right in light and dark (control panel, flight map, party gold, coin log, loot history, inn dialogs, vendor trash, pin dialogs, loot roll card).
+
 ## 1.30.0
 
 The facelift, part two: the character pane becomes a classic character sheet, and every other toolkit window, dialog and chat card moves to wanderers-core's shared look (Option A: same layouts, core's tokens and components instead of the old wood, stone and parchment frames). The health chat card gets short when the Wanderer's Satchel is there. Two quest log fixes from the 1.29.0 live test. On wanderers-core 0.5.0: the GM-only records journal runs on core's store (filed once into a hidden "Module data" folder), windows remember where you left them, the shortcuts use core's helper, and health lines can carry a Fix button. No data migration; two new hidden client settings.

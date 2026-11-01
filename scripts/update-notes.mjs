@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.30.1",
+    changes: [
+      "Fixed: in Foundry's light theme the character pane's numbers (armour class, hit points, speed and the rest) and other text on the dark panels (quest list and page, quest tracker, boss frames, item tooltips) could turn dark and hard to read. They now keep their own colours in both themes."
+    ],
+    actions: []
+  },
+  {
     version: "1.30.0",
     changes: [
       "A new look across the toolkit: every window, dialog and chat card now follows Foundry's own theme (dark or light), sharing one look with the Wanderer's Satchel and Red Book. The control panel has a sidebar you can move through with the arrow keys. Coins show as gold, silver and copper with little coin marks; item borders use one set of quality colours.",
