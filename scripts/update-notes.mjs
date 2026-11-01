@@ -25,6 +25,15 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.30.0",
+    changes: [
+      "A new look across the toolkit: every window, dialog and chat card now follows Foundry's own theme (dark or light), sharing one look with the Wanderer's Satchel and Red Book. The control panel has a sidebar you can move through with the arrow keys. Coins show as gold, silver and copper with little coin marks; item borders use one set of quality colours.",
+      { feature: "characterPane", text: "The character pane is now a full character sheet: level, class, species and party under the name, a Rested badge, Attuned n / 3, a health bar with temporary hit points, your coins, empty slots drawn as outlines, and boxes for Attributes, Defence (AC, hit points, hit dice, initiative, speed, saves) and Attack. The Attack box follows the weapon set in your hands (melee, ranged or spell); pick one by hand from its menu. Everything else works as before." },
+      "The health check's chat card is now one line (how many checks are fine, warnings and problems) with an Open in Wanderer's Satchel button when that module is on; without it you get the full card as before.",
+      { feature: "questLog", text: "Fixed: quest levels written like \"Act 4 · Lv 8\" now give the quest its difficulty colour (the text stays as you wrote it). Reward items added by a macro now show their rarity colour." }
+    ]
+  },
+  {
     version: "1.29.0",
     changes: [
       { feature: "questLog", text: "The quest log has a new look: a native Foundry window (dark or light theme) with a stone-framed quest list and a parchment page. Zones fold with + and −, names are coloured by difficulty, and finished quests say (Ready)." },

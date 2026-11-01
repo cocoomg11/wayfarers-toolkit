@@ -261,3 +261,16 @@ test("look: toolkit CSS reads core tokens; only in-world surfaces keep their own
   const bosses = src("styles/bosses.css"); assert.match(bosses, /#wct-boss-frames \{[^}]*--wc-text:/);
   assert.doesNotMatch(src("styles/pins.css"), /\.window-content \{ background: #efe4c6/, "pin dialogs follow the theme");
 });
+
+test("1.30.0: version, download URL, update note, changelog with the live checklist", async () => {
+  const m = JSON.parse(src("module.json"));
+  assert.equal(m.version, "1.30.0");
+  assert.match(m.download, /releases\/download\/v1\.30\.0\/module\.zip$/);
+  assert.equal(m.styles[0], "vendor/wanderers-core/styles/wanderers-ui.css");
+  const { NOTES } = await import("../scripts/update-notes.mjs");
+  assert.equal(NOTES[0].version, "1.30.0");
+  assert.doesNotMatch(JSON.stringify(NOTES[0]), /warcraft|blizzard|azeroth|\bwow\b/i);
+  const cl = src("CHANGELOG.md");
+  assert.match(cl, /## 1\.30\.0[\s\S]*?\*\*Fixed\*\*[\s\S]*?Untested in Foundry/);
+  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.4.0");
+});

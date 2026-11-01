@@ -57,6 +57,10 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 - **Foundry VTT** v13 and v14 (verified on v14).
 - **dnd5e** system 5.0 or later (verified on 6.0.6). The module is built for dnd5e and doesn't run on other systems.
 
+### Look
+
+Since 1.30 every toolkit window, dialog and chat card uses the shared look of the Wanderer's modules (from the bundled wanderers-core library): they follow Foundry's dark or light theme, with one set of item quality colours and coin marks. A few things on the table look the same in both themes on purpose: the character sheet, the on-screen quest tracker and boss frames over the map, and the quest log's list and page.
+
 ## Optional integrations
 
 None of these are required; the toolkit works on its own.
@@ -106,7 +110,7 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 
 ### Health check
 
-**Health check** (the control panel's Overview tab sums it up; **Full health report**, the **Toolkit Health Check** macro or `api.health()` post it) whispers the GM a report with ✓ / ⚠ / ✗ lines. It changes nothing. It covers:
+**Health check** (the control panel's Overview tab sums it up; **Full health report**, the **Toolkit Health Check** macro or `api.health()` post it) whispers the GM a report with fine / warning / problem lines. It changes nothing. Since 1.30, when the [Wanderer's Satchel](https://github.com/cocoomg11/wanderers-satchel) hub module is active the chat card is one line (how many checks are fine, warnings and problems) with an **Open in Wanderer's Satchel** button that shows the full report there; without it the card lists every line as before. `api.health({ window: true })` opens the full report in a window. It covers:
 
 - which features are on;
 - dependencies: Item Piles and Item Piles: D&D 5e, the vendor-trash compendiums, and whether the coins match the Coin system setting (and Item Piles' currencies in three-coin mode);
@@ -151,9 +155,11 @@ Players can see the compendium (Observer), so they can drag out **Flight Master*
 
 ## Control panel
 
+<!-- screenshot (1.30): the control panel on the shared look, dark and light theme -->
+
 All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wanderer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Show the quest tracker on my screen**, which each player sets for themselves.
 
-The panel has eight tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
+The panel has eight tabs in a sidebar on the left (arrow keys, Home and End move between them). Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
 **A quick walkthrough for a new world**
 
@@ -555,13 +561,20 @@ Hex Travel enforces Long Road: when the party actor has members, the *Mounted* b
 
 **How to use:** click the shirt button in a dnd5e character sheet's header, then drag items from the sheet onto the slots.
 
-A paper doll in the style of a classic MMO character screen. The character's portrait sits in the middle with their stats underneath (the six ability scores, Armor, Health and attuned items), and the gear slots run around it.
+A character sheet in the style of a classic MMO character screen (1.30). The title shows the name, *Level N Class · Species · Party* and a **Rested** badge (its tooltip names the inn and the benefit). The portrait sits in the middle with **Attuned n / 3** on it, a **health bar** (temporary hit points as a striped segment) and the character's **coins** under it, and the gear slots run around it. Below the doll are three boxes:
+
+- **Attributes**: the six ability scores and their modifiers.
+- **Defence**: Armor Class, hit points, hit dice, initiative, speed and the six saving throws (proficient ones highlighted).
+- **Attack**: follows the [weapon set](#weapon-sets) in hand. The Melee set shows the main-hand weapon, the Ranged set the ranged weapon, the Utility set the spell attack and save DC for a caster; a caster holding only a focus shows the spell. Each shows to hit, damage and range (or spell attack, save DC and ability). Pick *Melee*, *Ranged* or *Spell* from the box's menu to look at another; *Auto* goes back to following the set (the choice lasts while the window is open).
+
+The sheet is an in-world panel: it stays dark in both Foundry themes, while the window around it follows your theme.
 
 **Open it** with the shirt button in the header of a dnd5e character (or NPC) sheet, also in the sheet's **⋮** controls menu, or from a macro with `game.modules.get("wayfarers-toolkit").api.characterPane(actor)` (no actor: the selected token's, else your own character). Anyone who owns the actor can open it, so players can dress their own characters. Turn it off under control panel › Features.
 
 The window is resizable: the slots and portrait grow with it, the *Equippable items* list scrolls inside it, and each player's size and position are remembered on their own computer.
 
-<!-- screenshot: the character pane with portrait, stats and equipment slots -->
+<!-- screenshot (1.30): the character sheet with title line, slots, HP bar, coins and the three stat boxes (dark theme) -->
+<!-- screenshot (1.30): the same sheet with Foundry's light theme (the sheet stays dark) -->
 
 ### Slots
 
@@ -571,7 +584,7 @@ Classic-MMO equipment slots, without an Ammo slot:
 | --- | --- | --- |
 | Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist | Hands, Waist, Legs, Feet, Finger ×2, Trinket ×2 | The three [weapon sets](#weapon-sets) and the Relic slot (Main Hand, Off Hand and Ranged with weapon sets off) |
 
-Empty slots show a faint placeholder. Item icons get a border in their quality colour (grey, white, green, blue, purple, orange): an item with an MMO-style tooltip uses its own colour; otherwise dnd5e rarity decides (common white, uncommon green, rare blue, very rare purple, legendary orange, artifact gold). Hover an item for its tooltip.
+Empty slots show a faint outline of what goes there (a helm, a pendant, a cloak, boots, a ring…). Item icons get a border and a soft glow in their quality colour (grey, white, green, blue, purple, orange, gold; the shared colours of the Wanderer's modules): an item with an MMO-style tooltip uses its own colour; otherwise dnd5e rarity decides (none / mundane grey, common white, uncommon green, rare blue, very rare purple, legendary orange, artifact gold). Hover an item for its tooltip.
 
 ### Equipping
 
@@ -870,7 +883,7 @@ With *Cost and time before travel* on, Hex Travel and flights (GM and players' b
 
 ## Macros and scripting
 
-Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash (everything under `api.trash`, `api.bossLoot`, `api.gold` and `api.cleanup` is GM only since 1.27: a player gets a warning and `undefined`), `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
+Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash (everything under `api.trash`, `api.bossLoot`, `api.gold` and `api.cleanup` is GM only since 1.27: a player gets a warning and `undefined`), `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, `moneyHTML(amount)` returns it as coin markup for the shared look (1.30, experimental; `coinRatio()` is the copper per silver of the coins in use), and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
 
 ### Public API and hooks: what's stable
 
@@ -879,7 +892,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty` | experimental |
+| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty`, `moneyHTML`, `coinRatio` (1.30) | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
