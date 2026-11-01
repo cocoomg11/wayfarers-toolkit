@@ -179,6 +179,26 @@ export async function draw(target) {
   return { table, flag, draws, items, nothing, missing, usable: usableN };
 }
 
+/** How many item lookups the health check runs at once. */
+export const INSPECT_CONCURRENCY = 8;
+/**
+ * `fn` over `list` with at most `limit` calls running at once; results in the list's order. A call that throws gives undefined for
+ * its entry (the others carry on). Pure (no Foundry calls), tested in Node.
+ */
+export async function mapLimit(list, limit, fn) {
+  const items = [...(list ?? [])]; const out = new Array(items.length); let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; try { out[i] = await fn(items[i], i); } catch { out[i] = undefined; } } };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(Math.floor(limit) || 1, items.length)) }, worker));
+  return out;
+}
+/** One health check resolves each UUID once even when several bosses share a table (cleared after a short while). */
+const uuidCache = new Map(); let uuidCacheT = null;
+function resolveCached(uuid) {
+  if (!uuidCache.has(uuid)) uuidCache.set(uuid, Promise.resolve().then(() => fromUuid(uuid)).catch(() => null));
+  clearTimeout(uuidCacheT); uuidCacheT = setTimeout(() => uuidCache.clear(), 30000);
+  return uuidCache.get(uuid);
+}
+
 /**
  * Checks a boss loot link without drawing (for the health check): { flag, table, results, usable, resolved, unresolved: [labels],
  * draws, tooManyDraws, fallback } where `fallback` is fallbackReason() for a draw where every item result is missing.
@@ -188,12 +208,14 @@ export async function inspect(target) {
   const table = await tableOf(flag).catch(() => null);
   if (!table) return { flag, table: null, results: 0, usable: 0, resolved: 0, unresolved: [], draws: flag.draws, tooManyDraws: false, fallback: "table" };
   const results = [...table.results]; const usableList = results.filter(r => (Number(r.weight ?? 1) || 0) > 0);
+  // Every result's item at once (a few at a time), not one after another: a cold compendium made the first health check take ~30 s.
+  const looked = await mapLimit(usableList.filter(r => resultUuid(r) || r.documentId), INSPECT_CONCURRENCY, async r => {
+    const uuid = resultUuid(r);
+    const src = uuid ? await resolveCached(uuid) : null;
+    return { r, ok: src instanceof Item };
+  });
   let resolved = 0; const unresolved = [];
-  for (const r of usableList) {
-    const uuid = resultUuid(r); if (!uuid && !r.documentId) continue;
-    const src = uuid ? await fromUuid(uuid).catch(() => null) : null;
-    if (src instanceof Item) resolved++; else unresolved.push(resultLabel(r));
-  }
+  for (const x of looked) { if (x.ok) resolved++; else unresolved.push(resultLabel(x.r)); }
   const fallback = fallbackReason({ tableFound: true, usable: usableList.length, items: resolved, missing: unresolved.length });
   const pr = partyRules();
   const draws = scaledDraws(flag.draws, pr.size, { extra: pr.extra, usable: usableList.length });

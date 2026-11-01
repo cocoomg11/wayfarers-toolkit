@@ -81,3 +81,24 @@ test("healthReport: core's format, plain text, GM only", async () => {
   }
   assert.match(src("main.mjs"), /healthReport\(opts = \{\}\) \{ return Health\.report\(this, opts\); \}/);
 });
+
+// ---------------------------------------------------------------- 6B: boss loot health check runs lookups in parallel, bounded
+test("boss loot inspect: bounded parallel lookups, results in order, a failing one doesn't stop the others", async () => {
+  const BL = await import("../scripts/bossloot.mjs");
+  let running = 0, peak = 0;
+  const out = await BL.mapLimit([...Array(30).keys()], 8, async i => {
+    running++; peak = Math.max(peak, running);
+    await new Promise(r => setTimeout(r, 5 - (i % 5)));
+    running--;
+    if (i === 3) throw new Error("boom");
+    return i * 2;
+  });
+  assert.equal(peak, 8, "never more than the limit at once, and actually parallel");
+  assert.equal(out.length, 30); assert.equal(out[0], 0); assert.equal(out[29], 58); assert.equal(out[3], undefined);
+  assert.deepEqual(await BL.mapLimit([], 8, async () => 1), []);
+  assert.equal(BL.INSPECT_CONCURRENCY, 8);
+  // Time: 40 lookups of 20 ms with 8 at once take ~100 ms, not 800 ms.
+  const t = Date.now(); await BL.mapLimit(Array(40).fill(0), 8, () => new Promise(r => setTimeout(r, 20)));
+  assert.ok(Date.now() - t < 400, `took ${Date.now() - t} ms`);
+  assert.doesNotMatch(readFileSync(new URL("../scripts/bossloot.mjs", import.meta.url), "utf8").match(/export async function inspect[\s\S]*?\n}\n/)[0], /for \(const r of usableList\)[^]*await fromUuid/, "no serial awaits");
+});
