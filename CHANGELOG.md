@@ -2,6 +2,31 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.28.0
+
+Eight quality-of-life tools, each with its own switch on the Features tab (all on by default). The quest data model is unchanged.
+
+**Added**
+- **Quest objectives find their map pin** (`questMapPins`, needs the quest log and map pins): clicking an open objective in the tracker, or an objective or the title in the quest log, pans to the quest's map pin (`canvas.animatePan`) and pings it (`canvas.ping`; a GM's hidden pin is panned to but never pinged, since pings are broadcast). Pin on another scene: the GM is offered to view it, a player is told its scene. The tracker's quest title opens the log and pans quietly. (`pins.mjs` `goToQuest`, pure pick in `quest-ux-model.mjs` `pinTarget`.)
+- **Updated quests glow** (`questGlow`, players only): a quest whose player-visible view changed pulses with an *Updated* tag in the tracker and the log until opened in the log. Per client (hidden client setting `questSeen` = `{ v: 1, init, seen: { questId: stamp } }`, ≤ 500, in `RECORD_SETTINGS` and `WIZARD_IGNORE`); the stamp hashes the quest's name and the view the user receives, so GM-only changes never glow. The first load is a baseline (nothing glows).
+- **Keyboard shortcuts** (`keybindings`): *Open character pane* and *Open the control panel (GM)* in Configure Controls, registered in `init` with no default keys. The quest log's L stays where it was.
+- **Coin log** (`coinLog`, GM only): vault bucket `coinLog` = `{ v: 1, entries }`, newest first, ≤ 200 (FIFO), created once by migration `coinLog1`. `api.pay` / `api.addMoney` take `{ reason }` and log the actual change in the purse; every toolkit movement passes one (quest rewards, rooms, flight fares and refunds, vendor trash sales, body / Give to Party coin from Vendor Trash and Boss loot, Split coin). Window: control panel › Loot › Coin log…; **Undo** on the latest 20 (gives back a payment; takes back a credit only if the actor still has it, else refuses and changes nothing; logged; once). `api.coinLog` (`entries`, `open`, `undo`).
+- **Split coin** (`splitCoin`): GM dialog from the party (group) sheet's header menu, control panel › Loot, or `api.splitCoin(party?)`; preview of each share, remainder stays with the party, re-checked before moving; logged.
+- **Rest after renting rooms** (`innRestOffer`, needs Rested at the inn): after a rental the GM is offered *Long rest everyone*: dnd5e `actor.longRest({ dialog: false, chat: true, advanceTime: false })` for each renter (so `dnd5e.restCompleted` grants Rested as usual), then one optional `game.time.advance` by setting `innRestHours` (default 8, 0–24). Flights still only advance time with *Flights advance world time*.
+- **Cost and time before travel** (`travelConfirm`): Hex Travel gets a confirm with cost, time and who pays; the flight confirm gains the same table (gold / silver / copper). Setting `travelConfirmSkip` (Travel › Advanced) skips it for the GM.
+- **Hooks for other modules** (`moduleHooks`): `wayfarersToolkit.questUpdated` `{ questId, change }` and `wayfarersToolkit.journey` `{ kind, fromId, toId, fromName, toName, hours, cost: { gp, sp, cp }, partyId }`, fired with `Hooks.callAll` on the GM client that made the change, after saving (README › Hooks).
+
+**Untested in Foundry**
+- Nothing in this release was run in Foundry. To check in a live world (v13 and v14, dnd5e 5.x and 6.x):
+  - Objective / title clicks pan and ping on the current scene; the other-scene prompt views the scene and pings after it loads; players get the notice; a hidden GM pin isn't pinged.
+  - The Updated glow appears for a player after a GM ticks an objective, not after a change to a hidden objective; it clears on opening the quest; nothing glows on the first load after updating; reduced-motion shows an outline instead.
+  - The two shortcuts appear in Configure Controls with no keys, and work once bound.
+  - Coin log lines for each movement (quest pay, rooms from party and from each, flight, flight refund, sell trash, Give to Party, body coin, Split coin); Undo of a credit and of a debit; refusal when the coin is gone; the `coinLog1` migration on an existing 1.27 world.
+  - Split coin from the group sheet header (dnd5e group sheet's header controls) and the panel; remainder; changed purse during preview.
+  - Inn rest offer: `longRest({ dialog: false, chat: true, advanceTime: false })` rests without dialogs, posts dnd5e's card, grants Rested; time moves once by the setting; a player-owned character rested from the GM client.
+  - Hex Travel and flight confirms (GM and player booking), the skip setting.
+  - Both hooks fire once, on the acting GM client, with the documented payloads (Red Book listening).
+
 ## 1.27.2
 
 **Fixed**

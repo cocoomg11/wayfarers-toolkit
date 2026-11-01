@@ -98,8 +98,9 @@ test("tracker: draggable header, grip keyboard, close X, Show tracker switch in 
   assert.match(src("scripts/panel.mjs"), /tab\.id === "quests" && F\.on\("questLog"\) && F\.on\("questTracker"\)/);
 });
 
-test("1.27.2 version and download URL", () => {
+test("download URL matches the version (1.27.2 or later)", () => {
   const m = JSON.parse(src("module.json"));
-  assert.equal(m.version, "1.27.2");
-  assert.match(m.download, /releases\/download\/v1\.27\.2\/module\.zip$/);
+  const [a, b, c] = m.version.split(".").map(Number);
+  assert.ok(a > 1 || b > 27 || (b === 27 && c >= 2), m.version);
+  assert.ok(m.download.endsWith(`/releases/download/v${m.version}/module.zip`));
 });

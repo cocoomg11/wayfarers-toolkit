@@ -27,6 +27,14 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Zone title cards** | When a scene is activated, its title fades in over the map in classic-MMO style, with an optional subtitle ("Levels 1–3") and short sound. Per-scene title, subtitle, sound or off switch in the scene configuration. |
 | **Rested at the inn** | Mark a scene as an Inn with a room price. Rent rooms for the party (players can ask); their next long rest gives Heroic Inspiration, an extra Hit Die or temporary hit points. |
 | **Map pins** | The party's own marks on any scene (the hex travel map, a zone map): an inked, hand-drawn mark (pin, flag, camp, cave, question, cross, skull, star) in one of six inks, with a label, a short note and an optional quest link. Players place and change the party's pins; the GM's own pins can stay hidden until revealed. Stored as ordinary map notes. |
+| **Quest objectives find their map pin** | Click a tracked quest's objective (or its title) in the tracker, or an objective in the quest log: the map moves to the quest's map pin and pings it. Needs the quest log and map pins. |
+| **Updated quests glow** | A quest the GM changes glows (with an *Updated* tag) in each player's tracker and quest log until they open it. Remembered per computer. |
+| **Keyboard shortcuts** | Configure Controls entries to open the character pane and (GM) the control panel, with no keys set. |
+| **Coin log** | GM only: every coin movement the toolkit makes, with who, how much (gold, silver, copper), why and when; Undo on the latest. |
+| **Split coin** | Share the party actor's coin evenly among its members, after a preview; the odd coins stay with the party. |
+| **Rest after renting rooms** | After renting, long-rest everyone who rented in one click and move world time on. |
+| **Cost and time before travel** | Hex Travel and flights show cost, time and who pays before going. |
+| **Hooks for other modules** | Foundry hooks when quests change and when the party travels (see [Hooks](#hooks)). |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Contents
@@ -478,6 +486,8 @@ The chosen characters become **Rested**: the GM's client records each rental in 
 
 **The next long rest** (dnd5e's `dnd5e.restCompleted` hook) of a Rested character gives **Rested gives**: Heroic Inspiration (default; nothing if they already have it), one extra Hit Die back (their largest spent die), or temporary hit points equal to their character level (if more than they have). It's checked against the GM's rental record, not the character's flag, so a player can't make their own character Rested. Then Rested clears and a chat line says what they got. A long rest away from an inn still counts while **Rested lasts until the next long rest anywhere** is on (default); off, Rested is lost with no benefit. A player's own long rest is sent to the acting GM client, which applies it; with no GM connected, Rested waits for the next long rest.
 
+**Rest after renting** (feature *Rest after renting rooms*, 1.28): when the rooms are paid, the GM is offered **Long rest everyone**, which runs dnd5e's long rest for each character who rented (no rest dialog, with dnd5e's chat card, so Rested is granted as usual) and, ticked by default, moves world time on once by **Hours the inn rest moves time on** (Places › Advanced, default 8; 0 never). dnd5e's own time advance is turned off for these rests, so time moves once, not per character. Flights still never move time unless *Flights advance world time* is on.
+
 **Players can ask for rooms**: on a scene with an inn a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
 
 **Upgrading from 1.26**: a scene marked *Inn* becomes one inn record with the same name and price the first time the GM loads 1.27 (the old setting stays on the scene, unused). Characters already Rested keep it.
@@ -668,6 +678,10 @@ Players only read. They see quests that have been given and aren't hidden, under
 
 **Tracker.** Newly given quests are tracked automatically (up to five); untick **Track** in the log to drop one. The tracker lists each tracked quest's open objectives. It starts at the top right, left of the sidebar, in the first spot that covers none of Foundry's own interface (scene controls and navigation, players list, hotbar, camera dock). **Drag it by its title** to put it anywhere (mouse or touch), or focus its grip (Tab) and use the **arrow keys** (Shift for bigger steps); it's kept inside the window, and each person's spot is remembered on their own computer. Double-click the title, press **Home** on the grip, or use the reset button next to **Show tracker** in the quest log (or *control panel › Quests › Reset quest tracker position*) to put it back. Collapse it with its arrow; close it with its **X** and bring it back with **Show tracker** at the top of the quest log (the same as **Show the quest tracker on my screen**, Quests tab). Tracking a quest while it's closed doesn't reopen it. Scripts: `api.quests.showTracker(on)` and `api.quests.resetTrackerPosition()` (this client only).
 
+**Objective → map pin** (feature *Quest objectives find their map pin*, 1.28). Link a map pin to a quest from the pin's card. Then clicking one of the quest's open objectives in the tracker, or an objective or the quest's title in the quest log, moves the map to the pin and pings it (Foundry's own ping, seen by everyone on the scene; a GM's hidden pin is moved to but never pinged). Clicking the quest's title in the tracker opens the log and also moves to the pin, quietly. A pin on another scene: the GM is asked whether to view that scene (only the GM moves); a player is told which scene it's on. With several pins, one on the scene you're viewing wins.
+
+**Updated** (feature *Updated quests glow*, 1.28). When the GM changes a quest a player can see (status, an objective ticked or revealed, its text), it pulses with an *Updated* tag in that player's tracker and quest log until they open it in the log. Only what the player sees counts (a change to hidden objectives or GM text doesn't glow). Each computer remembers what it has seen (hidden client setting `questSeen`); the first load after updating marks everything as seen. GMs never see the glow.
+
 ### Moments
 
 - **Give quest** posts a *New quest* card with the summary (and plays the accepted sound).
@@ -830,6 +844,22 @@ To switch back, switch **Three-coin economy** off again. Coin amounts stay as th
 
 **Treasure and rewards** you award by hand: give coin in the new denominations.
 
+## Coin log and Split coin
+
+**Coin log** (GM only, feature *Coin log*): control panel › Loot › **Coin log…**. Every coin movement the toolkit makes is listed, newest first: quest rewards paid, rooms rented, flight fares (and a refund when a flight's scene fails to open), vendor trash sold, coin put on bodies by Vendor Trash and Boss loot, coin given with *Give to Party*, Split coin, and undos. Each line has the actor, the amount (and as gold / silver / copper), the reason and the time. The last 200 are kept in the GM-only records (bucket `coinLog`; created once by the `coinLog1` migration). Coin you move by hand on a sheet isn't logged.
+
+**Undo** on one of the latest 20 entries reverses it once: coin that was paid is given back; coin that was given is taken back only if the actor still has at least that much (otherwise nothing changes and you're told why). The undo is logged too and can't itself be undone. `api.coinLog` (GM; experimental): `entries()`, `open()`, `undo(id)`. `api.pay(actor, amount, { reason })` and `api.addMoney(actor, amount, { reason })` log when given a reason.
+
+**Split coin** (GM, feature *Split coin*): the party actor's sheet header menu (**Split coin among members**), control panel › Loot › **Split coin…**, or `api.splitCoin(party?)`. The preview shows each member's share; the remainder that doesn't divide evenly stays with the party. If the party's coin changes while the preview is open, nothing moves.
+
+## Keyboard shortcuts
+
+With *Keyboard shortcuts* on, **Configure Controls** lists *Open character pane* and *Open the control panel (GM)* under Wayfarer's Toolkit, with no keys set: each user picks their own. The quest log's own shortcut (**L**) belongs to the quest log and is there whenever the quest log is on.
+
+## Cost and time before travel
+
+With *Cost and time before travel* on, Hex Travel and flights (GM and players' bookings) show a confirm with the **cost** in gold, silver and copper, the **time** and **who pays** (the party actor; free flights and hex travel cost nothing). The GM can skip it with *Travel without the cost and time check* (Travel › Advanced; a player's booking still shows its confirm).
+
 ## Macros and scripting
 
 Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`: `hexTravel`, `flight`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `setup`, `health` (the health check; `api.setupPlan()` lists what setup would create). Boss frames are under `api.bosses` (`toggle(tokens, on)`, `isBoss(token)`) and loot rolls under `api.lootRoll` (`start(item, { seconds })`, `close(messageId)`) (plus `assign(messageId, actor)`) and boss loot under `api.bossLoot` (`set`, `get`, `preview`, `drop`, `reset`, `dialog`, `autoLink`; see [Boss loot](#boss-loot)); all are undefined when their feature is off. `api.partySize` reads the Party size setting; `api.cleanup` is [Remove toolkit data](#remove-toolkit-data). The quest API is under `api.quests` (see [Quest log](#quest-log)); `api.features.on("questLog")` tells whether a feature is turned on. `characterPane(actor)` opens the pane for an actor (or the selected token's, or your character); `api.pane.slotItem(actor, item, slot)` and `api.pane.unslotItem(item)` slot and unslot from a macro (slots: `head`, `neck`, `shoulder`, `back`, `chest`, `shirt`, `tabard`, `wrist`, `hands`, `waist`, `legs`, `feet`, `finger1`, `finger2`, `trinket1`, `trinket2`, `mainhand`, `offhand`, `ranged`, `relic`; with weapon sets on, the three weapon slots mean the set in hand, see [Weapon sets](#weapon-sets)). `vendorTrash(tokens)` takes an optional list of tokens instead of the selection, `api.trash.reroll(tokens)` rerolls pre-rolled trash (everything under `api.trash`, `api.bossLoot`, `api.gold` and `api.cleanup` is GM only since 1.27: a player gets a warning and `undefined`), `api.trash.reset(tokens, { clearCoin })` resets looted tokens, `api.trash.preview(tokenOrActor, n)` returns what a creature can drop, `api.trash.showPreview(tokens, n)` whispers that as a GM chat card (the Preview Vendor Trash macro), and `sellTrash(actor)` sells one actor's trash without asking. Money helpers: `parseMoney("1g 20s")` returns an amount in the smallest coin, `fmtMoney(amount)` formats one, and `totalMoney(actor)` / `pay(actor, amount)` read and spend an actor's purse.
@@ -841,7 +871,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition` | experimental |
+| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition` | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
@@ -858,7 +888,19 @@ const report = await game.modules.get("wayfarers-toolkit").api.healthReport({ ti
 - Each section runs wrapped and time-limited: `timeoutMs` per section when given (clamped to 1 s – 5 min; a hub passes its own budget so the two limits agree), otherwise 20 s. One that throws or runs out of time becomes a single `warn` line, and the others still run. Nothing in the world is changed. Nothing is posted to chat (use `api.health()` for the chat card).
 - Players get `[]` (the report names GM-only things).
 
-Hooks the module fires: **none** since 1.27 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the acting GM client, and it isn't meant for other modules.
+### Hooks
+
+With the feature *Hooks for other modules* on (default), the toolkit fires two hooks (`Hooks.callAll`), on the GM client that makes the change only (one client, not every client). Both are **experimental**.
+
+```js
+Hooks.on("wayfarersToolkit.questUpdated", ({ questId, change }) => { … });
+Hooks.on("wayfarersToolkit.journey", ({ kind, fromId, toId, fromName, toName, hours, cost, partyId }) => { … });
+```
+
+- **`wayfarersToolkit.questUpdated`** `{ questId, change }`: `questId` is the quest journal entry's 16-character id; `change` is one of `"started"` (given or reopened), `"completed"`, `"failed"`, `"objective"` (ticked, unticked, revealed or hidden), `"updated"` (anything else: text, hidden from or shown to players, rewards paid, set back to not given) or `"assigned"` (reserved for party assignment, not fired yet). It fires only **after** the quest is saved (the GM-only records and the quest journal), so reading the quest from inside the hook sees the change. Ids only: read the quest through `api.quests.get(questId)`.
+- **`wayfarersToolkit.journey`** after a hex trip or flight has happened: `kind` `"hex"` or `"flight"`; for a flight `fromId` / `toId` are flight point ids and the names their names; for hex travel `fromId` / `fromName` are the scene travelled from and `toName` the zone travelled through (`toId` null). `hours` is decimal hours (e.g. `2.5`); `cost` is `{ gp, sp, cp }`, whole coins of each kind (what was actually charged; 0 for free flights and hex travel); `partyId` the party actor's id or null.
+
+Earlier hooks: none from 1.27 to 1.27.2 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the acting GM client, and it isn't meant for other modules.
 
 Other modules should read and change toolkit data through this API rather than writing `flags.wayfarers-toolkit.*` directly; flag shapes are documented for reading, and may gain fields.
 

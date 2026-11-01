@@ -22,6 +22,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - `permissions.mjs` pure permission checks; `health.mjs` gathers the facts (`permissionFacts`) for its *Permissions* section.
 - `zone-titles.mjs` / `zone-titles-model.mjs` zone title cards (UI / pure config and show rules); `inn.mjs` / `inn-model.mjs` inns and Rested (records, renting, token HUD, rest hook / pure records, price, pay, rentals, benefit rules).
 - `pins.mjs` / `pins-model.mjs` map pins (tool, dialogs, card, GM relay, Note class / pure flag shape, permissions, request reader and GM decision, quest guard, cleanup grouping).
+- `coinlog.mjs` / `coinlog-model.mjs` coin log, undo and Split coin (UI / pure entries, cap, undo plan, split plan, g/s/c breakdown); `quest-ux-model.mjs` pure quest map-pin pick, Updated-glow seen record, hook payloads, trip confirm lines.
 - `quests.mjs` quest log + tracker; `tracker-model.mjs` the tracker's placement (pure: clamp, saved spot, default spot, nudges). Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
 
 ## Key patterns
@@ -81,6 +82,15 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - Drag: pointer events on the header with pointer capture; no redraw while dragging (`hudDrag`; `hudUp` redraws). Grip (`.grip`, tabindex 0): arrows/Shift/Home/Escape. Double-click header = reset.
 - Close (X) and the log's **Show tracker** switch only set client `questTracker`; `track()` / `autoTrack()` never set it (test). API: `quests.showTracker(on)`, `quests.resetTrackerPosition()`. Reset also on control panel › Quests.
 - Tests: `tests/v127-2.test.mjs`.
+
+## 1.28.0 notes
+- New features (each its own toggle): `questMapPins` (needs questLog + mapPins), `questGlow` (needs questLog), `keybindings`, `coinLog`, `splitCoin`, `innRestOffer` (needs restedInn), `travelConfirm`, `moduleHooks`. Settings `travelConfirmSkip` (Travel › Advanced), `innRestHours` (Places › Advanced, default 8), client `questSeen` (RECORD_SETTINGS + WIZARD_IGNORE).
+- **Coin log**: vault bucket `coinLog` (`{ v: 1, entries }`, newest first, `COINLOG_MAX` 200), migration `coinLog1` creates it. Log a movement by passing `{ reason }` to `api.pay` / `api.addMoney` (they record the real purse change), or `CoinLog.record(actor, delta, reason)` when writing `system.currency` directly (inn rent, flight refund). Any new coin movement must carry a reason (test). Undo window `UNDO_WINDOW` 20; undo of a credit refuses when the actor no longer has it.
+- **Quest map pins**: `Quests.init(..., { goToPin })` gets `Pins.goToQuest` only when both features are on; no ping for hidden pins (pings broadcast).
+- **Glow**: `isUpdated(j)` players only; stamp = hash of name + the view this user receives (`data(j)`), so GM-only changes don't glow. Cleared when the log renders the quest selected.
+- **Hooks** (README › Hooks): `wayfarersToolkit.questUpdated` `{ questId, change }` via `emit()` in quests.mjs, always **after** `save()`; `wayfarersToolkit.journey` via `journeyHook()` in main.mjs after a trip. GM client only; ids only. `change` "assigned" is reserved for the party-assignment facelift. Red Book listens to both: don't rename or reshape.
+- **Inn rest**: `longRest({ dialog: false, chat: true, advanceTime: false })` (dnd5e `initiateRest` merges config; long rests default `advanceTime` false anyway), time advanced once by `innRestHours`. Flights still only advance with `flightAdvanceTime` (test counts `await game.time.advance` in main.mjs).
+- Tests: `tests/v128.test.mjs`.
 
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.2.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).

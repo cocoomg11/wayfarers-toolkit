@@ -25,6 +25,20 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.28.0",
+    changes: [
+      { feature: "questMapPins", text: "Click an objective (or a quest's title) in the tracker, or an objective in the quest log, and the map moves to the quest's map pin and pings it. A pin on another scene: you're offered to view it; players are told which scene." },
+      { feature: "questGlow", text: "When you change a quest, it glows for players in their tracker and quest log (marked Updated) until they open it." },
+      { feature: "keybindings", text: "New shortcuts in Configure Controls: open the character pane, and (GM) the control panel. No keys are set; pick your own." },
+      { feature: "coinLog", text: "Coin log (control panel › Loot): every coin movement the toolkit makes, with who, how much, why and when. Undo the latest ones: paid coin is given back; given coin is taken back only if the character still has it." },
+      { feature: "splitCoin", text: "Split coin: share the party actor's coin evenly among its members, with a preview. In the party sheet's header menu and control panel › Loot." },
+      { feature: "innRestOffer", text: "After renting rooms you're offered a long rest for everyone who rented, and to move time on (8 hours; change it under Places › Advanced)." },
+      { feature: "travelConfirm", text: "Hex Travel and flights now show the cost, the time and who pays before going. Skip it under Travel › Advanced." },
+      { feature: "moduleHooks", text: "Other modules (such as a session log) can now hear when quests change and when the party travels." },
+      "Each of these is its own switch on the Features tab."
+    ]
+  },
+  {
     version: "1.27.2",
     changes: [
       { feature: "questTracker", text: "The on-screen quest tracker can be moved: drag it by its title (or focus the grip and use the arrow keys). Each person's spot is kept on their own computer. It now starts clear of Foundry's own buttons; double-click its title, or use the button in the quest log, to put it back. It can also be closed with its X and shown again with Show tracker at the top of the quest log." }
