@@ -54,6 +54,7 @@ function rowHTML([key, cond, kind]) {
   else if (kind === "scenes") { wide = true; control = scenesPicker(v, off); }
   else if (kind === "packs") { wide = true; control = packsPicker(v, off); }
   else if (kind === "classes") { wide = true; control = classesPicker(v, off); }
+  else if (kind === "parties") { wide = true; control = partiesPicker(v, off); }
   else if (kind === "journal" || kind === "groupActor" || kind === "journalFolder") {
     const names = kind === "journal" ? game.journal.map(j => j.name) : kind === "groupActor" ? game.actors.filter(a => a.type === "group").map(a => a.name) : game.folders.filter(f => f.type === "JournalEntry").map(f => f.name);
     const lid = `wct-dl-${key}`;
@@ -118,6 +119,14 @@ function classesPicker(v, off) {
   const gone = [...set].filter(id => !list.some(c => c.id === id));
   const box = (id, label, note) => `<label class="wct-check"><input type="checkbox" data-class value="${esc(id)}" ${set.has(id) ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)} <span class="hint">${esc(note)}</span></label>`;
   return `<div class="wct-checklist"><div class="wct-checks">${list.map(c => box(c.id, c.label, c.label.toLowerCase() === c.id ? "" : c.id)).join("")}${gone.map(id => box(id, id, "not in this world")).join("")}</div></div>`;
+}
+/** Group actors as ticks (questParties holds their ids). */
+function partiesPicker(v, off) {
+  const set = new Set(Array.isArray(v) ? v : []); const groups = game.actors.filter(a => a.type === "group").sort((a, b) => a.name.localeCompare(b.name));
+  const gone = [...set].filter(id => !groups.some(a => a.id === id));
+  const box = (id, label, note) => `<label class="wct-check"><input type="checkbox" data-party value="${esc(id)}" ${set.has(id) ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)}${note ? ` <span class="hint">${esc(note)}</span>` : ""}</label>`;
+  return `<div class="wct-checklist">${!set.size ? `<p class="wct-note"><i class="fa-solid fa-circle-info"></i> None ticked: quests go to the party actor.</p>` : ""}
+    ${groups.length || gone.length ? `<div class="wct-checks">${groups.map(a => box(a.id, a.name, "")).join("")}${gone.map(id => box(id, id, "no such group actor")).join("")}</div>` : `<p class="hint">No group actors in this world yet.</p>`}</div>`;
 }
 function settingsTab(tab) {
   const advanced = (tab.advanced ?? []).map(rowHTML).join("");
@@ -343,6 +352,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       }
       if (kind === "packs") { if (dirty) changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))); continue; }
       if (kind === "classes") { if (dirty) changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))); continue; }
+      if (kind === "parties") { if (dirty) changed(key, [...row.querySelectorAll("[data-party]:checked")].map(i => i.value)); continue; }
       const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) continue;
       if (c.type === Boolean) changed(key, !!el.checked);
       else if (c.type === Number) { const n = Number(el.value); if (Number.isFinite(n) && String(el.value).trim() !== "") changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n); }

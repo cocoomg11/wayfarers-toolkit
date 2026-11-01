@@ -254,7 +254,9 @@ function permissionFacts(api) {
   if (F.on("questLog")) {
     try {
       const shown = Quests.all().filter(j => { const q = Quests.data(j); return !q.hidden && q.status !== "available"; });
-      quests = { visible: shown.length, unreadable: users.length ? shown.filter(j => users.some(u => !j.testUserPermission(u, "OBSERVER"))).map(j => j.name) : [] };
+      // 1.29: a quest is for its party's players only; check those (older records without a party: every player).
+      const meant = (j, u) => { const q = Quests.data(j); return !q.party || Quests.isMember(u, q.party); };
+      quests = { visible: shown.length, noParty: shown.filter(j => !Quests.data(j).party).map(j => j.name), unreadable: users.length ? shown.filter(j => users.some(u => meant(j, u) && !j.testUserPermission(u, "OBSERVER"))).map(j => j.name) : [] };
     } catch { quests = null; }
   }
   return {

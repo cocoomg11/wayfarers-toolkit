@@ -73,8 +73,8 @@ export const TABS = [
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
-    basic: [["questTracker", "questLog:questTracker"], ["questObjectiveChat", "questLog"], ["questSoundAccept", "questLog"], ["questSoundComplete", "questLog"]],
-    advanced: [["questVolume", "questLog"], ["questFolder", "questLog", "journalFolder"]]
+    basic: [["questTracker", "questLog:questTracker"], ["questParties", "questLog", "parties"], ["questObjectiveChat", "questLog"], ["questSoundAccept", "questLog"], ["questSoundComplete", "questLog"]],
+    advanced: [["questCap", "questLog"], ["questVolume", "questLog"], ["questFolder", "questLog", "journalFolder"]]
   }
 ];
 
@@ -168,6 +168,8 @@ export const LABELS = {
   questSoundAccept: ["Sound when a quest is given", "Played for everyone. Leave blank for none."],
   questSoundComplete: ["Sound when a quest is completed", "Played for everyone. Leave blank for none."],
   questVolume: ["Quest sound volume", ""],
+  questParties: ["Parties", "The group actors quests can be given to. Each quest belongs to one party; players see only the quests of parties they have a character in. None ticked: the party actor (General tab)."],
+  questCap: ["Quest cap", "How many active quests one party can have. Giving more still works; you get a warning. Shown in the quest log as Quest Log (n / cap)."],
   questFolder: ["Quest folder", "The journal folder your quests are kept in. Created with the first quest."]
 };
 
@@ -263,11 +265,12 @@ export function presetSettings(preset) {
 /** Settings the wizard and the feature switches don't count when deciding whether a world is already configured. */
 /**
  * Record-type settings (stored lists, bookkeeping), never exported, imported or offered by the wizard: a settings file (the hub's
- * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE).
+ * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE). questParties holds
+ * this world's actor ids, which mean nothing in another world.
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties"]);
 
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen"]);
+export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

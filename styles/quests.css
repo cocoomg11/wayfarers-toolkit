@@ -1,25 +1,42 @@
-/* Wayfarer's Toolkit: quest log, quest editor, tracker and chat cards. An MMO-inspired look drawn with CSS only:
-   a dark wood-and-stone frame, a parchment page for the quest, gold headings and plain-text "!" / "?" glyphs. */
+/* Wayfarer's Toolkit: quest log, quest editor, tracker and chat cards.
+   1.29: the quest log is a native Foundry window (dark and light theme, wanderers-core's shared UI for the top bar and buttons);
+   inside it two in-world panels drawn with CSS only, the same in both themes: a stone-framed quest list and a parchment page.
+   Difficulty colours (grey / green / yellow / orange / red) and item quality borders are the module's own. */
 
 .application.wct-quests {
-  --wctq-wood: #3a2a18;
-  --wctq-wood-hi: #8a6a3a;
-  --wctq-stone: #17130f;
-  --wctq-stone-2: #241d16;
+  --wctq-stone: #1a1612;
+  --wctq-stone-2: #2a231c;
+  --wctq-rim: #6d5a3e;
+  --wctq-rim-hi: #a8895a;
   --wctq-gold: #ffd100;
   --wctq-gold-dim: #c9a227;
   --wctq-text: #f2ead8;
   --wctq-muted: #a99d86;
   --wctq-ink: #2b1d0e;
   --wctq-ink-soft: #5a4325;
-  --wctq-parch: #e9d7ae;
-  --wctq-parch-2: #d8c08c;
-  --wctq-good: #3d8b2f;
-  --wctq-bad: #b3261e;
+  --wctq-head: #6b2a0c;
+  --wctq-parch: #ecdcb4;
+  --wctq-parch-2: #d9c08a;
+  --wctq-good: #3d7f2f;
+  --wctq-bad: #a3221b;
+  /* Difficulty, readable on the dark stone list. */
+  --wctq-d-trivial: #9d9d9d;
+  --wctq-d-easy: #40bf40;
+  --wctq-d-even: #ffd100;
+  --wctq-d-hard: #ff8040;
+  --wctq-d-deadly: #ff3030;
+  --wctq-d-none: #e8dcc0;
+  /* Item quality borders. */
+  --wctq-q-mundane: #8a8a8a;
+  --wctq-q-common: #f4f4f4;
+  --wctq-q-uncommon: #1eff00;
+  --wctq-q-rare: #2f7dff;
+  --wctq-q-veryrare: #a335ee;
+  --wctq-q-legendary: #ff8000;
 }
-.application.wct-quests .window-content { padding: 0; background: var(--wctq-wood); }
+.application.wct-quests#wct-quest-log .window-content { padding: 8px; }
 
-/* The glyph: a bold yellow "!" or "?" with a black outline, as text. */
+/* The glyph: a bold yellow "!" or "?" with a black outline, as text (chat cards). */
 .wct-glyph {
   display: inline-block; min-width: 0.9em; text-align: center;
   font-family: "Modesto Condensed", var(--font-primary, serif); font-weight: 900; font-size: 1.25em; line-height: 1;
@@ -30,85 +47,123 @@
 .wct-glyph.completed { color: #8fd16a; font-size: 1em; }
 .wct-glyph.failed { color: #ff6a5a; font-size: 1em; }
 
-/* ---------------------------------------------------------------- log frame */
-.wct-quests .wctq-frame {
-  display: flex; flex-direction: column; height: 100%;
-  margin: 0; padding: 8px; gap: 8px;
+/* ---------------------------------------------------------------- the window: top bar (Foundry theme) */
+.wct-quests .wctq-frame { display: flex; flex-direction: column; height: 100%; gap: 8px; min-height: 0; }
+.wct-quests .wctq-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.wct-quests .wctq-tabs, .wct-quests .wctq-parties { display: flex; flex-wrap: wrap; gap: 4px; }
+.wct-quests .wctq-tabs .n { opacity: 0.7; margin-left: 2px; font-size: 0.9em; }
+.wct-quests .wctq-parties { padding-left: 10px; border-left: 1px solid var(--wc-line, rgba(128, 128, 128, 0.3)); }
+.wct-quests .wctq-trk { display: flex; gap: 2px; }
+.wct-quests .wctq-tool.on { border-color: var(--wc-accent); }
+
+.wct-quests .wctq-body { flex: 1; display: grid; grid-template-columns: minmax(230px, 38%) 1fr; gap: 8px; min-height: 0; }
+
+/* ---------------------------------------------------------------- the quest list: a stone frame (same in both themes) */
+.wct-quests .wctq-list {
+  display: flex; flex-direction: column; min-height: 0;
   color: var(--wctq-text);
   background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 7px),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 220, 150, 0.06), transparent 70%),
     linear-gradient(180deg, var(--wctq-stone-2), var(--wctq-stone));
-  border: 2px solid var(--wctq-wood-hi);
-  box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0, 0, 0, 0.8);
-  box-sizing: border-box;
+  border: 3px solid var(--wctq-rim);
+  border-image: linear-gradient(180deg, var(--wctq-rim-hi), var(--wctq-rim) 40%, #3b2f20) 1;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 18px rgba(0, 0, 0, 0.85), 0 1px 3px rgba(0, 0, 0, 0.5);
 }
-
-.wct-quests .wctq-tabs { display: flex; gap: 4px; align-items: flex-end; border-bottom: 1px solid rgba(201, 162, 39, 0.4); }
-.wct-quests .wctq-tabs button {
-  flex: 0 0 auto; width: auto; margin: 0; padding: 4px 14px; line-height: 1.4;
-  border: 1px solid rgba(201, 162, 39, 0.35); border-bottom: none; border-radius: 5px 5px 0 0;
-  background: rgba(0, 0, 0, 0.35); color: var(--wctq-muted);
-  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; letter-spacing: 0.03em;
+.wct-quests .wctq-list-head {
+  padding: 5px 10px; text-align: center;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.15em; letter-spacing: 0.05em;
+  color: var(--wctq-gold); text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15));
 }
-.wct-quests .wctq-tabs button span { font-size: 0.8em; opacity: 0.75; margin-left: 2px; }
-.wct-quests .wctq-tabs button.on { color: var(--wctq-gold); background: rgba(201, 162, 39, 0.16); text-shadow: 0 1px 0 #000; }
-.wct-quests .wctq-tabs button:hover { color: var(--wctq-gold); box-shadow: none; }
-.wct-quests .wctq-tabs .wctq-trk { margin-left: auto; display: flex; gap: 2px; margin-bottom: 4px; }
-.wct-quests .wctq-tabs .wctq-trk + .wctq-new { margin-left: 4px; }
-.wct-quests .wctq-tabs .wctq-tool { border-radius: 4px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); padding: 4px 10px; font-family: var(--font-primary, sans-serif); font-size: 0.9em; color: var(--wctq-muted); }
-.wct-quests .wctq-tabs .wctq-tool.icon { padding: 4px 8px; }
-.wct-quests .wctq-tabs .wctq-tool.on { color: var(--wctq-gold); background: rgba(201, 162, 39, 0.16); }
-.wct-quests .wctq-tabs .wctq-new { margin-left: auto; border-radius: 4px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); margin-bottom: 4px; font-family: var(--font-primary, sans-serif); font-size: 0.9em; color: var(--wctq-text); }
-
-.wct-quests .wctq-body { flex: 1; display: grid; grid-template-columns: minmax(200px, 36%) 1fr; gap: 8px; min-height: 0; }
-
-/* List */
-.wct-quests .wctq-list { overflow-y: auto; background: rgba(0, 0, 0, 0.4); border: 1px solid #000; box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.25); border-radius: 3px; padding: 4px 0; }
 .wct-quests .wctq-list ul { list-style: none; margin: 0; padding: 0; }
-.wct-quests .wctq-zone h4 {
-  margin: 6px 8px 2px; padding: 0 0 2px; border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+.wct-quests .wctq-zones { flex: 1; overflow-y: auto; padding: 2px 0 6px !important; }
+.wct-quests .wctq-zone-head {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px 2px; cursor: pointer;
   font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.05em; letter-spacing: 0.04em;
   color: var(--wctq-gold-dim); text-shadow: 0 1px 0 #000;
 }
-.wct-quests .wctq-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; cursor: pointer; color: #e8dcc0; border-left: 2px solid transparent; }
-.wct-quests .wctq-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wct-quests .wctq-row .lvl { font-size: 0.8em; color: var(--wctq-muted); }
+.wct-quests .wctq-zone-head:hover { color: var(--wctq-gold); }
+.wct-quests .wctq-zone-head:focus-visible { outline: 1px solid var(--wctq-gold); outline-offset: -1px; }
+.wct-quests .wctq-zone-head .pm {
+  flex: 0 0 14px; height: 14px; line-height: 12px; text-align: center; font-family: var(--font-primary, sans-serif); font-size: 12px; font-weight: bold;
+  color: var(--wctq-gold); border: 1px solid var(--wctq-rim-hi); border-radius: 2px; background: rgba(0, 0, 0, 0.5);
+}
+.wct-quests .wctq-zone-head .zn { flex: 1; }
+.wct-quests .wctq-zone-head .zc { font-family: var(--font-primary, sans-serif); font-size: 0.75em; color: var(--wctq-muted); }
+.wct-quests .wctq-row { display: flex; align-items: center; gap: 5px; padding: 2px 8px 2px 18px; cursor: pointer; border-left: 2px solid transparent; }
+.wct-quests .wctq-row .trk { flex: 0 0 auto; width: 13px; height: 13px; margin: 0; accent-color: var(--wctq-gold); }
+.wct-quests .wctq-row .trk-gap { flex: 0 0 13px; }
+.wct-quests .wctq-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 0 #000; }
+.wct-quests .wctq-row .lv { opacity: 0.95; }
 .wct-quests .wctq-row > i { font-size: 0.75em; color: var(--wctq-muted); }
 .wct-quests .wctq-row:hover, .wct-quests .wctq-row:focus-visible { background: rgba(255, 209, 0, 0.08); outline: none; }
-.wct-quests .wctq-row.sel { background: linear-gradient(90deg, rgba(255, 209, 0, 0.22), rgba(255, 209, 0, 0.04)); border-left-color: var(--wctq-gold); color: #fff; }
-.wct-quests .wctq-row.failed .name { color: #d49a92; text-decoration: line-through; text-decoration-color: rgba(255, 106, 90, 0.6); }
-.wct-quests .wctq-row.available .name { color: var(--wctq-muted); }
+.wct-quests .wctq-row.sel { background: linear-gradient(90deg, rgba(255, 209, 0, 0.24), rgba(255, 209, 0, 0.04)); border-left-color: var(--wctq-gold); }
+.wct-quests .wctq-row.failed .name { text-decoration: line-through; text-decoration-color: rgba(255, 106, 90, 0.7); }
+.wct-quests .wctq-tag { flex: 0 0 auto; font-size: 0.78em; color: var(--wctq-muted); }
+.wct-quests .wctq-tag.ready { color: var(--wctq-gold); }
+.wct-quests .wctq-tag.good { color: #8fd16a; }
+.wct-quests .wctq-tag.bad { color: #ff6a5a; }
+.wct-quests .wctq-ptag { flex: 0 0 auto; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; font-size: 0.72em; color: var(--wctq-text); border: 1px solid rgba(201, 162, 39, 0.4); border-radius: 3px; background: rgba(0, 0, 0, 0.35); }
+.wct-quests .wctq-ptag.none { color: #ff9a8a; border-color: rgba(255, 106, 90, 0.5); }
 .wct-quests .wctq-none { padding: 12px; color: var(--wctq-muted); font-style: italic; }
+.wct-quests .wctq-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; padding: 4px 6px; font-size: 0.75em; border-top: 1px solid rgba(201, 162, 39, 0.3); background: rgba(0, 0, 0, 0.3); }
+.wct-quests .wctq-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.wct-quests .wctq-legend i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 1px #000; }
 
-/* Detail: the parchment page */
+/* Difficulty colours (list, page, tracker). */
+.wctq-d-trivial { color: var(--wctq-d-trivial, #9d9d9d); }
+.wctq-d-easy { color: var(--wctq-d-easy, #40bf40); }
+.wctq-d-even { color: var(--wctq-d-even, #ffd100); }
+.wctq-d-hard { color: var(--wctq-d-hard, #ff8040); }
+.wctq-d-deadly { color: var(--wctq-d-deadly, #ff3030); }
+.wctq-d-none { color: var(--wctq-d-none, inherit); }
+
+/* ---------------------------------------------------------------- the quest page: parchment (same in both themes) */
 .wct-quests .wctq-detail {
   display: flex; flex-direction: column; min-height: 0; overflow: hidden;
   color: var(--wctq-ink);
   background:
-    radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.35), transparent 55%),
-    radial-gradient(ellipse at 90% 100%, rgba(120, 80, 30, 0.25), transparent 60%),
+    radial-gradient(ellipse at 15% 8%, rgba(255, 255, 255, 0.4), transparent 50%),
+    radial-gradient(ellipse at 85% 95%, rgba(120, 80, 30, 0.28), transparent 60%),
+    radial-gradient(circle at 70% 30%, rgba(140, 100, 40, 0.07) 0 2px, transparent 3px) 0 0 / 23px 19px,
     linear-gradient(180deg, var(--wctq-parch), var(--wctq-parch-2));
-  border: 1px solid #000; border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(90, 60, 20, 0.5), inset 0 0 30px rgba(90, 60, 20, 0.35);
+  border: 1px solid #3b2a14; border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(90, 60, 20, 0.5), inset 0 0 34px rgba(90, 60, 20, 0.4), 0 1px 3px rgba(0, 0, 0, 0.45);
 }
-.wct-quests .wctq-page { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.wct-quests .wctq-page { flex: 1; overflow-y: auto; padding: 10px 18px 14px; }
 .wct-quests .wctq-empty { display: grid; place-items: center; height: 100%; color: var(--wctq-ink-soft); font-style: italic; }
-.wct-quests .wctq-page h2 {
-  margin: 0; padding: 0; border: none;
-  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.7em; line-height: 1.1; color: var(--wctq-ink);
+.wct-quests .wctq-pagetop { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
+.wct-quests .wctq-pbadge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; font-size: 0.85em; font-weight: bold; color: var(--wctq-ink); border: 1px solid rgba(90, 60, 20, 0.55); border-radius: 12px; background: rgba(255, 255, 255, 0.3); }
+.wct-quests .wctq-pbadge select { width: auto; height: 20px; padding: 0 2px; border: none; background: transparent; color: var(--wctq-ink); font-weight: bold; font-size: 1em; }
+.wct-quests .wctq-pbadge select option { color: #111; background: #fff; }
+.wct-quests .wctq-pbadge .plv { font-weight: normal; color: var(--wctq-ink-soft); }
+/* On parchment the bright list colours are darkened so they stay readable. */
+.wct-quests .wctq-diff { padding: 1px 8px; font-weight: bold; font-size: 0.9em; border-radius: 3px; background: rgba(30, 20, 8, 0.82); text-shadow: 0 1px 0 #000; }
+.wct-quests .wctq-title {
+  margin: 8px 0 0; padding: 0 0 6px; border: none; text-align: center;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.8em; line-height: 1.1; color: var(--wctq-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
-.wct-quests .wctq-page .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0; font-size: 0.85em; color: var(--wctq-ink-soft); }
+.wct-quests .wctq-title::after { /* a small flourish under the title: a diamond between two fading rules */
+  content: ""; display: block; height: 9px; margin: 6px auto 0; width: 70%;
+  background:
+    linear-gradient(90deg, transparent, rgba(107, 42, 12, 0.6) 40%, transparent 46%, transparent 54%, rgba(107, 42, 12, 0.6) 60%, transparent) center / 100% 1px no-repeat,
+    conic-gradient(from 45deg, rgba(107, 42, 12, 0.75) 0 25%, transparent 0 50%, rgba(107, 42, 12, 0.75) 0 75%, transparent 0) center / 7px 7px no-repeat;
+}
+.wct-quests .wctq-page .where { margin: 2px 0 0; text-align: center; font-size: 0.88em; color: var(--wctq-ink-soft); }
+.wct-quests .wctq-page .meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0; font-size: 0.85em; color: var(--wctq-ink-soft); }
 .wct-quests .wctq-page .meta .bad { color: var(--wctq-bad); font-weight: bold; }
 .wct-quests .wctq-page .meta .good { color: var(--wctq-good); font-weight: bold; }
 .wct-quests .wctq-page h3 {
   margin: 14px 0 4px; padding: 0 0 2px; border: none; border-bottom: 1px solid rgba(90, 60, 20, 0.35);
-  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.25em; letter-spacing: 0.03em; color: #6b2a0c;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.25em; letter-spacing: 0.03em; color: var(--wctq-head);
 }
 .wct-quests .wctq-page h3 small { font-size: 0.7em; color: var(--wctq-ink-soft); }
-.wct-quests .wctq-page .giver { margin: 8px 0 0; font-size: 0.9em; }
-.wct-quests .wctq-page a[data-uuid] { color: #6b2a0c; font-weight: bold; cursor: pointer; text-decoration: none; }
+.wct-quests .wctq-page a[data-uuid] { color: var(--wctq-head); font-weight: bold; cursor: pointer; text-decoration: none; }
 .wct-quests .wctq-page a[data-uuid]:hover { text-decoration: underline; text-shadow: none; }
-.wct-quests .wctq-page .summary { margin: 8px 0 0; font-style: italic; font-size: 1.02em; }
+.wct-quests .wctq-page .summary { margin: 0 0 6px; font-style: italic; }
 .wct-quests .wctq-page .faint { color: var(--wctq-ink-soft); font-style: italic; }
 .wct-quests .wctq-page .desc { line-height: 1.45; }
 .wct-quests .wctq-page .desc p:first-child { margin-top: 0; }
@@ -120,31 +175,75 @@
   border: 1px solid var(--wctq-ink-soft); border-radius: 2px; background: rgba(255, 255, 255, 0.35);
   font-size: 12px; font-weight: bold; color: var(--wctq-good);
 }
-.wct-quests .wctq-objs button.box { cursor: pointer; }
+.wct-quests .wctq-objs button.box { cursor: pointer; min-height: 0; }
 .wct-quests .wctq-objs button.box:hover { border-color: var(--wctq-ink); box-shadow: 0 0 3px rgba(107, 42, 12, 0.6); }
 .wct-quests .wctq-objs .txt { flex: 1; }
 .wct-quests .wctq-objs li.done .txt { color: var(--wctq-ink-soft); text-decoration: line-through; text-decoration-color: rgba(43, 29, 14, 0.4); }
+.wct-quests .wctq-objs li.opt .txt em { color: var(--wctq-ink-soft); }
 .wct-quests .wctq-objs li.secret .txt { opacity: 0.6; font-style: italic; }
-.wct-quests .wctq-objs .mini { flex: 0 0 auto; width: auto; height: auto; margin: 0; padding: 0 6px; line-height: 1.6; font-size: 0.8em; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.3); border: 1px solid rgba(90, 60, 20, 0.5); }
+.wct-quests .wctq-objs .cnt { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.wct-quests .wctq-objs .step { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; margin: 0; padding: 0; line-height: 16px; font-size: 13px; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(90, 60, 20, 0.5); }
+.wct-quests .wctq-objs .step:disabled { opacity: 0.35; }
+.wct-quests .wctq-objs .mini { flex: 0 0 auto; width: auto; height: auto; min-height: 0; margin: 0; padding: 0 6px; line-height: 1.6; font-size: 0.8em; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.3); border: 1px solid rgba(90, 60, 20, 0.5); }
 .wct-quests .wctq-objs .mini.ghost { opacity: 0; background: none; border-color: transparent; }
 .wct-quests .wctq-objs li:hover .mini.ghost, .wct-quests .wctq-objs .mini.ghost:focus-visible { opacity: 0.7; }
 
-.wct-quests .wctq-rewards { display: flex; flex-direction: column; gap: 6px; }
-.wct-quests .wctq-rewards .coin { font-weight: bold; }
-.wct-quests .wctq-rewards .coin i { color: #9a7413; }
-.wct-quests .wctq-rewards .items { display: flex; flex-wrap: wrap; gap: 6px; }
-.wct-quests .wctq-rewards .item { display: flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border: 1px solid rgba(90, 60, 20, 0.45); border-radius: 3px; background: rgba(255, 255, 255, 0.25); font-weight: normal !important; color: var(--wctq-ink) !important; }
-.wct-quests .wctq-rewards .item img { width: 28px; height: 28px; border: 1px solid #000; border-radius: 2px; }
+/* Rewards: item slots with quality-coloured borders, coins. */
+.wct-quests .wctq-rewards .lbl { margin: 6px 0 3px; font-size: 0.92em; }
+.wct-quests .wctq-rewards .other { margin: 6px 0 0; font-style: italic; }
+.wct-quests .wctq-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 5px; }
+.wct-quests .wctq-slot {
+  --q: var(--wctq-q-mundane);
+  position: relative; display: flex; align-items: center; gap: 6px; width: auto; min-height: 0; margin: 0; padding: 2px 6px 2px 2px; text-align: left;
+  font: inherit; font-weight: normal !important; color: var(--wctq-ink) !important; cursor: pointer;
+  border: 1px solid rgba(90, 60, 20, 0.45); border-radius: 3px; background: rgba(255, 255, 255, 0.28); box-shadow: none;
+}
+.wct-quests .wctq-slot img { flex: 0 0 34px; width: 34px; height: 34px; border: 2px solid var(--q); border-radius: 3px; background: #111; box-shadow: 0 0 0 1px #000, inset 0 0 6px rgba(0, 0, 0, 0.7); }
+.wct-quests .wctq-slot .nm { flex: 1; min-width: 0; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; }
+.wct-quests .wctq-slot:hover { background: rgba(255, 255, 255, 0.5); }
+.wct-quests .wctq-slot.chosen { background: rgba(255, 220, 120, 0.55); border-color: #8a5a10; box-shadow: 0 0 0 1px #8a5a10, 0 0 6px rgba(255, 200, 60, 0.7); }
+.wct-quests .wctq-slot .chosen { color: var(--wctq-good); }
+.wct-quests .wctq-slot:focus-visible { outline: 2px solid var(--wctq-head); outline-offset: 1px; }
+.wct-quests .q-mundane { --q: var(--wctq-q-mundane); }
+.wct-quests .q-common { --q: var(--wctq-q-common); }
+.wct-quests .q-uncommon { --q: var(--wctq-q-uncommon); }
+.wct-quests .q-rare { --q: var(--wctq-q-rare); }
+.wct-quests .q-veryrare { --q: var(--wctq-q-veryrare); }
+.wct-quests .q-legendary { --q: var(--wctq-q-legendary); }
+.wct-quests .wctq-coins { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: bold; }
+.wct-quests .wctq-coin { display: inline-flex; align-items: baseline; gap: 1px; }
+.wct-quests .wctq-coin b::before { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin: 0 2px 0 3px; border-radius: 50%; vertical-align: -0.05em; box-shadow: inset -1px -1px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.wct-quests .wctq-coin.gp b::before { background: radial-gradient(circle at 35% 35%, #fff2a8, #d4a017 60%, #8a6408); }
+.wct-quests .wctq-coin.sp b::before { background: radial-gradient(circle at 35% 35%, #ffffff, #b8bcc4 60%, #6e737c); }
+.wct-quests .wctq-coin.cp b::before { background: radial-gradient(circle at 35% 35%, #ffd2a8, #b8692e 60%, #6e3a14); }
+.wct-quests .wctq-coin b { font-weight: normal; }
+.wct-quests .wctq-coins .to { font-weight: normal; color: var(--wctq-ink-soft); }
 
-.wct-quests .wctq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1px solid rgba(90, 60, 20, 0.45); background: rgba(60, 40, 15, 0.18); }
-.wct-quests .wctq-bar button { flex: 0 0 auto; width: auto; margin: 0; padding: 0 8px; line-height: 26px; font-size: 0.85em; color: var(--wctq-ink); background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(90, 60, 20, 0.6); }
-.wct-quests .wctq-bar button:hover { background: rgba(255, 255, 255, 0.55); box-shadow: 0 0 4px rgba(107, 42, 12, 0.4); }
-.wct-quests .wctq-bar button.primary { color: #fff3c4; background: linear-gradient(180deg, #8a1c0c, #5a0f05); border-color: #2a0602; text-shadow: 0 1px 0 #000; }
-.wct-quests .wctq-bar button.danger { margin-left: auto; color: var(--wctq-bad); }
-.wct-quests .wctq-bar .track { display: flex; align-items: center; gap: 4px; margin-right: 8px; font-weight: bold; color: var(--wctq-ink); }
+/* Footer bar (parchment). */
+.wct-quests .wctq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1px solid rgba(90, 60, 20, 0.45); background: rgba(60, 40, 15, 0.16); }
+.wct-quests .wctq-bar .wc-btn { color: var(--wctq-ink); background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(90, 60, 20, 0.6); box-shadow: none; min-height: 26px; }
+.wct-quests .wctq-bar .wc-btn:hover { background: rgba(255, 255, 255, 0.55); box-shadow: 0 0 4px rgba(107, 42, 12, 0.4); }
+.wct-quests .wctq-bar .wc-btn-primary { color: #fff3c4; background: linear-gradient(180deg, #8a1c0c, #5a0f05); border-color: #2a0602; text-shadow: 0 1px 0 #000; }
+.wct-quests .wctq-bar .wc-btn-primary:hover { background: linear-gradient(180deg, #a1240f, #6b1407); }
+.wct-quests .wctq-bar .wc-btn-ghost { background: transparent; border-color: transparent; }
+.wct-quests .wctq-bar .danger { color: var(--wctq-bad); }
+.wct-quests .wctq-switch { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; font-weight: bold; color: var(--wctq-ink); cursor: pointer; }
+.wct-quests .wctq-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.wct-quests .wctq-switch .sw { position: relative; width: 30px; height: 16px; border-radius: 8px; background: rgba(43, 29, 14, 0.35); border: 1px solid rgba(43, 29, 14, 0.6); transition: background 0.15s; }
+.wct-quests .wctq-switch .sw::after { content: ""; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px; border-radius: 50%; background: #f7efd9; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); transition: transform 0.15s; }
+.wct-quests .wctq-switch input:checked + .sw { background: #6b8e23; }
+.wct-quests .wctq-switch input:checked + .sw::after { transform: translateX(14px); }
+.wct-quests .wctq-switch input:focus-visible + .sw { outline: 2px solid var(--wctq-head); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .wct-quests .wctq-switch .sw, .wct-quests .wctq-switch .sw::after { transition: none; } }
+
+/* Narrow window: list above the page. */
+@container (max-width: 620px) { .wct-quests .wctq-body { grid-template-columns: 1fr; grid-template-rows: minmax(140px, 40%) 1fr; } }
+.application.wct-quests#wct-quest-log .window-content { container-type: inline-size; }
 
 /* ---------------------------------------------------------------- editor (uses Foundry's own form styles) */
 .application.wct-quest-edit .window-content { padding: 0; background: var(--wctq-parch); }
+.wct-quest-edit .wctq-orow .otarget { width: 56px; height: 24px; }
+.wct-quest-edit .wctq-chip { border-left: 3px solid var(--q, transparent); }
 .wct-quest-edit form.wctq-edit { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; color: var(--wctq-ink); min-height: 100%; box-sizing: border-box; }
 .wct-quest-edit form.wctq-edit label, .wct-quest-edit form.wctq-edit legend { color: var(--wctq-ink); }
 .wct-quest-edit form.wctq-edit input[type=text], .wct-quest-edit form.wctq-edit textarea, .wct-quest-edit form.wctq-edit select { color: var(--wctq-ink); background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(90, 60, 20, 0.5); }
@@ -212,6 +311,11 @@
 #wct-quest-tracker ul li.opt { color: #c8bfae; }
 #wct-quest-tracker ul li.ready { color: #8fd16a; }
 #wct-quest-tracker ul li.ready::before { content: "✔"; color: #8fd16a; font-size: 0.85em; }
+/* 1.29: difficulty colours on tracked titles, counters n/m. */
+#wct-quest-tracker .ttl.wctq-d-trivial { color: #9d9d9d; } #wct-quest-tracker .ttl.wctq-d-easy { color: #40bf40; }
+#wct-quest-tracker .ttl.wctq-d-even { color: #ffd100; } #wct-quest-tracker .ttl.wctq-d-hard { color: #ff8040; }
+#wct-quest-tracker .ttl.wctq-d-deadly { color: #ff3030; } #wct-quest-tracker .ttl.wctq-d-none { color: #ffd100; }
+#wct-quest-tracker .cnt { font-variant-numeric: tabular-nums; color: #f2ead8; font-weight: bold; }
 
 /* ---------------------------------------------------------------- chat cards */
 .wct-quest-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }

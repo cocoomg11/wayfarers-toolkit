@@ -81,7 +81,7 @@ test("every coin movement the toolkit makes carries a coin log reason", () => {
 
 test("migration coinLog1 creates the bucket once, only with the coin log on", () => {
   const m = src("scripts/migrate.mjs");
-  assert.match(m, /export const MOVES = \[[^\]]*"coinLog1"\]/);
+  assert.match(m, /export const MOVES = \[[^\]]*"coinLog1"[,\]]/);
   assert.match(m, /coinLog1: F\.on\("coinLog"\)/);
   assert.match(m, /async function coinLog1\(\) \{\s*if \(Vault\.get\("coinLog", null\)\) return null;/);
 });

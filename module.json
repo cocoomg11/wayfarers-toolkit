@@ -40,6 +40,7 @@
     "scripts/main.mjs"
   ],
   "styles": [
+    "vendor/wanderers-core/styles/wanderers-ui.css",
     "styles/pane.css",
     "styles/quests.css",
     "styles/bosses.css",

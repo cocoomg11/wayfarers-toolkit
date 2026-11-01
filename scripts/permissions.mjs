@@ -9,7 +9,8 @@
  *   players: [{ name, active, character: name | null, characterOwned: bool, ownsAnyCharacter: bool, can: { MACRO_SCRIPT, ... } }],
  *   party: null | { name, playerLevel (lowest ownership any player has: 0 none … 3 owner) },
  *   macros: { "<name>": default ownership level | undefined (no world copy) },
- *   quests: { visible: n, unreadable: [names] }  (quests players should see but whose journal they can't open)
+ *   quests: { visible: n, unreadable: [names], noParty: [names] }  (quests players should see but whose journal they can't open;
+ *           given quests with no party, which only the GM sees since 1.29)
  * }
  * Each line: { feature, level: ok | warn | bad, text, hint }.
  */
@@ -80,6 +81,8 @@ export function featureChecks(facts) {
     const bad = facts.quests.unreadable ?? [];
     out.push(bad.length ? L("quests", "warn", `Quests shown to players but whose journal they can't read: ${list(bad)}.`, "Open the quest in the quest log and save it once (it resets the journal's ownership), or give players Observer on the journal.")
       : L("quests", "ok", `Players can read the ${facts.quests.visible ?? 0} quest${facts.quests.visible === 1 ? "" : "s"} shown to them.`));
+    const loose = facts.quests.noParty ?? [];
+    if (loose.length) out.push(L("questParty", "info", `Given quests with no party (only you see them): ${list(loose)}.`, "Choose a party for each in the quest log (the party badge on the quest's page)."));
   }
 
   // Item Piles moves items between players' characters and piles; it needs a GM online and its own setup.
