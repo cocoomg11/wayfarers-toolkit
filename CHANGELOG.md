@@ -2,6 +2,32 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.32.0
+
+2026-11-01. Quality-of-life fixes from a live usability pass. No data migration; two new world settings (`pruneToolkitCards`, `permIgnoreUsers`), one new API entry (`api.open()`), and a default key for the control panel.
+
+**Changed**
+- **Less clutter in chat.** A live world had 63 of 122 chat messages as toolkit cards, most of them old health check and update notes cards. Now, when the toolkit posts a health card or an update notes card, the GM who posted it deletes the toolkit's older cards of that kind, so at most one of each is left. New setting **Keep only the newest health and update card** (`pruneToolkitCards`, world, on by default; control panel › Overview) turns it off. **Clear old toolkit cards…** (also on Overview) counts the old cards, asks, and deletes them, keeping the newest of each.
+  - How a card is recognised (`chat-cards-model.mjs`, pure): it must have the toolkit's flag for that kind *and* that card's root class, and must not have been written by a player. Health cards have carried `flags.wayfarers-toolkit.health === true` since 1.13 and a `wct-health` class in every version; update cards have carried a `flags.wayfarers-toolkit.updateNotes` object since 1.17 and a `wct-update` class. So older cards are found safely without a new flag. From 1.32 new cards also carry `flags.wayfarers-toolkit.toolkitCard = "health" | "updates"`, checked the same way. Players' messages, loot, loot roll, quest, room, pace and other toolkit cards can't match. Deleting uses `ChatMessage.deleteDocuments(ids)`, GM only.
+- **"No character to act with" can ignore users.** The health check's no-character warning has an **Ignore these users** fix (control panel Overview and the Wanderer's Satchel; asks first) that adds those players to **Players not checked for a character** (`permIgnoreUsers`, world, list of user ids, capped at 100; control panel › Loot › Advanced, a tick list of player users). Ignored players are left out of the warning; when everyone else is fine the line is OK and says who wasn't checked, otherwise an info line names them.
+- **Routes into locked flight points.** Several such routes are now one line, "N routes lead into locked flight points", with the routes behind a **Show the routes** toggle in the chat card, the health window and the Overview. One route reads as before. In `healthReport()` (plain text) the list follows the line after a colon.
+- **Character pane on short screens.** It opened 580 × 880 and was cut off on short screens. The opening height is now min(880, screen height − 100), and on screens too short for the sheet the window minimum follows the screen (not below 360) and the sheet scrolls inside the window. Remembered positions still work (core still clamps them to the screen).
+- **Control panel: unsaved-changes marker.** The Save button and every tab with unsaved edits get a small dot. Checked first: switching tabs never lost edits (every tab stays in the page and Save writes all of them), so there's no confirm on tab switch; only closing the window drops them, as before.
+- **Control panel shortcut.** *Open the control panel (GM)* now has a default key: **Shift+K**. Shift+T was asked for, but Foundry v14 core's *Target Token* is T with Shift reserved (Shift+T adds to your targets), so it would clash; nothing in core or dnd5e 6.x uses K. Change it under Configure Controls (feature *Keyboard shortcuts*). The character pane still has no default key.
+- **`api.open(tab?)`**: GM, opens the control panel (same as `api.panel(tab)`); the Wanderer's Satchel launcher calls it. The rest of the API is unchanged.
+
+**Tests**: `tests/v132.test.mjs` (card recognition and pruning incl. pre-1.30 markup, players' and other cards never matched; prune and setting wiring; ignore list and the permission lines; locked-route collapse and its plain text; pane height maths; unsaved marker; the Shift+K default and `api.open`; version). `tests/v130-core.test.mjs` updated for the pane minimum and the control panel default key.
+
+**Untested in Foundry**
+- Post the health card twice (Overview › Full health report): only the newest stays. Same after an update notes card (Overview › Show update notes). With *Keep only the newest…* off, older cards stay.
+- Clear old toolkit cards… in a world with many old cards: the count in the confirm is right, only health and update cards go, the newest of each stays; loot, loot roll, quest, inn and pace cards and players' messages stay. A player-posted message never goes. Pre-1.30 cards ("Wayfarer's Toolkit … health check") are found too.
+- With two GMs online: only the posting GM deletes; no errors on the other client.
+- No-character warning: the Fix button (Overview and Satchel) asks, adds the players, and the next check shows OK / the info line; the tick list under Loot › Advanced shows and saves them; unticking brings the warning back.
+- Several routes into locked points: one line with Show the routes in the chat card, the health window, the Overview and the Satchel (plain text with the list).
+- Character pane on a short window (e.g. 768 px tall): opens fully on screen, the sheet scrolls inside; on a tall screen it looks as before; a remembered size and position still apply; resizing still can't go below 540 wide (or 780 tall where the screen allows).
+- Control panel: editing a setting marks Save and that tab; switching tabs keeps the edit; Save clears the marks.
+- Shift+K opens the control panel for a GM (with *Keyboard shortcuts* on); nothing for a player; Shift+T still adds targets. `game.modules.get("wayfarers-toolkit").api.open()` opens the panel; the Satchel launcher opens it.
+
 ## 1.31.1
 
 Two fixes from a live test of 1.31.0. No data migration.

@@ -231,10 +231,10 @@ Frames show only for the combat on the scene you're viewing, and a frame disappe
 
 ## Keyboard shortcuts
 
-With *Keyboard shortcuts* on, **Configure Controls** lists *Open character pane* and *Open the control panel (GM)* under Wanderer's Toolkit, with no keys set: each user picks their own. The quest log's own shortcut (**L**) belongs to the quest log and is there whenever the quest log is on.
+With *Keyboard shortcuts* on, **Configure Controls** lists *Open character pane* (no key set: each user picks their own) and *Open the control panel (GM)* (default **Shift+K** since 1.32; Shift+T is Foundry's own "add to targets") under Wanderer's Toolkit. The quest log's own shortcut (**L**) belongs to the quest log and is there whenever the quest log is on.
 
 ## Windows and shortcuts
 
 Since 1.30 the toolkit's windows remember where you left them: the control panel, quest log, character pane, flight route map, flight editor, coin log, loot history, party gold and the health check reopen at the same place and size (minimized if they were), on your computer only. If your browser window gets smaller they're pulled back on screen. **Reset window positions** (control panel › Loot › Advanced) puts them all back at their default place; windows already open move the next time they open. The character pane never gets smaller than 540 × 780. The on-screen quest tracker keeps its own spot (see [What players see](#what-players-see)).
 
-Shortcuts in Configure Controls: **Open quest log** (L), and with the *Keyboard shortcuts* feature **Open character pane** and **Open the control panel (GM)** (no keys set; pick your own).
+Shortcuts in Configure Controls: **Open quest log** (L), and with the *Keyboard shortcuts* feature **Open character pane** (no key set; pick your own) and **Open the control panel (GM)** (Shift+K).
