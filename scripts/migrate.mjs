@@ -90,7 +90,7 @@ async function pins1() {
 
 async function rested1() {
   const list = game.actors.filter(a => a.type === "character" && a.getFlag(ID, "rested"));
-  const have = Vault.get("rentals", {}) ?? {};
+  const have = /** @type {Record<string, unknown>} */ (Vault.get("rentals", /** @type {any} */ ({})) ?? {});
   const todo = list.filter(a => !have[a.id]);
   if (!todo.length) return null;
   await Vault.update(v => {

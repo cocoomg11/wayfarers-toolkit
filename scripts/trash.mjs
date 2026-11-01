@@ -117,7 +117,6 @@ export function dungeonRules() {
   const mult = +get("dungeonCoinMult", 2); const bonus = +get("dungeonDropBonus", 25);
   return { coinMult: Number.isFinite(mult) && mult >= 0 ? mult : 2, dropBonus: Math.max(0, Math.min(100, Number.isFinite(bonus) ? bonus : 25)) / 100, extraRoll: !!get("dungeonExtraRoll", true) };
 }
-/** Scene configuration (ApplicationV2): adds the Dungeon checkbox to the Basics tab. Foundry saves it with the rest of the form. */
 /** The Dungeon checkbox for the shared Table Tools tab (scene-config.mjs), saved with the form as flags.wayfarers-toolkit.dungeon. */
 export function dungeonField(scene) {
   return `<div class="form-group"><label>Dungeon</label><div class="form-fields"><input type="checkbox" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wayfarer's Toolkit).</p></div>`;

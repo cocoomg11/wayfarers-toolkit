@@ -41,7 +41,7 @@ export const normalizeVault = versioned({
 });
 
 /** A bucket's value, or `fallback`. */
-export const bucket = (vault, name, fallback = null) => { const b = normalizeVault(vault).buckets; return name in b ? b[name] : fallback; };
+export const bucket = (/** @type {unknown} */ vault, /** @type {string} */ name, /** @type {any} */ fallback = null) => { const b = normalizeVault(vault).buckets; return name in b ? b[name] : fallback; };
 
 /** A new vault with `name` set to `value` (the bucket's cap applied). Unknown names throw (a programming mistake). */
 export function withBucket(vault, name, value) {

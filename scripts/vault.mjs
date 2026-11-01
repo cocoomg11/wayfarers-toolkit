@@ -23,15 +23,17 @@ export function entry() {
 }
 
 /** The normalized vault ({ v, buckets }); empty for players and before it exists. */
+/** @returns {{ v: number, buckets: Record<string, any> }} */
 export function read() {
   const j = entry(); const raw = j ? j.getFlag(ID, "vault") : null;
   // Normalizing clones the whole store; quest and pin drawing read it often, so keep the result until the stored object changes.
   if (raw !== cache.raw) cache = { raw, value: M.normalizeVault(raw) };
   return cache.value;
 }
+/** @type {{ raw: unknown, value: any }} */
 let cache = { raw: undefined, value: null };
 /** A bucket's value (vault-model BUCKETS), or `fallback`. GM only; players get `fallback`. */
-export const get = (name, fallback = null) => { const b = read().buckets; return name in b ? b[name] : fallback; };
+export const get = (/** @type {string} */ name, /** @type {any} */ fallback = null) => { const b = read().buckets; return name in b ? b[name] : fallback; };
 // Values from get() are the cached copy: read them, never change them in place (change the store with update()).
 
 let creating = null;

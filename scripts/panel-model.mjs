@@ -144,7 +144,7 @@ export const LABELS = {
   innDefaultPrice: ["Room price per person per night", "Used by Inn scenes that don't set their own price. Type coins like 5s or 1g 20s; a plain number is read in the fare unit."],
   innBenefit: ["Rested gives", "What a Rested character gets at the end of their next long rest: Heroic Inspiration, one extra Hit Die back, or temporary hit points equal to their level."],
   innPayFrom: ["Rooms are paid from", "The party actor's coin, or each character pays for their own room."],
-  innLastsAnywhere: ["Rested lasts until the next long rest anywhere", "Off: a Rested character who long-rests away from an Inn scene loses Rested without the benefit."],
+  innLastsAnywhere: ["Rested lasts until the next long rest anywhere", "Off: a Rested character who long-rests away from an inn's scene loses Rested without the benefit."],
   innStatus: ["Rested icon on tokens", "Rested characters also get a Rested status effect (a sleep icon) on their token. Reloads Foundry."],
   pinsPlayers: ["Players can place map pins", "Players get the Map pin tool and can add, change, move and delete the party's pins. A GM has to be logged in: the GM's client saves them."],
   pinsDimDone: ["Fade pins of finished quests", "A pin linked to a completed or failed quest is drawn faded."],

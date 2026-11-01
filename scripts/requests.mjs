@@ -14,8 +14,11 @@ const ID = "wayfarers-toolkit";
 /** The one broadcast hook for notices: payload { to: userId | null (everyone), level: "info" | "warn", text }. */
 export const NOTICE_HOOK = `${ID}.notice`;
 /** The id field Foundry gives documents. */
+/** @type {any} */
 const id = { type: "id" };
+/** @type {any} */
 const optId = { type: "id", optional: true };
+/** @type {any} */
 const pinFields = {
   type: "object", extra: "drop",
   fields: {
@@ -25,7 +28,7 @@ const pinFields = {
   }
 };
 
-export const REQUESTS = defineRequests({
+export const REQUESTS = defineRequests(/** @type {any} */ ({
   /** A player's flight booking. Always charged, always changes the scene when the point has one. */
   flight: { fields: { from: { type: "string", max: 64 }, to: { type: "string", max: 64 }, pax: { type: "number", int: true, min: 1, max: 20 } }, maxBytes: 1024 },
   /** A player's travel pace request (becomes a whisper with an Accept button). */
@@ -49,7 +52,7 @@ export const REQUESTS = defineRequests({
     },
     maxBytes: 4096
   }
-});
+}));
 
 /** A core request's data shaped like the old socket message the toolkit's pure readers expect ({ action, ...data }). */
 export const asMessage = (kind, data) => ({ action: kind, ...(data ?? {}) });
