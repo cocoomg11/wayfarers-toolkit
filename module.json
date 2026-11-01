@@ -45,7 +45,8 @@
     "styles/bosses.css",
     "styles/loot.css",
     "styles/panel.css",
-    "styles/places.css"
+    "styles/places.css",
+    "styles/pins.css"
   ],
   "socket": true,
   "languages": [

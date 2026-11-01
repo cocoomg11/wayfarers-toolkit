@@ -155,7 +155,7 @@ function iconSwatch(id, ink) { return `<span class="wct-pin-glyph" style="--wct-
 async function pinForm({ pin = null, title = "New map pin" } = {}) {
   const gm = game.user.isGM; const p = M.normalize(pin ?? { ink: "iron", icon: "pin", kind: gm ? "gm" : "party" });
   const quests = F.on("questLog") ? M.questChoices(Quests.all(), { canSee: j => { try { return Quests.canSee(j); } catch { return false; } } }) : [];
-  // A link the user can't see stays as it is (shown as "a quest you can't see" only to nobody: the option is just kept, unnamed).
+  // A link to a quest this user can't see is kept as it is and not shown at all (not even that one exists): no quest field then.
   const keepHidden = p.quest && !quests.some(q => q.id === p.quest);
   const icons = Object.entries(M.ICONS).map(([id, label]) => `<label class="wct-pin-choice" data-tooltip="${esc(label)}"><input type="radio" name="icon" value="${id}" ${id === p.icon ? "checked" : ""}>${iconSwatch(id, p.ink)}<span class="sr-only">${esc(label)}</span></label>`).join("");
   const inks = Object.entries(M.INKS).map(([id, i]) => `<label class="wct-pin-ink" data-tooltip="${esc(i.label)}"><input type="radio" name="ink" value="${id}" ${id === p.ink ? "checked" : ""}><span style="background:${esc(i.hex)}"></span><span class="sr-only">${esc(i.label)}</span></label>`).join("");
@@ -164,7 +164,7 @@ async function pinForm({ pin = null, title = "New map pin" } = {}) {
     <div class="form-group stacked"><label>Note</label><textarea name="text" rows="4" maxlength="${M.TEXT_MAX}" placeholder="What the party knows about this place">${esc(p.text)}</textarea></div>
     <div class="form-group"><label>Mark</label><div class="form-fields wct-pin-choices">${icons}</div></div>
     <div class="form-group"><label>Ink</label><div class="form-fields wct-pin-inks">${inks}</div></div>
-    ${quests.length || keepHidden ? `<div class="form-group"><label>Quest</label><div class="form-fields"><select name="quest"><option value="">None</option>${keepHidden ? `<option value="${esc(p.quest)}" selected>(unchanged)</option>` : ""}${quests.map(q => `<option value="${esc(q.id)}" ${q.id === p.quest ? "selected" : ""}>${esc(q.name)}</option>`).join("")}</select></div></div>` : ""}
+    ${keepHidden ? `<input type="hidden" name="quest" value="${esc(p.quest)}">` : quests.length ? `<div class="form-group"><label>Quest</label><div class="form-fields"><select name="quest"><option value="">None</option>${quests.map(q => `<option value="${esc(q.id)}" ${q.id === p.quest ? "selected" : ""}>${esc(q.name)}</option>`).join("")}</select></div></div>` : ""}
     ${gm ? `<div class="form-group"><label>Whose pin</label><div class="form-fields"><select name="kind"><option value="party" ${p.kind === "party" ? "selected" : ""}>The party's (players can change it)</option><option value="gm" ${p.kind === "gm" ? "selected" : ""}>The GM's (only GMs change it)</option></select></div></div>
     <div class="form-group"><label>Hidden from players</label><div class="form-fields"><input type="checkbox" name="hidden" ${p.hidden ? "checked" : ""}></div><p class="hint">GM pins only. Players don't see it until you reveal it.</p></div>` : ""}
   </div>`;
@@ -258,6 +258,12 @@ function pinNoteClass(Base) {
       const pin = M.pinOf(this.document);
       if (pin && !M.drawn(pin, game.user.isGM)) return false;
       return super.isVisible;
+    }
+    // Core lets only notes with a journal entry be viewed (double-clicked); a pin has none, so the pin's own rule decides.
+    _canView(user) {
+      const pin = M.pinOf(this.document);
+      if (pin) return M.can("view", { id: user.id, isGM: user.isGM }, pin);
+      return super._canView(user);
     }
     _onClickLeft2(event) {
       if (M.pinOf(this.document)) { open(this.document).catch(e => console.warn(`${ID} | map pin`, e)); return; }
