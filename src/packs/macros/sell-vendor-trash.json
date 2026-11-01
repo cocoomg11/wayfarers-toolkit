@@ -3,7 +3,7 @@
   "name": "Sell Vendor Trash",
   "type": "script",
   "img": "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp",
-  "command": "// Sell Vendor Trash: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.sellTrash();",
+  "command": "// Sell Vendor Trash: Wanderer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wanderer's Toolkit module is not active.\");\nreturn api.sellTrash();",
   "flags": {
     "wayfarers-toolkit": {
       "macro": "sellTrash"

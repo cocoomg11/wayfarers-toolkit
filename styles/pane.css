@@ -10,7 +10,7 @@
   backdrop-filter: none !important;
 }
 
-/* Wayfarer's Toolkit: character pane (an MMO-style paper doll). The frame is an in-world panel, so it keeps its own
+/* Wanderer's Toolkit: character pane (an MMO-style paper doll). The frame is an in-world panel, so it keeps its own
    dark stone look in both Foundry themes; the light theme gets warmer, lighter wood around it. */
 
 .application.wct-pane {

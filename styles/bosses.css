@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit: boss frames (top centre by default, each movable) and the token HUD toggle. Only styles elements the Boss frames feature creates. */
+/* Wanderer's Toolkit: boss frames (top centre by default, each movable) and the token HUD toggle. Only styles elements the Boss frames feature creates. */
 
 #wct-boss-frames { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 #wct-boss-frames img { pointer-events: none; -webkit-user-drag: none; }

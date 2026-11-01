@@ -899,7 +899,7 @@ export function refreshOpen() { for (const app of OPEN.values()) if (app.rendere
  * @param {any} [actor]
  */
 export function characterPane(actor = null) {
-  if (!game.settings.get(ID, "characterPane")) return ui.notifications.warn("The character pane is turned off in Wayfarer's Toolkit's settings.");
+  if (!game.settings.get(ID, "characterPane")) return ui.notifications.warn("The character pane is turned off in Wanderer's Toolkit's settings.");
   if (typeof actor === "string") actor = fromUuidSync(actor) ?? game.actors.get(actor) ?? game.actors.getName(actor);
   actor ??= canvas?.tokens?.controlled?.[0]?.actor ?? game.user.character;
   if (!actor) return ui.notifications.warn("Character pane: select a token or pass an actor.");

@@ -34,7 +34,7 @@ export const FEATURES = [
 const NEEDS = { questTracker: ["questLog"] };
 
 /** Core's feature registry bound to this module (wanderers-core createFeatures): same keys, same rules. */
-const CORE = createFeatures(ID, FEATURES.map(f => ({ ...f, needs: NEEDS[f.id] ?? [] })), { title: "Wayfarer's Toolkit" });
+const CORE = createFeatures(ID, FEATURES.map(f => ({ ...f, needs: NEEDS[f.id] ?? [] })), { title: "Wanderer's Toolkit" });
 
 /** Whether a feature is turned on in this world. Unknown ids count as on. Before settings are registered, the default. */
 export const on = id => CORE.on(id);

@@ -1,5 +1,5 @@
 /**
- * The control panel (one button in the module settings: "Wayfarer's Toolkit") and the welcome wizard.
+ * The control panel (one button in the module settings: "Wanderer's Toolkit") and the welcome wizard.
  * Tabs: Overview (health in plain words, with fix-it buttons), Features (one switch per tool), Travel, Loot, Boss & Combat, Character,
  * Quests.
  * Every setting keeps its key from earlier versions; the panel only shows them in a friendlier way. What goes where, the labels and
@@ -10,7 +10,7 @@ import * as Health from "./health.mjs";
 import * as Trash from "./trash.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import { isActiveGM } from "./gm.mjs";
-import { MACRO_HINT } from "./macros.mjs";
+import { MACRO_HINT, isToolkitFolderName } from "./macros.mjs";
 import * as M from "./panel-model.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 
@@ -164,7 +164,7 @@ function overviewTab() {
     </div>
     <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
       <div class="wct-row-control">${switchHTML("updateNotes", get("updateNotes") !== false, false, 'data-instant')}</div></div></div>
-    <p class="hint"><strong>Run setup</strong> creates what the tools need (tracker journal, party actor, macros in a <em>Wayfarer's Toolkit</em> macro folder) and never overwrites anything. Drag macros to your hotbar from that folder or the <em>Wayfarer's Toolkit Macros</em> compendium.</p>`;
+    <p class="hint"><strong>Run setup</strong> creates what the tools need (tracker journal, party actor, macros in a <em>Wanderer's Toolkit</em> macro folder) and never overwrites anything. Drag macros to your hotbar from that folder or the <em>Wanderer's Toolkit Macros</em> compendium.</p>`;
 }
 
 /** Health check sections → plain issues: [{ text (HTML), fix }]. */
@@ -188,7 +188,7 @@ function issuesFrom(sections) {
 export class ControlPanel extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
     id: `${ID}-panel`, classes: ["wct-panel", "wct-window"],
-    window: { title: "Wayfarer's Toolkit", icon: "fa-solid fa-toolbox", resizable: true },
+    window: { title: "Wanderer's Toolkit", icon: "fa-solid fa-toolbox", resizable: true },
     position: { width: 820, height: 640 }
   };
   tab = "overview";
@@ -219,8 +219,8 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     });
     // Overview switches save at once (that tab has no Save button).
     root.querySelectorAll("input[data-instant]").forEach(i => i.addEventListener("change", async () => {
-      try { await game.settings.set(ID, i.name, i.checked); ui.notifications.info(`Wayfarer's Toolkit: ${M.LABELS[i.name]?.[0] ?? i.name}: ${i.checked ? "on" : "off"}.`); }
-      catch (e) { i.checked = !i.checked; ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
+      try { await game.settings.set(ID, i.name, i.checked); ui.notifications.info(`Wanderer's Toolkit: ${M.LABELS[i.name]?.[0] ?? i.name}: ${i.checked ? "on" : "off"}.`); }
+      catch (e) { i.checked = !i.checked; ui.notifications.error(`Wanderer's Toolkit: ${e.message}`); }
     }));
     this.wireZones(root);
     root.querySelectorAll(".wct-card input").forEach(i => i.addEventListener("change", () => { i.closest(".wct-card").classList.toggle("on", i.checked); this.featureDeps(); }));
@@ -305,7 +305,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "tracker-reset") { await API.quests?.showTracker(true); return await API.quests?.resetTrackerPosition(); }
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
-    } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
+    } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wanderer's Toolkit: ${e.message}`); }
   }
 
   async fix(fix, btn) {
@@ -354,7 +354,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     }
     const list = this.collect(); let needReload = false;
     for (const [k, v] of list) { await game.settings.set(ID, k, v); if (cfgOf(k)?.requiresReload) needReload = true; }
-    ui.notifications.info(list.length ? `Wayfarer's Toolkit: saved ${list.length} setting${list.length === 1 ? "" : "s"}.` : "Wayfarer's Toolkit: nothing changed.");
+    ui.notifications.info(list.length ? `Wanderer's Toolkit: saved ${list.length} setting${list.length === 1 ? "" : "s"}.` : "Wanderer's Toolkit: nothing changed.");
     await this.render();
     if (needReload) reload();
   }
@@ -364,7 +364,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
     for (const f of F.FEATURES) { const el = root.querySelector(`[name="feature:${f.id}"]`); if (el && el.checked !== F.on(f.id)) writes.push([f.key, el.checked]); }
     const coin = root.querySelector('[name="feature:coins"]');
     if (coin) { const v = coin.checked ? "threeCoin" : "standard"; if (v !== get("coinSystem")) writes.push(["coinSystem", v]); }
-    if (!writes.length) return ui.notifications.info("Wayfarer's Toolkit: no feature changed.");
+    if (!writes.length) return ui.notifications.info("Wanderer's Toolkit: no feature changed.");
     for (const [k, v] of writes) await game.settings.set(ID, k, v);
     await this.close();
     reload();
@@ -380,7 +380,7 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       const def = foundry.utils.deepClone(c.default);
       if (JSON.stringify(get(key)) !== JSON.stringify(def)) { await game.settings.set(ID, key, def); n++; }
     }
-    ui.notifications.info(`Wayfarer's Toolkit: ${tab.label} reset (${n} setting${n === 1 ? "" : "s"} changed).`);
+    ui.notifications.info(`Wanderer's Toolkit: ${tab.label} reset (${n} setting${n === 1 ? "" : "s"} changed).`);
     await this.render();
   }
 }
@@ -388,8 +388,8 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
 async function runSetup(after) {
   try {
     const r = await API.setup();
-    ui.notifications.info(`Wayfarer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`);
-  } catch (e) { ui.notifications.error(`Wayfarer's Toolkit setup: ${e.message}`); }
+    ui.notifications.info(`Wanderer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`);
+  } catch (e) { ui.notifications.error(`Wanderer's Toolkit setup: ${e.message}`); }
   await after?.();
 }
 
@@ -397,7 +397,7 @@ async function runSetup(after) {
 export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
     id: `${ID}-wizard`, classes: ["wct-wizard", "wct-window"],
-    window: { title: "Welcome to Wayfarer's Toolkit", icon: "fa-solid fa-wand-magic-sparkles", resizable: true },
+    window: { title: "Welcome to Wanderer's Toolkit", icon: "fa-solid fa-wand-magic-sparkles", resizable: true },
     position: { width: 620, height: "auto" }
   };
   step = 0;
@@ -456,7 +456,7 @@ export class WelcomeWizard extends foundry.applications.api.ApplicationV2 {
     let reloadNeeded = false;
     for (const [k, v] of writes) if (JSON.stringify(get(k)) !== JSON.stringify(v)) { await game.settings.set(ID, k, v); if (cfgOf(k)?.requiresReload) reloadNeeded = true; }
     await this.close();
-    const go = await confirm("Run setup now?", `<p>Settings saved. <strong>Run setup</strong> now creates what the tools you picked need: the tracker journal, the party actor and the macros (in a <em>Wayfarer's Toolkit</em> macro folder; nothing goes on any hotbar). It never overwrites anything.</p>${reloadNeeded ? "<p>Foundry then reloads to switch the tools on.</p>" : ""}`);
+    const go = await confirm("Run setup now?", `<p>Settings saved. <strong>Run setup</strong> now creates what the tools you picked need: the tracker journal, the party actor and the macros (in a <em>Wanderer's Toolkit</em> macro folder; nothing goes on any hotbar). It never overwrites anything.</p>${reloadNeeded ? "<p>Foundry then reloads to switch the tools on.</p>" : ""}`);
     if (go) await runSetup();
     if (reloadNeeded) reload();
   }
@@ -471,7 +471,7 @@ export async function maybeWelcome(api) {
   const settings = [];
   for (const [, c] of game.settings.settings) if (c.namespace === ID && c.scope === "world") settings.push({ key: c.key, scope: c.scope, value: get(c.key), default: c.default });
   let setupFound = false;
-  try { setupFound = api.setupPlan().some(p => p.ok) || !!game.folders.find(f => f.name === "Wayfarer's Toolkit") || !!game.journal.getName(api.JOURNAL) || !!api.partyActor(); } catch { }
+  try { setupFound = api.setupPlan().some(p => p.ok) || !!game.folders.find(f => isToolkitFolderName(f.name)) || !!game.journal.getName(api.JOURNAL) || !!api.partyActor(); } catch { }
   if (M.worldConfigured({ settings, setupFound, remindedVersion: get("setupReminded") || get("lastSeenVersion") || "", version: api.version ?? "" })) { await game.settings.set(ID, "wizardDone", true); return false; }
   new WelcomeWizard().render({ force: true });
   return true;

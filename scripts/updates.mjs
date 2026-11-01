@@ -35,7 +35,7 @@ export function build(from = null) {
 /** Whispers the card to the GMs. Returns the message. */
 export function post(notice) {
   return ChatMessage.create({
-    content: N.cardHTML(notice), whisper: gmIds(), speaker: { alias: "Wayfarer's Toolkit" },
+    content: N.cardHTML(notice), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" },
     flags: { [ID]: { updateNotes: { from: notice.from, to: notice.to, actions: notice.actions.map(a => a.id), done: [] } } }
   });
 }
@@ -62,7 +62,7 @@ export async function show(fromVersion) {
   if (!game.user.isGM) return ui.notifications.warn("GM only.");
   const to = API.version ?? "";
   const notice = await build(fromVersion ?? N.previousVersion(N.NOTES, to));
-  if (!notice.post) return ui.notifications.info(`Wayfarer's Toolkit: no update notes for ${to}.`);
+  if (!notice.post) return ui.notifications.info(`Wanderer's Toolkit: no update notes for ${to}.`);
   return post(notice);
 }
 
@@ -77,8 +77,8 @@ async function runAction(message, id, btn) {
   btn.disabled = true;
   try {
     const r = await a.run(ctx());
-    if (id === "setup") ui.notifications.info(`Wayfarer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`);
-  } catch (e) { ui.notifications.error(`Wayfarer's Toolkit: ${e.message}`); }
+    if (id === "setup") ui.notifications.info(`Wanderer's Toolkit: ${r?.length ? "created " + r.join(", ") : "everything already exists"}. ${MACRO_HINT}`);
+  } catch (e) { ui.notifications.error(`Wanderer's Toolkit: ${e.message}`); }
   let still = true; try { still = !!(await a.check(ctx())); } catch { }
   if (still) { btn.disabled = false; return; }
   markDone(btn);

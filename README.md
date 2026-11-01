@@ -1,4 +1,6 @@
-# Wayfarer's Toolkit
+# Wanderer's Toolkit
+
+> Formerly *Wayfarer's Toolkit*. Only the display name changed: the module id (`wayfarers-toolkit`), settings, API and hooks are the same, and your worlds need nothing done.
 
 A free GM kit for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system. Hex travel with pace and encounter rolls, a flight-master network, a quest log (players read their quests in journals; the full data stays in a GM-only store), a character pane, boss frames, Need / Greed loot rolls, vendor-trash loot, boss loot, a three-coin economy, inns and rest, map pins, zone title cards, a Table Tools section in scene settings, a health report, and migrations that bring older worlds forward.
 
@@ -67,10 +69,10 @@ https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.j
 
 From "installed" to your first tool, in about five minutes. You need a world that uses the **dnd5e** system, and you need to be the GM.
 
-1. **Enable it.** Open your world, go to **Game Settings › Manage Modules**, tick **Wayfarer's Toolkit** and save. Foundry reloads.
-2. **Answer the welcome wizard.** The first time a GM loads the world, a wizard asks for a style (*Minimal*, *Classic MMO* or *Everything*), your party size and your coin system. Pick what fits and click **Finish (reloads Foundry)**. It then offers to **Run setup**: say yes. This makes the tracker journal, the party actor and the macros. (Skipped it? Go to **Game Settings › Configure Settings › Wayfarer's Toolkit › Open the control panel**, then use **Run the welcome wizard** or **Run setup** on the Overview tab.)
+1. **Enable it.** Open your world, go to **Game Settings › Manage Modules**, tick **Wanderer's Toolkit** and save. Foundry reloads.
+2. **Answer the welcome wizard.** The first time a GM loads the world, a wizard asks for a style (*Minimal*, *Classic MMO* or *Everything*), your party size and your coin system. Pick what fits and click **Finish (reloads Foundry)**. It then offers to **Run setup**: say yes. This makes the tracker journal, the party actor and the macros. (Skipped it? Go to **Game Settings › Configure Settings › Wanderer's Toolkit › Open the control panel**, then use **Run the welcome wizard** or **Run setup** on the Overview tab.)
 3. **Check the control panel.** On the **Overview** tab you should see "Everything looks good". If it lists problems, each has a button that fixes it. On the **Features** tab, switch off tools you won't use and click **Save features**.
-4. **Grab your macros.** Open the **Macro Directory**, find the *Wayfarer's Toolkit* folder and drag the ones you want onto your hotbar. Setup never touches a hotbar by itself.
+4. **Grab your macros.** Open the **Macro Directory**, find the *Wanderer's Toolkit* folder and drag the ones you want onto your hotbar. Setup never touches a hotbar by itself.
 5. **Try one thing.** The easiest first steps:
    - Press **L** to open the **Quest log**, then click **New quest**.
    - Open a character sheet and click the shirt button in its header for the **Character pane**.
@@ -81,11 +83,11 @@ From "installed" to your first tool, in about five minutes. You need a world tha
 
 ## Setup
 
-Enable the module in your world. The first time a GM loads it, the [welcome wizard](#control-panel) offers to pick the tools and run setup. Any time after, open the [control panel](#control-panel) and click **Run setup** on its Overview tab. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, and the macros in a *Wayfarer's Toolkit* macro folder) and never overwrites existing documents. It never puts macros on anyone's hotbar and never removes ones already there: drag the macros you want from the *Wayfarer's Toolkit* macro folder or the **Wayfarer's Toolkit Macros** compendium onto your hotbar.
+Enable the module in your world. The first time a GM loads it, the [welcome wizard](#control-panel) offers to pick the tools and run setup. Any time after, open the [control panel](#control-panel) and click **Run setup** on its Overview tab. Setup creates anything missing (tracker journal, party actor, the Riding Training feat, and the macros in a *Wanderer's Toolkit* macro folder) and never overwrites existing documents. It never puts macros on anyone's hotbar and never removes ones already there: drag the macros you want from the *Wanderer's Toolkit* macro folder or the **Wanderer's Toolkit Macros** compendium onto your hotbar.
 
 ### Update notes
 
-After the module is updated, the first time the world loads the GMs get one whispered chat card (players never see it): **Wayfarer's Toolkit updated: 1.14.4 → 1.17.0**, a short plain list of what's new in the newest version, the versions in between collapsed underneath, and a **To do** list with a button for each thing that still needs doing, plus an **Open the control panel** link. It's posted once, by the active GM, and only when there's something to say: a small patch with no notes and nothing to do posts nothing. The buttons work after a reload, only for GMs, and show as done once done (also when you did it some other way).
+After the module is updated, the first time the world loads the GMs get one whispered chat card (players never see it): **Wanderer's Toolkit updated: 1.14.4 → 1.17.0**, a short plain list of what's new in the newest version, the versions in between collapsed underneath, and a **To do** list with a button for each thing that still needs doing, plus an **Open the control panel** link. It's posted once, by the active GM, and only when there's something to say: a small patch with no notes and nothing to do posts nothing. The buttons work after a reload, only for GMs, and show as done once done (also when you did it some other way).
 
 What can be on the to-do list:
 
@@ -114,7 +116,7 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 
 **Remove toolkit data** (a button on the control panel's Overview tab, GM only; also `api.cleanup.open()`) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
-- toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the journal entry *Wayfarer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots and loot history);
+- toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the journal entry *Wanderer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots and loot history);
 - optionally, toolkit flags on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
 - optionally, **map pins** (the map notes placed with the Map pin tool, on every scene, party and GM pins alike: they're deleted);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
@@ -135,13 +137,13 @@ The same GM can also be logged in more than once (two browser tabs, or a laptop 
 
 ## Macro compendium
 
-The module ships a **Wayfarer's Toolkit Macros** compendium (in a *Wayfarer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Quest Log (*Sessions and Quests*), Rent Rooms (*Places*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wayfarer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
+The module ships a **Wanderer's Toolkit Macros** compendium (in a *Wanderer's Toolkit* compendium folder) with every macro Run setup makes: Hex Travel, Flight Master, Flight Route Map and Travel Pace (*Travel*), Quest Log (*Sessions and Quests*), Rent Rooms (*Places*), Vendor Trash, Preview Vendor Trash and Sell Vendor Trash (*Vendor Trash*), Preview Boss Loot (*Boss Loot*), Loot History (*Loot Rolls*), and Party Gold and Toolkit Health Check (*Toolkit*). Each is made only while its tool is on. Open it from the **Compendium Packs** sidebar and drag a macro onto your hotbar; Foundry imports a copy into your world. **Run setup** also creates world copies in a *Wanderer's Toolkit* macro folder (Macro Directory). Setup doesn't touch any hotbar, so drag the macros you want from that folder or from the compendium onto your hotbar.
 
 Players can see the compendium (Observer), so they can drag out **Flight Master** and **Quest Log** themselves. The other macros are GM tools: a player who runs one gets a "GM only" warning and nothing happens. A compendium can't hide entries per world, so macros for tools you've switched off in the control panel are still listed; running one only shows the "turned off" warning. Each macro is a one-line call into the module API, so the compendium copies never go stale between versions.
 
 ## Control panel
 
-All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wayfarer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Show the quest tracker on my screen**, which each player sets for themselves.
+All of the toolkit's settings live in one window. Open **Game Settings → Configure Settings → Wanderer's Toolkit → Open the control panel** (GM only), or run `game.modules.get("wayfarers-toolkit").api.panel()`. The only other entry in the module's settings list is **Show the quest tracker on my screen**, which each player sets for themselves.
 
 The panel has eight tabs down the left. Each settings tab shows the few settings most GMs change first; everything else is in a collapsed **Advanced** section at the bottom. Each tab has a **?** link to its section of this README and a **Reset this tab to defaults** button (asks first; the Features tab has none). Change what you like on any tabs, then click **Save changes**.
 
@@ -256,7 +258,7 @@ A flight is refused, with nothing charged, when the party can't afford it ("need
 
 **Free flight (GM).** The GM's Flight Master window has a **Free flight (no fare)** checkbox (off by default). A free flight skips the purse check and charges nothing; everything else happens as usual and the chat card and Travel Log say "free flight". From a macro: `api.flight.fly("Harbor Town", "Hill Fort", { free: true })`. Players never see the checkbox, and the GM's client ignores a "free" request in a player's booking: players always pay unless the route itself is marked **Free**.
 
-**Players and Flight Master.** With *Players can book flights* on (the default, control panel › Travel), players get the feather button in the token controls and can drag the **Flight Master** macro onto their own hotbar from the *Wayfarer's Toolkit Macros* compendium (or the shared world copy in the macro folder). Players read the unlocked flight points and routes from the module's world setting (they never see your notes or a journal). A player picks a route and confirms; the active GM's client checks everything again (purse, points, routes), charges the fare and carries the flight out, and the player is told how it went. A GM must be connected ("A GM needs to be connected to fly.").
+**Players and Flight Master.** With *Players can book flights* on (the default, control panel › Travel), players get the feather button in the token controls and can drag the **Flight Master** macro onto their own hotbar from the *Wanderer's Toolkit Macros* compendium (or the shared world copy in the macro folder). Players read the unlocked flight points and routes from the module's world setting (they never see your notes or a journal). A player picks a route and confirms; the active GM's client checks everything again (purse, points, routes), charges the fare and carries the flight out, and the player is told how it went. A GM must be connected ("A GM needs to be connected to fly.").
 
 ### Upgrading from 1.15 or earlier: the Flight Routes journal page
 
@@ -425,7 +427,7 @@ Lists are separated by commas. Rows with an unknown tag or an empty first column
 
 ### Dungeon loot
 
-Mark a scene as a dungeon to make its creatures richer: open the scene's configuration and tick **Dungeon** on the **Table Tools** tab (*Wayfarer's Toolkit* section) (it's stored as the scene flag `flags.wayfarers-toolkit.dungeon`). Creatures looted on that scene then get:
+Mark a scene as a dungeon to make its creatures richer: open the scene's configuration and tick **Dungeon** on the **Table Tools** tab (*Wanderer's Toolkit* section) (it's stored as the scene flag `flags.wayfarers-toolkit.dungeon`). Creatures looted on that scene then get:
 
 | Setting | Default | Effect |
 | --- | --- | --- |
@@ -528,9 +530,9 @@ With **Party gold tracker** on, GMs get a **Party gold** window (*control panel 
 
 ## Riding Training and Long Road
 
-**How to use:** click **Run setup**, then drag the *Riding Training* feat from the Items directory (*Wayfarer's Toolkit* folder) onto each character who has learned to ride.
+**How to use:** click **Run setup**, then drag the *Riding Training* feat from the Items directory (*Wanderer's Toolkit* folder) onto each character who has learned to ride.
 
-**Run setup** adds a feat called *Riding Training* to an Items folder named *Wayfarer's Toolkit* (players can see it, so they can drag it onto their sheets). It's granted on completing riding training with a stablemaster or riding instructor:
+**Run setup** adds a feat called *Riding Training* to an Items folder named *Wanderer's Toolkit* (players can see it, so they can drag it onto their sheets). It's granted on completing riding training with a stablemaster or riding instructor:
 
 > **Swift Mount.** Mounting or dismounting a creature costs you only 5 feet of movement, rather than half your Speed.
 > **Long Road.** When every member of your party has this feat and all of you are mounted, the party travels overland at mounted speed.
@@ -866,7 +868,7 @@ Other modules should read and change toolkit data through this API rather than w
 
 Since 1.27 the toolkit keeps everything players mustn't read out of what their clients receive:
 
-- **GM-only records**: one journal entry, *Wayfarer's Toolkit (GM only)*, ownership None for players, with `flags.wayfarers-toolkit.vault = { v: 1, buckets }`: the full flight network (with locked points), hidden GM map pins (no map note exists until you reveal one), each quest's full data (hidden objectives and the description's secret sections), room rentals, party gold snapshots and the loot roll history. Don't share it with players; deleting it loses those records. The health check (*Shared core*) warns if a player can open it.
+- **GM-only records**: one journal entry, *Wanderer's Toolkit (GM only)* (worlds made before 1.27.2 keep the older name *Wayfarer's Toolkit (GM only)*; the module finds it by its flag), ownership None for players, with `flags.wayfarers-toolkit.vault = { v: 1, buckets }`: the full flight network (with locked points), hidden GM map pins (no map note exists until you reveal one), each quest's full data (hidden objectives and the description's secret sections), room rentals, party gold snapshots and the loot roll history. Don't share it with players; deleting it loses those records. The health check (*Shared core*) warns if a player can open it.
 - **What players' clients get**: the world setting `flightNetwork` holds only the unlocked points and their routes (greyed locked points as bare positions if you chose *Greyed out*); a quest journal's flag and page hold only what players may see (nothing at all for a quest that isn't given or is hidden); map notes exist only for pins players may see.
 - **Requests from players** (flight bookings, pace and room requests, loot roll choices, map pin changes, long rests) go over the shared core's checked socket requests: unknown kinds, unexpected fields, wrong types and oversized payloads are refused, the sender is always Foundry's own (never a field in the message; unknown senders are refused), repeats are dropped and each user is rate-limited. Notices back are accepted only from the acting GM client.
 - Foundry itself decides what a None-ownership journal entry sends to a player's client; the toolkit relies on Foundry's ownership rules for the GM-only entry.

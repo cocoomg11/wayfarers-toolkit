@@ -3,7 +3,7 @@
   "name": "Vendor Trash",
   "type": "script",
   "img": "icons/containers/bags/sack-simple-leather-brown.webp",
-  "command": "// Vendor Trash: Wayfarer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wayfarer's Toolkit module is not active.\");\nreturn api.vendorTrash();",
+  "command": "// Vendor Trash: Wanderer's Toolkit\nconst api = game.modules.get(\"wayfarers-toolkit\")?.api;\nif (!api) return ui.notifications.error(\"Wanderer's Toolkit module is not active.\");\nreturn api.vendorTrash();",
   "flags": {
     "wayfarers-toolkit": {
       "macro": "vendorTrash"
