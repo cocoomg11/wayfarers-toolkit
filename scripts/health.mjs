@@ -17,13 +17,12 @@ import * as Quests from "./quests.mjs";
 import * as Pins from "./pins.mjs";
 import * as Vault from "./vault.mjs";
 import * as Migrate from "./migrate.mjs";
-import { CORE_VERSION, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
+import * as Card from "./health-card-model.mjs";
+import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
 import { sceneTab } from "../vendor/wanderers-core/foundry/index.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const ICON = { ok: "✓", warn: "⚠", bad: "✗", off: "·" };
-const COLOR = { ok: "#3a8a3a", warn: "#b07a00", bad: "#b02a2a", off: "#888" };
 const line = (level, text) => ({ level, text });
 const ok = t => line("ok", t), warn = t => line("warn", t), bad = t => line("bad", t), off = t => line("off", t);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -410,19 +409,26 @@ export function reportTimeout(ms) {
 /** A line's HTML as plain text: buttons dropped, tags removed, entities read. */
 export const toPlain = html => plain(String(html ?? "").replace(/<button[^>]*>[\s\S]*?<\/button>/g, " "));
 
-/** The report as HTML (for the chat card and the window). */
+/** Whether Run setup should be offered (macros missing). */
+const setupMissing = api => { try { return api.setupPlan().some(p => !p.ok); } catch { return false; } };
+/** Whether the Wanderer's Satchel hub is active and can open its health page (GM). */
+export const satchelOn = () => { const m = game.modules.get("wanderers-satchel"); return !!(m?.active && typeof m.api?.health === "function"); };
+
+/** The full report as HTML (the health window, and the chat card when the Satchel isn't active). */
 export function html(api, sections) {
-  const missing = (() => { try { return api.setupPlan().some(p => !p.ok); } catch { return false; } })();
-  const counts = { ok: 0, warn: 0, bad: 0 }; for (const s of sections) for (const l of s.lines) if (l.level in counts) counts[l.level]++;
-  const body = sections.map(s => `<h4 style="margin:0.6em 0 0.2em;border-bottom:1px solid currentColor;">${esc(s.title)}</h4><ul style="list-style:none;margin:0;padding:0;">${s.lines.map(l => `<li style="margin:0.1em 0;"><span style="color:${COLOR[l.level]};font-weight:bold;display:inline-block;width:1.2em;">${ICON[l.level]}</span>${l.text}</li>`).join("")}</ul>`).join("");
-  return `<div class="wct-health"><h3>Wanderer's Toolkit ${esc(api.version ?? "")}: health check</h3><p>${counts.ok} ✓ · ${counts.warn} ⚠ · ${counts.bad} ✗</p>${body}${missing ? `<p><button type="button" data-wct-action="run-setup"><i class="fas fa-hammer"></i> Run setup</button></p>` : ""}</div>`;
+  return Card.fullCard({ version: api.version ?? "", sections, setup: setupMissing(api) });
 }
 
-/** GM: runs the checks and whispers the card to the GMs. With `{ window: true }` it opens the window instead. */
+/**
+ * GM: runs the checks and whispers a card to the GMs. 1.30: with the Wanderer's Satchel active the card is one summary line with
+ * an "Open in Wanderer's Satchel" button; without it the full card. With `{ window: true }` it opens the window instead.
+ */
 export async function post(api, { window = false } = {}) {
   if (window) return new HealthApp().render(true);
   const sections = await run(api);
-  await ChatMessage.create({ content: html(api, sections), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: { health: true } } });
+  const satchel = satchelOn();
+  const content = satchel ? Card.shortCard({ version: api.version ?? "", counts: Card.counts(sections), satchel, setup: setupMissing(api) }) : html(api, sections);
+  await ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: { health: true } } });
   return sections;
 }
 
@@ -430,12 +436,12 @@ export async function post(api, { window = false } = {}) {
 let API = null;
 /** The report in a window (api.health({ window: true })), with Post to chat and Run setup. */
 export class HealthApp extends foundry.applications.api.ApplicationV2 {
-  static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window"], window: { title: "Wanderer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
+  static DEFAULT_OPTIONS = { id: `${ID}-health`, classes: ["wct-window", "wct-health-window", ...UI_CLASSES], window: { title: "Wanderer's Toolkit · Health check", icon: "fa-solid fa-stethoscope", resizable: true }, position: { width: 560, height: 640 } };
   async _renderHTML() {
     const div = document.createElement("div"); div.style.overflowY = "auto";
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
     const sections = await run(API);
-    div.innerHTML = `${html(API, sections)}<p><button type="button" data-action="post"><i class="fas fa-comment"></i> Post to chat</button> <button type="button" data-action="again"><i class="fas fa-rotate"></i> Check again</button></p>`;
+    div.innerHTML = `${html(API, sections)}<p class="wc-row"><button type="button" class="wc-btn" data-action="post"><i class="fa-solid fa-comment"></i> Post to chat</button> <button type="button" class="wc-btn" data-action="again"><i class="fa-solid fa-rotate"></i> Check again</button></p>`;
     /** @type {HTMLElement} */ (div.querySelector("[data-action=post]")).addEventListener("click", () => post(API));
     /** @type {HTMLElement} */ (div.querySelector("[data-action=again]")).addEventListener("click", () => this.render());
     div.querySelector("[data-wct-action=run-setup]")?.addEventListener("click", () => runSetup(() => this.render()));
@@ -443,6 +449,16 @@ export class HealthApp extends foundry.applications.api.ApplicationV2 {
     return div;
   }
   _replaceHTML(result, content) { content.replaceChildren(result); }
+}
+
+/** Opens the Satchel's health window for this module (its api.health({ window, ids })), else its hub, else our own window. */
+function openSatchel() {
+  const api = game.modules.get("wanderers-satchel")?.api;
+  try {
+    if (typeof api?.health === "function") { const r = api.health({ window: true, ids: [ID] }); if (r) return r; }
+    if (typeof api?.open === "function") return api.open();
+  } catch (e) { console.warn(`${ID} | Wanderer's Satchel`, e); }
+  return new HealthApp().render(true);
 }
 
 async function runSetup(after) {
@@ -461,6 +477,8 @@ export function init(api) {
     const root = el instanceof HTMLElement ? el : el?.[0];
     const link = root?.querySelector?.("[data-wct-action=autolink-boss]");
     if (link) { if (!game.user.isGM) link.remove(); else link.addEventListener("click", async ev => { ev.preventDefault(); link.disabled = true; await API.bossLoot?.autoLink(); }); }
+    const sat = root?.querySelector?.("[data-wct-action=open-satchel]");
+    if (sat) { if (!game.user.isGM) sat.remove(); else sat.addEventListener("click", ev => { ev.preventDefault(); openSatchel(); }); }
     const btn = root?.querySelector?.("[data-wct-action=run-setup]"); if (!btn) return;
     if (!game.user.isGM) return btn.remove();
     btn.addEventListener("click", async ev => { ev.preventDefault(); btn.disabled = true; await runSetup(); btn.disabled = false; });
