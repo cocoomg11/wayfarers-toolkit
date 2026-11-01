@@ -203,3 +203,13 @@ test("README documents both hooks", () => {
   const r = src("README.md");
   assert.match(r, /wayfarersToolkit\.questUpdated/); assert.match(r, /wayfarersToolkit\.journey/);
 });
+
+test("quest tracker: Escape cancels a mouse drag from anywhere, and pointer capture is guarded", () => {
+  const q = src("scripts/quests.mjs");
+  assert.match(q, /document\.addEventListener\("keydown", hudDragKey, true\)/, "page-wide Escape listener while dragging");
+  assert.match(q, /document\.removeEventListener\("keydown", hudDragKey, true\)/, "removed when the drag ends");
+  assert.match(q, /try \{ hudDrag\.header\.setPointerCapture/, "setPointerCapture guarded");
+  assert.match(q, /hasPointerCapture/, "release only when captured");
+  const esc = q.slice(q.indexOf("function hudDragKey"), q.indexOf("function hudMove"));
+  assert.ok(esc.includes("setAt(hudDrag.from)") && !esc.includes("saveTrackerPos"), "back to the start, nothing saved");
+});

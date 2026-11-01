@@ -59,8 +59,12 @@ Eight quality-of-life tools, each with its own switch on the Features tab (all o
 - **Cost and time before travel** (`travelConfirm`): Hex Travel gets a confirm with cost, time and who pays; the flight confirm gains the same table (gold / silver / copper). Setting `travelConfirmSkip` (Travel › Advanced) skips it for the GM.
 - **Hooks for other modules** (`moduleHooks`): `wayfarersToolkit.questUpdated` `{ questId, change }` and `wayfarersToolkit.journey` `{ kind, fromId, toId, fromName, toName, hours, cost: { gp, sp, cp }, partyId }`, fired with `Hooks.callAll` on the GM client that made the change, after saving (README › Hooks).
 
+**Fixed**
+- **Escape during a mouse drag of the quest tracker** now cancels it: the tracker goes back to where the drag started and nothing is saved. (1.27.2 only handled Escape with the keyboard grip focused. The key is now watched on the whole page while a drag is in progress, and pointer capture is set and released safely.)
+
 **Untested in Foundry**
 - Nothing in this release was run in Foundry. To check in a live world (v13 and v14, dnd5e 5.x and 6.x):
+  - Quest tracker: press on the header, move, press Escape before releasing: it snaps back and the spot is not saved.
   - Objective / title clicks pan and ping on the current scene; the other-scene prompt views the scene and pings after it loads; players get the notice; a hidden GM pin isn't pinged.
   - The Updated glow appears for a player after a GM ticks an objective, not after a change to a hidden objective; it clears on opening the quest; nothing glows on the first load after updating; reduced-motion shows an outline instead.
   - The two shortcuts appear in Configure Controls with no keys, and work once bound.
