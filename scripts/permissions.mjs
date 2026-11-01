@@ -6,17 +6,25 @@
  * facts: {
  *   on(id) → feature on, settings: { playerFlights, paceRequests, trashItemPiles, junkSellButton, innRequests, pinsPlayers },
  *   socket: the module's socket is on (module.json), itemPiles: Item Piles active,
- *   players: [{ name, active, character: name | null, characterOwned: bool, ownsAnyCharacter: bool, can: { MACRO_SCRIPT, ... } }],
+ *   players: [{ id, name, ignored (1.32: on the permIgnoreUsers list), active, character: name | null, characterOwned: bool, ownsAnyCharacter: bool, can: { MACRO_SCRIPT, ... } }],
  *   party: null | { name, playerLevel (lowest ownership any player has: 0 none … 3 owner) },
  *   macros: { "<name>": default ownership level | undefined (no world copy) },
  *   quests: { visible: n, unreadable: [names], noParty: [names] }  (quests players should see but whose journal they can't open;
  *           given quests with no party, which only the GM sees since 1.29)
  * }
- * Each line: { feature, level: ok | warn | bad, text, hint }.
+ * Each line: { feature, level: ok | warn | bad | info, text, hint } (the no-character warning also has `ignore`: the user ids an
+ * Ignore these users button would add).
  */
 export const LEVELS = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
 const list = (a, n = 6) => a.slice(0, n).join(", ") + (a.length > n ? `, and ${a.length - n} more` : "");
 const L = (feature, level, text, hint = "") => ({ feature, level, text, hint });
+
+/** Most user ids kept in the "ignore these users" list (permIgnoreUsers, 1.32). */
+export const IGNORE_MAX = 100;
+/** The ignore list as stored → unique non-empty ids, capped. @param {unknown} v */
+export const normalizeIgnored = v => [...new Set((Array.isArray(v) ? v : []).filter(x => typeof x === "string" && x))].slice(0, IGNORE_MAX);
+/** The list after ignoring `ids` too (capped). @param {unknown} current @param {string[]} ids */
+export const withIgnored = (current, ids) => normalizeIgnored([...normalizeIgnored(current), ...(ids ?? [])]);
 
 /** Players (non-GM users) who lack a core permission. */
 const lacking = (players, perm) => players.filter(p => p.can?.[perm] === false).map(p => p.name);
@@ -25,7 +33,10 @@ const lacking = (players, perm) => players.filter(p => p.can?.[perm] === false).
 export function featureChecks(facts) {
   const on = facts.on ?? (() => true); const s = facts.settings ?? {};
   const players = facts.players ?? []; const out = [];
-  const noChar = players.filter(p => !p.character && !p.ownsAnyCharacter).map(p => p.name);
+  // 1.32: players the GM chose to ignore (e.g. spare accounts) aren't nagged about having no character.
+  const noCharAll = players.filter(p => !p.character && !p.ownsAnyCharacter);
+  const noChar = noCharAll.filter(p => !p.ignored).map(p => p.name);
+  const skipped = noCharAll.filter(p => p.ignored).map(p => p.name);
   const notOwned = players.filter(p => p.character && !p.characterOwned).map(p => `${p.name} (${p.character})`);
   const socketUsers = [];
   if (on("flightMaster") && s.playerFlights) socketUsers.push("player flight bookings");
@@ -50,8 +61,9 @@ export function featureChecks(facts) {
   const needsChar = [on("restedInn") && "Rested at the inn", on("lootRolls") && "loot rolls", on("characterPane") && "the character pane", on("vendorTrash") && s.trashItemPiles && facts.itemPiles && "looting bodies", on("vendorTrash") && s.junkSellButton && facts.itemPiles && "Sell all junk", on("merchantShop") && facts.itemPiles && "shops opened for players"].filter(Boolean);
   if (needsChar.length) {
     if (notOwned.length) out.push(L("characters", "bad", `Assigned a character they don't own: ${list(notOwned)}. ${needsChar.join(", ").replace(/^./, c => c.toUpperCase())} won't work for them.`, "Give each player Owner on their character (right-click the actor › Ownership), or assign them a character they own (Configure Player)."));
-    if (noChar.length) out.push(L("characters", "warn", `No character to act with: ${list(noChar)}. They're left out of ${needsChar.join(", ")}.`, "Assign each player a character (User Configuration › Character), or give them Owner on one."));
-    if (!notOwned.length && !noChar.length) out.push(L("characters", "ok", `Every player has a character they own (${needsChar.join(", ")}).`));
+    if (noChar.length) out.push({ ...L("characters", "warn", `No character to act with: ${list(noChar)}. They're left out of ${needsChar.join(", ")}.`, "Assign each player a character (User Configuration › Character), give them Owner on one, or ignore them (Ignore these users)."), ignore: noCharAll.filter(p => !p.ignored && p.id).map(p => p.id) });
+    if (!notOwned.length && !noChar.length) out.push(L("characters", "ok", skipped.length ? `Every player has a character they own (${needsChar.join(", ")}); not checked for ${list(skipped)} (ignored).` : `Every player has a character they own (${needsChar.join(", ")}).`));
+    else if (skipped.length) out.push(L("characters", "info", `Not checked for ${list(skipped)} (ignored; control panel › Loot › Advanced).`));
   }
 
   // Shared script macros: players need permission to run script macros.

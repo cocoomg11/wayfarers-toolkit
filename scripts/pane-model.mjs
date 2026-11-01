@@ -179,3 +179,13 @@ export function attackOptions(current = "auto", auto = "melee") {
   const opts = [["auto", `Auto (${ATTACK_MODES[auto] ?? "Melee"})`], ...Object.entries(ATTACK_MODES)];
   return opts.map(([k, l]) => `<option value="${k}"${k === current ? " selected" : ""}>${esc(l)}</option>`).join("");
 }
+
+/**
+ * 1.32: the pane's height on a screen `viewH` px tall. Room kept for Foundry's bars: PANE_MARGIN. The minimum height is the sheet's
+ * (`min`) when the screen has room, else what fits (never under PANE_FLOOR); the sheet then scrolls inside the window.
+ */
+export const PANE_MARGIN = 100, PANE_FLOOR = 360;
+/** @param {number} viewH @param {number} min */
+export const paneMinHeight = (viewH, min) => Number.isFinite(viewH) && viewH > 0 ? Math.max(PANE_FLOOR, Math.min(min, Math.floor(viewH - PANE_MARGIN))) : min;
+/** The opening height: min(def, viewH - PANE_MARGIN), not below paneMinHeight. @param {number} viewH @param {{ def: number, min: number }} o */
+export const paneHeight = (viewH, { def, min }) => Number.isFinite(viewH) && viewH > 0 ? Math.max(paneMinHeight(viewH, min), Math.min(def, Math.floor(viewH - PANE_MARGIN))) : def;

@@ -15,6 +15,7 @@ import * as M from "./panel-model.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
 import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 import { remembered, resetWindows } from "./windows.mjs";
+import * as Cards from "./chat-cards.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -57,6 +58,7 @@ function rowHTML([key, cond, kind]) {
   else if (kind === "packs") { wide = true; control = packsPicker(v, off); }
   else if (kind === "classes") { wide = true; control = classesPicker(v, off); }
   else if (kind === "parties") { wide = true; control = partiesPicker(v, off); }
+  else if (kind === "users") { wide = true; control = usersPicker(v, off); }
   else if (kind === "journal" || kind === "groupActor" || kind === "journalFolder") {
     const names = kind === "journal" ? game.journal.map(j => j.name) : kind === "groupActor" ? game.actors.filter(a => a.type === "group").map(a => a.name) : game.folders.filter(f => f.type === "JournalEntry").map(f => f.name);
     const lid = `wct-dl-${key}`;
@@ -130,6 +132,13 @@ function partiesPicker(v, off) {
   return `<div class="wct-checklist">${!set.size ? `<p class="wct-note"><i class="fa-solid fa-circle-info"></i> None ticked: quests go to the party actor.</p>` : ""}
     ${groups.length || gone.length ? `<div class="wct-checks">${groups.map(a => box(a.id, a.name, "")).join("")}${gone.map(id => box(id, id, "no such group actor")).join("")}</div>` : `<p class="hint">No group actors in this world yet.</p>`}</div>`;
 }
+/** Player users as ticks (permIgnoreUsers holds their ids, 1.32). */
+function usersPicker(v, off) {
+  const set = new Set(Array.isArray(v) ? v : []); const users = game.users.filter(u => !u.isGM).sort((a, b) => a.name.localeCompare(b.name));
+  const gone = [...set].filter(id => !users.some(u => u.id === id));
+  const box = (id, label, note) => `<label class="wct-check"><input type="checkbox" data-user value="${esc(id)}" ${set.has(id) ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)}${note ? ` <span class="hint">${esc(note)}</span>` : ""}</label>`;
+  return `<div class="wct-checklist">${users.length || gone.length ? `<div class="wct-checks">${users.map(u => box(u.id, u.name, "")).join("")}${gone.map(id => box(id, id, "user deleted")).join("")}</div>` : `<p class="hint">No player users in this world yet.</p>`}</div>`;
+}
 function settingsTab(tab) {
   const advanced = (tab.advanced ?? []).map(rowHTML).join("");
   const flights = tab.id === "travel" ? `<div class="wct-actions"><button type="button" class="wc-btn" data-act="flight-editor" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-feather-pointed"></i> Flight network…</button><span class="hint">Flight points, the scene each opens (or none), what's unlocked, and the routes with their fares and hours.</span></div>
@@ -177,8 +186,9 @@ function overviewTab() {
       <button type="button" class="wc-btn" data-act="update-notes"><i class="fa-solid fa-bullhorn"></i> Show update notes</button>
       <button type="button" class="wc-btn wc-btn-danger wct-danger" data-act="cleanup"><i class="fa-solid fa-broom"></i> Remove toolkit data…</button>
     </div>
-    <div class="wct-rows"><div class="wct-row wct-instant" data-key="updateNotes"><div class="wct-row-text"><label>${esc(M.LABELS.updateNotes[0])}</label><p class="hint">${esc(M.LABELS.updateNotes[1])}</p></div>
-      <div class="wct-row-control">${switchHTML("updateNotes", get("updateNotes") !== false, false, 'data-instant')}</div></div></div>
+    <div class="wct-rows">${["updateNotes", "pruneToolkitCards"].map(k => `<div class="wct-row wct-instant" data-key="${k}"><div class="wct-row-text"><label>${esc(M.LABELS[k][0])}</label><p class="hint">${esc(M.LABELS[k][1])}</p></div>
+      <div class="wct-row-control">${switchHTML(k, get(k) !== false, false, 'data-instant')}</div></div>`).join("")}</div>
+    <div class="wct-actions"><button type="button" class="wc-btn" data-act="clear-cards"><i class="fa-solid fa-comment-slash"></i> Clear old toolkit cards…</button><span class="hint">Deletes the toolkit's own older health check and update notes cards from chat, keeping the newest of each. Nothing else in chat is touched.</span></div>
     <p class="hint"><strong>Run setup</strong> creates what the tools need (tracker journal, party actor, macros in a <em>Wanderer's Toolkit</em> macro folder) and never overwrites anything. Drag macros to your hotbar from that folder or the <em>Wanderer's Toolkit Macros</em> compendium.</p>`;
 }
 
@@ -262,8 +272,14 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
   }
 
   markDirty() {
-    const n = this.element?.querySelectorAll(".wct-row[data-dirty]").length ?? 0;
-    const el = this.element?.querySelector("[data-dirty-note]"); if (el) el.textContent = n ? `Unsaved changes in ${n} setting${n === 1 ? "" : "s"} (all tabs).` : "";
+    const root = this.element; if (!root) return;
+    const n = root.querySelectorAll(".wct-row[data-dirty]").length;
+    const el = root.querySelector("[data-dirty-note]"); if (el) el.textContent = n ? `Unsaved changes in ${n} setting${n === 1 ? "" : "s"} (all tabs).` : "";
+    // 1.32: the Save button and each tab with edits carry a marker. Edits stay when you switch tabs (every tab is in the page and Save
+    // writes them all); only closing the window drops them.
+    const save = root.querySelector('.wct-footer [data-act="save"]');
+    if (save) { save.classList.toggle("wct-unsaved", n > 0); save.dataset.tooltip = n ? `${n} unsaved change${n === 1 ? "" : "s"}` : ""; }
+    root.querySelectorAll(".wct-tabs [data-tab]").forEach(b => b.classList.toggle("wct-unsaved", !!root.querySelector(`.wct-tab[data-tab="${b.dataset.tab}"] .wct-row[data-dirty]`)));
   }
 
   /** Tools that need another (quest tracker → quest log, route map → Flight Master, travel pace → Hex Travel): shown as not available while it is off. */
@@ -319,6 +335,7 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
       if (act === "recheck") return this.loadOverview();
       if (act === "wizard") return new WelcomeWizard().render({ force: true });
       if (act === "update-notes") return API.updateNotes.show();
+      if (act === "clear-cards") return await this.clearCards(btn);
       if (act === "cleanup") return new Cleanup.CleanupApp().render({ force: true });
       if (act === "flight-editor") return API.flightEditor();
       if (act === "loot-history") return API.lootHistory();
@@ -334,6 +351,18 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
       if (act === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); btn.disabled = false; return this.loadOverview(); }
       if (act === "fix") return await this.fix(this.issues?.[+btn.dataset.issue]?.fix, btn);
     } catch (e) { console.error(`${ID} | control panel`, e); ui.notifications.error(`Wanderer's Toolkit: ${e.message}`); }
+  }
+
+  /** Clear old toolkit cards: counts first, confirms, then deletes (1.32). */
+  async clearCards(btn) {
+    const c = Cards.counts();
+    if (!c.total) return ui.notifications.info("Wanderer's Toolkit: no old toolkit cards in chat.");
+    const parts = [c.health && `${c.health} health check card${c.health === 1 ? "" : "s"}`, c.updates && `${c.updates} update notes card${c.updates === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+    if (!(await confirm("Clear old toolkit cards", `<p>Delete ${esc(parts)} from chat? The newest of each kind stays.</p><p class="hint">Only the toolkit's own health and update cards are deleted: players' messages, loot, quest and other cards stay. This can't be undone.</p>`))) return;
+    btn.disabled = true;
+    const n = await Cards.clearOld();
+    btn.disabled = false;
+    ui.notifications.info(`Wanderer's Toolkit: deleted ${n} old card${n === 1 ? "" : "s"}.`);
   }
 
   async fix(fix, btn) {
@@ -372,6 +401,7 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
       if (kind === "packs") { if (dirty) changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))); continue; }
       if (kind === "classes") { if (dirty) changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))); continue; }
       if (kind === "parties") { if (dirty) changed(key, [...row.querySelectorAll("[data-party]:checked")].map(i => i.value)); continue; }
+      if (kind === "users") { if (dirty) changed(key, [...row.querySelectorAll("[data-user]:checked")].map(i => i.value)); continue; }
       const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) continue;
       if (c.type === Boolean) changed(key, !!el.checked);
       else if (c.type === Number) { const n = Number(el.value); if (Number.isFinite(n) && String(el.value).trim() !== "") changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n); }

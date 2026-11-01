@@ -16,9 +16,11 @@
 .application.wct-pane {
   --wct-slot: 42px; /* slot size; pane.mjs grows it with the window */
   min-width: 540px;
-  min-height: 780px;
+  /* 1.32: on short screens the window may be shorter than the sheet (pane-model.mjs paneMinHeight); the sheet scrolls inside it. */
+  min-height: min(780px, max(360px, calc(100vh - 100px)));
 }
-.application.wct-pane .window-content { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0; overflow: visible; min-height: 0; }
+.application.wct-pane .window-content { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0; overflow-x: hidden; overflow-y: auto; min-height: 0; }
+.application.wct-pane .window-content > .wct-frame { min-height: 740px; }
 
 .wct-pane .wct-frame {
   /* The sheet's own palette, the same in both themes. */

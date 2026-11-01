@@ -10,6 +10,7 @@ import * as FlightEditor from "./flight-editor.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT } from "./macros.mjs";
 import { card } from "./look-model.mjs";
+import * as Cards from "./chat-cards.mjs";
 
 const ID = "wayfarers-toolkit";
 /** @type {any} */
@@ -33,12 +34,14 @@ export function build(from = null) {
   return N.build({ from, to: API.version ?? "", on: F.on, ctx: ctx() });
 }
 
-/** Whispers the card to the GMs. Returns the message. */
-export function post(notice) {
-  return ChatMessage.create({
+/** Whispers the card to the GMs, then (1.32, setting pruneToolkitCards) deletes the older update cards. Returns the message. */
+export async function post(notice) {
+  const msg = await ChatMessage.create({
     content: card(N.cardHTML(notice), "wct-update-card"), whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" },
-    flags: { [ID]: { updateNotes: { from: notice.from, to: notice.to, actions: notice.actions.map(a => a.id), done: [] } } }
+    flags: { [ID]: { toolkitCard: "updates", updateNotes: { from: notice.from, to: notice.to, actions: notice.actions.map(a => a.id), done: [] } } }
   });
+  await Cards.afterPost("updates");
+  return msg;
 }
 
 /**

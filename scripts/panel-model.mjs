@@ -57,7 +57,7 @@ export const TABS = [
     id: "loot", label: "Loot", icon: "fa-solid fa-sack-dollar", anchor: "loot-tab",
     basic: [["trashAutoRoll", "vendorTrash"], ["trashAutoLoot", "vendorTrash"], ["trashGmAddedLoot", "vendorTrash"], ["partySize", null], ["lootRollSeconds", "lootRolls"]],
     advanced: [["goldAct", "partyGold"], ["goldCurve", "partyGold"], ["goldIncludeGear", "partyGold"], ["lootHistory", "lootRolls"], ["junkSellButton", "vendorTrash"], ["shopChatLine", "merchantShop"], ["trashUnconscious", "vendorTrash"], ["trashItemPiles", "vendorTrash"], ["trashWeight", "vendorTrash"], ["trashWeightMult", "vendorTrash"], ["dungeonCoinMult", "vendorTrash"], ["dungeonDropBonus", "vendorTrash"], ["dungeonExtraRoll", "vendorTrash"],
-      ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null], ["showModuleData", null]]
+      ["trashPacks", "vendorTrash", "packs"], ["itemPilesCoins", "coins"], ["debugLog", null], ["showModuleData", null], ["permIgnoreUsers", null, "users"]]
   },
   {
     id: "boss", label: "Boss & Combat", icon: "fa-solid fa-crown", anchor: "boss--combat-tab",
@@ -83,6 +83,8 @@ export const TABS = [
 
 /** Plain-language label and hint per setting (what it does at the table). */
 export const LABELS = {
+  permIgnoreUsers: ["Players not checked for a character", "The health check's \"No character to act with\" warning leaves out the players ticked here (spare or test accounts). The check shows them as not checked instead."],
+  pruneToolkitCards: ["Keep only the newest health and update card", "When the toolkit posts a health check or update notes card, it deletes its own older cards of that kind, so chat keeps one of each. Players' messages and other cards are never touched. Saved as soon as you switch it."],
   updateNotes: ["Show update notes after updating", "After the module is updated, you get one whispered chat card saying what changed and what needs doing, with a button for each. Saved as soon as you switch it."],
   zones: ["Encounter zones", "Each zone the party can travel through, and the roll table its random encounters come from. Hex Travel offers these zones."],
   playerFlights: ["Players can book flights", "Players get a Flight Master button and can fly the party themselves. A GM has to be logged in; the fare comes out of the party purse."],
@@ -273,9 +275,9 @@ export function presetSettings(preset) {
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE). questParties holds
  * this world's actor ids, which mean nothing in another world.
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement", "permIgnoreUsers"]);
 
-export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement"]);
+export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement", "permIgnoreUsers"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

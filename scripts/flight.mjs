@@ -213,6 +213,19 @@ export function networkFacts(net, sceneExists = () => true) {
   };
 }
 
+/**
+ * The health line for routes into locked points (1.32), pure: one route reads as before; several collapse to "N routes lead into
+ * locked points" with the routes in `items` (shown behind a Show toggle). null when there are none.
+ * @param {string[]} toLocked route labels from networkFacts
+ * @returns {{ text: string, items: string[] } | null}
+ */
+export function lockedRoutesLine(toLocked = []) {
+  const items = (toLocked ?? []).map(String);
+  if (!items.length) return null;
+  if (items.length === 1) return { text: `Route into a locked flight point (not flown until it's unlocked): ${items[0]}.`, items: [] };
+  return { text: `${items.length} routes lead into locked flight points (not flown until they're unlocked).`, items };
+}
+
 // ---------------------------------------------------------------- money text (pure; main.mjs passes the dnd5e coins)
 /**
  * "1g 20s", "2 gp", "75c" or a plain number (read in `unit`) → amount in the smallest coin. `val`: { coinKey: value in smallest coin };

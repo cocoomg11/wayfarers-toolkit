@@ -173,7 +173,8 @@ test("character pane: own size memory replaced by core's; the 540 x 780 minimum 
   const p = src("scripts/pane.mjs");
   assert.match(p, /const MIN_W = 540, MIN_H = 780/);
   assert.match(p, /position\.width = Math\.max\(MIN_W, position\.width\)/);
-  assert.match(p, /position\.height = Math\.max\(MIN_H, position\.height\)/);
+  // 1.32: the height minimum follows short screens (pane-model.mjs paneMinHeight); still MIN_H when there's room.
+  assert.match(p, /position\.height = Math\.max\(PM\.paneMinHeight\(window\.innerHeight, MIN_H\), position\.height\)/);
   assert.doesNotMatch(p, /game\.settings\.set\(ID, SIZE_KEY/, "paneWindow is no longer written");
   assert.match(p, /if \(savedPlacement\(ID, WINDOW_KEYS\.pane\)\) return null;/, "the old value only until core has one");
 });
@@ -181,9 +182,11 @@ test("character pane: own size memory replaced by core's; the 540 x 780 minimum 
 test("keybindings: core's helper, same action ids and defaults", () => {
   const m = src("scripts/main.mjs"); const q = src("scripts/quests.mjs");
   assert.doesNotMatch(m + q, /game\.keybindings\.register/);
-  assert.match(m, /reg\("characterPane", /); assert.match(m, /reg\("controlPanel", [^\n]*, true\);/, "control panel is GM only");
+  assert.match(m, /reg\("characterPane", /); assert.match(m, /reg\("controlPanel", [^\n]*, true, CONTROL_PANEL_KEY\);/, "control panel is GM only");
   assert.match(q, /action: "questLog"[^\n]*editable: \[\{ key: "KeyL" \}\]/);
-  const nKeys = (m.match(/editable:/g) ?? []).length; assert.equal(nKeys, 0, "pane and panel: no default key");
+  // 1.32: the control panel has a default (Shift+K); the pane still has none.
+  assert.match(m, /reg\("characterPane", [^\n]*\(\) => WCT\.characterPane\(\)\);\n/, "pane: no default key");
+  assert.match(m, /CONTROL_PANEL_KEY = \[\{ key: "KeyK", modifiers: \["Shift"\] \}\]/);
 });
 
 test("Module data folder: hidden client setting, hide hook in init, panel row, record lists", () => {

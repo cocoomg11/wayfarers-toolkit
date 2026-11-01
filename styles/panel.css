@@ -227,3 +227,12 @@
 .wct-coinlog tr.undone td { opacity: 0.55; text-decoration: line-through; }
 .wct-coinlog tr.undone td:last-child { text-decoration: none; }
 .wct-history-list td .wc-item-slot { margin-right: 2px; }
+
+/* 1.32: a health line's Show toggle (several routes into locked flight points), in the chat card, health window and Overview. */
+.wct-health details.wct-hc-more, .wct-issues details.wct-hc-more { margin-top: 2px; }
+.wct-health details.wct-hc-more summary, .wct-issues details.wct-hc-more summary { cursor: pointer; font-size: 0.9em; }
+
+/* 1.32: unsaved-changes marker on the Save button and on each tab with edits. */
+.wct-panel .wct-footer button.wct-unsaved::after, .wct-panel .wct-tabs .wc-nav.wct-unsaved::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--wc-warn, #e8a33a); vertical-align: middle;
+}

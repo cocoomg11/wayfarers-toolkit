@@ -39,6 +39,7 @@ import * as UX from "./quest-ux-model.mjs";
 import { UI_CLASSES, coins as coinsMarkup } from "../vendor/wanderers-core/index.mjs";
 import { registerOpenKeybinding, hideDataFolder, registerWindowPlacement } from "../vendor/wanderers-core/foundry/index.mjs";
 import { card } from "./look-model.mjs";
+import * as Cards from "./chat-cards.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -281,7 +282,9 @@ function registerSettings() {
   game.settings.register(ID, "flightNetwork", { scope: "world", config: false, type: Object, default: Flight.emptyNetwork(), onChange: () => { FlightEditor.refresh(); FlightMap.refresh(); } });
   // The pre-1.17 setup reminder's version stamp: no longer written, only read to tell a world that ran an earlier version from a new one.
   game.settings.register(ID, "setupReminded", { scope: "world", config: false, type: String, default: "" });
-  Updates.registerSettings();
+  Updates.registerSettings(); Cards.registerSettings();
+  // 1.32: players the health check's "No character to act with" line leaves out (user ids; Perm.IGNORE_MAX).
+  game.settings.register(ID, "permIgnoreUsers", { name: "Players not checked for a character", hint: "The health check doesn't warn that these players have no character.", scope: "world", config: false, type: Array, default: [] });
   game.settings.register(ID, "wizardDone", { scope: "world", config: false, type: Boolean, default: false });
   // Every feature's settings, whether the feature is on or not (the panel shows a turned-off feature's settings greyed out).
   Loot.registerSettings(); Bosses.registerSettings(); BossLoot.registerSettings();
@@ -828,6 +831,8 @@ export const WCT = {
   cleanup: gmOnlyApi({ plan: Cleanup.plan, remove: pick => Cleanup.remove(pick), open: () => new Cleanup.CleanupApp().render(true) }),
   /** GM: opens the control panel, optionally on a tab (overview, features, travel, loot, boss, pane, quests). */
   panel(tab) { return this.gmOnly() ? Panel.open(tab) : undefined; },
+  /** 1.32: GM: opens the control panel (same as panel(tab)); the Wanderer's Satchel's launcher calls this. */
+  open(tab) { return this.panel(tab); },
   /** GM: opens the welcome wizard. */
   wizard() { return this.gmOnly() ? new Panel.WelcomeWizard().render({ force: true }) : undefined; },
   log,
@@ -963,13 +968,19 @@ Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000
  * Configure Controls entries (feature keybindings), no keys set: each user picks their own. The quest log's L key is the quest log's
  * own (quests.mjs). Core's registerOpenKeybinding (1.30) with the same action ids as before, so bindings users set carry over.
  */
+/** The control panel's default key (1.32). */
+/** @type {Array<{ key: string, modifiers: Array<"Alt" | "Control" | "Shift"> }>} */
+export const CONTROL_PANEL_KEY = [{ key: "KeyK", modifiers: ["Shift"] }];
 function registerKeybindings() {
-  const reg = (action, name, hint, fn, gmOnly = false) => {
-    try { registerOpenKeybinding({ moduleId: ID, action, name, hint, gmOnly, onDown: () => { fn(); }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL }); }
+  /** @param {string} action @param {string} name @param {string} hint @param {() => any} fn @param {boolean} [gmOnly] @param {typeof CONTROL_PANEL_KEY} [editable] */
+  const reg = (action, name, hint, fn, gmOnly = false, editable = undefined) => {
+    try { registerOpenKeybinding({ moduleId: ID, action, name, hint, gmOnly, onDown: () => { fn(); }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL, ...(editable ? { editable } : {}) }); }
     catch (e) { console.warn(`${ID} | key binding ${action} not registered`, e); }
   };
   if (F.on("characterPane")) reg("characterPane", "Open character pane", "Opens the character pane for the selected token's actor, or your character.", () => WCT.characterPane());
-  reg("controlPanel", "Open the control panel (GM)", "Opens the Wanderer's Toolkit control panel. GM only.", () => WCT.panel(), true);
+  // 1.32: default Shift+K. Shift+T was the first choice but core's Target Token is T with Shift reserved (Shift+T adds a target);
+  // no core (v14) or dnd5e binding uses K. Users can change it in Configure Controls.
+  reg("controlPanel", "Open the control panel (GM)", "Opens the Wanderer's Toolkit control panel. GM only. Default: Shift+K.", () => WCT.panel(), true, CONTROL_PANEL_KEY);
 }
 
 /**

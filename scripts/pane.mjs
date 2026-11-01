@@ -557,7 +557,7 @@ function legacyPosition() {
   return { left: p.left, top: p.top, width: p.width, height: p.height };
 }
 function defaultPosition() {
-  return { width: DEF_W, height: Math.max(MIN_H, Math.min(DEF_H, window.innerHeight - 40)) };
+  return { width: DEF_W, height: PM.paneHeight(window.innerHeight, { def: DEF_H, min: MIN_H }) };
 }
 
 export class CharacterPane extends remembered(foundry.applications.api.ApplicationV2, "pane") {
@@ -748,7 +748,8 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
   _updatePosition(position) {
     if (this.minimized) return super._updatePosition(position);
     if (Number.isFinite(position.width)) position.width = Math.max(MIN_W, position.width);
-    if (Number.isFinite(position.height)) position.height = Math.max(MIN_H, position.height);
+    // 1.32: on a screen shorter than the sheet the minimum follows the screen (the sheet scrolls inside the window).
+    if (Number.isFinite(position.height)) position.height = Math.max(PM.paneMinHeight(window.innerHeight, MIN_H), position.height);
     return super._updatePosition(position);
   }
 

@@ -25,6 +25,18 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.32.0",
+    changes: [
+      "Less clutter in chat: posting a health check or update notes card now removes the toolkit's older cards of that kind, so one of each is left. Switch it off on the control panel's Overview tab, or use Clear old toolkit cards there to tidy up now.",
+      "Health check: players without a character (spare or test accounts) can be ignored with the Ignore these users fix, or under Loot › Advanced.",
+      { text: "Health check: several routes into locked flight points are one line, with the list behind Show the routes.", feature: "flightMaster" },
+      { text: "Character pane: fits short screens (the sheet scrolls inside the window).", feature: "characterPane" },
+      "Control panel: unsaved changes are marked on the Save button and on the tabs that have them.",
+      { text: "Shortcut: Shift+K opens the control panel (change it under Configure Controls).", feature: "keybindings" }
+    ],
+    actions: []
+  },
+  {
     version: "1.31.1",
     changes: [
       "Fixed: the comparison on the loot roll card now shows for players.",

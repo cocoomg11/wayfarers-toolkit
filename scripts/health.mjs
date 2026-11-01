@@ -21,6 +21,7 @@ import * as Card from "./health-card-model.mjs";
 import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
 import { sceneTab, fileInDataFolder } from "../vendor/wanderers-core/foundry/index.mjs";
 import { remembered } from "./windows.mjs";
+import * as Cards from "./chat-cards.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -178,7 +179,9 @@ function flights(api) {
   const facts = Flight.networkFacts(net, u => api.sceneExists(u));
   if (facts.noScene.length) out.push(warn(`No scene (info): flying to ${listNames(facts.noScene)} lands the party without changing the scene.`));
   for (const n of facts.missingScene) out.push(warn(`Flight point ${esc(n)}: its scene was deleted, so flying there won't change the scene. Pick one in the flight network.`));
-  if (facts.toLocked.length) out.push(warn(`Route${facts.toLocked.length === 1 ? "" : "s"} into a locked flight point (not flown until it's unlocked): ${listNames(facts.toLocked)}.`));
+  // 1.32: several routes collapse to one line with the list behind a Show toggle.
+  const lk = Flight.lockedRoutesLine(facts.toLocked);
+  if (lk) out.push(warn(lk.items.length ? `${esc(lk.text)} <details class="wct-hc-more"><summary>Show the routes</summary>${lk.items.map(esc).join("<br>")}</details>` : esc(lk.text)));
   for (const r of facts.unknown) out.push(bad(`Route ${esc(r)}: names a flight point that doesn't exist. Fix or remove it in the flight network.`));
   for (const p of Flight.validateNetwork(net).filter(p => p.level === "error" && p.where === "point")) out.push(bad(`${esc(Flight.problemText(p))}.`));
   if (!api.partyActor()) out.push(warn(`No group actor named ${esc(api.PARTY)}: fares aren't charged.`));
@@ -253,10 +256,11 @@ function permissionFacts(api) {
   const PERMS = ["MACRO_SCRIPT", "ITEM_CREATE", "ACTOR_CREATE", "FILES_BROWSE"];
   const OWN = CONST.DOCUMENT_OWNERSHIP_LEVELS;
   const users = game.users.filter(u => !u.isGM);
+  const ignored = new Set(Perm.normalizeIgnored(get("permIgnoreUsers")));
   const players = users.map(u => {
     const ch = u.character ? (u.character.id ? u.character : game.actors.get(u.character)) : null;
     const can = {}; for (const k of PERMS) { try { can[k] = !!u.hasPermission(k); } catch { } }
-    return { name: u.name, active: !!u.active, character: ch?.name ?? null, characterOwned: !!ch?.testUserPermission?.(u, "OWNER"), ownsAnyCharacter: game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")), can };
+    return { id: u.id, name: u.name, ignored: ignored.has(u.id), active: !!u.active, character: ch?.name ?? null, characterOwned: !!ch?.testUserPermission?.(u, "OWNER"), ownsAnyCharacter: game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")), can };
   });
   const party = api.partyActor?.();
   const lvl = d => users.length ? Math.min(...users.map(u => { try { return d.getUserLevel?.(u) ?? (d.ownership?.[u.id] ?? d.ownership?.default ?? 0); } catch { return 0; } })) : OWN.OWNER;
@@ -282,7 +286,7 @@ function permissionFacts(api) {
 function permissions(api) {
   const lines = Perm.featureChecks(permissionFacts(api));
   if (!lines.length) return [off("No tool turned on needs player permissions.")];
-  return lines.map(l => line(l.level, `${esc(l.text)}${l.hint && l.level !== "ok" ? ` <em>Fix: ${esc(l.hint)}</em>` : ""}`));
+  return lines.map(l => line(l.level, `${esc(l.text)}${l.hint && l.level !== "ok" ? ` <em>Fix: ${esc(l.hint)}</em>` : ""}`, l.ignore?.length ? FIXES.ignoreUsers(l.ignore) : undefined));
 }
 
 /** Flight route map, travel pace and party gold (1.20). */
@@ -385,9 +389,18 @@ export const FIXES = {
   autolink: api => ({ label: "Link boss tables", confirm: "Link each creature to the roll table named after it (\"<creature name> · Loot\")? Creatures that already have a boss loot table keep it.", run: () => api.bossLoot?.autoLink() }),
   /** File the GM-only records journal into the shared "Module data" folder now (otherwise the acting GM does it on load). */
   fileVault: () => ({ label: "File it now", confirm: "Move the GM-only records journal into the shared \"Module data\" journal folder (hidden from the Journal sidebar unless Show module data folder is on)? Its name, ownership and records stay as they are; you can move it again afterwards.", run: () => fileVault() }),
+  /** 1.32: stop the no-character warning for these players (adds them to permIgnoreUsers; undo in control panel › Loot › Advanced). */
+  ignoreUsers: ids => ({ label: "Ignore these users", confirm: "Stop warning that these players have no character? They're added to the ignore list (control panel › Loot › Advanced), where you can take them off again.", run: () => ignoreUsers(ids) }),
   /** The GM-only records journal back to ownership None for every player. */
   vaultPrivate: () => ({ label: "Make GM only", confirm: "Set the GM-only records journal's ownership to None for every player (default None too)? Players lose access to it; GMs keep full access.", run: () => vaultPrivate() })
 };
+/** A GM click: adds players to the ignore list of the no-character check. @param {string[]} ids */
+async function ignoreUsers(ids) {
+  if (!game.user?.isGM) return false;
+  let cur; try { cur = game.settings.get(ID, "permIgnoreUsers"); } catch { return false; }
+  await game.settings.set(ID, "permIgnoreUsers", Perm.withIgnored(cur, ids));
+  return true;
+}
 /** A GM click: files the store journal like core's file() does on the acting GM (moved only from the root, then marked filed). */
 async function fileVault() {
   const j = Vault.entry(); if (!j || !game.user?.isGM) return false;
@@ -459,7 +472,9 @@ export function reportTimeout(ms) {
   return typeof ms === "number" && Number.isFinite(ms) && ms > 0 ? Math.min(300000, Math.max(1000, Math.round(ms))) : REPORT_TIMEOUT_MS;
 }
 /** A line's HTML as plain text: buttons dropped, tags removed, entities read. */
-export const toPlain = html => plain(String(html ?? "").replace(/<button[^>]*>[\s\S]*?<\/button>/g, " "));
+export const toPlain = html => plain(String(html ?? "").replace(/<button[^>]*>[\s\S]*?<\/button>/g, " ")
+  // 1.32: a Show toggle's list reads as "…: a, b, c" in plain text (the label is dropped).
+  .replace(/\.?\s*<details[^>]*>\s*<summary>[\s\S]*?<\/summary>/g, ": ").replace(/<br\s*\/?>/g, ", ").replace(/<\/details>/g, "."));
 
 /** Whether Run setup should be offered (macros missing). */
 const setupMissing = api => { try { return api.setupPlan().some(p => !p.ok); } catch { return false; } };
@@ -480,7 +495,9 @@ export async function post(api, { window = false } = {}) {
   const sections = await run(api);
   const satchel = satchelOn();
   const content = satchel ? Card.shortCard({ version: api.version ?? "", counts: Card.counts(sections), satchel, setup: setupMissing(api) }) : html(api, sections);
-  await ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: { health: true } } });
+  // 1.32: toolkitCard marks the toolkit's housekeeping cards; older health cards then go (setting pruneToolkitCards).
+  await ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: { health: true, toolkitCard: "health" } } });
+  await Cards.afterPost("health");
   return sections;
 }
 
