@@ -50,7 +50,7 @@ test("boss layout: stack, move, detach, snap, prune", () => {
   assert.equal(L.mainRoot, "a"); assert.deepEqual(L.groups.a, ["a", "b", "c"]);
   L = computeLayout(["a", "b"], sz, { main: { x: 0.1, y: 0.5 } }, VW, VH);
   assert.deepEqual([L.pos.a.x, L.pos.a.y, L.pos.b.x, L.pos.b.y], [100, 400, 100, 466]);
-  let lay = detach({}, "b", computeLayout(["a", "b", "c"], sz, {}, VW, VH), 50, 300, VW, VH);
+  const lay = detach({}, "b", computeLayout(["a", "b", "c"], sz, {}, VW, VH), 50, 300, VW, VH);
   L = computeLayout(["a", "b", "c"], sz, lay, VW, VH);
   assert.deepEqual([L.pos.b.x, L.pos.b.y, L.pos.c.y], [50, 300, 78]);
   const s = findSnap({ x: 690, y: 20, w: 360, h: 60 }, [{ id: "a", ...L.pos.a }]);
@@ -119,7 +119,7 @@ test("Run setup plans no hotbar writes", async () => {
   const src = await readFile(new URL("../scripts/main.mjs", import.meta.url), "utf8");
   const setup = src.slice(src.indexOf("async setup()"), src.indexOf("// ------------------------------------------------------------ travel"));
   assert.ok(setup.length > 100, "setup source found");
-  assert.doesNotMatch(setup, /hotbar\s*[.\[]|["'`]hotbar\.|assignHotbarMacro/, "setup never writes a hotbar");
+  assert.doesNotMatch(setup, /hotbar\s*[.[]|["'`]hotbar\.|assignHotbarMacro/, "setup never writes a hotbar");
 });
 
 test("winnerRecipients: owners and assigned players of the receiving actor, never GMs", () => {

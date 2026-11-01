@@ -329,12 +329,12 @@ function applyLayout() {
   if (!el) return null;
   const ids = [...nodes.keys()], sizes = {};
   for (const id of ids) { const n = nodes.get(id); sizes[id] = { w: n.offsetWidth, h: n.offsetHeight }; }
-  const comp = computeLayout(ids, sizes, drag?.layout ?? getLayout(), innerWidth, innerHeight, GAP, dockTop());
+  const comp = computeLayout(ids, sizes, drag?.layout ?? getLayout(), window.innerWidth, window.innerHeight, GAP, dockTop());
   if (drag) {
     const rs = [...drag.ids].filter(id => comp.pos[id]).map(id => comp.pos[id]);
     if (rs.length) {
       const b = bbox(rs);
-      const dx = clamp(drag.x - drag.ox, -b.x, innerWidth - b.w - b.x), dy = clamp(drag.y - drag.oy, -b.y, innerHeight - b.h - b.y);
+      const dx = clamp(drag.x - drag.ox, -b.x, window.innerWidth - b.w - b.x), dy = clamp(drag.y - drag.oy, -b.y, window.innerHeight - b.h - b.y);
       for (const id of drag.ids) if (comp.pos[id]) { comp.pos[id].x += dx; comp.pos[id].y += dy; }
     }
   }
@@ -353,7 +353,7 @@ function dockTop() {
   if (!d) return TOP;
   const cs = getComputedStyle(d);
   if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return TOP;
-  return defaultTop(d.getBoundingClientRect(), innerHeight);
+  return defaultTop(d.getBoundingClientRect(), window.innerHeight);
 }
 
 function dragStart(ev) {
@@ -373,7 +373,7 @@ function dragMove(ev) {
     drag.moved = true; drag.layout = getLayout();
     const comp = applyLayout(), id = drag.id, p = comp.pos[id];
     if (comp.root[id] === id) { drag.ids = new Set(comp.groups[id]); drag.group = true; drag.main = id === comp.mainRoot; }
-    else drag.layout = detach(drag.layout, id, comp, p.x, p.y, innerWidth, innerHeight);
+    else drag.layout = detach(drag.layout, id, comp, p.x, p.y, window.innerWidth, window.innerHeight);
     for (const m of drag.ids) nodes.get(m)?.classList.add("dragging");
     drag.ox = drag.sx; drag.oy = drag.sy;
   }
@@ -405,7 +405,7 @@ function endDrag(ev) {
   if (!d.moved || !ev || ev.type === "pointercancel") return applyLayout();
   // Final position of the dragged anchor, as drawn.
   const n = nodes.get(d.id); if (!n) return applyLayout();
-  const vw = innerWidth, vh = innerHeight, s = d.snap;
+  const vw = window.innerWidth, vh = window.innerHeight, s = d.snap;
   const x = s ? s.x : parseFloat(n.style.left), y = s ? s.y : parseFloat(n.style.top);
   const out = { main: d.layout.main ?? null, frames: { ...(d.layout.frames ?? {}) } };
   if (d.main) out.main = { x: x / vw, y: y / vh };                              // the main stack: lines up against the other, stays its own group

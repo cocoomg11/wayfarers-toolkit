@@ -11,21 +11,20 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # Core pin check (vendor/wanderers-core matches wanderers-core.lock.json and the published release), syntax, lint, types, tests.
+  checks:
+    uses: cocoomg11/wanderers-core/.github/workflows/module-checks.yml@v0.2.0
+    with:
+      types: false # JSDoc type check: on once scripts/ is JSDoc-clean (see CLAUDE.md)
+
+  packs:
+    name: Macro pack sources match scripts/macros.mjs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-
-      # No install step: the tests use only Node's built-in test runner and the module's own scripts.
-      - name: Syntax check every script
-        run: npm run check
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Macro pack sources match scripts/macros.mjs
-        run: node tools/build-packs.mjs check
+      - run: node tools/build-packs.mjs check

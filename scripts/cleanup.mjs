@@ -62,7 +62,7 @@ export function plan() {
   for (const j of game.journal) if (trackerFlag(j, tj)) p.trackers.push(j);
   for (const m of game.messages ?? []) if (ours(m)) p.messages.push(m);
   for (const m of game.macros) if (m.flags?.[ID]?.macro) p.macros.push(m);
-  for (const [k, c] of game.settings.settings) if (c.namespace === ID && (c.scope === "world" ? game.user.isGM : true)) p.settings.push(c);
+  for (const [, c] of game.settings.settings) if (c.namespace === ID && (c.scope === "world" ? game.user.isGM : true)) p.settings.push(c);
   return p;
 }
 const count = (p, k) => k === "pins" ? p.pins.reduce((n, g) => n + g.ids.length, 0) : k === "tokens" ? p.tokens.length + p.tokenActors.length : k === "actors" ? p.actors.length + p.effects.length : k === "journals" ? p.journals.length + p.trackers.length : p[k].length;

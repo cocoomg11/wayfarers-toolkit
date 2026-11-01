@@ -315,7 +315,7 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     const cur = quests.find(x => x.j.id === this.selected);
     if (cur && !inTab(cur.q, this.tab)) this.tab = tabs.find(t => inTab(cur.q, t)) ?? this.tab;
     const here = quests.filter(x => inTab(x.q, this.tab));
-    let sel = here.find(x => x.j.id === this.selected) ?? here[0] ?? null;
+    const sel = here.find(x => x.j.id === this.selected) ?? here[0] ?? null;
     this.selected = sel?.j.id ?? null;
 
     const zones = new Map();
