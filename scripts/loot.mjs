@@ -58,7 +58,7 @@ function cardHTML(st) {
   let foot;
   if (st.status === "open") foot = `<div class="wct-loot-buttons">${Object.entries(CHOICES).map(([k, c]) => `<button type="button" data-wct-loot="${k}" class="wc-btn wc-btn-sm ${k}"><i class="fa-solid ${c.icon}" aria-hidden="true"></i> ${c.label}</button>`).join("")}</div>
       <p class="wct-loot-timer"><i class="fa-solid fa-hourglass-half"></i> <span data-wct-loot-ends="${st.ends}"></span>${waiting.length ? ` · waiting on ${waiting.join(", ")}` : ""}</p>
-      <p class="wct-loot-nogm" hidden><i class="fa-solid fa-plug-circle-xmark"></i> A GM needs to be connected.</p>
+      <p class="wct-loot-nogm"><i class="fa-solid fa-plug-circle-xmark"></i> A GM needs to be connected.</p>
       <button type="button" data-wct-loot="close" class="wc-btn wc-btn-sm wc-btn-ghost wct-loot-close"><i class="fa-solid fa-gavel"></i> Close the roll now</button>
       <div class="wct-loot-assign" data-wct-loot-assign><select aria-label="Assign to"></select><button type="button" class="wc-btn wc-btn-sm" data-wct-loot="assign"><i class="fa-solid fa-hand-holding"></i> Assign to…</button></div>`;
   else foot = `<p class="wct-loot-result">${st.result ?? ""}</p>`;
@@ -266,7 +266,7 @@ function onRender(message, html) {
     });
   });
   if (!root.querySelector(".wct-loot-buttons button")) root.querySelector(".wct-loot-buttons")?.remove();
-  if (mine) { cards.add(root); gmState(root); }
+  cards.set(root, !!mine); gmState(root, !!mine);
   const span = root.querySelector("[data-wct-loot-ends]"); if (!span) return;
   const tick = () => {
     if (!span.isConnected && iv) { clearInterval(iv); return; }
@@ -279,14 +279,16 @@ function onRender(message, html) {
 }
 
 /** Open cards on this client with choice buttons, so they can be enabled and disabled as GMs connect and leave. */
-const cards = new Set();
+/** @type {Map<HTMLElement, boolean>} card root → this viewer still has to roll. */
+const cards = new Map();
 /** Disables a card's choice buttons (with a note) while no GM is connected. */
-function gmState(root) {
+function gmState(root, needs) {
   const none = !activeGM();
   root.querySelectorAll(".wct-loot-buttons button").forEach(b => { if (!b.dataset.wctChosen) b.disabled = none; });
-  const note = root.querySelector(".wct-loot-nogm"); if (note) note.hidden = !none;
+  // The note is hidden by CSS (a saved `hidden` attribute is stripped from chat content); shown only to a viewer who still has to act.
+  const note = root.querySelector(".wct-loot-nogm"); if (note) note.classList.toggle("wct-show", none && needs);
 }
-function refreshCards() { for (const r of cards) { if (!r.isConnected) cards.delete(r); else gmState(r); } }
+function refreshCards() { for (const [r, needs] of cards) { if (!r.isConnected) cards.delete(r); else gmState(r, needs); } }
 
 /** Dice button on each item row of an Item Piles pile window, for the GM. */
 function addPileButton(element, item) {

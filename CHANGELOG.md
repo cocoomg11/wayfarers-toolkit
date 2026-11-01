@@ -2,6 +2,18 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.30.2
+
+Patch. No data, setting or API changes.
+
+**Fixed**
+- **Loot roll card said "A GM needs to be connected." with a GM online.** The note was hidden with a `hidden` attribute, which Foundry's HTML cleaning drops from saved chat content, and it was only re-hidden for viewers still due to roll. It is now hidden by a CSS class and the GM-connected check runs on every render for every viewer; the note shows only when no GM is connected and the viewer still has to roll. No other chat card relies on a `hidden` attribute.
+
+**Tests**: `tests/v130-2.test.mjs` (source checks).
+
+**Untested in Foundry**
+- Roll card as GM, as a player due to roll and as a player who already rolled, with a GM online (no note); then the GM logs out (note only for the player due to roll).
+
 ## 1.30.1
 
 Patch for the light theme. No data, setting or API changes.

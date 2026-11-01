@@ -28,7 +28,7 @@
 .wct-chat-card .wct-loot-result { margin: 6px 0 0; }
 .wct-chat-card .wct-loot-won { display: flex; align-items: center; gap: 6px; margin: 0; }
 .wct-chat-card .wct-loot-won .item { font-weight: bold; }
-.wct-chat-card .wct-loot-nogm { margin: 4px 0 0; font-size: 0.85em; color: var(--wc-warn); }
+.wct-chat-card .wct-loot-nogm { display: none; margin: 4px 0 0; font-size: 0.85em; color: var(--wc-warn); }
 .wct-chat-card .wct-loot-assign { display: flex; gap: 4px; margin-top: 4px; font-size: 0.85em; }
 .wct-chat-card .wct-loot-assign select { flex: 1; min-width: 0; }
 /* Cards posted before 1.30 (no core root) keep a plain readable look. */
@@ -66,3 +66,5 @@
 /* Sell all junk: the button in an Item Piles merchant window's header, and the confirm list. */
 .item-piles-merchant-sheet .window-header .wct-sell-junk { white-space: nowrap; }
 .wct-junk-list { max-height: 260px; overflow-y: auto; margin: 4px 0; padding-left: 1.2em; }
+
+.wct-chat-card .wct-loot-nogm.wct-show { display: block; }

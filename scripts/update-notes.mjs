@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.30.2",
+    changes: [
+      "Fixed: the loot roll card no longer says \"A GM needs to be connected.\" when a GM is online."
+    ],
+    actions: []
+  },
+  {
     version: "1.30.1",
     changes: [
       "Fixed: in Foundry's light theme the character pane's numbers (armour class, hit points, speed and the rest) and other text on the dark panels (quest list and page, quest tracker, boss frames, item tooltips) could turn dark and hard to read. They now keep their own colours in both themes."
