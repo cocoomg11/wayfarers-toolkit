@@ -973,7 +973,7 @@ Bug reports and suggestions: [GitHub issues](https://github.com/cocoomg11/wayfar
 
 ## Building from source
 
-Tests: `npm test` runs the pure-logic tests in `tests/` with Node's built-in test runner (Node 22), `npm run check` syntax-checks every script and `npm run lint` runs ESLint on the shared core's config (`npm install` first for the linter). CI runs them through the shared core's reusable workflow (`module-checks.yml@v0.5.0`), which first checks that `vendor/wanderers-core/` matches its pin.
+Tests: `npm test` runs the pure-logic tests in `tests/` with Node's built-in test runner (Node 22), `npm run check` syntax-checks every script and `npm run lint` runs ESLint on the shared core's config (`npm install` first for the linter). CI runs them through the shared core's reusable workflow (`module-checks.yml@v0.5.1`), which first checks that `vendor/wanderers-core/` matches its pin.
 
 **Shared core.** The toolkit bundles a pinned copy of **wanderers-core** (the small library its sister modules share) in `vendor/wanderers-core/`, with the pin in `wanderers-core.lock.json`. Never edit the copy by hand; update it with `node vendor/wanderers-core/vendor.mjs update X.Y.Z` and commit both. The release zip includes `vendor/` without core's `config/` folder and `vendor.mjs` (dev tools).
 

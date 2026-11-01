@@ -11,9 +11,13 @@ Patch for the light theme. No data, setting or API changes.
 - **Same class of bug on the other in-world panels.** The character sheet, the item tooltip, the quest log's stone list and parchment page, the quest tracker and the boss frames each get a low-specificity rule that sets an explicit colour from their own tokens on the elements Foundry colours per theme (links, `dd`, `dt`, labels, headings, paragraphs, list items, table cells, form controls), so text no longer depends on the theme. Component rules still win. No theme selectors were added.
 - Audit of the windows that follow the theme (control panel, flight map and editor, travel pace, party gold, coin log, loot history, inn dialogs, vendor trash, pin dialogs, chat cards): none hard-codes a text colour; a test now keeps it that way.
 
+**Changed**
+- wanderers-core 0.5.1 (Module data folder merge): every "Module data" folder is hidden and duplicates are merged when the store is filed. No API change.
+
 **Tests**: `tests/v130-1.test.mjs` scans the CSS (each in-world root's text rules set a colour, the pane's `dd` rule does, no theme selectors, no literal text colours in the theme-following sheets).
 
 **Untested in Foundry** (live check, Foundry's interface set to light and to dark)
+- A world with several Module data folders ends with one after a reload.
 - Character pane: AC, HP, hit dice, initiative, speed, saves, to hit, damage and range are light on the dark sheet; item-pick list, set notes, tab buttons and the Attack dropdown still look as before.
 - Item tooltip (hover a slot and a bag item, with and without a comparison): text, links and comparison table readable.
 - Quest log: stone list (rows, zone headers, party tags, legend) and parchment page (title, headings, objectives, rewards, footer buttons and switch, the party select) unchanged in both themes.

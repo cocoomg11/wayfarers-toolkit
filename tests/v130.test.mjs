@@ -273,5 +273,5 @@ test("1.30.0: version, download URL, update note, changelog with the live checkl
   assert.doesNotMatch(JSON.stringify(n130), /warcraft|blizzard|azeroth|\bwow\b/i);
   const cl = src("CHANGELOG.md");
   assert.match(cl, /## 1\.30\.0[\s\S]*?\*\*Fixed\*\*[\s\S]*?Untested in Foundry/);
-  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.0");
+  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.1");
 });
