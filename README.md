@@ -1,6 +1,6 @@
 # Wayfarer's Toolkit
 
-A free toolkit of GM helpers for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system: overland hex travel, flight routes paid from a party purse, grey vendor-trash loot, a riding feat, an MMO-style character pane, a narrative quest log, boss health frames, Need / Greed / Pass loot rolls, boss loot from roll tables and an optional three-coin economy.
+A free GM kit for [Foundry VTT](https://foundryvtt.com) and the **dnd5e** system. Hex travel with pace and encounter rolls, a flight-master network, a quest log (players read their quests in journals; the full data stays in a GM-only store), a character pane, boss frames, Need / Greed loot rolls, vendor-trash loot, boss loot, a three-coin economy, inns and rest, map pins, zone title cards, a Table Tools section in scene settings, a health report, and migrations that bring older worlds forward.
 
 The module supplies only the logic. Your own campaign content (encounter tables, flight points, quests) stays in your world, and every tool can be switched on or off per world in the [control panel](#control-panel).
 
