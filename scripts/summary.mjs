@@ -79,5 +79,5 @@ export async function flush() {
   }
   const total = (m.trash?.coin ?? 0) + (m.boss?.coin ?? 0);
   const content = `<h3>Loot: ${bodies} ${bodies === 1 ? "body" : "bodies"}</h3>${sec.join("")}<p class="hint">Total coin ${fmt(total)}.</p>`;
-  return ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Wayfarer's Toolkit" }, flags: { [ID]: flags } });
+  return ChatMessage.create({ content, whisper: gmIds(), speaker: { alias: "Wanderer's Toolkit" }, flags: { [ID]: flags } });
 }

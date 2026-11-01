@@ -141,7 +141,7 @@ export async function run(api) {
     } catch (e) { console.warn(`${ID} | migration ${id} failed (it runs again on the next load)`, e); }
   }
   if (lines.length) {
-    await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" }, content: `<h3>Wayfarer's Toolkit: data moved once</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul><p class="hint">GM-only records now live in the journal entry "Wayfarer's Toolkit (GM only)". Don't share it with players.</p>` });
+    await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wanderer's Toolkit" }, content: `<h3>Wanderer's Toolkit: data moved once</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul><p class="hint">GM-only records now live in the journal entry "Wanderer's Toolkit (GM only)". Don't share it with players.</p>` });
   }
   return lines;
 }

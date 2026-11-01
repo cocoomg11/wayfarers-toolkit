@@ -1033,7 +1033,7 @@ function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (L
 export function init(wct, { tracker = true, goToPin: pinFn = null, glow = false, hooks = false } = {}) {
   WCT = wct; TRACKER = !!tracker; GO_TO_PIN = pinFn; GLOW = !!glow; HOOKS = !!hooks;
   try {
-    game.keybindings.register(ID, "questLog", { name: "Open quest log", hint: "Opens or closes the Wayfarer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
+    game.keybindings.register(ID, "questLog", { name: "Open quest log", hint: "Opens or closes the Wanderer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
   } catch (e) { console.warn(`${ID} | quest log key binding not registered`, e); }
 
   Hooks.on("getSceneControlButtons", controls => {

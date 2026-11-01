@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
+All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
 ## 1.29.0
 
@@ -71,6 +71,9 @@ Eight quality-of-life tools, each with its own switch on the Features tab (all o
   - Both hooks fire once, on the acting GM client, with the documented payloads (Red Book listening).
 
 ## 1.27.2
+
+**Renamed**
+- The display name is now **Wanderer's Toolkit** (was Wayfarer's Toolkit), to match Wanderer's Satchel and wanderers-core. Display name only: nothing to do for users, and world data is untouched. The module id (`wayfarers-toolkit`), settings and flags, the API and hooks, macro pack ids and the repository address are unchanged. Older worlds keep their existing "Wayfarer's Toolkit" macro folder, item folder and GM-only journal; new ones get the new name.
 
 **Fixed**
 - **The on-screen quest tracker covered buttons** and couldn't be moved. It was a fixed box at the top right of the canvas (72 px down, 320 px in from the right edge on v14), over whatever core or module buttons sat there. (The Quest Log window itself was already a normal, draggable window.)

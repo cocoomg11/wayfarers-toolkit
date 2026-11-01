@@ -20,7 +20,7 @@ export const parts = on => ["zoneTitles", "vendorTrash", "restedInn"].filter(id 
 export function init() {
   const p = parts(F.on); if (!p.length) return;
   sceneTab.addSection(ID, {
-    title: "Wayfarer's Toolkit",
+    title: "Wanderer's Toolkit",
     order: 10,
     render: (app, scene) => {
       if (!game.user.isGM || !scene) return "";

@@ -1,4 +1,6 @@
-# CLAUDE.md: Wayfarer's Toolkit
+# CLAUDE.md: Wanderer's Toolkit
+
+Display name only (renamed from "Wayfarer's Toolkit" in 1.27.2). The module id stays `wayfarers-toolkit`, and so do flags/settings, socket, API path, hooks, `wct-*` classes, pack ids, file names and the GitHub URLs. Worlds keep their old-named macro folder, item folder and GM-only journal (found by flag or by either name); only new ones use the new name. Don't "fix" the old name in migration text or in lookups that must match old data.
 
 Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vendor trash loot, character pane, quest log, boss frames, loot rolls, boss loot, three-coin economy. Logic only; campaign content stays in each world. Public repo, MIT.
 

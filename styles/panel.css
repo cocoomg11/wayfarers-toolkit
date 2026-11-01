@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit: the control panel and the welcome wizard. Colours come from Foundry's theme variables (v13/v14, dark and light),
+/* Wanderer's Toolkit: the control panel and the welcome wizard. Colours come from Foundry's theme variables (v13/v14, dark and light),
    with plain fallbacks. No backdrop blur (the shared wct-window rule in pane.css turns it off). */
 .wct-panel, .wct-wizard {
   --wct-fg: var(--color-text-primary, var(--color-text-light-highlight, #e8e4dc));

@@ -16,7 +16,7 @@
 import { versioned, capList } from "../vendor/wanderers-core/index.mjs";
 
 export const VAULT_VERSION = 1;
-export const VAULT_NAME = "Wayfarer's Toolkit (GM only)";
+export const VAULT_NAME = "Wanderer's Toolkit (GM only)";
 export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "coinLog", "migrations"];
 /** Caps: records per keyed bucket. History and snapshot caps stay in their own models (history-model, gold-model). */
 export const CAPS = { quests: 2000, pins: 1000, rentals: 200, migrations: 50 };

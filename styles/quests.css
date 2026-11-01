@@ -1,4 +1,4 @@
-/* Wayfarer's Toolkit: quest log, quest editor, tracker and chat cards.
+/* Wanderer's Toolkit: quest log, quest editor, tracker and chat cards.
    1.29: the quest log is a native Foundry window (dark and light theme, wanderers-core's shared UI for the top bar and buttons);
    inside it two in-world panels drawn with CSS only, the same in both themes: a stone-framed quest list and a parchment page.
    Difficulty colours (grey / green / yellow / orange / red) and item quality borders are the module's own. */

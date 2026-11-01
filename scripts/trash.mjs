@@ -123,7 +123,7 @@ export function dungeonRules() {
 }
 /** The Dungeon checkbox for the shared Table Tools tab (scene-config.mjs), saved with the form as flags.wayfarers-toolkit.dungeon. */
 export function dungeonField(scene) {
-  return `<div class="form-group"><label>Dungeon</label><div class="form-fields"><input type="checkbox" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wayfarer's Toolkit).</p></div>`;
+  return `<div class="form-group"><label>Dungeon</label><div class="form-fields"><input type="checkbox" name="flags.${ID}.dungeon" ${scene.getFlag(ID, "dungeon") ? "checked" : ""}></div><p class="hint">Vendor Trash: creatures defeated on this scene drop more coin and items (see the Dungeon settings of Wanderer's Toolkit).</p></div>`;
 }
 
 /**
