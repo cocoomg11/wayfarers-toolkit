@@ -74,6 +74,7 @@ test("workflows: actions pinned by SHA, read-only by default, upload is the only
   assert.match(rel, /upload:[\s\S]*contents: write[\s\S]*gh release upload/);
   assert.match(rel, /vendor\.mjs verify --remote/);
   assert.match(rel, /zip -r module\.zip [^\n]* vendor [^\n]*\\\n\s*-x 'vendor\/wanderers-core\/config\/\*' 'vendor\/wanderers-core\/vendor\.mjs'/);
+  assert.match(rel, /-x [^\n]*'vendor\/wanderers-core\/testing\/\*'/, "core's test fakes stay out of the zip");
   assert.match(rel, /--ignore-scripts/);
-  assert.match(tst, /module-checks\.yml@v0\.4\.0/);
+  assert.match(tst, /module-checks\.yml@v0\.5\.0/);
 });

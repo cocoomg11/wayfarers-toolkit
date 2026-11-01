@@ -87,11 +87,11 @@ jobs:
       - name: Build module.zip
         run: |
           zip -r module.zip module.json scripts styles lang sounds packs vendor README.md CHANGELOG.md LICENSE \
-            -x 'vendor/wanderers-core/config/*' 'vendor/wanderers-core/vendor.mjs'
+            -x 'vendor/wanderers-core/config/*' 'vendor/wanderers-core/vendor.mjs' 'vendor/wanderers-core/testing/*'
           for p in $(jq -r '.packs[].path' module.json) vendor/wanderers-core/index.mjs vendor/wanderers-core/foundry/index.mjs; do
             unzip -l module.zip | grep -q " $p" || { echo "module.zip is missing $p"; exit 1; }
           done
-          if unzip -l module.zip | grep -qE ' vendor/wanderers-core/(config/|vendor\.mjs)'; then echo "module.zip has core's dev tools"; exit 1; fi
+          if unzip -l module.zip | grep -qE ' vendor/wanderers-core/(config/|testing/|vendor\.mjs)'; then echo "module.zip has core's dev tools"; exit 1; fi
           unzip -l module.zip
 
       - name: Read the zipped packs back

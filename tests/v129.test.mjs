@@ -259,7 +259,7 @@ test("quest log on wanderers-core's shared UI: UI_CLASSES on the window, core st
   const mod = JSON.parse(src("module.json"));
   assert.equal(mod.styles[0], "vendor/wanderers-core/styles/wanderers-ui.css");
   assert.match(src("scripts/quests.mjs"), /classes: \["wct-quests", "wct-window", \.\.\.UI_CLASSES\]/);
-  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.4.0");
+  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.0");
 });
 
 test("quest list and page look the same in both themes (no theme selectors in the module's quest CSS)", () => {

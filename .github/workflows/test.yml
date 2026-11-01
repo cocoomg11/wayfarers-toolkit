@@ -13,7 +13,7 @@ permissions:
 jobs:
   # Core pin check (vendor/wanderers-core matches wanderers-core.lock.json and the published release), syntax, lint, types, tests.
   checks:
-    uses: cocoomg11/wanderers-core/.github/workflows/module-checks.yml@v0.4.0
+    uses: cocoomg11/wanderers-core/.github/workflows/module-checks.yml@v0.5.0
     with:
       types: true # JSDoc type check (npm run types); keep scripts/ JSDoc-clean
 
