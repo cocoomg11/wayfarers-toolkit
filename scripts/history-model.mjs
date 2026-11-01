@@ -184,7 +184,7 @@ export function sessionGroups(entries = [], sessions = []) {
   }
   return [...by.keys()].sort((a, b) => order.get(b) - order.get(a)).map(k => {
     const s = sessions.find(x => x.key === k);
-    return { key: k, label: s ? `${s.label} (${dayKey(s.start)})` : k.slice(2), count: by.get(k), session: !!s };
+    return { key: k, label: s ? (s.label.includes(dayKey(s.start)) ? s.label : `${s.label} (${dayKey(s.start)})`) : k.slice(2), count: by.get(k), session: !!s };
   });
 }
 

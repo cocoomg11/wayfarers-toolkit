@@ -25,6 +25,14 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.31.1",
+    changes: [
+      "Fixed: the comparison on the loot roll card now shows for players.",
+      "Fixed: the loot history's session heading no longer repeats the date."
+    ],
+    actions: []
+  },
+  {
     version: "1.31.0",
     changes: [
       { text: "New: Open shop for players. Open an Item Piles merchant on your players' screens, each shopping with their own character, from the merchant window's title bar or the merchant token's HUD, and close it for everyone again. Switch it off on the control panel's Features tab.", feature: "merchantShop" },

@@ -286,6 +286,8 @@ function myCharacter() {
   const c = game.user.character; if (c?.isOwner) return c;
   return game.actors?.find?.(a => a.type === "character" && a.isOwner) ?? null;
 }
+/** @type {WeakMap<HTMLElement, number>} latest comparison render per card element, so an older, slower one stops. */
+const compareSeq = new WeakMap();
 /**
  * Players: the rolled item compared with what their own character has in that slot (pane.mjs comparisonHTML, the same as the
  * comparison tooltips), added to their copy of an open card only. Built here on each render; nothing goes into the message.
@@ -293,10 +295,13 @@ function myCharacter() {
  */
 async function addCompare(root, st) {
   root.querySelector(".wct-loot-compare")?.remove();
+  const seq = (compareSeq.get(root) ?? 0) + 1; compareSeq.set(root, seq);
   const actor = myCharacter();
   if (!showOnLootCard({ status: st.status, isGM: game.user.isGM, userId: game.user.id, eligible: st.eligible, hasCharacter: !!actor, compareOn: compareOn(), paneOn: F.on("characterPane") })) return;
   const item = st.itemUuid ? await fromUuid(st.itemUuid) : null;
-  if (!(item instanceof Item) || !root.isConnected || root.querySelector(".wct-loot-compare")) return;
+  // No connected-check: on v14 the element the render hook gives is still detached here and is attached later. Only a newer render of
+  // the same element (seq) or a box already there makes this one stale.
+  if (!(item instanceof Item) || compareSeq.get(root) !== seq || root.querySelector(".wct-loot-compare")) return;
   const html = comparisonHTML(actor, item); if (!html) return;
   const box = document.createElement("details"); box.className = "wct-loot-compare"; box.open = true;
   box.innerHTML = `<summary>For ${esc(actor.name)}</summary>${html}`;

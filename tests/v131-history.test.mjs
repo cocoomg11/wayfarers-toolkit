@@ -51,3 +51,13 @@ test("history window: Red Book is optional, read only through its API, and recom
   assert.ok(!(m.relationships.requires ?? []).some(r => r.id === "red-book"));
   assert.match(src, /data-act="by-group"/);
 });
+
+test("session group label does not repeat the date when the name already has it", () => {
+  const sessions = [
+    { key: "s:a", label: "Session 9 - 2026-10-10", start: at(10, 19), end: at(10, 23) },
+    { key: "s:b", label: "Session 8", start: at(3, 19), end: at(3, 23) }
+  ];
+  const g = H.sessionGroups([E("x", at(10, 20)), E("y", at(3, 20))], sessions);
+  assert.equal(g.find(x => x.key === "s:a").label, "Session 9 - 2026-10-10");
+  assert.equal(g.find(x => x.key === "s:b").label, "Session 8 (2026-10-03)");
+});

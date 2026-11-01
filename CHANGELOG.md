@@ -2,6 +2,20 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.31.1
+
+Two fixes from a live test of 1.31.0. No data migration.
+
+**Fixed**
+- The comparison on the loot roll card never showed for players on Foundry v14: `addCompare` waited for the item and then required the card element to be connected, but the element the `renderChatMessageHTML` hook gives is still detached at that point (it is attached after a `setTimeout(0)`). It now inserts into the element it was given, and skips only when a newer render of the same element has started or a comparison is already there, so a re-render never doubles it.
+- Loot history: a Red Book session whose name already contains its date (e.g. "Session 9 - 2026-11-01") no longer gets the date appended again.
+
+**Tests**: `tests/v131-compare.test.mjs` (source check: no `isConnected` guard, stale-render guard), `tests/v131-history.test.mjs` (session label with and without the date in the name).
+
+**Untested in Foundry**
+- Loot roll card as a player who can roll: the comparison appears on a fresh card and after a reload, appears once after the card re-renders (a choice from another player, a GM connecting), and not at all for the GM or once the roll is closed.
+- Loot history with the Red Book: a session named with its date shows the date once; one without it still shows "(date)".
+
 ## 1.31.0
 
 New feature: open a merchant for the players. Also: loot history by session, and a comparison on the loot roll card. No data migration; one new feature switch and one new world setting.

@@ -28,3 +28,11 @@ test("loot card comparison is built on the viewer's client and never stored in t
   assert.doesNotMatch(loot.slice(loot.indexOf("function cardHTML"), loot.indexOf("// ---------------------------------------------------------------- GM side")), /compare/i, "the stored card HTML has no comparison");
   assert.match(loot, /addCompare\(root, st\)/);
 });
+
+test("loot card comparison does not need the card element to be connected (detached in the v14 render hook)", () => {
+  const loot = readFileSync(new URL("../scripts/loot.mjs", import.meta.url), "utf8");
+  const fn = loot.slice(loot.indexOf("async function addCompare"), loot.indexOf("/** Open cards on this client"));
+  assert.doesNotMatch(fn, /isConnected/);
+  assert.match(fn, /compareSeq\.get\(root\) !== seq/, "stale renders are skipped");
+  assert.match(fn, /querySelector\("\.wct-loot-compare"\)\?\.remove\(\)/, "a re-render replaces, never duplicates");
+});
