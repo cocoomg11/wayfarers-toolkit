@@ -88,8 +88,8 @@ function readTooltip(desc) {
     const doc = new DOMParser().parseFromString(desc, "text/html");
     const name = [...doc.querySelectorAll("div")].find(d => /font-size:\s*1\.08em/.test(d.getAttribute("style") || ""));
     if (name) {
-      out.color = (name.getAttribute("style").match(/color:\s*(#[0-9a-f]{3,6})/i) || [])[1]?.toLowerCase();
-      for (const line of [...name.parentElement.children].slice(1, 8)) {
+      out.color = (/** @type {string} */ (name.getAttribute("style")).match(/color:\s*(#[0-9a-f]{3,6})/i) || [])[1]?.toLowerCase();
+      for (const line of [.../** @type {HTMLElement} */ (name.parentElement).children].slice(1, 8)) {
         const t = (line.querySelector("span")?.textContent ?? line.textContent).trim();
         if (WOW_LINE.test(t)) { out.slot = t.toLowerCase(); break; }
       }
@@ -122,7 +122,7 @@ export function qualityColor(item) {
   return wowInfo(item).color ?? QUALITY[item.system?.rarity] ?? QUALITY.common;
 }
 
-const hint = item => NAME_HINTS.find(([, re]) => re.test(item.name))?.[0] ?? null;
+const hint = item => NAME_HINTS.find(([, re]) => /** @type {RegExp} */ (re).test(item.name))?.[0] ?? null;
 const props = item => { const p = item.system?.properties; return p instanceof Set ? p : new Set(p ?? []); };
 const ARMOR = ["light", "medium", "heavy", "natural"];
 const isBodyArmor = item => item.type === "equipment" && ARMOR.includes(item.system?.type?.value);
@@ -329,6 +329,7 @@ export function weaponState(actor) {
  * Writes a weapon-set state: the actor flag, and each set item's equipped flag (the active set's items equipped when its hands check
  * passes, every other set item unequipped; equipped shields are worn and stay on). Item slot flags mirror the active set into the old
  * Main Hand / Off Hand / Ranged slots, so turning weapon sets off later shows the active set. `extra`: more item updates.
+ * @param {any} actor @param {any} state @param {{ extra?: any[], equipActive?: boolean }} [opts]
  */
 async function writeSets(actor, state, { extra = [], equipActive = true } = {}) {
   const items = describedSetItems(actor, state);
@@ -367,11 +368,12 @@ export async function assignWeapon(actor, item, set, hand) {
   if (!actor?.isOwner) return ui.notifications.warn("You don't own this character.");
   if (item?.parent !== actor) return ui.notifications.warn("That item isn't on this character.");
   if (!WS.SETS[set] || !WS.HANDS[hand]) return;
-  const d = describeItem(item); const where = `${WS.SETS[set].label} set, ${WS.handLabel(set, hand).toLowerCase()}`;
+  const d = /** @type {any} */ (describeItem(item)); const where = `${WS.SETS[set].label} set, ${WS.handLabel(set, hand).toLowerCase()}`;
   if (!WS.fitsHand(d, set, hand)) return ui.notifications.warn(`${item.name} doesn't go in the ${where}.`);
   const state = weaponState(actor); const s = state.sets[set];
   const mainD = describeItem(actor.items.get(s.main));
   if (hand === "off" && mainD?.two && s.main !== item.id) return ui.notifications.warn(`${mainD.name} is two-handed: the off hand of the ${WS.SETS[set].label} set is taken.`);
+  /** @type {any[]} */
   const extra = [];
   const out = id => { if (id && id !== item.id) extra.push({ _id: id, "system.equipped": false, [flagPath]: null }); };
   const from = WS.locate(state, item.id); if (from) state.sets[from.set][from.hand] = null;
@@ -422,12 +424,12 @@ export async function stowShield(actor, shieldId) {
 
 /** The best hand for an item with weapon sets on: a free hand it fits in the active set, else in any set, else null. */
 function autoHand(actor, item) {
-  const d = describeItem(item); if (!handItem(d)) return null;
+  const d = /** @type {any} */ (describeItem(item)); if (!handItem(d)) return null;
   const state = weaponState(actor); const at = WS.locate(state, item.id); if (at) return at;
   const order = [state.active, ...WS.SET_IDS.filter(x => x !== state.active)];
   // Held things (a torch, a lantern, an instrument) prefer the Utility set; ranged weapons the Ranged set.
-  if (d.held && !d.weapon) order.sort((a, b) => (b === "utility") - (a === "utility"));
-  if (d.rangedType) order.sort((a, b) => (b === "ranged") - (a === "ranged"));
+  if (d.held && !d.weapon) order.sort((a, b) => +(b === "utility") - +(a === "utility"));
+  if (d.rangedType) order.sort((a, b) => +(b === "ranged") - +(a === "ranged"));
   const twoBlocked = (set, hand) => hand === "off" && describeItem(actor.items.get(state.sets[set].main))?.two;
   const hands = d.shield || d.offOnly || (d.held && !d.weapon) ? ["off"] : ["main", "off"];
   for (const set of order) for (const hand of hands) if (WS.fitsHand(d, set, hand) && !state.sets[set][hand] && !twoBlocked(set, hand)) return { set, hand };
@@ -522,7 +524,7 @@ async function pileRowTip(element, item) {
 }
 
 // ---------------------------------------------------------------- the pane
-const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? /** @type {any} */ (globalThis).TextEditor;
 const OPEN = new Map();
 
 // Window size. The paper doll needs MIN_W x MIN_H; slots grow from 42px up to 72px as the window gets bigger.
@@ -532,6 +534,7 @@ const SIZE_KEY = "paneWindow";
 
 /** The size and position this client last left the pane at, if it still fits on screen and isn't below the minimum. */
 function savedPosition() {
+  /** @type {any} */
   let p = null;
   try { p = game.settings.get(ID, SIZE_KEY); } catch { return null; }
   if (!p || ![p.left, p.top, p.width, p.height].every(Number.isFinite)) return null;
@@ -892,6 +895,7 @@ export class CharacterPane extends foundry.applications.api.ApplicationV2 {
 export function refreshOpen() { for (const app of OPEN.values()) if (app.rendered) app.render(); }
 
 /** Opens (or brings forward) the character pane for an actor: the given one, else the selected token's, else the user's character. */
+/** @param {any} [actor] */
 export function characterPane(actor = null) {
   if (!game.settings.get(ID, "characterPane")) return ui.notifications.warn("The character pane is turned off in Wayfarer's Toolkit's settings.");
   if (typeof actor === "string") actor = fromUuidSync(actor) ?? game.actors.get(actor) ?? game.actors.getName(actor);
@@ -911,13 +915,14 @@ export function characterPane(actor = null) {
  * heavy armour with no AC) don't replace the body armour in dnd5e's AC calculation. Only the AC calculation is affected.
  */
 export function patchArmorClass() {
-  const AF = globalThis.dnd5e?.dataModels?.actor?.AttributesFields;
+  const AF = /** @type {any} */ (globalThis).dnd5e?.dataModels?.actor?.AttributesFields;
   if (!AF?.prepareArmorClass || AF.prepareArmorClass._wct) return;
   const orig = AF.prepareArmorClass;
   // Runs on every actor data preparation, so it stays cheap: no settings read (it's only installed when the pane is on, and that
   // setting reloads Foundry) and a straight call through when nothing needs hiding.
-  const patched = function (...args) {
+  const patched = /** @this {any} */ function (...args) {
     const eq = this.parent?.itemTypes?.equipment;
+    /** @type {any} */
     let hidden = null;
     if (eq?.length) { try { hidden = eq.filter(i => i.system.equipped && isBodyArmor(i) && !isSuit(i)); } catch (e) { hidden = null; } }
     if (!hidden?.length) return orig.apply(this, args);
@@ -944,7 +949,7 @@ function addItemFlagBoxes(app, element) {
     wrap.className = `wct-itemflag wct-${key}`; wrap.style.cssText = "display:flex;align-items:center;gap:0.3em;font-size:var(--font-size-12,12px);flex:0 0 auto;";
     wrap.dataset.tooltip = tip;
     wrap.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}> ${key === "buckler" ? "Buckler" : "Relic"}`;
-    const box = wrap.querySelector("input");
+    const box = /** @type {HTMLInputElement} */ (wrap.querySelector("input"));
     box.addEventListener("change", async ev => { ev.stopPropagation(); await item.setFlag(ID, key, box.checked); });
     box.addEventListener("input", ev => ev.stopPropagation());
     if (host.classList.contains("window-content")) host.prepend(wrap); else host.append(wrap);

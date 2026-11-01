@@ -44,6 +44,7 @@ export function compareHand(d, active = "melee") {
 /**
  * A note about hands for putting `d` in a set, or "": a two-handed weapon would empty the off hand or need a shield stowed, and a
  * weapon that loads ammunition needs the shield's hand. `off`: the set's off-hand item (described); `worn`: equipped shields elsewhere.
+ * @param {any} d @param {{ off?: any, worn?: any[], hand?: string }} [opts]
  */
 export function handNote(d, { off = null, worn = [], hand = "main" } = {}) {
   if (!d || hand !== "main") return "";
@@ -55,7 +56,10 @@ export function handNote(d, { off = null, worn = [], hand = "main" } = {}) {
 }
 
 const row = (key, label, a, b, tone) => ({ key, label, a, b, tone });
-/** Numbers: higher is better (or lower, with `lower`). Missing on one side counts as 0 when `zero`, else the row is "different". */
+/**
+ * Numbers: higher is better (or lower, with `lower`). Missing on one side counts as 0 when `zero`, else the row is "different".
+ * @param {string} key @param {string} label @param {any} x @param {any} y @param {{ lower?: boolean, zero?: boolean, fmt?: (n: any) => string }} [opts]
+ */
 function numRow(key, label, x, y, { lower = false, zero = false, fmt = String } = {}) {
   if (zero) { x ??= 0; y ??= 0; }
   if (x == null && y == null) return null;

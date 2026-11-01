@@ -57,6 +57,7 @@ export function isRelicItem(item) {
 /**
  * A plain description of an item for the hands rules. `tip` is the MMO tooltip slot line when the item has one ("two-hand",
  * "off hand", …), `two` overrides two-handedness.
+ * @param {any} item @param {{ tip?: string | null, two?: boolean | null, versatileFormula?: string }} [opts]
  */
 export function describe(item, { tip = null, two = null, versatileFormula = "" } = {}) {
   if (!item) return null;
@@ -64,7 +65,7 @@ export function describe(item, { tip = null, two = null, versatileFormula = "" }
   const weapon = item.type === "weapon";
   const shield = item.type === "equipment" && t === "shield";
   const w = tip ? String(tip).toLowerCase() : null;
-  const rangedType = (weapon && ["simpleR", "martialR"].includes(t)) || ["ranged", "thrown", "wands"].includes(w);
+  const rangedType = (weapon && ["simpleR", "martialR"].includes(t)) || ["ranged", "thrown", "wands"].includes(/** @type {string} */ (w));
   const wandRod = item.type === "equipment" && ["wand", "rod"].includes(t);
   const versatile = weapon && p.has("ver");
   return {
@@ -116,6 +117,7 @@ export function migrate(legacy = {}) {
 /**
  * A clean copy of a stored state: unknown sets and hands dropped, ids of items no longer on the actor dropped (`have`: a Set of item
  * ids, or null to skip that), an item kept only in its first place (sets in order, main before off), and a valid active set.
+ * @param {any} raw @param {{ has(id: string): boolean } | null} [have]
  */
 export function normalize(raw, have = null) {
   const s = emptyState(); if (!raw || typeof raw !== "object") return s;
@@ -143,6 +145,7 @@ export const assignedIds = state => SET_IDS.flatMap(set => [state.sets[set].main
  * aren't in this set (they stay on through a swap); `hasAmmo`: whether the actor carries ammunition.
  * Returns { ok, block: { code, message, shieldId } | null, warnings: [text], info: [text] }. Codes: "shield" (an equipped shield is in
  * the way; taking it off fixes it), "shieldInSet" (this set pairs a two-handed weapon with its own shield), "hands" (both hands needed).
+ * @param {string} set @param {{ main?: any, off?: any, worn?: any[], hasAmmo?: boolean }} [opts]
  */
 export function checkHands(set, { main = null, off = null, worn = [], hasAmmo = true } = {}) {
   const warnings = []; const info = [];
@@ -171,6 +174,7 @@ export function checkHands(set, { main = null, off = null, worn = [], hasAmmo = 
  * What making `target` the active set does. `items`: id → described item for every item in the sets; `equippedShields`: described
  * shields equipped on the actor right now (in a set or not). Returns { ok, block, warnings, info, equip: [ids], unequip: [ids],
  * donShield: true when the swap puts a shield on }. Equipped shields outside the target set stay equipped (they're worn).
+ * @param {any} state @param {string} target @param {{ items?: Record<string, any>, equippedShields?: any[], hasAmmo?: boolean }} [opts]
  */
 export function planSwap(state, target, { items = {}, equippedShields = [], hasAmmo = true } = {}) {
   const get = id => (id ? items[id] ?? null : null);
