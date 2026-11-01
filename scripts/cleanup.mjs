@@ -40,6 +40,7 @@ function* holders() {
 
 /** Counts what each category would remove. Nothing is changed. */
 export function plan() {
+  /** @type {Record<string, any>} */
   const p = { actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], pins: [], hiddenPins: 0, items: [], deleteItems: [], journals: [], vault: [], trackers: [], messages: [], macros: [], settings: [] };
   for (const a of game.actors) if (ours(a)) p.actors.push(a);
   // Map pins: Note documents carrying flags.wayfarers-toolkit.pin; grouped by scene so each scene is one delete.

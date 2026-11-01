@@ -40,6 +40,7 @@ const ID_RE = /^[A-Za-z0-9]{16}$/;
 export const isDocId = v => typeof v === "string" && ID_RE.test(v);
 
 /** Pin data in its full current shape, from anything (missing `v` = 0, read the same way as 1). */
+/** @param {any} [raw] */
 export function normalize(raw = {}) {
   const p = raw && typeof raw === "object" ? raw : {};
   let kind = KINDS.includes(p.kind) ? p.kind : "party";
@@ -69,6 +70,7 @@ export const isPin = note => !!pinOf(note);
 export const noteLabel = pin => (pin.hidden ? "" : pin.label);
 
 /** Note document data for a pin. `at`: { x, y, level?, size? }. */
+/** @param {any} pin @param {{ x?: any, y?: any, level?: any, size?: number }} [at] */
 export function noteData(pin, { x, y, level = null, size = SIZE.def } = {}) {
   const p = normalize(pin);
   const d = {
@@ -172,6 +174,7 @@ export function decide(req, facts) {
  * The linked quest as this user may see it: { id, name, status } or null (no link, the quest is gone, or the user can't see it:
  * nothing about a hidden quest is ever returned). `find(id)` → journal or null; `canSee(journal)`; `info(journal)` → { name, status }.
  */
+/** @param {any} pin @param {{ find?: (id: string) => any, canSee?: (j: any) => boolean, info?: (j: any) => any }} [fns] */
 export function questFor(pin, { find, canSee, info } = {}) {
   if (!pin?.quest || !find) return null;
   const j = find(pin.quest); if (!j) return null;
@@ -204,7 +207,9 @@ export function pinsByScene(scenes) {
  * The pin dialog's form object → pin input. Kind and hidden are read only for a GM (a player's pins are always party pins, never
  * hidden); `by` is never read from a form.
  */
+/** @param {any} [f] @param {{ isGM?: boolean }} [opts] */
 export function readForm(f = {}, { isGM = false } = {}) {
+  /** @type {any} */
   const out = { label: oneLine(f.label, LABEL_MAX), text: str(f.text, TEXT_MAX), icon: ICONS[f.icon] ? f.icon : "pin", ink: INKS[f.ink] ? f.ink : "iron", quest: isDocId(f.quest) ? f.quest : "" };
   if (isGM) { out.kind = KINDS.includes(f.kind) ? f.kind : "party"; out.hidden = out.kind === "gm" && (f.hidden === true || f.hidden === "on" || f.hidden === "true"); }
   else { out.kind = "party"; out.hidden = false; }
@@ -212,6 +217,7 @@ export function readForm(f = {}, { isGM = false } = {}) {
 }
 
 /** A GM's new pin: Note data, or { error }. `at`: { x, y, level?, size?, dims? }. The GM's own user id is the author. */
+/** @param {any} input @param {any} user @param {any} [at] */
 export function gmNote(input, user, at = {}) {
   if (!user?.isGM) return { error: "GM only" };
   const pin = normalize({ ...input, by: user.id });
@@ -221,12 +227,15 @@ export function gmNote(input, user, at = {}) {
 }
 
 /** Quests offered in the pin dialog: only those `canSee` allows (never a hidden or ungiven quest for a player), sorted by name. */
+/** @param {any[]} [journals] @param {{ canSee?: (j: any) => boolean, name?: (j: any) => any }} [opts] */
 export function questChoices(journals = [], { canSee = () => false, name = j => j?.name } = {}) {
   return [...journals].filter(j => j && isDocId(j.id) && canSee(j)).map(j => ({ id: j.id, name: String(name(j) ?? "") })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** The pin under a canvas point: `pins` [{ id, x, y, size }] → the nearest id within its icon's radius, or null. */
+/** @param {any[]} [pins] @param {{ x?: any, y?: any }} [at] */
 export function hitPin(pins = [], { x, y } = {}) {
+  /** @type {any} */
   let best = null, bestD = Infinity;
   for (const p of pins) {
     const r = clampSize(p.size) / 2; const d = Math.hypot(p.x - x, p.y - y);
@@ -282,7 +291,10 @@ export function readHidden(r) {
   const out = hiddenRecord({ ...(r.pin ?? {}), kind: "gm", hidden: true }, r);
   return out && { ...out, at: Number(r.at) || 0 };
 }
-/** Hidden pins on one scene, from the bucket. */
+/**
+ * Hidden pins on one scene, from the bucket.
+ * @returns {any[]}
+ */
 export const hiddenOn = (bucket, sceneId) => Object.values(bucket ?? {}).map(readHidden).filter(r => r && r.sceneId === sceneId);
 /** The Note data a revealed pin gets (the pin no longer hidden). */
 export const revealedNote = r => noteData({ ...r.pin, hidden: false }, { x: r.x, y: r.y, level: r.level, size: r.size });

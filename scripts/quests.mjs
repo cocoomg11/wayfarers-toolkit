@@ -17,6 +17,7 @@ const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation
 const MAX_TRACKED = 5;
 
 /** The module API object from main.mjs (money helpers, party actor, dialogs). Set by init(). */
+/** @type {any} */
 let WCT = null;
 /** Whether the Quest tracker feature is on (tracking, the Track box and the on-screen list). */
 let TRACKER = true;
@@ -281,7 +282,9 @@ function autoTrack(j) {
 }
 
 // ---------------------------------------------------------------- tracker HUD
-let hud = null; let hudHTML = "";
+/** @type {any} */
+let hud = null;
+let hudHTML = "";
 function renderTracker() {
   if (!TRACKER || !S("questTracker")) { hud?.remove(); hud = null; hudHTML = ""; return; }
   const list = tracked().map(find).filter(j => j && canSee(j) && data(j).status === "active");
@@ -309,6 +312,7 @@ function renderTracker() {
 }
 
 // ---------------------------------------------------------------- the quest log window
+/** @type {any} */
 let LOG = null;
 const TABS = { active: "Active", completed: "Completed", available: "Not given" };
 const inTab = (q, tab) => tab === "completed" ? ["completed", "failed"].includes(q.status) : q.status === tab;
@@ -607,6 +611,7 @@ export function registerSettings({ tracker = false } = {}) {
   game.settings.register(ID, "trackerCollapsed", { scope: "client", config: false, type: Boolean, default: false });
 }
 
+/** @type {any} */
 let refreshT = null;
 function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (LOG?.rendered) LOG.render(); renderTracker(); }, 60); }
 

@@ -249,6 +249,7 @@ function permissionFacts(api) {
   const party = api.partyActor?.();
   const lvl = d => users.length ? Math.min(...users.map(u => { try { return d.getUserLevel?.(u) ?? (d.ownership?.[u.id] ?? d.ownership?.default ?? 0); } catch { return 0; } })) : OWN.OWNER;
   const macros = {}; for (const m of MACROS) { if (!m.shared) continue; const w = game.macros.getName(m.name); if (w) macros[m.name] = w.ownership?.default ?? 0; }
+  /** @type {any} */
   let quests = null;
   if (F.on("questLog")) {
     try {
@@ -357,6 +358,7 @@ function updateNotes() {
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
 }
 
+/** @type {[string, (api: any) => any][]} */
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
   ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
@@ -422,6 +424,7 @@ export async function post(api, { window = false } = {}) {
   return sections;
 }
 
+/** @type {any} */
 let API = null;
 /** The report in a window (api.health({ window: true })), with Post to chat and Run setup. */
 export class HealthApp extends foundry.applications.api.ApplicationV2 {
@@ -431,10 +434,10 @@ export class HealthApp extends foundry.applications.api.ApplicationV2 {
     if (!game.user.isGM) { div.textContent = "GM only."; return div; }
     const sections = await run(API);
     div.innerHTML = `${html(API, sections)}<p><button type="button" data-action="post"><i class="fas fa-comment"></i> Post to chat</button> <button type="button" data-action="again"><i class="fas fa-rotate"></i> Check again</button></p>`;
-    div.querySelector("[data-action=post]").addEventListener("click", () => post(API));
-    div.querySelector("[data-action=again]").addEventListener("click", () => this.render());
+    /** @type {HTMLElement} */ (div.querySelector("[data-action=post]")).addEventListener("click", () => post(API));
+    /** @type {HTMLElement} */ (div.querySelector("[data-action=again]")).addEventListener("click", () => this.render());
     div.querySelector("[data-wct-action=run-setup]")?.addEventListener("click", () => runSetup(() => this.render()));
-    div.querySelector("[data-wct-action=autolink-boss]")?.addEventListener("click", async ev => { ev.currentTarget.disabled = true; await API.bossLoot?.autoLink(); this.render(); });
+    div.querySelector("[data-wct-action=autolink-boss]")?.addEventListener("click", async ev => { /** @type {HTMLButtonElement} */ (ev.currentTarget).disabled = true; await API.bossLoot?.autoLink(); this.render(); });
     return div;
   }
   _replaceHTML(result, content) { content.replaceChildren(result); }

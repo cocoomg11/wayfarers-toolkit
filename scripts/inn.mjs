@@ -19,6 +19,7 @@ const ID = "wayfarers-toolkit";
 const STATUS = "wct-rested";
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 const newInnId = () => foundry.utils.randomID(12);
+/** @type {any} */
 let API = null;
 
 export function registerSettings() {
@@ -44,6 +45,7 @@ function view(scene, inn) {
 /**
  * An inn on a scene: by id, else the first. { on: false, … } when the scene has none (kept for callers of api.inn.inn(scene)).
  */
+/** @param {any} scene @param {string | null} [innId] */
 export function innFor(scene, innId = null) {
   const s = sceneOf(scene); const list = s ? inns(s) : [];
   const inn = (innId && list.find(x => x.id === innId)) || list[0];
@@ -115,6 +117,7 @@ export async function makeInnkeeper(tokenDoc) {
 
 // ---------------------------------------------------------------- renting
 /** GM: the Rent rooms dialog and payment. Players: a request to the leader. `inn`: an inn id on the scene (default: the first). */
+/** @param {{ scene?: any, actors?: any, inn?: string }} [opts] */
 export async function rentRooms({ scene, actors, inn: innId } = {}) {
   scene = sceneOf(scene) ?? canvas?.scene;
   if (!scene) return ui.notifications.warn("Rent rooms: no scene.");
@@ -189,6 +192,7 @@ function requestRooms(scene, inn) {
 }
 
 /** Leader: a player's room request becomes a whisper with a Rent rooms button. `u` is Foundry's sender. */
+/** @param {any} data @param {any} u @param {{ rid?: string }} [meta] */
 async function onRoomRequest(data, u, { rid } = {}) {
   const r = M.readRoomRequest({ action: "roomRequest", ...data }); if (!r || !get("innRequests", true)) return;
   if (cardPosted("roomRequest", rid)) return;
@@ -201,6 +205,7 @@ async function onRoomRequest(data, u, { rid } = {}) {
 
 // ---------------------------------------------------------------- the long rest
 /** Leader: what a long rest does to a Rested character. `sceneId`: the scene the resting client was viewing. */
+/** @param {any} actor @param {string} sceneId @param {string | null} [rid] */
 export async function afterLongRest(actor, sceneId, rid = null) {
   if (!game.user.isGM || !actor) return null;
   if (applying.has(actor.id) || cardPosted("restedRest", rid)) return null;
@@ -250,6 +255,7 @@ async function onRestCompleted(actor, result, config) {
   request("restedRest", { actorId: actor.id, ...(sceneId ? { sceneId } : {}) });
 }
 
+/** @param {any} data @param {any} sender @param {{ rid?: string }} [meta] */
 async function onRestReport(data, sender, { rid } = {}) {
   const r = M.readRestReport({ action: "restedRest", ...data }); if (!r || !sender) return;
   const a = game.actors.get(r.actorId); if (!a) return;
@@ -268,8 +274,8 @@ export function sceneSection(scene) {
     <button type="button" data-wct-inn-act="add" style="width:auto;"><i class="fa-solid fa-plus"></i> Add inn</button>
     <p class="hint">The party can rent rooms here and wake Rested. Or right-click a token and use <em>Make innkeeper here…</em>; rent from that token's HUD. Changes save at once.</p></div>`;
   el.addEventListener("click", async ev => {
-    const b = ev.target.closest("[data-wct-inn-act]"); if (!b) return; ev.preventDefault();
-    const id = b.closest("[data-wct-inn]")?.dataset.wctInn; const inn = list.find(i => i.id === id);
+    const b = /** @type {HTMLElement | null} */ (/** @type {Element} */ (ev.target).closest("[data-wct-inn-act]")); if (!b) return; ev.preventDefault();
+    const id = /** @type {HTMLElement | null} */ (b.closest("[data-wct-inn]"))?.dataset.wctInn; const inn = list.find(i => i.id === id);
     if (b.dataset.wctInnAct === "add") { const f = await innForm(scene, {}); if (f) await saveInn(scene, { name: f.name, price: f.price, region: f.region || null }); }
     else if (b.dataset.wctInnAct === "edit" && inn) { const f = await innForm(scene, inn); if (f) await saveInn(scene, { ...inn, name: f.name, price: f.price, region: f.region || null }); }
     else if (b.dataset.wctInnAct === "delete" && inn) { if (await API.confirm("Delete inn", `<p>Delete the inn <strong>${esc(innFor(scene, inn.id).name)}</strong>? Characters already Rested keep it.</p>`)) await deleteInn(scene, inn.id); }

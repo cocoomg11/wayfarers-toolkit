@@ -191,6 +191,7 @@ export function decide({ byPlayer = false, free = false, wantScene = true, ...ar
 export const socketBooking = msg => ({ from: str(msg?.from), to: str(msg?.to), pax: clampPax(msg?.pax), free: false, scene: true });
 
 /** Health-check facts about a network: points without a scene, routes into locked points, references to unknown points. */
+/** @param {any} net @param {(uuid: string) => boolean} [sceneExists] */
 export function networkFacts(net, sceneExists = () => true) {
   const ids = new Set(net.points.map(p => p.id)); const locked = new Set(net.points.filter(p => !p.unlocked).map(p => p.id));
   return {

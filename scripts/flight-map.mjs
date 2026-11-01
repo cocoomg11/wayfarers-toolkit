@@ -17,6 +17,7 @@ import { on } from "./features.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const W = 1000, H = 640, PAD = 60;
+/** @type {any} */
 let API = null;
 
 export function open(api) {

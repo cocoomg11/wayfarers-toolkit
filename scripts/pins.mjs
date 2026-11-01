@@ -84,11 +84,12 @@ async function gmWrite(op, scene, note, data) {
 }
 
 /** Create a pin at { x, y } on a scene from dialog input. GM: written at once. Player: sent to the GM. */
+/** @param {any} input @param {{ scene?: any, x?: number, y?: number, level?: any }} [at] */
 export async function create(input, { scene, x, y, level } = {}) {
   const s = sceneOf(scene); if (!s) return tell("no scene");
   level ??= canvas?.scene?.id === s.id ? canvas?.level?.id ?? null : null;
   if (game.user.isGM) {
-    const made = M.gmNote(input, me(), { x, y, level: s.levels?.has?.(level) ? level : null, size: get("pinsSize", M.SIZE.def), dims: s.dimensions });
+    const made = /** @type {any} */ (M.gmNote)(input, me(), { x, y, level: s.levels?.has?.(level) ? level : null, size: get("pinsSize", M.SIZE.def), dims: s.dimensions });
     if (made.error) return tell(made.error);
     // A hidden GM pin is only a record in the GM-only store; its Note is made when it's revealed.
     if (made.pin.hidden) return storeHidden(M.hiddenRecord(made.pin, { id: M.newPinId(), sceneId: s.id, x: made.data.x, y: made.data.y, level: made.data.levels?.[0] ?? null, size: made.data.iconSize }));
@@ -126,6 +127,7 @@ export async function update(ref, input, scene) {
   return relay("update", { sceneId: note.parent.id, noteId: note.id, pin: { ...old, ...M.readForm(input) } });
 }
 
+/** @param {any} ref @param {{ x?: number, y?: number }} [to] @param {any} [scene] */
 export async function move(ref, { x, y } = {}, scene) {
   const h = hiddenOf(ref);
   if (h) { const s = game.scenes.get(h.sceneId); const p = M.clampPoint({ x, y }, s?.dimensions); return storeHidden({ ...h, ...p }); }
@@ -183,10 +185,10 @@ async function onRequest(data, sender) {
     questOk: id => { const t = questTools(sender); const j = t.find(id); return !!j && t.canSee(j); },
     size: get("pinsSize", M.SIZE.def)
   };
-  const d = M.decide(req, facts);
+  const d = M.decide(/** @type {any} */ (req), facts);
   log(`map pin ${req?.op ?? "?"} from ${sender.name}: ${d.ok ? "ok" : d.reason}`);
   if (!d.ok) return refuse(sender.id, d.reason);
-  try { await gmWrite(req.op, scene, note, d.data); }
+  try { await gmWrite(/** @type {any} */ (req).op, scene, note, d.data); }
   catch (e) { console.warn(`${ID} | map pin`, e); refuse(sender.id, "the GM's client couldn't save it"); }
 }
 /** Tells the sender their change was refused (a notice hook from the leader; clients accept it only from the leader's GM session). */
@@ -197,6 +199,7 @@ const inkCss = id => M.INKS[id]?.hex ?? M.INKS.iron.hex;
 function iconSwatch(id, ink) { return `<span class="wct-pin-glyph" style="--wct-pin-src:url('${esc(foundry.utils.getRoute?.(M.iconPath(id)) ?? `/${M.iconPath(id)}`)}');--wct-pin-ink:${esc(inkCss(ink))}"></span>`; }
 
 /** The new-pin / edit dialog. Returns the form input or null. */
+/** @param {{ pin?: any, title?: string }} [opts] */
 async function pinForm({ pin = null, title = "New map pin" } = {}) {
   const gm = game.user.isGM; const p = M.normalize(pin ?? { ink: "iron", icon: "pin", kind: gm ? "gm" : "party" });
   const quests = F.on("questLog") ? M.questChoices(Quests.all(), { canSee: j => { try { return Quests.canSee(j); } catch { return false; } } }) : [];
@@ -268,6 +271,7 @@ export async function open(ref, scene) {
 }
 
 // ---------------------------------------------------------------- placing: one click on the map
+/** @type {any} */
 let ARMED = null;
 /** Arms one left click on the map: an empty spot → new pin (or the moved pin goes there), a pin → its card. Esc cancels. */
 export function arm({ moving = null } = {}) {
@@ -275,6 +279,7 @@ export function arm({ moving = null } = {}) {
   if (!moving && !game.user.isGM && !get("pinsPlayers", true)) return tell("players can't place map pins in this world");
   disarm();
   const view = canvas.app?.view ?? document.getElementById("board"); if (!view) return;
+  /** @type {{ x: number, y: number } | null} */
   let down = null;
   const onDown = ev => { if (ev.button === 0) down = { x: ev.clientX, y: ev.clientY }; };
   const onUp = ev => {
@@ -332,7 +337,7 @@ function pinNoteClass(Base) {
       try {
         // Ink on the map: no dark square behind the mark; an optional parchment disc so it reads on dark maps.
         if (icon.bg) icon.bg.visible = false;
-        if (get("pinsPaper", true) && globalThis.PIXI?.Graphics) {
+        if (get("pinsPaper", true) && /** @type {any} */ (globalThis).PIXI?.Graphics) {
           const s = this.document.iconSize; const g = new PIXI.Graphics();
           g.lineStyle(1.5, 0x5b4630, 0.7).beginFill(0xf1e6c8, 0.88).drawCircle(s / 2, s / 2, s * 0.58).endFill();
           icon.addChildAt(g, 0);
@@ -344,12 +349,13 @@ function pinNoteClass(Base) {
 }
 
 // ---------------------------------------------------------------- hidden GM pins on the GM's canvas (no Note: a GM-only overlay)
+/** @type {any} */
 let GHOSTS = null;
 /** GM: draws this scene's hidden pins as faded marks on the notes layer (clicking one with the Map pin tool opens it). */
 export function redrawGhosts() {
   try {
     GHOSTS?.destroy?.({ children: true }); GHOSTS = null;
-    if (!game.user?.isGM || !canvas?.ready || !canvas.scene || !globalThis.PIXI) return;
+    if (!game.user?.isGM || !canvas?.ready || !canvas.scene || !(/** @type {any} */ (globalThis).PIXI)) return;
     const recs = M.hiddenOn(hiddenBucket(), canvas.scene.id); if (!recs.length) return;
     GHOSTS = new PIXI.Container(); GHOSTS.eventMode = "none";
     for (const r of recs) {

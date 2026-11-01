@@ -7,6 +7,7 @@ import * as Flight from "./flight.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** @type {any} */
 let API = null;
 
 export function open(api) {
