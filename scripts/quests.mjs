@@ -10,6 +10,7 @@ import { notify } from "./gm.mjs";
 import * as Vault from "./vault.mjs";
 import { publicQuest, isPublic, stripSecrets } from "./quests-model.mjs";
 import * as TM from "./tracker-model.mjs";
+import * as UX from "./quest-ux-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -22,6 +23,11 @@ const MAX_TRACKED = 5;
 let WCT = null;
 /** Whether the Quest tracker feature is on (tracking, the Track box and the on-screen list). */
 let TRACKER = true;
+/** 1.28 features, set by init(): objective click → map pin (a function from pins.mjs, or null), the Updated glow, hooks for other modules. */
+/** @type {null | ((questId: string, opts?: { quiet?: boolean }) => Promise<string>)} */
+let GO_TO_PIN = null;
+let GLOW = false;
+let HOOKS = false;
 
 export const STATUS = {
   available: { label: "Not given", glyph: "!" },
@@ -145,6 +151,16 @@ async function save(j, q, name = j.name) {
   return j;
 }
 
+/**
+ * Tells other modules a quest changed (feature moduleHooks): Hooks.callAll("wayfarersToolkit.questUpdated", { questId, change }).
+ * Called on the GM client that made the change, after the GM-only store and the journal are saved. Ids only.
+ */
+function emit(j, change) {
+  if (!HOOKS) return;
+  const p = UX.questPayload(j?.id, change); if (!p) return;
+  try { Hooks.callAll(UX.QUEST_HOOK, p); } catch (e) { console.warn(`${ID} | ${UX.QUEST_HOOK} listener`, e); }
+}
+
 // ---------------------------------------------------------------- moments (chat, sound)
 function playSound(key) {
   const src = S(key); if (!src) return;
@@ -189,6 +205,7 @@ const OPS = {
     const folder = await questFolder();
     const j = await JournalEntry.create({ name, folder: folder.id, ownership: { default: ownershipFor(q) }, flags: { [ID]: { quest: publicQuest(q) } }, pages: [{ name, type: "text", text: { content: pageHTML(q, name), format: 1 } }] });
     await Vault.setKey("quests", j.id, q);
+    emit(j, q.status === "available" ? "updated" : UX.statusChange(q.status));
     if (q.status !== "available" && !q.hidden && d.announce !== false) await announceStatus(j, q, null);
     return j;
   },
@@ -198,6 +215,7 @@ const OPS = {
     const next = normalize({ ...q, ...patch, status: q.status, rewards: { ...q.rewards, ...(patch.rewards ?? {}) }, giver: patch.giver ?? q.giver });
     const wasHidden = q.hidden;
     await save(j, next, name);
+    emit(j, "updated");
     if (wasHidden && !next.hidden && next.status === "active") await announceStatus(j, next, "available");
     return j;
   },
@@ -206,12 +224,14 @@ const OPS = {
     const j = need(ref); const q = data(j); const prev = q.status; if (prev === status) return j;
     q.status = status; if (status === "available") q.paid = false;
     await save(j, q);
+    emit(j, UX.statusChange(status));
     if (announce && !q.hidden) await announceStatus(j, q, prev);
     return j;
   },
   async setHidden(ref, hidden) {
     const j = need(ref); const q = data(j); if (q.hidden === !!hidden) return j;
     q.hidden = !!hidden; await save(j, q);
+    emit(j, "updated");
     if (!q.hidden && q.status === "active") await announceStatus(j, q, "available");
     return j;
   },
@@ -220,6 +240,7 @@ const OPS = {
     if (!o) throw new Error(`Quest log: "${j.name}" has no objective "${key}".`);
     if (o.done === !!done) return j;
     o.done = !!done; await save(j, q);
+    emit(j, "objective");
     if (o.done && !q.hidden && !o.hidden && q.status === "active") await announceObjective(j, o, "done");
     return j;
   },
@@ -228,6 +249,7 @@ const OPS = {
     if (!o) throw new Error(`Quest log: "${j.name}" has no objective "${key}".`);
     if (o.hidden === !reveal) return j;
     o.hidden = !reveal; await save(j, q);
+    emit(j, "objective");
     if (reveal && !q.hidden && q.status === "active") await announceObjective(j, o, "new");
     return j;
   },
@@ -238,7 +260,7 @@ const OPS = {
     if (q.paid) { ui.notifications.info(`${j.name}: rewards already paid.`); return false; }
     const party = WCT.partyActor(); if (!party) { ui.notifications.warn(`Quest log: no group actor named ${WCT.PARTY}.`); return false; }
     const amount = q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0;
-    if (amount > 0) await WCT.addMoney(party, amount);
+    if (amount > 0) await WCT.addMoney(party, amount, { reason: `Quest reward: ${j.name}` });
     const docs = [];
     for (const i of q.rewards.items) {
       const src = await fromUuid(i.uuid).catch(() => null);
@@ -247,6 +269,7 @@ const OPS = {
     }
     if (docs.length) await party.createEmbeddedDocuments("Item", docs);
     q.paid = true; await save(j, q);
+    emit(j, "updated");
     const msg = messageId ? game.messages.get(messageId) : null;
     if (msg) await msg.setFlag(ID, "quest", { ...(msg.getFlag(ID, "quest") ?? {}), paid: true });
     ui.notifications.info(`${j.name}: paid ${[amount > 0 && WCT.fmtMoney(amount), docs.length && `${docs.length} item${docs.length === 1 ? "" : "s"}`].filter(Boolean).join(" and ") || "nothing"} to ${party.name}.`);
@@ -281,6 +304,32 @@ function autoTrack(j) {
   const list = tracked(); if (list.includes(j.id)) return;
   const live = list.filter(id => { const x = find(id); return x && liveFor(x); });
   if (live.length < MAX_TRACKED) setTracked([...list.filter(id => game.journal.has(id)), j.id]);
+}
+
+// ---------------------------------------------------------------- Updated glow (feature questGlow; players only, per client)
+/** This user's view of the quest, fingerprinted (players get the public view, so a GM-only change never glows). */
+const stampOf = j => UX.questStamp(j.name, data(j));
+/** Whether the quest glows for this client: a player, the feature on, and a view they haven't opened since it changed. */
+export const isUpdated = j => GLOW && !game.user?.isGM && !!j && canSee(j) && UX.glowing(S("questSeen"), j.id, stampOf(j));
+/** Marks a quest seen on this client (opening it in the quest log). Writes only when it was glowing. */
+async function markSeen(j) {
+  if (!isUpdated(j)) return;
+  await game.settings.set(ID, "questSeen", UX.markSeen(S("questSeen"), j.id, stampOf(j)));
+  refresh();
+}
+/** Ready: the first time on this client, what's visible now counts as seen; later, quests that are gone are forgotten. */
+async function seenBaseline() {
+  if (!GLOW || game.user?.isGM) return;
+  const live = all().filter(j => canSee(j)).map(j => ({ id: j.id, stamp: stampOf(j) }));
+  const next = UX.baseline(S("questSeen"), live);
+  if (JSON.stringify(next) !== JSON.stringify(UX.readSeen(S("questSeen")))) await game.settings.set(ID, "questSeen", next);
+}
+
+// ---------------------------------------------------------------- objective click → map pin (feature questMapPins)
+/** Moves the map to the quest's pin and pings it (pins.mjs decides; nothing when the feature is off). */
+function goToPin(id, quiet = false) {
+  if (!GO_TO_PIN || !id) return;
+  GO_TO_PIN(id, { quiet }).catch(e => console.warn(`${ID} | quest map pin`, e));
 }
 
 // ---------------------------------------------------------------- tracker HUD
@@ -378,7 +427,8 @@ function renderTracker() {
       const t = ev.target.closest("[data-action]"); if (!t) return;
       if (t.dataset.action === "collapse") game.settings.set(ID, "trackerCollapsed", !S("trackerCollapsed")).then(renderTracker);
       else if (t.dataset.action === "close") showTracker(false);
-      else if (t.dataset.action === "open") open(t.closest("[data-quest-id]")?.dataset.questId);
+      else if (t.dataset.action === "open") { const id = t.closest("[data-quest-id]")?.dataset.questId; open(id); goToPin(id, true); }
+      else if (t.dataset.action === "pin") goToPin(t.closest("[data-quest-id]")?.dataset.questId);
     });
     hud.addEventListener("dblclick", ev => { if (ev.target.closest("header") && !ev.target.closest("button")) resetTrackerPosition(); });
     hud.addEventListener("pointerdown", hudDown);
@@ -392,9 +442,11 @@ function renderTracker() {
   const collapsed = !!S("trackerCollapsed");
   const item = j => {
     const q = data(j); const left = q.objectives.filter(o => !o.hidden && !o.done).sort((a, b) => a.optional - b.optional);
-    const lines = left.map(o => `<li class="${o.optional ? "opt" : ""}">${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</li>`);
+    const pinAttr = GO_TO_PIN ? ` data-action="pin" data-tooltip="Show on the map"` : "";
+    const lines = left.map(o => `<li class="${o.optional ? "opt" : ""}${GO_TO_PIN ? " pin" : ""}"${pinAttr}>${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</li>`);
     if (allDone(q) && !left.some(o => !o.optional)) lines.unshift(`<li class="ready">All objectives complete</li>`);
-    return `<li data-quest-id="${j.id}"><a data-action="open" class="ttl">${esc(j.name)}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
+    const upd = isUpdated(j);
+    return `<li data-quest-id="${j.id}" class="${upd ? "wct-updated" : ""}"><a data-action="open" class="ttl">${esc(j.name)}${upd ? ' <span class="wct-upd-tag">Updated</span>' : ""}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
   };
   hud.classList.toggle("collapsed", collapsed);
   // Only touch the DOM when the list actually changed (most journal updates don't change what the tracker shows).
@@ -442,13 +494,15 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     const here = quests.filter(x => inTab(x.q, this.tab));
     const sel = here.find(x => x.j.id === this.selected) ?? here[0] ?? null;
     this.selected = sel?.j.id ?? null;
+    // Opening a quest is what clears its Updated glow (after this render; markSeen re-renders once).
+    if (sel && isUpdated(sel.j)) setTimeout(() => markSeen(sel.j), 0);
 
     const zones = new Map();
     for (const x of here) { const z = x.q.zone || "General"; if (!zones.has(z)) zones.set(z, []); zones.get(z).push(x); }
     const zoneNames = [...zones.keys()].sort((a, b) => +(a === "General") - +(b === "General") || a.localeCompare(b));
     const tr = tracked();
     const glyph = q => q.status === "active" ? `<span class="wct-glyph ${allDone(q) ? "" : "dim"}">?</span>` : `<span class="wct-glyph ${q.status}">${STATUS[q.status].glyph}</span>`;
-    const row = ({ j, q }) => `<li class="wctq-row ${j.id === this.selected ? "sel" : ""} ${q.status}" data-quest-id="${j.id}" tabindex="0">${glyph(q)}<span class="name">${esc(j.name)}</span>${q.level ? `<span class="lvl">${esc(q.level)}</span>` : ""}${q.hidden ? `<i class="fa-solid fa-eye-slash" data-tooltip="Hidden from players"></i>` : ""}${TRACKER && q.status === "active" && tr.includes(j.id) ? `<i class="fa-solid fa-location-crosshairs" data-tooltip="Tracked"></i>` : ""}</li>`;
+    const row = ({ j, q }) => `<li class="wctq-row ${j.id === this.selected ? "sel" : ""} ${q.status} ${isUpdated(j) ? "wct-updated" : ""}" data-quest-id="${j.id}" tabindex="0">${glyph(q)}<span class="name">${esc(j.name)}</span>${isUpdated(j) ? '<span class="wct-upd-tag">Updated</span>' : ""}${q.level ? `<span class="lvl">${esc(q.level)}</span>` : ""}${q.hidden ? `<i class="fa-solid fa-eye-slash" data-tooltip="Hidden from players"></i>` : ""}${TRACKER && q.status === "active" && tr.includes(j.id) ? `<i class="fa-solid fa-location-crosshairs" data-tooltip="Tracked"></i>` : ""}</li>`;
     const list = here.length ? zoneNames.map(z => `<li class="wctq-zone"><h4>${esc(z)}</h4><ul>${zones.get(z).map(row).join("")}</ul></li>`).join("")
       : `<li class="wctq-none">${this.tab === "active" ? "No quests yet." : this.tab === "completed" ? "Nothing finished yet." : "No quests waiting to be given."}</li>`;
 
@@ -480,7 +534,7 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     const meta = [q.level && `<span>Level ${esc(q.level)}</span>`, q.zone && `<span>${esc(q.zone)}</span>`, q.status === "failed" && `<span class="bad">Failed</span>`, q.status === "completed" && `<span class="good">Completed</span>`, gm && q.status === "available" && `<span>Not given</span>`, gm && q.hidden && `<span class="bad"><i class="fa-solid fa-eye-slash"></i> Hidden from players</span>`].filter(Boolean).join("");
     const obj = (o) => {
       const i = q.objectives.indexOf(o);
-      return `<li class="${o.done ? "done" : ""} ${o.hidden ? "secret" : ""}" data-obj="${i}">${gm ? `<button type="button" class="box" data-action="tick" aria-pressed="${o.done}" data-tooltip="${o.done ? "Untick" : "Tick off"}">${o.done ? "✔" : ""}</button>` : `<span class="box">${o.done ? "✔" : ""}</span>`}<span class="txt">${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</span>${gm && o.hidden ? `<button type="button" class="mini" data-action="reveal"><i class="fa-solid fa-eye"></i> Reveal</button>` : ""}${gm && !o.hidden && !o.done ? `<button type="button" class="mini ghost" data-action="conceal" data-tooltip="Hide from players"><i class="fa-solid fa-eye-slash"></i></button>` : ""}</li>`;
+      return `<li class="${o.done ? "done" : ""} ${o.hidden ? "secret" : ""}" data-obj="${i}">${gm ? `<button type="button" class="box" data-action="tick" aria-pressed="${o.done}" data-tooltip="${o.done ? "Untick" : "Tick off"}">${o.done ? "✔" : ""}</button>` : `<span class="box">${o.done ? "✔" : ""}</span>`}<span class="txt ${GO_TO_PIN ? "pin" : ""}" ${GO_TO_PIN ? `data-pin="1" data-tooltip="Show on the map"` : ""}>${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</span>${gm && o.hidden ? `<button type="button" class="mini" data-action="reveal"><i class="fa-solid fa-eye"></i> Reveal</button>` : ""}${gm && !o.hidden && !o.done ? `<button type="button" class="mini ghost" data-action="conceal" data-tooltip="Hide from players"><i class="fa-solid fa-eye-slash"></i></button>` : ""}</li>`;
     };
     const desc = q.description ? await TextEditorImpl().enrichHTML(q.description, { secrets: gm, relativeTo: j }) : "";
     const coin = coinText(q);
@@ -498,7 +552,7 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     ].filter(Boolean).join("") : "";
     return `
       <div class="wctq-page" data-quest-id="${j.id}">
-        <header><h2>${esc(j.name)}</h2>${meta ? `<p class="meta">${meta}</p>` : ""}</header>
+        <header><h2 ${GO_TO_PIN ? `class="pin" data-pin="1" data-tooltip="Show on the map"` : ""}>${esc(j.name)}</h2>${meta ? `<p class="meta">${meta}</p>` : ""}</header>
         ${q.giver.name ? `<p class="giver">Quest giver: ${q.giver.uuid ? `<a data-uuid="${esc(q.giver.uuid)}">${esc(q.giver.name)}</a>` : esc(q.giver.name)}</p>` : ""}
         ${q.summary ? `<p class="summary">${esc(q.summary)}</p>` : ""}
         <h3>Objectives</h3>
@@ -537,6 +591,7 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     root.querySelector("[data-tracker=reset]")?.addEventListener("click", async () => { if (!S("questTracker")) await showTracker(true); await resetTrackerPosition(); });
     const page = root.querySelector(".wctq-page"); if (!page) return;
     const id = page.dataset.questId; const j = find(id); if (!j) return;
+    if (GO_TO_PIN) root.querySelectorAll("[data-pin]").forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); goToPin(id); }));
     root.querySelector("[data-action=track]")?.addEventListener("change", async ev => {
       const on = await track(id, ev.target.checked); ev.target.checked = !!on;
       // Tracking never reopens a tracker the user closed; say where it is instead.
@@ -731,6 +786,8 @@ export function registerSettings({ tracker = false } = {}) {
   w("questVolume", "Quest log: Sound volume", "", Number, 0.8, { range: { min: 0, max: 1, step: 0.05 } });
   if (tracker) game.settings.register(ID, "questTracker", { name: "Quest tracker: Show on screen", hint: "Show tracked quests and their open objectives on screen. Tick Track on a quest in the quest log to follow it.", scope: "client", config: true, type: Boolean, default: true, onChange: () => renderTracker() });
   game.settings.register(ID, "trackedQuests", { scope: "client", config: false, type: String, default: "[]" });
+  // 1.28 (feature questGlow): what this client last saw of each quest ({ v: 1, init, seen: { id: stamp } }, quest-ux-model.mjs).
+  game.settings.register(ID, "questSeen", { scope: "client", config: false, type: Object, default: {} });
   game.settings.register(ID, "trackerCollapsed", { scope: "client", config: false, type: Boolean, default: false });
   // Where this client's tracker sits (tracker-model.mjs; {} = not moved: the default spot).
   game.settings.register(ID, "trackerPos", { scope: "client", config: false, type: Object, default: {} });
@@ -741,8 +798,12 @@ let refreshT = null;
 function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (LOG?.rendered) LOG.render(); renderTracker(); }, 60); }
 
 /** Called from the module's init hook when the quest log is on: settings, key binding, scene control, chat and document hooks. `tracker`: the Quest tracker feature. */
-export function init(wct, { tracker = true } = {}) {
-  WCT = wct; TRACKER = !!tracker;
+/**
+ * @param {any} wct
+ * @param {{ tracker?: boolean, goToPin?: null | ((questId: string, opts?: { quiet?: boolean }) => Promise<string>), glow?: boolean, hooks?: boolean }} [opts]
+ */
+export function init(wct, { tracker = true, goToPin: pinFn = null, glow = false, hooks = false } = {}) {
+  WCT = wct; TRACKER = !!tracker; GO_TO_PIN = pinFn; GLOW = !!glow; HOOKS = !!hooks;
   try {
     game.keybindings.register(ID, "questLog", { name: "Open quest log", hint: "Opens or closes the Wayfarer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });
   } catch (e) { console.warn(`${ID} | quest log key binding not registered`, e); }
@@ -773,6 +834,7 @@ export function init(wct, { tracker = true } = {}) {
 /** Called from the module's ready hook: the tracker. (Objective notices arrive as the toolkit's notice hook, gm.mjs.) */
 export function ready() {
   for (const j of all()) seen.set(j.id, liveFor(j));
+  seenBaseline().catch(e => console.warn(`${ID} | quest glow`, e)).finally(() => refresh());
   renderTracker();
   if (TRACKER) {
     /** @type {any} */

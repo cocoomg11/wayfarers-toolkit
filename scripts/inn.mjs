@@ -13,6 +13,8 @@ import * as M from "./inn-model.mjs";
 import { isActiveGM, activeGM, settled, cardPosted, handle, request } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as Vault from "./vault.mjs";
+import * as CoinLog from "./coinlog.mjs";
+import * as F from "./features.mjs";
 import { esc } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -147,7 +149,40 @@ export async function rentRooms({ scene, actors, inn: innId } = {}) {
     }
   });
   if (!f) return null;
-  return pay(scene, inn, chosenList.filter(a => f[`a_${a.id}`]), from);
+  const res = await pay(scene, inn, chosenList.filter(a => f[`a_${a.id}`]), from);
+  if (res?.ok && F.on("innRestOffer")) await restOffer(res.actors.map(id => game.actors.get(id)).filter(Boolean), inn.name);
+  return res;
+}
+
+/**
+ * 1.28 (feature innRestOffer): after renting, offers the GM a long rest for everyone who rented and, optionally, to move world time
+ * on by the Inn rest hours setting. dnd5e's own long rest runs with no dialog and its chat card (Actor5e#longRest({ dialog: false,
+ * chat: true, advanceTime: false })), so its restCompleted hook grants Rested as usual. Time moves once, here, not per character.
+ * Returns { rested: [names], hours } or null when declined.
+ * @param {any[]} actors
+ * @param {string} innName
+ */
+export async function restOffer(actors, innName = "the inn") {
+  if (!game.user.isGM || !actors?.length) return null;
+  const hours = Math.max(0, Math.min(24, Math.round(Number(get("innRestHours", 8)) || 0)));
+  const content = `<p>Long rest now at <strong>${esc(innName)}</strong> for everyone who rented: ${actors.map(a => esc(a.name)).join(", ")}?</p>
+    ${hours ? `<label class="wct-check"><input type="checkbox" name="advance" checked> Move world time on by ${hours} hour${hours === 1 ? "" : "s"}</label>` : ""}
+    <p class="hint">Each character gets dnd5e's long rest (with its chat card) and their Rested benefit. You can also let the players rest themselves later.</p>`;
+  const f = await foundry.applications.api.DialogV2.prompt({
+    classes: ["wct-window"], window: { title: "Rest at the inn" }, content, position: { width: 420 }, rejectClose: false,
+    ok: { label: "Long rest everyone", icon: "fa-solid fa-moon", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }
+  });
+  if (!f) return null;
+  const rested = [];
+  for (const a of actors) {
+    if (typeof a.longRest !== "function") continue;
+    try { const r = await a.longRest({ dialog: false, chat: true, advanceTime: false }); if (r) rested.push(a.name); }
+    catch (e) { console.warn(`${ID} | inn rest: ${a.name}`, e); ui.notifications.warn(`Rest at the inn: ${a.name}'s long rest failed (${e.message}).`); }
+  }
+  const advanced = hours > 0 && !!f.advance;
+  if (advanced) await game.time.advance(hours * 3600);
+  log(`Inn: long rest for ${rested.join(", ") || "nobody"}${advanced ? `, ${hours} h passed` : ""}`);
+  return { rested, hours: advanced ? hours : 0 };
 }
 
 async function pickInn(scene, list) {
@@ -162,7 +197,11 @@ export async function pay(scene, inn, chosen, from = get("innPayFrom", "party"))
   const party = API.partyActor?.(); const coins = API.coins();
   const plan = M.payPlan({ from, price: inn.price, chosen: chosen.map(a => ({ id: a.id, name: a.name, currency: a.system?.currency })), party: party ? { id: party.id, name: party.name, currency: party.system?.currency } : null, coins, fmt: n => API.fmtMoney(n) });
   if (!plan.ok) { await API.info("Rent rooms", `<p><strong>No rooms rented.</strong> ${esc(plan.error)}</p><p class="hint">Nothing was charged.</p>`); return { ok: false, error: plan.error }; }
-  for (const p of plan.payers) await game.actors.get(p.id)?.update({ "system.currency": p.currency });
+  for (const p of plan.payers) {
+    const a = game.actors.get(p.id); if (!a) continue;
+    const was = API.totalMoney(a); await a.update({ "system.currency": p.currency });
+    await CoinLog.record(a, API.totalMoney(a) - was, `Rooms at ${inn.name}`);
+  }
   const at = game.time.worldTime;
   await Vault.update(v => ({ ...v, buckets: { ...v.buckets, rentals: M.addRentals(v.buckets.rentals, chosen.map(a => a.id), { innId: inn.id, inn: inn.name, sceneId: scene.id, at, by: game.user.id }) } }));
   const flag = M.restedFlag({ sceneId: scene.id, inn: inn.name, at });

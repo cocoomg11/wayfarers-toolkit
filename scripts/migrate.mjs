@@ -10,6 +10,7 @@
  *                only in the store afterwards)
  *   pins1        hidden GM pins (Notes) → GM-only store; their Notes are deleted (the record keeps their id, so revealing restores it)
  *   rested1      characters already Rested from 1.26 get a GM-side rental (they rented before the GM-side record existed)
+ *   coinLog1     (1.28.0) the coin log's bucket is created, empty, in the GM-only store (nothing moves; earlier versions logged nothing)
  *
  * Undo: `api.migrations.status()` lists what ran; the README (Upgrading to 1.27) says what each move kept.
  */
@@ -20,13 +21,14 @@ import { esc } from "../vendor/wanderers-core/index.mjs";
 import * as InnM from "./inn-model.mjs";
 import * as PinM from "./pins-model.mjs";
 import * as Flight from "./flight.mjs";
+import { normalizeCoinLog } from "./coinlog-model.mjs";
 import * as F from "./features.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 
-export const MOVES = ["inns1", "vault1", "quests1", "pins1", "rested1"];
+export const MOVES = ["inns1", "vault1", "quests1", "pins1", "rested1", "coinLog1"];
 
 async function inns1() {
   let n = 0;
@@ -101,9 +103,15 @@ async function rested1() {
   return `${todo.length} character${todo.length === 1 ? " already Rested keeps" : "s already Rested keep"} it`;
 }
 
-const RUN = { inns1, vault1, quests1, pins1, rested1 };
+async function coinLog1() {
+  if (Vault.get("coinLog", null)) return null;
+  await Vault.set("coinLog", normalizeCoinLog(null));
+  return null; // nothing to tell: an empty log
+}
+
+const RUN = { inns1, vault1, quests1, pins1, rested1, coinLog1 };
 /** Which moves apply with the tools that are on (others wait until their tool is turned on). */
-const wanted = id => ({ inns1: F.on("restedInn"), quests1: F.on("questLog"), pins1: F.on("mapPins"), rested1: F.on("restedInn"), vault1: true })[id];
+const wanted = id => ({ inns1: F.on("restedInn"), quests1: F.on("questLog"), pins1: F.on("mapPins"), rested1: F.on("restedInn"), coinLog1: F.on("coinLog"), vault1: true })[id];
 
 /** Leader: runs every move not done yet. Returns the lines worth telling the GM. Never throws. */
 export async function run(api) {
@@ -119,7 +127,7 @@ export async function run(api) {
     } catch (e) { console.warn(`${ID} | migration ${id} failed (it runs again on the next load)`, e); }
   }
   if (lines.length) {
-    await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" }, content: `<h3>Wayfarer's Toolkit 1.27: data moved once</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul><p class="hint">GM-only records now live in the journal entry "Wayfarer's Toolkit (GM only)". Don't share it with players.</p>` });
+    await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), speaker: { alias: "Wayfarer's Toolkit" }, content: `<h3>Wayfarer's Toolkit: data moved once</h3><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul><p class="hint">GM-only records now live in the journal entry "Wayfarer's Toolkit (GM only)". Don't share it with players.</p>` });
   }
   return lines;
 }

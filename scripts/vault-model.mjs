@@ -10,13 +10,14 @@
  *   quests         { [journalId]: GM-only quest data } (full quest with hidden objectives and GM notes)
  *   pins           { [pinId]: { sceneId, x, y, level, size, pin } } hidden GM pins (no Note exists until revealed)
  *   rentals        { [actorId]: { innId, inn, sceneId, at } } rooms the GM rented (Rested is checked against these)
+ *   coinLog        { v: 1, entries } coin movements the toolkit made, newest first (≤ 200; coinlog-model.mjs) (1.28.0)
  *   migrations     { [id]: ISO date } one-time moves done
  */
 import { versioned, capList } from "../vendor/wanderers-core/index.mjs";
 
 export const VAULT_VERSION = 1;
 export const VAULT_NAME = "Wayfarer's Toolkit (GM only)";
-export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "migrations"];
+export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "coinLog", "migrations"];
 /** Caps: records per keyed bucket. History and snapshot caps stay in their own models (history-model, gold-model). */
 export const CAPS = { quests: 2000, pins: 1000, rentals: 200, migrations: 50 };
 

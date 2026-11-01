@@ -26,6 +26,14 @@ export const FEATURE_CARDS = [
   { id: "zoneTitles", icon: "fa-solid fa-signs-post", text: "The scene's name fades in over the map when you activate it, with an optional subtitle and sound." },
   { id: "restedInn", icon: "fa-solid fa-bed", text: "Rent rooms at an inn scene; the characters wake from their next long rest with Heroic Inspiration (or an extra Hit Die, or temporary hit points)." },
   { id: "mapPins", icon: "fa-solid fa-map-pin", text: "The party marks the map: inked pins with a label and a note, on any scene. Your own pins can stay hidden until you reveal them." },
+  { id: "questMapPins", icon: "fa-solid fa-location-dot", text: "Click a quest's objective in the tracker or the quest log and the map moves to its map pin and pings it. Needs the quest log and map pins." },
+  { id: "questGlow", icon: "fa-solid fa-star", text: "A quest you change glows for players in their tracker and quest log until they open it. Needs the quest log." },
+  { id: "keybindings", icon: "fa-solid fa-keyboard", text: "Keyboard shortcuts for the character pane and the control panel, set in Configure Controls (no keys until you pick them)." },
+  { id: "coinLog", icon: "fa-solid fa-receipt", text: "GM only: a list of every coin movement the toolkit made, with Undo on the latest ones." },
+  { id: "splitCoin", icon: "fa-solid fa-divide", text: "Share the party's coin evenly among its members, with a preview. The odd coins stay with the party." },
+  { id: "innRestOffer", icon: "fa-solid fa-moon", text: "After renting rooms, long-rest everyone who rented in one click and move time on. Needs Rested at the inn." },
+  { id: "travelConfirm", icon: "fa-solid fa-signs-post", text: "Before Hex Travel or a flight: the cost, the time and who pays, with a confirm." },
+  { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
 
@@ -39,7 +47,7 @@ export const TABS = [
   {
     id: "travel", label: "Travel", icon: "fa-solid fa-route", anchor: "travel-tab",
     basic: [["zones", "hexTravel", "zones"], ["playerFlights", "flightMaster"], ["fareUnit", "flightMaster"]],
-    advanced: [["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapZoom", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
+    advanced: [["travelConfirmSkip", "travelConfirm"], ["flightDiscovered", "flightMaster"], ["flightAdvanceTime", "flightMaster"], ["flightMapLocked", "flightMaster:flightMap"], ["flightMapZoom", "flightMaster:flightMap"], ["flightMapImage", "flightMaster:flightMap:flightMapBackground"], ["flightMapFit", "flightMaster:flightMap:flightMapBackground"], ["flightMapOpacity", "flightMaster:flightMap:flightMapBackground"], ["flightMapScale", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetX", "flightMaster:flightMap:flightMapBackground"], ["flightMapOffsetY", "flightMaster:flightMap:flightMapBackground"], ["paceRequests", "hexTravel:travelPace"], ["encounterDie", "hexTravel"], ["offroadMult", "hexTravel"], ["mountMult", "hexTravel"], ["paceSlow", "hexTravel"], ["paceNormal", "hexTravel"], ["paceFast", "hexTravel"],
       ["flightSound", "flightMaster"], ["flightVolume", "flightMaster"], ["riderFeat", "riderFeat"], ["trackerJournal", null, "journal"], ["partyActor", null, "groupActor"]]
   },
   {
@@ -61,7 +69,7 @@ export const TABS = [
     id: "places", label: "Places", icon: "fa-solid fa-signs-post", anchor: "places-tab",
     basic: [["zoneTitleTrigger", "zoneTitles"], ["zoneTitleAudience", "zoneTitles"], ["innDefaultPrice", "restedInn"], ["innBenefit", "restedInn"]],
     advanced: [["zoneTitleAll", "zoneTitles"], ["zoneTitleSeconds", "zoneTitles"], ["zoneTitleStyle", "zoneTitles"], ["zoneTitleSound", "zoneTitles"], ["zoneTitleVolume", "zoneTitles"], ["zoneTitleOnLoad", "zoneTitles"],
-      ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"], ["pinsPlayers", "mapPins"], ["pinsEditAll", "mapPins"], ["pinsDimDone", "mapPins"], ["pinsSize", "mapPins"], ["pinsPaper", "mapPins"], ["pinsShowNotes", "mapPins"]]
+      ["innRestHours", "restedInn:innRestOffer"], ["innPayFrom", "restedInn"], ["innLastsAnywhere", "restedInn"], ["innStatus", "restedInn"], ["innRequests", "restedInn"], ["pinsPlayers", "mapPins"], ["pinsEditAll", "mapPins"], ["pinsDimDone", "mapPins"], ["pinsSize", "mapPins"], ["pinsPaper", "mapPins"], ["pinsShowNotes", "mapPins"]]
   },
   {
     id: "quests", label: "Quests", icon: "fa-solid fa-scroll", anchor: "quests-tab",
@@ -152,6 +160,8 @@ export const LABELS = {
   pinsSize: ["Pin size", "How big new pins are on the map, in pixels (32 to 96)."],
   pinsPaper: ["Parchment behind pins", "A small parchment disc behind each pin so the ink reads on dark maps. Reloads Foundry."],
   pinsShowNotes: ["Show map notes when a scene has pins", "Turns on Foundry's map notes display once in each browser the first time it shows a scene with pins. Anyone can turn it off again in the Journal Notes controls."],
+  innRestHours: ["Hours the inn rest moves time on", "After renting rooms, the rest offer can move world time on by this many hours (0: it never does). Flights never move time from here."],
+  travelConfirmSkip: ["Travel without the cost and time check", "Hex Travel and flights go straight away, without the window showing the cost, the time and who pays."],
   innRequests: ["Players can ask for rooms", "On an Inn scene, a player's Rent Rooms macro sends you a request with a button to rent."],
   questTracker: ["Show the quest tracker on my screen", "Just for you, on this computer: show your tracked quests on screen. Each player chooses for themselves."],
   questObjectiveChat: ["Announce objectives in chat", "Post a line in chat when you tick off or reveal an objective. Off: a pop-up notice instead."],
@@ -235,7 +245,7 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
@@ -255,9 +265,9 @@ export function presetSettings(preset) {
  * Record-type settings (stored lists, bookkeeping), never exported, imported or offered by the wizard: a settings file (the hub's
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE).
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen"]);
 
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

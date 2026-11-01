@@ -285,7 +285,7 @@ async function dropOne(doc, api, { auto = false } = {}) {
   let created = [];
   if (IP) {
     if (d.items.length) created = await doc.actor.createEmbeddedDocuments("Item", d.items.map(i => i.data));
-    if (coin) await api.addMoney(doc.actor, coin, { consolidate: true });
+    if (coin) await api.addMoney(doc.actor, coin, { consolidate: true, reason: "Boss loot coin on the body" });
     if (created.length || coin) await Trash.pileUp(doc, IP);
   }
   await card(doc, d, api, { created, coin, piles: !!IP, auto });
@@ -504,7 +504,7 @@ async function give(message, api) {
     const o = src.toObject(); delete o._id; delete o.folder; delete o.sort; delete o.ownership; docs.push(o);
   }
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
-  if (data.coin) await api.addMoney(party, data.coin, { consolidate: true });
+  if (data.coin) await api.addMoney(party, data.coin, { consolidate: true, reason: "Boss loot coin (Give to Party)" });
   await message.setFlag(ID, "bossLootCard", { ...data, given: true });
   ui.notifications.info(`Boss loot: gave ${docs.length} item${docs.length === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
 }

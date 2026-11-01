@@ -24,14 +24,23 @@ export const FEATURES = [
   { id: "partyGold", label: "Party gold tracker", hint: "GM only, read-only: the coin the player characters and the party actor carry (optionally their mundane gear too), compared with a wealth curve per act × party size." },
   { id: "zoneTitles", label: "Zone title cards", hint: "A title card (the scene's title, an optional subtitle and sound) fades in over the map when a scene is activated, or each time one is viewed. Per-scene title, subtitle and sound in the scene configuration." },
   { id: "restedInn", label: "Rested at the inn", hint: "Scenes marked as an Inn with a room price. Rent rooms (GM; players can ask) and the characters are Rested: their next long rest grants Heroic Inspiration (or an extra Hit Die, or temporary hit points), then Rested clears." },
-  { id: "mapPins", label: "Map pins", hint: "The party's own marks on any scene, in an inked, hand-drawn style: a label, a short note, a mark (pin, flag, camp, cave, …), an ink colour and an optional quest link. Players place and change party pins through the GM's client; GM pins can stay hidden until revealed." }
+  { id: "mapPins", label: "Map pins", hint: "The party's own marks on any scene, in an inked, hand-drawn style: a label, a short note, a mark (pin, flag, camp, cave, …), an ink colour and an optional quest link. Players place and change party pins through the GM's client; GM pins can stay hidden until revealed." },
+  // 1.28.0
+  { id: "questMapPins", label: "Quest objectives find their map pin", hint: "Clicking a tracked quest's objective (or its title) in the tracker, or an objective in the quest log, moves the map to the quest's map pin and pings it. Needs the quest log and map pins." },
+  { id: "questGlow", label: "Updated quests glow", hint: "When the GM changes a quest a player can see, it glows in that player's tracker and quest log until they open it. Each player's own computer remembers what they've seen. Needs the quest log." },
+  { id: "keybindings", label: "Keyboard shortcuts", hint: "Shortcuts for the character pane and (GM) the control panel in Configure Controls. No keys are set until you choose them." },
+  { id: "coinLog", label: "Coin log", hint: "GM only: every coin movement the toolkit makes (quest rewards, rooms, flight fares, vendor trash sales, loot coin, Split coin) is listed with who, how much, why and when, and the latest ones can be undone." },
+  { id: "splitCoin", label: "Split coin", hint: "GM: share the party actor's coin evenly among its members, with a preview first. What doesn't divide evenly stays with the party." },
+  { id: "innRestOffer", label: "Rest after renting rooms", hint: "After you rent rooms, the toolkit offers to long-rest everyone who rented and to move world time on (8 hours unless you change it). Needs Rested at the inn." },
+  { id: "travelConfirm", label: "Cost and time before travel", hint: "Hex Travel and flights show what the trip costs (gold, silver, copper), how long it takes and who pays, and ask before going." },
+  { id: "moduleHooks", label: "Hooks for other modules", hint: "Tells other modules (for example a session log) when quests change and when the party travels, through Foundry hooks. Nothing shows at the table." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 /**
  * Hard needs, checked by core: a feature whose needs are off counts as off. Kept to the pairs whose hints say "Needs …" and where
  * the dependent tool does nothing alone; call sites still check both (F.need twice) as before.
  */
-const NEEDS = { questTracker: ["questLog"] };
+const NEEDS = { questTracker: ["questLog"], questMapPins: ["questLog", "mapPins"], questGlow: ["questLog"], innRestOffer: ["restedInn"] };
 
 /** Core's feature registry bound to this module (wanderers-core createFeatures): same keys, same rules. */
 const CORE = createFeatures(ID, FEATURES.map(f => ({ ...f, needs: NEEDS[f.id] ?? [] })), { title: "Wayfarer's Toolkit" });

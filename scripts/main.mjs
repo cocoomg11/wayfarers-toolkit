@@ -32,6 +32,9 @@ import * as Pins from "./pins.mjs";
 import * as Vault from "./vault.mjs";
 import * as SceneConfig from "./scene-config.mjs";
 import * as Migrate from "./migrate.mjs";
+import * as CoinLog from "./coinlog.mjs";
+import * as CL from "./coinlog-model.mjs";
+import * as UX from "./quest-ux-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -89,7 +92,9 @@ const DEFAULTS = {
   flightAdvanceTime: false,
   goldAct: 1,
   goldCurve: curveText(DEFAULT_CURVE),
-  goldIncludeGear: false
+  goldIncludeGear: false,
+  travelConfirmSkip: false,
+  innRestHours: 8
 };
 /** The riding feat's name before v1.8.0. A world whose setting still holds it is treated as using the new default. */
 const OLD_RIDER = "Trained Rider";
@@ -242,6 +247,9 @@ function registerSettings() {
   s("flightMapOffsetX", "Flight route map: background offset across", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
   s("flightMapOffsetY", "Flight route map: background offset down", "", Number, { range: { min: -1, max: 1, step: 0.01 }, ...bg });
   s("flightMapZoom", "Flight route map: mouse-wheel zoom and pan", "Everyone can zoom the route map with the mouse wheel and drag the empty map to move it; Reset view goes back. Only the view changes.", Boolean, { onChange: () => FlightMap.refresh() });
+  // 1.28.0: cost and time before travel (feature travelConfirm), the inn rest offer's hours (feature innRestOffer).
+  s("travelConfirmSkip", "Travel: skip the cost and time confirm", "Hex Travel and flights go without showing the cost, time and who pays first.", Boolean);
+  s("innRestHours", "Inn: hours the rest offer moves time on", "After renting rooms, the long-rest offer can advance world time by this many hours (0: never).", Number, { range: { min: 0, max: 24, step: 1 } });
   s("flightAdvanceTime", "Flight Master: flights advance world time", "On arrival, world time advances by the flight's hours (game.time.advance, which calendar modules follow).", Boolean);
   // Party gold tracker.
   s("goldAct", "Party gold: current act / tier", "", Number, { range: { min: 1, max: 20, step: 1 }, onChange: () => Gold.refresh() });
@@ -458,6 +466,7 @@ export const WCT = {
     const pace = Pace.normPace(f.pace);
     const hours = Pace.tripHours({ road, off, mph: this.PACE[pace], offroadMult: this.OFFROAD_MULT, mountMult: this.MOUNT_MULT, mounted: !!f.mounted });
     if (!Number.isFinite(hours)) return ui.notifications.warn(`Hex Travel: the ${pace} pace setting is 0 miles per hour.`);
+    if (!(await tripConfirm("Hex Travel", `<p><strong>${esc(f.zone)}</strong>: ${road} road + ${off} off-road hex${road + off === 1 ? "" : "es"}, ${esc(pace)} pace${f.mounted ? ", mounted" : ""}. ${off ? `Each off-road hex rolls for an encounter.` : ""}</p>`, { cost: 0, hours }))) return;
     if (F.on("travelPace") && pace !== this.travelPaceNow()) await game.settings.set(ID, "travelPaceCurrent", pace);
     const table = game.tables.getName(Z[f.zone] ?? "");
     const enc = [];
@@ -472,6 +481,8 @@ export const WCT = {
     await this.appendPage("Travel Log", `<p><strong>Trip ${trips}.</strong> ${summary}</p>${encHtml}`);
     await this.gmWhisper(`<h3>Hex Travel</h3><p>${summary}</p>${encHtml}`);
     await this.say(`<p><em>The party travels ${road + off} miles through ${esc(f.zone)} (${hours.toFixed(1)} hours).</em></p>${F.on("travelPace") ? `<p>${esc(Pace.PACES[pace].label)} pace: ${esc(Pace.effectText(pace))}</p>` : ""}`, "Travel");
+    // Hex travel has no from/to points: the scene travelled from and the zone travelled through.
+    journeyHook({ kind: "hex", fromId: canvas?.scene?.id ?? null, toId: null, fromName: canvas?.scene?.name ?? "", toName: String(f.zone ?? ""), hours, cost: 0, partyId: this.partyActor()?.id ?? null });
     return { hours, enc };
   },
   /** Hex Travel's pace options; with Travel pace on, the party's pace is picked and the SRD 5.2 effects are named. */
@@ -612,7 +623,10 @@ export const WCT = {
       : `<p>Fare: ${fmtMoney(r.f)} per passenger × ${pax} passenger${pax === 1 ? "" : "s"} = <strong>${fmtMoney(q.total)}</strong></p>
       <p>${party ? `Party purse: ${this.purse(party)} (${fmtMoney(q.have)}; ${fmtMoney(q.have - q.total)} left after the flight)` : `No group actor named ${esc(this.PARTY)}: no fare is charged`}.</p>`;
     const land = gm && c.land.reason !== "ok" ? `<p class="hint">${esc(c.dest.name)} has ${c.land.reason === "missing" ? "a scene that no longer exists" : "no scene"}: the party lands there but the scene doesn't change.</p>` : "";
-    const go = await this.confirm("Flight Master", `${path(r)}${fare}<p>Flight time: ${r.h} hour${r.h === 1 ? "" : "s"}.</p>${land}<p>${gm ? "Fly now?" : "Book this flight?"}</p>`);
+    // Cost and time before travel (1.28): the same confirm, with cost in gold / silver / copper, time and who pays. A GM can skip it.
+    const trip = F.on("travelConfirm") ? `<table class="wct-trip"><tbody>${UX.tripLines({ cost: CL.breakdown(free || !party ? 0 : q.total, coins()), hours: r.h, payer: party?.name ?? "", free }).map(l => `<tr><th>${esc(l.label)}</th><td>${esc(l.value)}</td></tr>`).join("")}</tbody></table>` : "";
+    const skip = gm && F.on("travelConfirm") && setting("travelConfirmSkip");
+    const go = skip || await this.confirm("Flight Master", `${path(r)}${fare}${trip}<p>Flight time: ${r.h} hour${r.h === 1 ? "" : "s"}.</p>${land}<p>${gm ? "Fly now?" : "Book this flight?"}</p>`);
     if (!go) return;
     if (!gm) {
       if (!activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
@@ -652,11 +666,11 @@ export const WCT = {
     const { r, q, dest, land, charge } = c; free = c.free;
     const sc = c.changeScene ? fromUuidSync(land.sceneUuid, { strict: false }) : null;
     const before = party ? foundry.utils.deepClone(party.system.currency ?? {}) : null;
-    if (charge) await this.pay(party, charge);
+    if (charge) await this.pay(party, charge, { reason: `Flight: ${c.from.name} → ${dest.name}` });
     if (sc) {
       try { await sc.activate(); }
       catch (e) {
-        let refunded = false; if (charge) { try { await party.update({ "system.currency": before }); refunded = true; } catch (e2) { console.error(`${ID} | flight refund failed`, e2); } }
+        let refunded = false; if (charge) { try { const was = this.totalMoney(party); await party.update({ "system.currency": before }); refunded = true; await CoinLog.record(party, this.totalMoney(party) - was, `Flight refund: ${c.from.name} → ${dest.name}`); } catch (e2) { console.error(`${ID} | flight refund failed`, e2); } }
         return fail(`the scene "${sc.name}" couldn't be opened (${e.message}). ${refunded ? "The fare was refunded." : charge ? `Refund failed: give the party ${fmtMoney(charge)} back by hand.` : ""}`.trim());
       }
     }
@@ -673,6 +687,7 @@ export const WCT = {
       await this.gmWhisper(`<p><strong>Flight Master:</strong> the party landed at ${esc(dest.name)}, but ${why}, so the scene didn't change. You may want to move the party.</p>`);
     }
     if (by) this.tellFlight(userId, true, `Flight booked: ${c.from.name} → ${dest.name}. The party lands at ${dest.name}.`);
+    journeyHook({ kind: "flight", fromId: c.from.id, toId: dest.id, fromName: c.from.name, toName: dest.name, hours: r.h, cost: charge || 0, partyId: party?.id ?? null });
     return { ...r, free, charged: charge, sceneChanged: !!sc, landing: land.reason };
   },
   /** Long Road: which party members lack the riding feat (matched by the feat's flag or its name). */
@@ -771,6 +786,10 @@ export const WCT = {
   migrations: { status: () => Migrate.status(), run: () => (game.user.isGM ? Migrate.run(WCT) : []) },
   /** Map pins: place(), create(input, { scene, x, y }), update, move, remove, reveal (GM), open, list(scene), read(note); undefined when the feature is off. */
   get pins() { return F.on("mapPins") ? Pins.api : undefined; },
+  /** 1.28: coin log (GM): entries(), open(), undo(id); undefined when the feature is off. */
+  get coinLog() { return F.on("coinLog") ? gmOnlyApi({ entries: () => CoinLog.entries(), open: () => CoinLog.open(), undo: id => CoinLog.undo(id) }) : undefined; },
+  /** 1.28: GM: splits the party actor's coin evenly among its members, after a preview. */
+  splitCoin(party) { return F.need("splitCoin") && this.gmOnly() ? CoinLog.split(party ? (typeof party === "string" ? game.actors.get(party) ?? game.actors.getName(party) : party) : undefined) : undefined; },
   rentRooms(opts = {}) { return F.need("restedInn") ? Inn.rentRooms(opts) : undefined; },
   /**
    * Rested at the inn; undefined when the feature is off. inn(scene, innId?) the inn as charged; inns(scene) records; all(); rested(actor)
@@ -800,9 +819,14 @@ export const WCT = {
   parseMoney, fmtMoney, coins,
   totalMoney(a) { const c = a.system.currency ?? {}; return coins().reduce((t, [k, v]) => t + (c[k] || 0) * v, 0); },
   purse(a) { const c = a.system.currency ?? {}; const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; return coins().filter(([k]) => c[k]).map(([k]) => `${c[k]}${tight ? "" : " "}${C[k].abbreviation}`).join(" ") || "empty"; },
-  /** Spends the smallest coins first, then breaks one larger coin and gives change, so the purse keeps its mix. */
-  async pay(a, amount) {
+  /**
+   * Spends the smallest coins first, then breaks one larger coin and gives change, so the purse keeps its mix. `reason` (1.28):
+   * the coin log's line for it (GM client, feature coinLog on); without one nothing is logged.
+   * @param {any} a @param {number} amount @param {{ reason?: string, undoOf?: string | null }} [opts]
+   */
+  async pay(a, amount, { reason = "", undoOf = null } = {}) {
     if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wayfarer's Toolkit: you can only pay from coin you own."); return; }
+    const before = this.totalMoney(a);
     const c = { ...a.system.currency }; let need = Math.round(amount); const asc = coins().reverse();
     for (const [k, v] of asc) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] = (c[k] || 0) - take; need -= take * v; }
     if (need > 0) {
@@ -815,6 +839,7 @@ export const WCT = {
       }
     }
     await a.update({ "system.currency": c });
+    if (reason) await CoinLog.record(a, this.totalMoney(a) - before, reason, { undoOf });
   },
   /** Changes an actor's coins up into the largest coins (no electrum), keeping the total. */
   consolidate(a) { return this.addMoney(a, 0, { consolidate: true }); },
@@ -822,8 +847,10 @@ export const WCT = {
    * Adds coin (in the smallest coin) to an actor in a single write, skipped when nothing changes. Plain: the amount goes on top in
    * the largest coins. consolidate: the whole purse is changed up into the largest coins afterwards (no electrum).
    */
-  async addMoney(a, amount, { consolidate = false } = {}) {
+  /** @param {any} a @param {number} amount @param {{ consolidate?: boolean, reason?: string, undoOf?: string | null }} [opts] `reason`: as for pay(). */
+  async addMoney(a, amount, { consolidate = false, reason = "", undoOf = null } = {}) {
     if (!game.user.isGM) { ui.notifications.warn("Wayfarer's Toolkit: GM only."); return; }
+    const before = this.totalMoney(a);
     const old = a.system.currency ?? {}; const c = { ...old }; let left = Math.max(0, Math.round(amount));
     if (consolidate) left += this.totalMoney(a);
     for (const [k, v] of coins()) {
@@ -831,6 +858,7 @@ export const WCT = {
       const n = Math.floor(left / v); c[k] = consolidate ? n : (c[k] || 0) + n; left -= n * v;
     }
     if (Object.keys(c).some(k => c[k] !== old[k])) await a.update({ "system.currency": c });
+    if (reason) await CoinLog.record(a, this.totalMoney(a) - before, reason, { undoOf });
   },
   /** Old name kept for macros written against v1.0–1.2. */
   totalCp(a) { return this.totalMoney(a); }
@@ -854,7 +882,10 @@ Hooks.once("init", () => {
   registerSettings(); applyCoinSystem();
   Health.init(WCT); Panel.init(WCT); Updates.init(WCT);
   if (F.on("characterPane")) { Pane.registerHooks(); Pane.patchArmorClass(); }
-  if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker") });
+  if (F.on("questLog")) Quests.init(WCT, { tracker: F.on("questTracker"), goToPin: F.on("questMapPins") && F.on("mapPins") ? Pins.goToQuest : null, glow: F.on("questGlow"), hooks: F.on("moduleHooks") });
+  CoinLog.init(WCT);
+  if (F.on("splitCoin")) Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => CoinLog.addSplitControl(app, controls));
+  if (F.on("keybindings")) registerKeybindings();
   if (F.on("flightMaster")) registerFlightHooks();
   if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
@@ -905,6 +936,33 @@ Hooks.once("ready", () => {
 
 // Item Piles applies its system defaults shortly after its own ready hook; set the three-coin currencies after that.
 Hooks.once("item-piles-ready", () => setTimeout(() => syncItemPilesCoins(), 2000));
+
+/** Configure Controls entries (feature keybindings), no keys set: each user picks their own. The quest log's L key is the quest log's own. */
+function registerKeybindings() {
+  const reg = (key, name, hint, fn) => {
+    try { game.keybindings.register(ID, key, { name, hint, editable: [], onDown: () => { fn(); return true; }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL }); }
+    catch (e) { console.warn(`${ID} | key binding ${key} not registered`, e); }
+  };
+  if (F.on("characterPane")) reg("characterPane", "Open character pane", "Opens the character pane for the selected token's actor, or your character.", () => WCT.characterPane());
+  reg("controlPanel", "Open the control panel (GM)", "Opens the Wayfarer's Toolkit control panel. GM only.", () => { if (game.user.isGM) WCT.panel(); });
+}
+
+/**
+ * Cost and time before travel (feature travelConfirm): a confirm listing cost (gold, silver, copper), time and who pays. True to go.
+ * Skipped (true) when the feature is off or the GM chose to skip it.
+ * @param {string} title @param {string} intro HTML @param {{ cost: number, hours: number, payer?: string, free?: boolean }} trip
+ */
+async function tripConfirm(title, intro, { cost, hours, payer = "", free = false }) {
+  if (!F.on("travelConfirm") || setting("travelConfirmSkip")) return true;
+  const lines = UX.tripLines({ cost: CL.breakdown(cost, coins()), hours, payer, free });
+  return WCT.confirm(title, `${intro}<table class="wct-trip"><tbody>${lines.map(l => `<tr><th>${esc(l.label)}</th><td>${esc(l.value)}</td></tr>`).join("")}</tbody></table><p>Go?</p>`);
+}
+/** Tells other modules the party travelled (feature moduleHooks), on the GM client that ran the trip. */
+function journeyHook(j) {
+  if (!F.on("moduleHooks")) return;
+  const p = UX.journeyPayload({ ...j, cost: CL.breakdown(j.cost ?? 0, coins()) }); if (!p) return;
+  try { Hooks.callAll(UX.JOURNEY_HOOK, p); } catch (e) { console.warn(`${ID} | ${UX.JOURNEY_HOOK} listener`, e); }
+}
 
 function registerFlightHooks() {
   // Flight Master button in the token controls, for the GM and (when allowed) players.

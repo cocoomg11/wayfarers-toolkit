@@ -125,6 +125,8 @@ function settingsTab(tab) {
     ${F.on("flightMap") ? `<div class="wct-actions"><button type="button" data-act="flight-map" ${F.on("flightMaster") ? "" : "disabled"}><i class="fa-solid fa-map-location-dot"></i> Flight route map…</button><span class="hint">The network drawn as a map. Drag points to arrange it; players see the same layout.</span></div>` : ""}
     ${F.on("travelPace") ? `<div class="wct-actions"><button type="button" data-act="travel-pace" ${F.on("hexTravel") ? "" : "disabled"}><i class="fa-solid fa-person-hiking"></i> Travel pace…</button><span class="hint">The party's pace now: ${esc(API?.travelPaceNow?.() ?? "normal")}. Fast, normal or slow (careful), and what each does to checks.</span></div>` : ""}` : "";
   const loot = tab.id === "loot" ? `<div class="wct-actions"><button type="button" data-act="loot-history" ${F.on("lootRolls") ? "" : "disabled"}><i class="fa-solid fa-clock-rotate-left"></i> Loot history…</button><span class="hint">Every finished loot roll, with a tally per player, CSV export and Clear.</span></div>
+    ${F.on("coinLog") ? `<div class="wct-actions"><button type="button" data-act="coin-log"><i class="fa-solid fa-receipt"></i> Coin log…</button><span class="hint">Every coin movement the toolkit made (quest rewards, rooms, fares, sales, loot coin), with Undo on the latest.</span></div>` : ""}
+    ${F.on("splitCoin") ? `<div class="wct-actions"><button type="button" data-act="split-coin"><i class="fa-solid fa-divide"></i> Split coin…</button><span class="hint">Shares the party actor's coin evenly among its members, after a preview. Also in the party sheet's header menu.</span></div>` : ""}
     ${F.on("partyGold") ? `<div class="wct-actions"><button type="button" data-act="party-gold"><i class="fa-solid fa-scale-balanced"></i> Party gold…</button><span class="hint">The party's coin against the wealth curve for each act, in green, amber or red.</span></div>` : ""}` : "";
   const places = tab.id === "places" ? `<div class="wct-actions"><button type="button" data-act="zone-preview" ${F.on("zoneTitles") ? "" : "disabled"}><i class="fa-solid fa-signs-post"></i> Preview title card</button><span class="hint">Shows this scene's card on your screen only. Set each scene's title, subtitle and sound in its configuration.</span></div>
     <div class="wct-actions"><button type="button" data-act="rent-rooms" ${F.on("restedInn") ? "" : "disabled"}><i class="fa-solid fa-bed"></i> Rent rooms…</button><span class="hint">For the scene you're viewing. Add inns (name, room price, innkeeper) in the scene configuration's Table Tools tab, or with <em>Make innkeeper here…</em> on a token's HUD.</span></div>` : "";
@@ -300,6 +302,8 @@ export class ControlPanel extends foundry.applications.api.ApplicationV2 {
       if (act === "flight-map") return API.flightMap();
       if (act === "travel-pace") return API.travelPace();
       if (act === "party-gold") return API.partyGold();
+      if (act === "coin-log") return API.coinLog?.open();
+      if (act === "split-coin") return API.splitCoin();
       if (act === "zone-preview") return API.zoneTitles?.show(canvas?.scene);
       if (act === "rent-rooms") return API.rentRooms();
       if (act === "tracker-reset") { await API.quests?.showTracker(true); return await API.quests?.resetTrackerPosition(); }

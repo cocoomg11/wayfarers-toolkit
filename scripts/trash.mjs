@@ -817,7 +817,7 @@ async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {
     if (!d.items.length && !d.copper && !extra.length) { empty.push(doc.name); report.empty++; continue; }
     report.dropped++;
     if (d.copper) {
-      await api.addMoney(actor, d.copper * cpVal, { consolidate: true });
+      await api.addMoney(actor, d.copper * cpVal, { consolidate: true, reason: "Vendor trash coin on the body" });
       const v = d.copper * cpVal; coinTotal += v; parts.push(`<em>${api.fmtMoney(v)}</em>`);
     }
     await pileUp(doc, IP);
@@ -874,7 +874,7 @@ export async function giveTrash(message, api) {
   if (updates.length) await party.updateEmbeddedDocuments("Item", updates);
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
   if (data.extra?.length) await party.createEmbeddedDocuments("Item", data.extra, { wctInternal: true });
-  if (data.coin) await api.addMoney(party, Math.round(data.coin / cpVal) * cpVal, { consolidate: true });
+  if (data.coin) await api.addMoney(party, Math.round(data.coin / cpVal) * cpVal, { consolidate: true, reason: "Loot coin (Give to Party)" });
   await message.setFlag(ID, "trash", { ...data, given: true });
   const n = data.drops.length + (data.extra?.length ?? 0);
   ui.notifications.info(`Vendor Trash: gave ${n} item${n === 1 ? "" : "s"}${data.coin ? ` and ${api.fmtMoney(data.coin)}` : ""} to ${party.name}.`);
@@ -917,7 +917,7 @@ export async function sellTrash(api, actor = null) {
   const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Sell Vendor Trash" }, content: `<p><strong>${esc(actor.name)}</strong></p><ul>${each.map(x => `<li>${esc(x.i.name)}${x.i.system.quantity > 1 ? ` ×${x.i.system.quantity}` : ""}: ${api.fmtMoney(x.v)}</li>`).join("")}</ul><p>Sell all for <strong>${api.fmtMoney(total)}</strong>?</p>`, rejectClose: false });
   if (!ok) return;
   await actor.deleteEmbeddedDocuments("Item", trash.map(i => i.id));
-  await api.addMoney(actor, Math.round(total / cpVal) * cpVal, { consolidate: true });
+  await api.addMoney(actor, Math.round(total / cpVal) * cpVal, { consolidate: true, reason: "Sold vendor trash" });
   await api.say(`<p>${actor === party ? "The party sells its" : `${esc(actor.name)} sells their`} vendor trash for ${api.fmtMoney(total)}.</p>`, "Vendor");
   return total;
 }

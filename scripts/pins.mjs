@@ -11,6 +11,7 @@ import * as Quests from "./quests.mjs";
 import { activeGM, handle, request, notify } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as Vault from "./vault.mjs";
+import * as UX from "./quest-ux-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -389,6 +390,42 @@ async function showNotes() {
   if (!M.showNotesNow({ setting: get("pinsShowNotes", true), toggle, done: get("pinsNotesShown", false), hasPins: list().length > 0 })) return;
   try { await game.settings.set("core", key, true); await game.settings.set(ID, "pinsNotesShown", true); log("map pins: map notes display turned on in this browser"); }
   catch (e) { log(`map pins: couldn't turn map notes on (${e.message})`); }
+}
+
+// ---------------------------------------------------------------- 1.28: a quest's objective click finds its pin (feature questMapPins)
+/** Every pin this user may know about that links to a quest: [{ id, sceneId, x, y, quest, hidden }] (GM: hidden ones too). */
+export function questPins() {
+  const out = []; const isGM = !!game.user?.isGM;
+  for (const s of game.scenes ?? []) for (const n of s.notes ?? []) {
+    const pin = M.pinOf(n); if (!pin?.quest || !M.drawn(pin, isGM)) continue;
+    out.push({ id: n.id, sceneId: s.id, x: n.x, y: n.y, quest: pin.quest, hidden: !!pin.hidden });
+  }
+  if (isGM) for (const r of Object.values(hiddenBucket()).map(M.readHidden)) if (r?.pin?.quest) out.push({ id: r.id, sceneId: r.sceneId, x: r.x, y: r.y, quest: r.pin.quest, hidden: true });
+  return out;
+}
+/** Pans to a point on the scene being viewed and pings it (no ping for a hidden GM pin: pings show for everyone on the scene). */
+async function panPing(pin) {
+  try { await canvas.animatePan({ x: pin.x, y: pin.y, duration: 500 }); } catch (e) { log(`map pins: pan failed (${e.message})`); }
+  if (UX.mayPing(pin)) { try { await canvas.ping({ x: pin.x, y: pin.y }); } catch (e) { log(`map pins: ping failed (${e.message})`); } }
+}
+/**
+ * Moves the map to a quest's pin and pings it. Another scene: a GM is offered to view it (then the map moves there); a player is
+ * told which scene it's on. No pin: a short notice. Returns what happened: "here" | "other" | "none".
+ * @param {string} questId
+ * @param {{ quiet?: boolean }} [opts] quiet: say nothing when the quest has no pin
+ */
+export async function goToQuest(questId, { quiet = false } = {}) {
+  const t = UX.pinTarget({ questId, sceneId: canvas?.scene?.id ?? null, pins: questPins() });
+  if (t.kind === "none") { if (!quiet) ui.notifications.info("This quest has no map pin. Link one from a pin's card (Map pin tool)."); return "none"; }
+  const pin = t.pin;
+  if (t.kind === "here" && canvas?.ready) { await panPing(pin); return "here"; }
+  const scene = game.scenes.get(pin.sceneId); const name = scene?.navName || scene?.name || "another scene";
+  if (!game.user.isGM) { ui.notifications.info(`This quest's map pin is on ${name}.`); return "other"; }
+  const go = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-window"], window: { title: "Quest map pin" }, content: `<p>This quest's map pin is on <strong>${esc(name)}</strong>. View that scene? (Only you move; players stay where they are.)</p>`, rejectClose: false });
+  if (!go || !scene) return "other";
+  Hooks.once("canvasReady", () => { panPing(pin).catch(() => {}); });
+  await scene.view();
+  return "other";
 }
 
 /** Health check facts. */
