@@ -192,7 +192,8 @@ function issuesFrom(sections) {
       const tmp = document.createElement("div"); tmp.innerHTML = l.text;
       const hasAutolink = !!tmp.querySelector("[data-wct-action=autolink-boss]"); tmp.querySelectorAll("button").forEach(b => b.remove());
       if (s.title === "Setup") { missing.push(tmp.textContent.replace(/: missing$/, "").trim()); continue; }
-      out.push({ level: l.level, text: tmp.innerHTML.trim(), fix: M.issueFix(s.title, tmp.textContent, { hasAutolink }) });
+      // A health line's own fix (health.mjs FIXES, 1.30) is used when the panel has none of its own for that line.
+      out.push({ level: l.level, text: tmp.innerHTML.trim(), fix: M.issueFix(s.title, tmp.textContent, { hasAutolink }) ?? (l.fix?.run ? { action: "run", label: l.fix.label, run: l.fix.run, confirm: l.fix.confirm } : null) });
     }
   }
   if (missing.length) out.unshift({ level: "bad", text: `Setup hasn't made everything the tools need yet: ${missing.map(esc).join(", ")}.`, fix: { action: "setup", label: "Run setup" } });
@@ -342,6 +343,10 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
     if (fix.action === "reload") return foundry.utils.debouncedReload?.() ?? location.reload();
     if (fix.action === "autolink") { btn.disabled = true; await API.bossLoot?.autoLink(); return this.loadOverview(); }
     if (fix.action === "flights") return API.flightEditor();
+    if (fix.action === "run" && typeof fix.run === "function") {
+      if (fix.confirm && !(await confirm(fix.label, `<p>${esc(fix.confirm)}</p>`))) return;
+      btn.disabled = true; await fix.run(); return this.loadOverview();
+    }
     if (fix.action === "flightImport") { if (await FlightEditor.importFlow(API)) this.loadOverview(); return; }
     if (fix.action === "rules") {
       const j = game.journal.getName(API.JOURNAL); if (!j) return runSetup(() => this.loadOverview());

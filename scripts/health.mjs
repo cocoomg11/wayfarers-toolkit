@@ -19,13 +19,19 @@ import * as Vault from "./vault.mjs";
 import * as Migrate from "./migrate.mjs";
 import * as Card from "./health-card-model.mjs";
 import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
-import { sceneTab } from "../vendor/wanderers-core/foundry/index.mjs";
+import { sceneTab, fileInDataFolder } from "../vendor/wanderers-core/foundry/index.mjs";
 import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const line = (level, text) => ({ level, text });
-const ok = t => line("ok", t), warn = t => line("warn", t), bad = t => line("bad", t), off = t => line("off", t);
+/**
+ * One line. `fix` (1.30, core 0.5.0's contract, read by the Wanderer's Satchel): `{ label, run, confirm? }`, a safe one-click repair
+ * offered as a Fix button in the Satchel and in the control panel's Overview. Anything that changes data has a `confirm` text.
+ * The HTML card and window ignore it; healthReport() passes it through (core's healthLine/readFix).
+ * @param {string} level @param {string} text @param {{ label: string, run: () => any, confirm?: string }} [fix]
+ */
+const line = (level, text, fix) => (fix ? { level, text, fix } : { level, text });
+const ok = t => line("ok", t), warn = (t, fix) => line("warn", t, fix), bad = (t, fix) => line("bad", t, fix), off = t => line("off", t);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const modActive = id => !!game.modules.get(id)?.active;
 const gmIds = () => game.users.filter(u => u.isGM).map(u => u.id);
@@ -82,7 +88,7 @@ function coins(api) {
 function setupState(api) {
   const plan = api.setupPlan();
   if (!plan.length) return [off("Nothing to set up for the features turned on.")];
-  return plan.map(p => p.ok ? ok(`${esc(p.label)}`) : bad(`${esc(p.label)}: missing`));
+  return plan.map(p => p.ok ? ok(`${esc(p.label)}`) : bad(`${esc(p.label)}: missing`, FIXES.setup(api)));
 }
 
 async function bossLoot(api) {
@@ -94,7 +100,7 @@ async function bossLoot(api) {
   }
   const pr = BossLoot.partyRules();
   const unlinked = game.actors.filter(a => a.type === "npc" && !a.getFlag(ID, "bossLoot") && game.tables.some(t => BossLoot.tableOwnerName(t.name) === a.name.trim())).map(a => a.name);
-  const linkLine = unlinked.length ? [warn(`${plural(unlinked.length, "creature")} with a table named for it but not linked (${listNames(unlinked, 6)}). <button type="button" data-wct-action="autolink-boss" style="width:auto;line-height:1.4;padding:0 0.4em;"><i class="fa-solid fa-link"></i> Link boss tables by name</button>`)] : [];
+  const linkLine = unlinked.length ? [warn(`${plural(unlinked.length, "creature")} with a table named for it but not linked (${listNames(unlinked, 6)}). <button type="button" data-wct-action="autolink-boss" style="width:auto;line-height:1.4;padding:0 0.4em;"><i class="fa-solid fa-link"></i> Link boss tables by name</button>`, FIXES.autolink(api))] : [];
   out.push(ok(`Party size ${pr.size}: boss coin ×${(pr.size / 4).toFixed(2).replace(/\.?0+$/, "")}${pr.size > 4 ? (pr.extra ? ", +1 draw for bosses with 3 or more" : ", no extra draw (setting off)") : ""}.`));
   if (!targets.length) return [...out, off("No creature has a boss loot table linked."), ...linkLine];
   const checker = BossLoot.liveChecker();
@@ -348,8 +354,10 @@ function shared() {
   if (want) out.push(mine.length ? ok("Table Tools tab in Scene Configuration: the toolkit's section is registered.") : warn("Table Tools tab: the toolkit's section isn't registered, so scene title cards, Dungeon and inns can't be set (reload Foundry)."));
   const v = Vault.status();
   if (!v.exists) out.push(off("GM-only records: none yet (made the first time something GM-only is saved)."));
-  else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "${v.name || "Wanderer's Toolkit (GM only)"}" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`));
+  else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "${v.name || "Wanderer's Toolkit (GM only)"}" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`, FIXES.vaultPrivate()));
   else out.push(ok(`GM-only records: kept in "${v.name || "Wanderer's Toolkit (GM only)"}", players can't open it (${plural(v.buckets.length, "kind")} of record).`));
+  if (v.exists && !v.filed && !v.inFolder) out.push(line("info", `GM-only records: the journal sits at the top of the Journal sidebar; the acting GM files it into the shared "Module data" folder once on their next load.`, FIXES.fileVault()));
+  if (v.count > 1) out.push(warn(`GM-only records: ${v.count} journals are marked as the toolkit's store (two GMs created one at once); only the first is used. Delete the empty one by hand after checking it.`));
   const pending = Migrate.status().filter(m => !m.done).map(m => m.id);
   if (pending.length) out.push(off(`1.27 data moves not run yet: ${pending.join(", ")} (they run on the acting GM's next load, or with a tool turned on).`));
   return out;
@@ -358,6 +366,42 @@ function shared() {
 function updateNotes() {
   const u = Updates.status();
   return [u.on ? ok(`Update notes: on (last version seen in this world: ${esc(u.lastSeen || "none yet")}).`) : off("Update notes: off (control panel › Overview).")];
+}
+
+/**
+ * The safe fixes health lines offer (1.30). Each runs on the GM client that clicks it and changes only what its confirm text says.
+ * Exported for tests.
+ */
+export const FIXES = {
+  /** Run setup: creates what's missing (journal, party actor, macros); never overwrites anything. */
+  setup: api => ({ label: "Run setup", confirm: "Run setup creates what the tools need and is missing (tracker journal, party actor, macros in the toolkit's macro folder). Nothing that exists is changed or overwritten.", run: () => api.setup() }),
+  /** Link boss tables by name: links each creature to the roll table named "<name> · Loot"; existing links are kept. */
+  autolink: api => ({ label: "Link boss tables", confirm: "Link each creature to the roll table named after it (\"<creature name> · Loot\")? Creatures that already have a boss loot table keep it.", run: () => api.bossLoot?.autoLink() }),
+  /** File the GM-only records journal into the shared "Module data" folder now (otherwise the acting GM does it on load). */
+  fileVault: () => ({ label: "File it now", confirm: "Move the GM-only records journal into the shared \"Module data\" journal folder (hidden from the Journal sidebar unless Show module data folder is on)? Its name, ownership and records stay as they are; you can move it again afterwards.", run: () => fileVault() }),
+  /** The GM-only records journal back to ownership None for every player. */
+  vaultPrivate: () => ({ label: "Make GM only", confirm: "Set the GM-only records journal's ownership to None for every player (default None too)? Players lose access to it; GMs keep full access.", run: () => vaultPrivate() })
+};
+/** A GM click: files the store journal like core's file() does on the acting GM (moved only from the root, then marked filed). */
+async function fileVault() {
+  const j = Vault.entry(); if (!j || !game.user?.isGM) return false;
+  await fileInDataFolder(ID, j);
+  if (j.folder) await j.setFlag(ID, "dataFolderFiled", true);
+  return true;
+}
+/** Ownership None for the default and for every player who has a level of their own on the store journal. */
+async function vaultPrivate() {
+  const j = Vault.entry(); if (!j || !game.user?.isGM) return false;
+  const NONE = CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE;
+  await j.update({ ownership: vaultOwnership(j.ownership, game.users.filter(u => !u.isGM).map(u => u.id), NONE) });
+  return true;
+}
+/** Pure: the ownership update that leaves GMs as they are and puts the default and every listed player at `none`. */
+export function vaultOwnership(current, playerIds, none = 0) {
+  /** @type {Record<string, number>} */
+  const out = { default: none };
+  for (const id of playerIds) if (current && id in current) out[id] = none;
+  return out;
 }
 
 /** @type {[string, (api: any) => any][]} */
@@ -392,7 +436,8 @@ export async function report(api, { timeoutMs } = {}) {
   const c = healthCollector({ timeoutMs: reportTimeout(timeoutMs) });
   for (const [title, fn] of SECTIONS) {
     await c.checkAsync(title, async add => {
-      for (const l of (await fn(api)) ?? []) add(l.level, toPlain(l.text));
+      // A line's fix (FIXES) goes through as well: core's collector keeps it for the Satchel's Fix button.
+      for (const l of (await fn(api)) ?? []) add(l.level, toPlain(l.text), l.fix);
     });
   }
   return c.report();
