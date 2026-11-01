@@ -9,6 +9,7 @@
 import { notify } from "./gm.mjs";
 import * as Vault from "./vault.mjs";
 import { publicQuest, isPublic, stripSecrets } from "./quests-model.mjs";
+import * as TM from "./tracker-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -283,20 +284,109 @@ function autoTrack(j) {
 }
 
 // ---------------------------------------------------------------- tracker HUD
+/*
+ * The on-screen tracker: a fixed box the user drags by its header (pointer: mouse, pen or touch) or moves with the arrow keys
+ * when the grip has focus (Shift: further; Home: back to the default spot; double-click the header does the same). Where it sits
+ * is per client (hidden setting `trackerPos`, tracker-model.mjs); unmoved, it goes where it overlaps none of Foundry's own
+ * interface. The X turns this client's "Show on screen" setting (`questTracker`) off; the quest log has the switch to bring it back.
+ */
 /** @type {any} */
 let hud = null;
 let hudHTML = "";
+/** @type {any} */
+let hudDrag = null;
+/** @type {any} */
+let hudSaveT = null;
+/** Core interface boxes the default spot keeps clear of (v13/v14 ids; the children of the left and right columns too). */
+const CORE_UI = ["#sidebar", "#scene-controls", "#controls", "#scene-navigation", "#navigation", "#players", "#hotbar", "#camera-views", "#ui-left > *", "#ui-right > *", "#ui-bottom > *"];
+function coreBoxes() {
+  const vw = window.innerWidth, vh = window.innerHeight, seen = new Set(), out = [];
+  for (const sel of CORE_UI) for (const el of document.querySelectorAll(sel)) {
+    if (seen.has(el) || el === hud) continue; seen.add(el);
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0) || r.width * r.height > vw * vh * 0.4) continue; // an empty full-screen layer isn't an obstacle
+    out.push({ x: r.left, y: r.top, w: r.width, h: r.height });
+  }
+  return out;
+}
+const view = () => ({ vw: window.innerWidth, vh: window.innerHeight });
+const hudSize = () => { const r = hud.getBoundingClientRect(); return { w: r.width || 250, h: r.height || 60 }; };
+const hudAt = () => ({ x: parseFloat(hud.style.left) || 0, y: parseFloat(hud.style.top) || 0 });
+function setAt(p) { hud.style.left = `${p.x}px`; hud.style.top = `${p.y}px`; }
+/** Puts the tracker at its saved spot (or the default one), inside the window. Also run on resize and UI scale changes. */
+function placeTracker() {
+  if (!hud || hud.hidden || hudDrag) return;
+  const size = hudSize(), saved = TM.parsePos(S("trackerPos"));
+  // The default is chosen for a short tracker (header and one quest) so it doesn't jump about as quests are added.
+  setAt(saved ? TM.fromSaved(saved, size, view()) : TM.clampPos(TM.defaultPos({ w: size.w, h: Math.min(size.h, 120) }, view(), coreBoxes()), size, view()));
+}
+function saveTrackerPos(p, later = false) {
+  clearTimeout(hudSaveT);
+  const write = () => game.settings.set(ID, "trackerPos", TM.toSaved(p, hudSize(), view()));
+  if (later) hudSaveT = setTimeout(write, 400); else write();
+}
+/** Puts this client's tracker back where it starts. */
+export async function resetTrackerPosition() {
+  clearTimeout(hudSaveT);
+  await game.settings.set(ID, "trackerPos", {});
+  placeTracker();
+}
+/** Shows or hides the tracker on this client (`on` omitted: toggles). Returns the new state. @param {boolean | null} [on] */
+export async function showTracker(on = null) {
+  if (!TRACKER) return false;
+  on ??= !S("questTracker");
+  if (on !== S("questTracker")) await game.settings.set(ID, "questTracker", on);
+  return on;
+}
+function hudDown(ev) {
+  if (ev.button !== 0 || ev.target.closest("button") || !ev.target.closest("header")) return;
+  ev.preventDefault();
+  const p = hudAt();
+  hudDrag = { id: ev.pointerId, ox: ev.clientX - p.x, oy: ev.clientY - p.y, from: p, moved: false };
+  ev.target.closest("header").setPointerCapture?.(ev.pointerId);
+  hud.classList.add("dragging");
+}
+function hudMove(ev) {
+  if (!hudDrag || ev.pointerId !== hudDrag.id) return;
+  hudDrag.moved = true;
+  setAt(TM.clampPos({ x: ev.clientX - hudDrag.ox, y: ev.clientY - hudDrag.oy }, hudSize(), view()));
+}
+function hudUp(ev) {
+  if (!hudDrag || ev.pointerId !== hudDrag.id) return;
+  const { moved } = hudDrag; hudDrag = null; hud.classList.remove("dragging");
+  if (moved) saveTrackerPos(hudAt());
+  if (!hudHTML) renderTracker();
+}
+function hudKey(ev) {
+  if (!ev.target.closest?.(".grip")) return;
+  if (hudDrag && ev.key === "Escape") { setAt(hudDrag.from); hudDrag = null; hud.classList.remove("dragging"); return; }
+  if (ev.key === "Home") { ev.preventDefault(); resetTrackerPosition(); return; }
+  const n = TM.nudge(hudAt(), ev.key, ev.shiftKey); if (!n) return;
+  ev.preventDefault(); ev.stopPropagation(); // keep the arrows from also panning the canvas
+  const p = TM.clampPos(n, hudSize(), view()); setAt(p); saveTrackerPos(p, true);
+}
 function renderTracker() {
-  if (!TRACKER || !S("questTracker")) { hud?.remove(); hud = null; hudHTML = ""; return; }
+  if (!TRACKER || !S("questTracker")) {
+    if (hud) { hud.remove(); hud = null; hudHTML = ""; hudDrag = null; if (LOG?.rendered) LOG.render(); } // the log's Show tracker switch
+    return;
+  }
   const list = tracked().map(find).filter(j => j && canSee(j) && data(j).status === "active");
   if (!hud) {
     hud = document.createElement("section"); hud.id = "wct-quest-tracker"; hud.setAttribute("aria-label", "Tracked quests");
-    (document.getElementById("ui-middle") ?? document.body).append(hud);
+    document.body.append(hud);
     hud.addEventListener("click", ev => {
       const t = ev.target.closest("[data-action]"); if (!t) return;
       if (t.dataset.action === "collapse") game.settings.set(ID, "trackerCollapsed", !S("trackerCollapsed")).then(renderTracker);
+      else if (t.dataset.action === "close") showTracker(false);
       else if (t.dataset.action === "open") open(t.closest("[data-quest-id]")?.dataset.questId);
     });
+    hud.addEventListener("dblclick", ev => { if (ev.target.closest("header") && !ev.target.closest("button")) resetTrackerPosition(); });
+    hud.addEventListener("pointerdown", hudDown);
+    hud.addEventListener("pointermove", hudMove);
+    hud.addEventListener("pointerup", hudUp);
+    hud.addEventListener("pointercancel", hudUp);
+    hud.addEventListener("keydown", hudKey);
+    if (LOG?.rendered) LOG.render();
   }
   hud.hidden = !list.length;
   const collapsed = !!S("trackerCollapsed");
@@ -308,8 +398,21 @@ function renderTracker() {
   };
   hud.classList.toggle("collapsed", collapsed);
   // Only touch the DOM when the list actually changed (most journal updates don't change what the tracker shows).
-  const html = `<header><button type="button" data-action="collapse" aria-expanded="${!collapsed}" data-tooltip="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button><span>Quests</span><span class="n">${list.length}</span></header>${collapsed ? "" : `<ol>${list.map(item).join("")}</ol>`}`;
-  if (html !== hudHTML) { hud.innerHTML = html; hudHTML = html; }
+  const html = `<header data-tooltip="Drag to move. Double-click to put it back." data-tooltip-direction="UP">`
+    + `<span class="grip" tabindex="0" role="button" aria-label="Move the quest tracker: arrow keys move it, Shift for bigger steps, Home puts it back"><i class="fa-solid fa-grip-vertical"></i></span>`
+    + `<span class="label">Quests</span><span class="n">${list.length}</span>`
+    + `<button type="button" data-action="collapse" aria-expanded="${!collapsed}" aria-controls="wct-quest-tracker-list" aria-label="${collapsed ? "Show" : "Hide"} tracked quests" data-tooltip="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button>`
+    + `<button type="button" data-action="close" aria-label="Close the quest tracker" data-tooltip="Close (bring it back from the quest log)"><i class="fa-solid fa-xmark"></i></button>`
+    + `</header>${collapsed ? "" : `<ol id="wct-quest-tracker-list">${list.map(item).join("")}</ol>`}`;
+  if (hudDrag) { hudHTML = ""; return; } // redraw after the drag (a new header would drop the pointer capture); hudUp calls back
+  if (html !== hudHTML) {
+    // Keep keyboard focus on the grip or header button across a redraw.
+    const a = /** @type {HTMLElement | null} */ (document.activeElement);
+    const focused = a && hud.contains(a) ? (a.classList.contains("grip") ? ".grip" : a.dataset.action ? `header [data-action="${a.dataset.action}"]` : null) : null;
+    hud.innerHTML = html; hudHTML = html;
+    if (focused) /** @type {HTMLElement | null} */ (hud.querySelector(focused))?.focus();
+  }
+  placeTracker();
 }
 
 // ---------------------------------------------------------------- the quest log window
@@ -353,12 +456,22 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
     div.className = "wctq-frame";
     div.innerHTML = `
       <nav class="wctq-tabs" role="tablist">${tabs.map(t => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === this.tab}" class="${t === this.tab ? "on" : ""}">${TABS[t]} <span>${quests.filter(x => inTab(x.q, t)).length}</span></button>`).join("")}
+        ${TRACKER ? this.trackerSwitch() : ""}
         ${gm ? `<button type="button" class="wctq-new" data-action="new"><i class="fa-solid fa-plus"></i> New quest</button>` : ""}</nav>
       <div class="wctq-body">
         <aside class="wctq-list"><ul>${list}</ul></aside>
         <article class="wctq-detail">${sel ? await this.detailHTML(sel.j, sel.q) : `<div class="wctq-empty"><p>${gm ? "Create a quest with <strong>New quest</strong>." : "Your quest log is empty."}</p></div>`}</article>
       </div>`;
     return div;
+  }
+
+  /** The tracker's on/off switch (this client) and its Reset position button, at the right of the tabs. */
+  trackerSwitch() {
+    const on = !!S("questTracker");
+    return `<span class="wctq-trk">
+      <button type="button" class="wctq-tool ${on ? "on" : ""}" data-tracker="toggle" aria-pressed="${on}" data-tooltip="${on ? "The tracker is on your screen. Click to close it." : "The tracker is closed. Click to show it."}"><i class="fa-solid fa-location-crosshairs"></i> ${on ? "Tracker shown" : "Show tracker"}</button>
+      <button type="button" class="wctq-tool icon" data-tracker="reset" aria-label="Reset tracker position" data-tooltip="Put the tracker back in its starting spot"><i class="fa-solid fa-arrows-to-dot"></i></button>
+    </span>`;
   }
 
   async detailHTML(j, q) {
@@ -420,9 +533,15 @@ export class QuestLog extends foundry.applications.api.ApplicationV2 {
       if (d?.sheet && (d.testUserPermission?.(game.user, "LIMITED") ?? true)) d.sheet.render(true); else ui.notifications.info(a.textContent.trim());
     }));
     root.querySelector("[data-action=new]")?.addEventListener("click", () => new QuestEditor(null).render({ force: true }));
+    root.querySelector("[data-tracker=toggle]")?.addEventListener("click", () => showTracker());
+    root.querySelector("[data-tracker=reset]")?.addEventListener("click", async () => { if (!S("questTracker")) await showTracker(true); await resetTrackerPosition(); });
     const page = root.querySelector(".wctq-page"); if (!page) return;
     const id = page.dataset.questId; const j = find(id); if (!j) return;
-    root.querySelector("[data-action=track]")?.addEventListener("change", async ev => { const on = await track(id, ev.target.checked); ev.target.checked = !!on; });
+    root.querySelector("[data-action=track]")?.addEventListener("change", async ev => {
+      const on = await track(id, ev.target.checked); ev.target.checked = !!on;
+      // Tracking never reopens a tracker the user closed; say where it is instead.
+      if (on && !S("questTracker")) ui.notifications.info("Quest tracked. Your quest tracker is closed: use Show tracker at the top of the quest log to bring it back.");
+    });
     const act = {
       give: () => run("setStatus", id, "active"),
       complete: () => run("setStatus", id, "completed"),
@@ -592,7 +711,9 @@ export const api = {
   hide: (ref, hidden = true) => run("setHidden", find(ref)?.id ?? ref, hidden),
   delete: (ref) => run("remove", find(ref)?.id ?? ref),
   payRewards: (ref) => run("pay", find(ref)?.id ?? ref),
-  track, tracked, find, normalize, pageHTML
+  track, tracked, find, normalize, pageHTML,
+  /** This client's tracker: showTracker(on?) shows/hides it (omitted: toggles), resetTrackerPosition() puts it back. */
+  showTracker, resetTrackerPosition
 };
 
 // ---------------------------------------------------------------- setup
@@ -611,6 +732,8 @@ export function registerSettings({ tracker = false } = {}) {
   if (tracker) game.settings.register(ID, "questTracker", { name: "Quest tracker: Show on screen", hint: "Show tracked quests and their open objectives on screen. Tick Track on a quest in the quest log to follow it.", scope: "client", config: true, type: Boolean, default: true, onChange: () => renderTracker() });
   game.settings.register(ID, "trackedQuests", { scope: "client", config: false, type: String, default: "[]" });
   game.settings.register(ID, "trackerCollapsed", { scope: "client", config: false, type: Boolean, default: false });
+  // Where this client's tracker sits (tracker-model.mjs; {} = not moved: the default spot).
+  game.settings.register(ID, "trackerPos", { scope: "client", config: false, type: Object, default: {} });
 }
 
 /** @type {any} */
@@ -651,8 +774,17 @@ export function init(wct, { tracker = true } = {}) {
 export function ready() {
   for (const j of all()) seen.set(j.id, liveFor(j));
   renderTracker();
+  if (TRACKER) {
+    /** @type {any} */
+    let t = null;
+    const later = () => { cancelAnimationFrame(t); t = requestAnimationFrame(() => placeTracker()); };
+    window.addEventListener("resize", later);
+    // UI scale / font size change the core interface's boxes (and so the default spot); a collapsed sidebar frees room on the right.
+    Hooks.on("clientSettingChanged", key => { if (String(key).startsWith("core.")) setTimeout(later, 50); });
+    Hooks.on("collapseSidebar", () => setTimeout(later, 300));
+  }
   ui.controls?.render?.({ reset: true });
 }
 
 /** Tears down the UI (used when testing the file live). */
-export function teardown() { LOG?.close(); hud?.remove(); hud = null; hudHTML = ""; }
+export function teardown() { LOG?.close(); hud?.remove(); hud = null; hudHTML = ""; hudDrag = null; }

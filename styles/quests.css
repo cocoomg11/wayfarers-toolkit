@@ -53,6 +53,11 @@
 .wct-quests .wctq-tabs button span { font-size: 0.8em; opacity: 0.75; margin-left: 2px; }
 .wct-quests .wctq-tabs button.on { color: var(--wctq-gold); background: rgba(201, 162, 39, 0.16); text-shadow: 0 1px 0 #000; }
 .wct-quests .wctq-tabs button:hover { color: var(--wctq-gold); box-shadow: none; }
+.wct-quests .wctq-tabs .wctq-trk { margin-left: auto; display: flex; gap: 2px; margin-bottom: 4px; }
+.wct-quests .wctq-tabs .wctq-trk + .wctq-new { margin-left: 4px; }
+.wct-quests .wctq-tabs .wctq-tool { border-radius: 4px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); padding: 4px 10px; font-family: var(--font-primary, sans-serif); font-size: 0.9em; color: var(--wctq-muted); }
+.wct-quests .wctq-tabs .wctq-tool.icon { padding: 4px 8px; }
+.wct-quests .wctq-tabs .wctq-tool.on { color: var(--wctq-gold); background: rgba(201, 162, 39, 0.16); }
 .wct-quests .wctq-tabs .wctq-new { margin-left: auto; border-radius: 4px; border-bottom: 1px solid rgba(201, 162, 39, 0.35); margin-bottom: 4px; font-family: var(--font-primary, sans-serif); font-size: 0.9em; color: var(--wctq-text); }
 
 .wct-quests .wctq-body { flex: 1; display: grid; grid-template-columns: minmax(200px, 36%) 1fr; gap: 8px; min-height: 0; }
@@ -175,20 +180,28 @@
 
 /* ---------------------------------------------------------------- tracker HUD */
 #wct-quest-tracker {
-  position: absolute; top: 72px; right: 12px; z-index: 30;
-  width: 250px; max-height: 45vh; overflow-y: auto;
+  /* Fixed and placed by quests.mjs (left/top, kept inside the window; default spot clear of Foundry's own interface).
+     Below application windows (they start at z-index 100), above the canvas and the interface columns. */
+  position: fixed; top: 72px; left: auto; z-index: 50;
+  width: 250px; max-height: 45vh; overflow-y: auto; box-sizing: border-box;
   pointer-events: auto;
   color: #f2ead8; font-size: 0.9em;
   text-shadow: 0 1px 1px #000, 0 0 3px #000;
   padding: 4px 8px 6px; border-radius: 4px;
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.35) 30%);
 }
-body > #wct-quest-tracker { position: fixed; right: 320px; }
-#wct-quest-tracker:hover { background: rgba(0, 0, 0, 0.55); }
+#wct-quest-tracker:hover, #wct-quest-tracker:focus-within, #wct-quest-tracker.dragging { background: rgba(0, 0, 0, 0.55); }
 #wct-quest-tracker[hidden] { display: none; }
-#wct-quest-tracker header { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; color: #ffd100; letter-spacing: 0.04em; }
+#wct-quest-tracker header {
+  display: flex; align-items: center; gap: 6px; cursor: grab; touch-action: none; user-select: none;
+  font-family: "Modesto Condensed", var(--font-primary, serif); font-size: 1.1em; color: #ffd100; letter-spacing: 0.04em;
+}
+#wct-quest-tracker.dragging header { cursor: grabbing; }
+#wct-quest-tracker header .grip { color: #a99d86; font-size: 0.8em; padding: 0 2px; border-radius: 2px; }
+#wct-quest-tracker header .grip:focus-visible { outline: 1px solid #ffd100; color: #ffd100; }
+#wct-quest-tracker header .label { flex: 1; }
 #wct-quest-tracker header .n { font-size: 0.8em; color: #a99d86; }
-#wct-quest-tracker header button { order: 3; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; font-size: 0.7em; color: #ffd100; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(201, 162, 39, 0.5); }
+#wct-quest-tracker header button { flex: 0 0 auto; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; font-size: 0.7em; color: #ffd100; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(201, 162, 39, 0.5); cursor: pointer; }
 #wct-quest-tracker ol { list-style: none; margin: 2px 0 0; padding: 0; }
 #wct-quest-tracker ol > li { margin: 6px 0 0; }
 #wct-quest-tracker .ttl { display: block; color: #ffd100; font-weight: bold; cursor: pointer; }

@@ -25,6 +25,12 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.27.2",
+    changes: [
+      { feature: "questTracker", text: "The on-screen quest tracker can be moved: drag it by its title (or focus the grip and use the arrow keys). Each person's spot is kept on their own computer. It now starts clear of Foundry's own buttons; double-click its title, or use the button in the quest log, to put it back. It can also be closed with its X and shown again with Show tracker at the top of the quest log." }
+    ]
+  },
+  {
     version: "1.27.0",
     changes: [
       { feature: "restedInn", text: "Inns are now their own records, several per scene if you like: a name, a room price, an innkeeper token (its HUD gets a Rent rooms button) and, on v14, an optional region. Add them in the scene's Table Tools tab or with Make innkeeper here… on a token's HUD. Your Inn scenes became one inn each." },

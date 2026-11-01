@@ -255,9 +255,9 @@ export function presetSettings(preset) {
  * Record-type settings (stored lists, bookkeeping), never exported, imported or offered by the wizard: a settings file (the hub's
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE).
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos"]);
 
-export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown"]);
+export const WIZARD_IGNORE = new Set(["wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the
