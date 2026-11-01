@@ -22,6 +22,12 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.26.0",
+    changes: [
+      { feature: "mapPins", text: "New: Map pins. Click the Map pin button in the token controls, then the map, to leave an inked mark with a label and a short note (pin, flag, camp, cave, question, cross, skull or star, in six inks), optionally linked to a quest. Players can place and change the party's pins too; your client saves them, so they need no extra permission, but a GM has to be logged in. Your own pins can stay hidden from players until you reveal them. Settings under control panel › Places › Advanced; switch the whole tool off under Features." }
+    ]
+  },
+  {
     version: "1.25.0",
     changes: [
       { feature: "whosOnline", text: "Who's online: the panel now starts just right of the scene navigation instead of on top of it. Anyone can drag it by its title to a spot of their own (remembered in their browser, always kept on screen); double-click the title to put it back. Switch moving off under control panel › Places › Advanced." },

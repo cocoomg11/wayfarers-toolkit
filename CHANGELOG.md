@@ -2,6 +2,34 @@
 
 All notable changes to Wayfarer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.26.0
+
+**New**
+- **Map pins** (feature `mapPins`, on by default; turn it off under Features). The party's own marks on any scene, in an ink-on-parchment, hand-drawn style. A **Map pin** button in the token controls arms one click on the map: an empty spot opens the pin dialog (label, short note, mark, ink, optional quest link; for the GM also *Whose pin* and *Hidden from players*), a pin opens its card. Double-clicking a pin opens the card too. Card buttons: Open quest, Edit, Move (then click the new spot), Reveal / Hide (GM pins), Delete, each shown only when that user may use it.
+- Eight original SVG marks in `styles/pins/` (pin, flag, camp, cave, question, cross, skull, star), white strokes tinted by the Note's `texture.tint` to one of six inks (`INKS`). Our Note class (wrapping the configured one, so dnd5e's `Note5e` look for journal-page notes is kept) hides the dark icon square and adds an optional parchment disc (`pinsPaper`).
+- **Storage:** core Note documents with `flags.wayfarers-toolkit.pin = { v: 1, kind: "party" | "gm", hidden, label, text, icon, ink, quest, by }` (`PIN_VERSION`; read through `normalize`, missing `v` = 0 reads the same). `global: true` so pins show on every layer while map notes are toggled on; v14 `levels` gets the viewed level when the scene has it. The Note's own `text` is blank while a GM pin is hidden. New pins are 40 px (`pinsSize`, 32–96: core needs `iconSize` ≥ 32).
+- **Players need no permission.** Players never write Notes: create / update / move / delete go over the module socket (`action: "mapPin"`, with a request id) to the acting GM client (`isActiveGM()` after `settled()`, repeats dropped by `firstTime`). The GM client reads the request strictly (`readRequest`: numbers, 16-character ids, unknown fields dropped, kind/hidden/author never taken from the request), then `decide()` checks the sender (Foundry's sender id) against the pin and the world: the scene must be the one the player is viewing, the point is clamped into the scene, a player's quest link must be a quest that player can see (else it's dropped), and players can add at most `PINS_MAX` (300) pins per scene. A refusal goes back as `mapPinResult` and shows as a warning; no GM online: nothing is sent and the player is told.
+- **Who may do what** (`can()`): GMs everything; players view party pins and unhidden GM pins, and (with `pinsPlayers`) create, edit, move and delete party pins (with `pinsEditAll` off, only their own). Hidden GM pins aren't drawn for players at all (`isVisible`), and the card won't open for them.
+- **Quests:** the card shows and opens the linked quest only when `Quests.canSee` allows it for that user (`questFor`); the dialog offers only quests the user can see, and an existing link to a quest the user can't see is kept without being shown. Pins of completed or failed quests fade (`pinsDimDone`); a quest change redraws only its pins (`updateJournalEntry` bails unless the quest flag or ownership changed).
+- **Map notes display:** core hides notes off the Notes layer unless *Toggle notes* is on. With `pinsShowNotes` (on), each browser turns it on once the first time it shows a scene with pins (`pinsNotesShown`, client scope, never exported); turning it off again sticks.
+- Settings (control panel › Places › Advanced): `pinsPlayers`, `pinsEditAll`, `pinsDimDone`, `pinsSize`, `pinsPaper` (reload), `pinsShowNotes`.
+- Health check (*Map pins*): pin count, hidden count, whether players can place pins, a warning if another module replaced the Note class after us, a note when no GM is online. Permission checks list players' map pins as a socket user.
+- Remove toolkit data: new *Delete map pins* box (unticked by default) deletes every pin Note on every scene, one delete per scene (`pinsByScene`).
+- API (experimental): `api.pins` = `place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`, `icons`, `inks`.
+
+**Tests**: `tests/v126.test.mjs` (flag normalizer and schema version, hidden pins only GM pins, Note data and blank label while hidden, icon files exist; permission decisions incl. both sub-toggles; relay reading drops kind/hidden/author and malformed payloads; GM decision: author/kind set by the GM, clamping, per-scene cap, scene check, level check, quest links a player can't see dropped, an existing link kept; GM form and reveal rules; quest guard returns nothing for unseen quests, dimming only for finished ones; hit test; notes-display rule; cleanup grouping and tally; socket permission line; wiring, docs and version). `tests/v125.test.mjs` no longer requires 1.25.0 to be the newest note.
+
+**Untested in Foundry** (needs a live world, v13 and v14):
+- The Map pin tool shows for the GM and for players (and not for players with *Players can place map pins* off); click to place, click a pin to open it, Esc cancels, a drag doesn't place a pin; the cursor turns to a crosshair.
+- `canvas.canvasCoordinatesFromClient` gives the right spot at any zoom; pins land where clicked; Move puts the pin where clicked.
+- Our Note class wrapping dnd5e's `Note5e`: pin marks draw tinted with no dark square and with the parchment disc; journal-page notes still look as before; double-click opens the pin card (`_canView` lets players double-click a pin with no journal entry), and journal notes still open their journal.
+- A player (no *Create map notes* permission) places, edits, moves and deletes a party pin through the GM; with no GM online they get the message and nothing changes; with two GM tabs open the pin is created once.
+- A hidden GM pin: faint for the GM, not drawn for players, no label in any list; Reveal shows it to players at once (no reload), Hide hides it again.
+- Quest link: a player sees and opens only quests they can see; a pin linked to a hidden quest shows no quest line to players; completing the quest fades the pin on every client; reopening it restores it.
+- *Show map notes when a scene has pins* turns the notes display on once in a fresh browser; turned off by hand, it stays off after reload.
+- Scenes with v14 levels: a pin is placed on the viewed level and only shows there.
+- Remove toolkit data: the dry-run count for *Delete map pins*, then the delete.
+
 ## 1.25.1
 
 **Fixes**

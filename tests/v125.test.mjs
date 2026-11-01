@@ -102,7 +102,7 @@ test("1.25 settings rows, labels, storage and notes", () => {
   for (const k of ["flightMapZoom", "onlineDrag"]) { assert.ok(LABELS[k]?.[0], k); assert.ok(!SKIP.has(k), `${k} exported`); }
   assert.ok(!tabKeys(places).includes("onlineHudPos"), "the drag spot isn't a panel row");
   assert.ok(WIZARD_IGNORE.has("onlineHudPos"));
-  const n = NOTES.find(x => x.version === "1.25.0"); assert.ok(n); assert.equal(NOTES[0], n);
+  const n = NOTES.find(x => x.version === "1.25.0"); assert.ok(n);
   assert.deepEqual(n.changes.map(c => c.feature), ["whosOnline", "flightMap"]);
   assert.doesNotMatch(JSON.stringify([n, LABELS.flightMapZoom, LABELS.onlineDrag]), /warcraft|blizzard|azeroth|\bwow\b/i);
 });

@@ -21,6 +21,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `settings-io.mjs` / `settings-io-model.mjs` settings export/import (UI / pure file format and validation).
 - `permissions.mjs` pure permission checks; `health.mjs` gathers the facts (`permissionFacts`) for its *Permissions* section.
 - `zone-titles.mjs` / `zone-titles-model.mjs` zone title cards (UI / pure config and show rules); `online.mjs` / `online-model.mjs` who's online (UI / pure roster); `inn.mjs` / `inn-model.mjs` rested at the inn (UI, socket, rest hook / pure price, pay, benefit rules).
+- `pins.mjs` / `pins-model.mjs` map pins (tool, dialogs, card, GM relay, Note class / pure flag shape, permissions, request reader and GM decision, quest guard, cleanup grouping).
 - `quests.mjs` quest log + tracker. Also `styles/`, `sounds/`, `src/packs/macros` (JSON sources), `tools/build-packs.mjs`.
 
 ## Key patterns
@@ -52,6 +53,12 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - New feature `flightMapBackground` (needs `flightMap` + `flightMaster`; rows use `"flightMaster:flightMap:flightMapBackground"`). World settings `flightMapImage` (`filePicker: "image"`, rendered by the panel as `<file-picker>`), `flightMapFit` (`Flight.MAP_FITS`: contain/cover/stretch → SVG `preserveAspectRatio` meet/slice/none), `flightMapOpacity`, `flightMapScale`, `flightMapOffsetX/Y`; all `onChange: FlightMap.refresh()`.
 - `Flight.mapBackground(settings, box)` (pure) places the picture in the SVG's points box (`PAD`..`W−PAD`, `PAD`..`H−PAD`), the same box `pos` 0–1 maps to, so positions line up with the picture at any window size. `flight-map.mjs` `background()` reads the settings and draws an `<image class="wct-fm-bg">` (no pointer events) before the edges. Null (feature off, blank image) = 1.22 output.
 - No per-point or per-region images: one picture per world. Point positioning stays the existing GM drag + Save layout.
+
+## 1.26 notes
+- New feature `mapPins`; settings `pinsPlayers`, `pinsEditAll`, `pinsDimDone`, `pinsSize`, `pinsPaper`, `pinsShowNotes` (Places › Advanced) and client `pinsNotesShown` (SKIP + WIZARD_IGNORE).
+- Pins are core Notes with `flags.wayfarers-toolkit.pin` (`PIN_VERSION` 1, `normalize`). Players never write Notes: socket `mapPin` (create/update/move/delete, `rid`) → acting GM → `readRequest` + `decide` (kind/hidden/author set by the GM; quest links checked with `Quests.canSee` for the sender) → `mapPinResult` on refusal.
+- `init` wraps `CONFIG.Note.objectClass` (after dnd5e's `Note5e`): `isVisible` hides hidden GM pins from players, `_canView` lets a pin with no journal be double-clicked, `_onClickLeft2` opens the pin card, `_getTargetAlpha` dims, `_drawControlIcon` hides the dark square and adds the parchment disc. Marked with `MARK` so the health check notices a later replacement.
+- Cleanup category `pins` deletes the Notes (not just flags).
 
 ## House practices
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.

@@ -29,6 +29,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 | **Zone title cards** | When a scene is activated, its title fades in over the map in classic-MMO style, with an optional subtitle ("Levels 1–3") and short sound. Per-scene title, subtitle, sound or off switch in the scene configuration. |
 | **Who's online** | A board of who's connected, with each player's character portrait and name: a small panel on scenes marked *Hub*, and a window. Says "Everyone's here" when the party is complete and fires a hook your own tiles and macros can use. |
 | **Rested at the inn** | Mark a scene as an Inn with a room price. Rent rooms for the party (players can ask); their next long rest gives Heroic Inspiration, an extra Hit Die or temporary hit points. |
+| **Map pins** | The party's own marks on any scene (the hex travel map, a zone map): an inked, hand-drawn mark (pin, flag, camp, cave, question, cross, skull, star) in one of six inks, with a label, a short note and an optional quest link. Players place and change the party's pins; the GM's own pins can stay hidden until revealed. Stored as ordinary map notes. |
 | **Three-coin economy** | Optional: copper, silver and gold only, at 100 to 1. |
 
 ## Contents
@@ -39,7 +40,7 @@ What changed in each version: [CHANGELOG](CHANGELOG.md).
 - Travel: [Hex Travel](#hex-travel) · [Session Start](#session-start) · [Flight Master](#flight-master) · [Travel pace](#travel-pace) · [Riding Training](#riding-training-and-long-road)
 - Loot: [Vendor Trash](#vendor-trash) · [Loot rolls](#loot-rolls) · [Boss loot](#boss-loot) · [Party gold tracker](#party-gold-tracker) · [Three-coin economy](#three-coin-economy-copper-silver-gold)
 - Characters and story: [Character pane](#character-pane) · [Quest log](#quest-log) · [Boss frames](#boss-frames)
-- Places: [Zone title cards](#zone-title-cards) · [Who's online](#whos-online) · [Rested at the inn](#rested-at-the-inn)
+- Places: [Zone title cards](#zone-title-cards) · [Who's online](#whos-online) · [Rested at the inn](#rested-at-the-inn) · [Map pins](#map-pins)
 - Housekeeping: [Health check](#health-check) · [Settings export / import](#settings-export--import) · [Remove toolkit data](#remove-toolkit-data) · [Update notes](#update-notes)
 - For scripters: [Macros and scripting](#macros-and-scripting) · [Public API and hooks](#public-api-and-hooks-whats-stable)
 - [License](#license) · [Building from source](#building-from-source)
@@ -118,11 +119,12 @@ Things for a tool that's switched off aren't listed. New worlds get no card (the
 
 - toolkit flags (`flags.wayfarers-toolkit`) on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, Hub, Inn), on items (world items and items on actors), and on journals, journal pages and roll tables (flags only: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal;
 - optionally, toolkit flags on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
+- optionally, **map pins** (the map notes placed with the Map pin tool, on every scene, party and GM pins alike: they're deleted);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
 - optionally, the **world macros Run setup made** (macros carrying the toolkit's macro flag);
 - optionally, **reset the module's settings** to their defaults (feature toggles included; Foundry offers to reload).
 
-Type **REMOVE** and click **Remove** (or **Cancel** to close without changes). Nothing else is touched: your own documents, other modules' flags and items the toolkit didn't create stay. Item Piles piles stay piles (use Reset loot on them first if you want normal tokens back). What was removed is shown in a notification and whispered to the GMs. It doesn't need to be the active GM. From a macro: `api.cleanup.plan()` counts, `api.cleanup.remove({ actors: true, tokens: true, … })` removes.
+Type **REMOVE** and click **Remove** (or **Cancel** to close without changes). Nothing else is touched: your own documents, other modules' flags and items the toolkit didn't create stay. Item Piles piles stay piles (use Reset loot on them first if you want normal tokens back). What was removed is shown in a notification and whispered to the GMs. It doesn't need to be the active GM. From a macro: `api.cleanup.plan()` counts, `api.cleanup.remove({ actors: true, tokens: true, pins: true, … })` removes.
 
 ### Debug logging
 
@@ -205,7 +207,7 @@ Greyed out while the character pane is switched off. See [Weapon sets](#weapon-s
 | | Settings |
 | --- | --- |
 | **Basics** | **Title cards show** (when a scene is activated, or every time a scene is viewed), **Title cards are seen by** (everyone, or players only), **"Everyone's here" counts** (players with an assigned character by default), **Room price per person per night** (5s by default), **Rested gives** (Heroic Inspiration by default); and **Preview title card**, **Who's online…** and **Rent rooms…** buttons |
-| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, Who's online panel can be moved (on), rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on) |
+| **Advanced** | Every scene gets a title card (on), seconds on screen, title card style, default title card sound and volume, show a card when the world loads (off), users who count, Who's online panel position, Who's online panel can be moved (on), rooms are paid from (party actor), Rested lasts until the next long rest anywhere (on), Rested icon on tokens (off), players can ask for rooms (on), players can place map pins (on), players can change any party pin (on), fade pins of finished quests (on), pin size (40), parchment behind pins (on), show map notes when a scene has pins (on) |
 
 See [Zone title cards](#zone-title-cards), [Who's online](#whos-online) and [Rested at the inn](#rested-at-the-inn).
 
@@ -512,6 +514,37 @@ The chosen characters become **Rested** (`flags.wayfarers-toolkit.rested = { sce
 **The next long rest** (dnd5e's `dnd5e.restCompleted` hook) of a Rested character gives **Rested gives**: Heroic Inspiration (default; nothing if they already have it), one extra Hit Die back (their largest spent die), or temporary hit points equal to their character level (if more than they have). Then Rested clears and a chat line says what they got. A long rest away from an Inn scene still counts while **Rested lasts until the next long rest anywhere** is on (default); off, Rested is lost with no benefit. A player's own long rest is sent to the active GM, who applies it; with no GM connected, Rested waits for the next long rest.
 
 **Players can ask for rooms**: on an Inn scene a player's Rent Rooms macro whispers the GMs a request with a **Rent rooms…** button. The GM still picks who and confirms.
+
+## Map pins
+
+**How to use:** click the **Map pin** button (the pin icon in the token controls), then click the map. An empty spot opens the new-pin dialog; a pin opens its card. Double-clicking a pin opens its card too. **Esc** cancels.
+
+<!-- Screenshot placeholder: a hex travel map with three inked pins (camp, cave, question) and an open pin card. -->
+
+With **Map pins** on, the party can mark up any scene, the way you'd pencil notes onto a paper map: no glowing markers, just ink on parchment.
+
+**A pin** has a **label** (shown under it on the map), a short **note** (up to 500 characters), a **mark** (pin, flag, camp, cave, question, cross, skull or star: the module's own hand-drawn art), an **ink** (iron-gall black, sepia, red ochre, indigo, verdigris or oak-gall violet) and, with the quest log on, an optional **quest** link. A small parchment disc sits behind each mark so it reads on dark maps (*Parchment behind pins*).
+
+**Who does what**
+
+| | Players | GM |
+| --- | --- | --- |
+| Party pins | see all of them; place, change, move and delete them (*Players can place map pins*; with *Players can change any party pin* off, only their own) | everything |
+| GM pins | see them, unless hidden; can't change them | place, change, move, delete; **Hide** / **Reveal** |
+
+Placing a pin as GM, choose **Whose pin** (the party's or the GM's) and, for a GM pin, **Hidden from players**. A hidden pin is faint on your map, isn't drawn for players at all, and its map note carries no label until you **Reveal** it (from its card).
+
+**Players don't need any permission.** A player's new pin, change, move or delete goes over the module socket to the acting GM's client, which checks it again and saves it. With no GM logged in nothing is saved and the player is told so. Players never touch the map notes directly, so core's *Create map notes* permission doesn't matter.
+
+**The pin card** shows the label, note, who placed it and the linked quest, with an **Open quest** button. A linked quest only shows (and only opens) if that user can see it in the quest log: a player never learns about a hidden or not-yet-given quest from a pin, and can't link one. When the linked quest is completed or failed, the pin fades (*Fade pins of finished quests*, on).
+
+**Seeing pins:** pins are Foundry map notes, so they show on every layer while map notes are switched on (Journal Notes controls › *Toggle notes*), and always while the Journal Notes layer is open. With *Show map notes when a scene has pins* on (default), the toolkit switches that on once in each browser the first time it shows a scene with pins; if someone turns it off again, it stays off. On scenes with levels, a pin is placed on the level being viewed.
+
+**Settings** (control panel › Places › Advanced): *Players can place map pins* (on), *Players can change any party pin* (on), *Fade pins of finished quests* (on), *Pin size* (40 px, 32–96), *Parchment behind pins* (on; reloads), *Show map notes when a scene has pins* (on).
+
+**Data:** each pin is a core Note on its scene with `flags.wayfarers-toolkit.pin = { v: 1, kind: "party" | "gm", hidden, label, text, icon, ink, quest, by }` (`by`: the user who placed it). Up to 300 pins per scene can come from players. *Remove toolkit data* › *Delete map pins* removes them all.
+
+**Scripting:** `api.pins.place()` arms the click; `api.pins.create({ label, text, icon, ink, quest, kind, hidden }, { scene, x, y })`, `update(note, input)`, `move(note, { x, y })`, `remove(note)`, `reveal(note, hidden)` (GM), `open(note)`, `list(scene)` (pins this user can see: `{ id, note, pin }`), `read(note)`; `icons` and `inks` list the choices. Players' calls go through the GM like the tool's.
 
 ## Party gold tracker
 
@@ -850,7 +883,7 @@ Every tool is available as `game.modules.get("wayfarers-toolkit").api.<tool>()`:
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `sessionStart`, `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online` (+ `resetPosition`), `rentRooms`, `inn`, `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
+| `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline`, `online` (+ `resetPosition`), `rentRooms`, `inn`, `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights` | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Hooks the module fires (with `Hooks.callAll`, on every client, after the world is ready):
