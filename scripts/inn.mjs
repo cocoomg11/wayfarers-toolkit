@@ -6,7 +6,7 @@
  * client only (renting is a GM action; rest results go to the active GM). Pure rules: inn-model.mjs.
  */
 import * as M from "./inn-model.mjs";
-import { isActiveGM, activeGM } from "./gm.mjs";
+import { isActiveGM, activeGM, settled, newRequestId, firstTime, cardPosted } from "./gm.mjs";
 import { log } from "./log.mjs";
 
 const ID = "wayfarers-toolkit";
@@ -103,23 +103,32 @@ function requestRooms(scene, inn) {
   if (!inn.on) return ui.notifications.warn("Rooms can only be asked for on an Inn scene.");
   if (!get("innRequests", true)) return ui.notifications.info(`Ask your GM for rooms at ${inn.name}.`);
   if (!activeGM()) return ui.notifications.warn("A GM needs to be connected.");
-  game.socket.emit(SOCKET, { action: "roomRequest", sceneId: scene.id, userId: game.user.id });
+  game.socket.emit(SOCKET, { action: "roomRequest", sceneId: scene.id, userId: game.user.id, rid: newRequestId() });
   ui.notifications.info(`Asked the GM for rooms at ${inn.name} (${API.fmtMoney(inn.price)} per person).`);
 }
 
 /** Active GM: a player's room request becomes a whisper with a Rent rooms button. */
 async function onRoomRequest(msg, senderId) {
-  const r = M.readRoomRequest(msg); if (!r || !isActiveGM() || !get("innRequests", true)) return;
+  const r = M.readRoomRequest(msg); if (!r || !game.user.isGM) return;
+  await settled(); if (!isActiveGM() || !get("innRequests", true) || !firstTime(msg)) return;
+  const rid = typeof msg.rid === "string" ? msg.rid : null; if (cardPosted("roomRequest", rid)) return;
   const u = game.users.get(typeof senderId === "string" && game.users.has(senderId) ? senderId : r.userId); if (!u || u.isGM) return;
   const scene = game.scenes.get(r.sceneId); if (!scene) return;
   const inn = innFor(scene); if (!inn.on) return;
-  return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: inn.name }, flags: { [ID]: { roomRequest: { sceneId: scene.id, user: u.name } } },
+  return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: inn.name }, flags: { [ID]: { roomRequest: { sceneId: scene.id, user: u.name, rid } } },
     content: `<p><strong>${esc(u.name)}</strong> asks for rooms at <strong>${esc(inn.name)}</strong> (${esc(API.fmtMoney(inn.price))} per person).</p><p><button type="button" data-wct-action="rent-rooms"><i class="fa-solid fa-bed"></i> Rent rooms…</button></p>` });
 }
 
 /** Active GM: what a long rest does to a Rested character. `sceneId`: the scene the resting client was viewing. */
-export async function afterLongRest(actor, sceneId) {
+export async function afterLongRest(actor, sceneId, rid = null) {
   const flag = rested(actor); if (!flag || !game.user.isGM) return null;
+  // The same rest seen twice (a repeated request id, or this actor already being applied on this client) does nothing.
+  if (applying.has(actor.id) || cardPosted("restedRest", rid)) return null;
+  applying.add(actor.id);
+  try { return await applyRest(actor, sceneId, flag, rid); } finally { applying.delete(actor.id); }
+}
+const applying = new Set();
+async function applyRest(actor, sceneId, flag, rid) {
   const sc = game.scenes.get(sceneId ?? "") ?? actor.getActiveTokens?.()[0]?.scene ?? null;
   const onInn = !!sc && innFor(sc).on;
   const outcome = M.restOutcome({ rested: !!flag, onInn, lastsAnywhere: get("innLastsAnywhere", true) });
@@ -134,26 +143,30 @@ export async function afterLongRest(actor, sceneId) {
     text = `${esc(actor.name)} wakes Rested from ${esc(flag.inn)}: ${esc(plan.text)}.`;
   } else text = `${esc(actor.name)} rested away from the inn; the comfort of ${esc(flag.inn)} has worn off.`;
   await clearRested(actor);
-  await ChatMessage.create({ content: `<p><i class="fa-solid fa-bed"></i> ${text}</p>`, speaker: ChatMessage.getSpeaker?.({ actor }) ?? { alias: actor.name } });
+  await ChatMessage.create({ content: `<p><i class="fa-solid fa-bed"></i> ${text}</p>`, speaker: ChatMessage.getSpeaker?.({ actor }) ?? { alias: actor.name }, flags: { [ID]: { restedRest: { actorId: actor.id, rid } } } });
   return outcome;
 }
 
-function onRestCompleted(actor, result, config) {
+async function onRestCompleted(actor, result, config) {
   const long = result?.longRest === true || result?.type === "long" || config?.type === "long";
   if (!long || actor?.type !== "character" || !rested(actor)) return;
   const sceneId = canvas?.scene?.id ?? null;
-  if (isActiveGM()) return afterLongRest(actor, sceneId).catch(e => console.warn(`${ID} | Rested`, e));
+  const rid = newRequestId();
+  if (game.user.isGM) await settled();
+  if (isActiveGM()) return afterLongRest(actor, sceneId, rid).catch(e => console.warn(`${ID} | Rested`, e));
   if (!activeGM()) return ui.notifications.warn(`${actor.name} is Rested, but no GM is connected to apply it; it stays until the next long rest with a GM online.`);
-  game.socket.emit(SOCKET, { action: "restedRest", actorId: actor.id, sceneId, userId: game.user.id });
+  // Another client acts: a player's rest, or a GM tab that isn't the acting one (it sends to the one that is).
+  game.socket.emit(SOCKET, { action: "restedRest", actorId: actor.id, sceneId, userId: game.user.id, rid });
 }
 
-function onRestReport(msg, senderId) {
-  const r = M.readRestReport(msg); if (!r || !isActiveGM()) return;
+async function onRestReport(msg, senderId) {
+  const r = M.readRestReport(msg); if (!r || !game.user.isGM) return;
+  await settled(); if (!isActiveGM() || !firstTime(msg)) return;
   const a = game.actors.get(r.actorId); if (!a) return;
   const sender = game.users.get(senderId);
   // Only someone who owns the character (or a GM) can report its rest.
   if (sender && !sender.isGM && !a.testUserPermission(sender, "OWNER")) return;
-  return afterLongRest(a, r.sceneId).catch(e => console.warn(`${ID} | Rested`, e));
+  return afterLongRest(a, r.sceneId, typeof msg.rid === "string" ? msg.rid : null).catch(e => console.warn(`${ID} | Rested`, e));
 }
 
 /** Inn fields in the scene configuration (GM). */
@@ -175,7 +188,7 @@ export function init(api) {
   if (get("innStatus", false) && Array.isArray(CONFIG.statusEffects) && !CONFIG.statusEffects.some(e => e.id === STATUS)) CONFIG.statusEffects.push({ id: STATUS, name: "Rested", img: "icons/svg/sleep.svg" });
   Hooks.on("renderSceneConfig", addSceneFields);
   // dnd5e.restCompleted(actor, result, config) fires on the client that ran the rest, after its updates (dnd5e 4.x to 6.x).
-  Hooks.on("dnd5e.restCompleted", onRestCompleted);
+  Hooks.on("dnd5e.restCompleted", (...args) => { onRestCompleted(...args).catch(e => console.warn(`${ID} | Rested`, e)); });
   Hooks.on("renderChatMessageHTML", (message, html) => {
     const req = message.flags?.[ID]?.roomRequest; if (!req) return;
     const btn = html.querySelector?.("[data-wct-action=rent-rooms]"); if (!btn) return;
@@ -186,6 +199,6 @@ export function init(api) {
 export function ready() {
   game.socket.on(SOCKET, (msg, senderId) => {
     if (msg?.action === "roomRequest") onRoomRequest(msg, senderId)?.catch?.(e => console.warn(`${ID} | room request`, e));
-    else if (msg?.action === "restedRest") onRestReport(msg, senderId);
+    else if (msg?.action === "restedRest") onRestReport(msg, senderId).catch(e => console.warn(`${ID} | Rested`, e));
   });
 }

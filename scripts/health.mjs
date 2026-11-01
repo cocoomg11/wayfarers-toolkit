@@ -6,7 +6,7 @@
 import * as F from "./features.mjs";
 import * as Trash from "./trash.mjs";
 import * as BossLoot from "./bossloot.mjs";
-import { activeGM, onlineGMs } from "./gm.mjs";
+import { activeGM, onlineGMs, sessionInfo } from "./gm.mjs";
 import { MACROS, macroOn } from "./macros.mjs";
 import * as Updates from "./updates.mjs";
 import * as Flight from "./flight.mjs";
@@ -183,6 +183,8 @@ function gms() {
   const gm = activeGM(); const online = onlineGMs();
   const out = [gm ? ok(`Active GM: ${esc(gm.name)}${gm.isSelf ? " (you)" : ""}.`) : bad("No GM is connected.")];
   out.push(online.length > 1 ? ok(`${online.length} GMs online (${listNames(online.map(u => u.name))}); automatic actions run on ${esc(gm?.name ?? "?")}'s client only.`) : ok(`${plural(online.length, "GM")} online.`));
+  const si = sessionInfo();
+  if (si && si.sessions > 1) out.push(ok(`You're logged in on ${si.sessions} clients; automatic actions run on ${si.leader ? "this one" : "another one"} only.`));
   return out;
 }
 

@@ -13,7 +13,7 @@ import * as Loot from "./loot.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
-import { isActiveGM, activeGM } from "./gm.mjs";
+import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, newRequestId, firstTime, cardPosted } from "./gm.mjs";
 import * as Updates from "./updates.mjs";
 import { MACROS, macroData, macroOn } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
@@ -468,15 +468,17 @@ export const WCT = {
     const f = await this.form("Travel pace", content, gm ? "Set pace" : "Ask the GM"); if (!f?.pace) return;
     if (gm) return this.setTravelPace(f.pace);
     if (!activeGM()) return ui.notifications.warn("A GM needs to be connected.");
-    game.socket.emit(SOCKET, { action: "paceRequest", pace: Pace.normPace(f.pace), userId: game.user.id });
+    game.socket.emit(SOCKET, { action: "paceRequest", pace: Pace.normPace(f.pace), userId: game.user.id, rid: newRequestId() });
     ui.notifications.info("Travel pace: request sent to the GM.");
   },
   /** Active GM: a player's pace request becomes a whisper with an Accept button. */
   async paceRequest(msg, senderId) {
-    const r = Pace.readRequest(msg); if (!r || !isActiveGM() || !setting("paceRequests")) return;
+    const r = Pace.readRequest(msg); if (!r || !game.user.isGM) return;
+    await gmSettled(); if (!isActiveGM() || !setting("paceRequests") || !firstTime(msg)) return;
+    const rid = typeof msg.rid === "string" ? msg.rid : null; if (cardPosted("paceRequest", rid)) return;
     const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : r.userId; const u = game.users.get(uid);
     if (!u || u.isGM) return;
-    return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name } } },
+    return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name, rid } } },
       content: `<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>` });
   },
   // ------------------------------------------------------------ flight network (the flightNetwork world setting; everyone can read it)
@@ -575,7 +577,7 @@ export const WCT = {
     if (!go) return;
     if (!gm) {
       if (!activeGM()) return ui.notifications.warn("A GM needs to be connected to fly.");
-      game.socket.emit(SOCKET, { action: "flight", from: f.from, to: f.to, pax, userId: game.user.id });
+      game.socket.emit(SOCKET, { action: "flight", from: f.from, to: f.to, pax, userId: game.user.id, rid: newRequestId() });
       ui.notifications.info("Booking sent to the flight master…");
       return r;
     }
@@ -823,6 +825,8 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
+  // GM clients find out which of them acts (one GM user can have several tabs open); GM-only ready work waits for that.
+  startGMSessions();
   if (F.on("travelPace") && F.on("hexTravel")) game.socket.on(SOCKET, (msg, senderId) => { if (msg?.action === "paceRequest") WCT.paceRequest(msg, senderId).catch(e => console.warn(`${ID} | pace request`, e)); });
   if (F.on("flightMaster")) {
     game.socket.on(SOCKET, async (msg, senderId) => {
@@ -830,7 +834,8 @@ Hooks.once("ready", () => {
         if (msg.userId === game.user.id && typeof msg.text === "string") ui.notifications[msg.ok ? "info" : "warn"](`Flight Master: ${msg.text.slice(0, 300)}`);
         return;
       }
-      if (msg?.action !== "flight" || !isActiveGM()) return;
+      if (msg?.action !== "flight" || !game.user.isGM) return;
+      await gmSettled(); if (!isActiveGM() || !firstTime(msg)) return;
       const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
       if (!setting("playerFlights")) return WCT.tellFlight(uid, false, "players can't book flights in this world.");
       // A player's booking: always charged, always changes the scene when the point has one (a "free" field is ignored).
@@ -842,12 +847,14 @@ Hooks.once("ready", () => {
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("restedInn")) Inn.ready();
   if (F.on("whosOnline")) Online.refresh();
-  if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
-  convertOldCoins();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the
   // update notes (an upgrade posts its card; a new world just stores the version).
-  Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })
-    .then(() => Updates.onReady(WCT)).catch(e => console.warn(`${ID} | update notes`, e));
+  gmSettled().then(() => {
+    if (F.on("hexTravel") && isActiveGM()) checkZones(setting("zones"), { notify: true });
+    convertOldCoins();
+    return Panel.maybeWelcome(WCT).catch(e => { console.warn(`${ID} | welcome wizard`, e); return false; })
+      .then(() => Updates.onReady(WCT));
+  }).catch(e => console.warn(`${ID} | update notes`, e));
   console.log(`${ID} | ready (v${mod.version}; features off: ${F.FEATURES.filter(f => !F.on(f.id)).map(f => f.id).join(", ") || "none"})`);
 });
 

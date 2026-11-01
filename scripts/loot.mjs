@@ -6,7 +6,7 @@
  * Players only ever send a choice, so they can't set a roll. Turned off with the "Loot rolls" feature, nothing here is registered.
  */
 import { qualityColor } from "./pane.mjs";
-import { isActiveGM, activeGM } from "./gm.mjs";
+import { isActiveGM, activeGM, settled, onLeader, newRequestId, firstTime } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as History from "./history.mjs";
 import { makeEntry } from "./history-model.mjs";
@@ -84,7 +84,8 @@ const timers = new Map();
 function schedule(message) {
   clearTimeout(timers.get(message.id));
   const st = state(message); if (!st || st.status !== "open") return;
-  timers.set(message.id, setTimeout(() => queue(message.id, () => resolve(message.id)), Math.max(0, st.ends - Date.now())));
+  // The timer checks again when it fires: if another client took over meanwhile, that one settles the roll.
+  timers.set(message.id, setTimeout(() => { timers.delete(message.id); if (isGMClient()) queue(message.id, () => resolve(message.id)); }, Math.max(0, st.ends - Date.now())));
 }
 
 /** Starts a roll for an item in an Item Piles pile (GM only). Accepts an Item or its UUID. */
@@ -228,11 +229,11 @@ function assignees() {
 
 // ---------------------------------------------------------------- every client
 function send(message, choice, extra = {}) {
-  if (choice === "close") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => resolve(message.id)) : game.socket.emit(SOCKET, { action: "lootClose", messageId: message.id, userId: game.user.id }); return; }
-  if (choice === "assign") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => assign(message.id, extra.actorId)) : game.socket.emit(SOCKET, { action: "lootAssign", messageId: message.id, userId: game.user.id, actorId: extra.actorId }); return; }
+  if (choice === "close") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => resolve(message.id)) : game.socket.emit(SOCKET, { action: "lootClose", messageId: message.id, userId: game.user.id, rid: newRequestId() }); return; }
+  if (choice === "assign") { if (game.user.isGM) return isGMClient() ? queue(message.id, () => assign(message.id, extra.actorId)) : game.socket.emit(SOCKET, { action: "lootAssign", messageId: message.id, userId: game.user.id, actorId: extra.actorId, rid: newRequestId() }); return; }
   if (!activeGM()) { ui.notifications.warn("A GM needs to be connected."); return false; }
   if (isGMClient()) return queue(message.id, () => choose(message.id, game.user.id, choice));
-  game.socket.emit(SOCKET, { action: "lootChoice", messageId: message.id, userId: game.user.id, choice });
+  game.socket.emit(SOCKET, { action: "lootChoice", messageId: message.id, userId: game.user.id, choice, rid: newRequestId() });
 }
 
 function onRender(message, html) {
@@ -312,15 +313,18 @@ export function init() {
 
 /** Called from the module's ready hook: the GM's socket handler, and timers for rolls still open after a reload. */
 export function ready() {
-  game.socket.on(SOCKET, (msg, senderId) => {
-    if (!isGMClient() || !msg?.messageId || !["lootChoice", "lootClose", "lootAssign"].includes(msg.action)) return;
+  game.socket.on(SOCKET, async (msg, senderId) => {
+    if (!game.user.isGM || !msg?.messageId || !["lootChoice", "lootClose", "lootAssign"].includes(msg.action)) return;
+    await settled(); if (!isGMClient() || !firstTime(msg)) return;
     // Foundry passes the sender's user id; fall back to the one in the message.
     const uid = typeof senderId === "string" && game.users.has(senderId) ? senderId : msg.userId;
     if (msg.action === "lootChoice") queue(msg.messageId, () => choose(msg.messageId, uid, msg.choice));
     else if (msg.action === "lootAssign" && game.users.get(uid)?.isGM) queue(msg.messageId, () => assign(msg.messageId, msg.actorId));
     else if (msg.action === "lootClose" && game.users.get(uid)?.isGM) queue(msg.messageId, () => resolve(msg.messageId));
   });
-  if (isGMClient()) for (const m of game.messages) if (state(m)?.status === "open") schedule(m);
+  // Timers for rolls still open: on the acting client once it knows it acts, and again on whichever client takes over.
+  const reschedule = () => { if (isGMClient()) for (const m of game.messages) if (state(m)?.status === "open" && !timers.has(m.id)) schedule(m); };
+  settled().then(reschedule); onLeader(reschedule);
 }
 
 export const api = {

@@ -8,7 +8,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - `panel.mjs` / `panel-model.mjs` control panel + welcome wizard (UI / pure data and converters).
 - `health.mjs` read-only health check; `cleanup.mjs` "Remove toolkit data" window.
 - `update-notes.mjs` (bundled per-version notes + pure logic) and `updates.mjs` (post-update GM chat card, `lastSeenVersion`).
-- `gm.mjs` active-GM pick; `log.mjs` debug logging (setting "Debug logging").
+- `gm.mjs` active-GM pick and the one-acting-client sessions (pure leader choice and request-id cache in `gm-model.mjs`); `log.mjs` debug logging (setting "Debug logging").
 - `flight.mjs` network model, checks, importer, encounter-zone parser (pure); `flight-editor.mjs` network editor window.
 - `trash.mjs` Vendor Trash; `trash-rules.mjs` pure rules (CR bands, tags); `summary.mjs` merges batched death cards.
 - `merchant.mjs` Sell all junk on Item Piles merchants; `junk-rules.mjs` pure junk rules.
@@ -28,7 +28,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, sess
 - **Settings & control panel:** keys are stable across versions (never rename). `panel-model.mjs` decides which settings show on which tab (Basic vs Advanced) and labels/hints; `panel.mjs` renders. Add a setting there, not as a loose submenu.
 - **Health check:** `health.mjs`, `api.health()`; each check is wrapped, never throws, never changes anything. Add a line when adding a feature with setup needs.
 - **Update notes:** each user-visible release gets an entry at the top of `NOTES` in `update-notes.mjs` (plain-words changes, optional `actions` with `check()`/`run()`). Patch releases without an entry post nothing.
-- **Active-GM writes:** anything that writes documents automatically runs only when `isActiveGM()` (`gm.mjs`) so multi-GM worlds don't double-write. Players send choices over the socket; the active GM acts.
+- **Active-GM writes:** anything that writes documents automatically runs only when `isActiveGM()` (`gm.mjs`) so multi-GM worlds don't double-write; it is true on one client only, even when one GM user has several tabs open (session election in `gm.mjs`). Ready-time GM work and socket handlers `await settled()` first. Players send choices over the socket with a request id (`rid`, `newRequestId()`); the acting client drops repeats with `firstTime(msg)` and stamps cards it posts with the id (`cardPosted`).
 - **API surface:** `api.quests`, `bosses`, `lootRoll`, `trash`, `bossLoot`, `flight` (+ `flight.map()`), `flightMap()`, `travelPace()`, `setTravelPace()`, `partyGold()`, `gold`, `settingsIO`, `zoneTitles`, `whosOnline()`, `online`, `rentRooms()`, `inn`, `pane`, `panel(tab)`, `wizard()`, `health()`, `setup()`, `setupPlan()`, `updateNotes`, `cleanup`. Macros only call the API.
 - Flags live under `flags.wayfarers-toolkit.*`. Windows use the `wct-window` class (backdrop blur is disabled on purpose: it tanks FPS in v14).
 - Pure logic goes in files with no Foundry calls at import time so it can be tested in Node.
