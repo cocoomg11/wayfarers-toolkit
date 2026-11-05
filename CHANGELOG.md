@@ -2,6 +2,34 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## Unreleased
+
+Character sheet replacement, slice 1 (branch `feat/char-sheet-1`; not released, version unchanged). New feature `characterSheet`, **off by default**; no data migration, nothing stored (the Play/Edit mode and the page shown are per window).
+
+**Added**
+- **Wanderer's Toolkit sheet** for dnd5e `character` actors (`scripts/sheet.mjs` UI, `scripts/sheet-model.mjs` pure, `styles/sheet.css`). An `ActorSheetV2` registered with `DocumentSheetConfig.registerSheet(Actor, "wayfarers-toolkit", WctCharacterSheet, { types: ["character"], makeDefault: true, label: "Wanderer's Toolkit sheet" })` in `init`, **only while the feature is on**. `makeDefault` only changes this load's in-memory default (nothing is written), so switching the feature off (reload) unregisters the class and dnd5e's sheet is the default again; an actor set to this sheet by hand falls back to the default; a GM's own pick under Configure Default Sheets still wins.
+- The shell: title band (level medallion, name, class · species · background, XP bar from dnd5e's prepared `details.xp` (hidden for levelling mode *noxp*), Rested badge (with *Rested at the inn*), Heroic inspiration, Short / Long rest, Play / Edit switch), vitals strip (AC shield, HP bar with temp HP, hit dice bar, Initiative, Speed, Proficiency, Exhaustion pips, Death save pips), page bookmarks on the left (Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion only when dnd5e's `bastionConfiguration.availableForActor(actor)`, Special traits) and the conditions bar (the actor's `statuses`, exhaustion left out: it has pips). Pages are placeholders with **Open in system sheet** (opens dnd5e's sheet on the matching tab). No favourites bar (on purpose).
+- Buttons call dnd5e: `actor.shortRest()` / `longRest()` (shown to players only with dnd5e's *Allow rests*), `rollInitiativeDialog()`, `rollDeathSave()`; inspiration and exhaustion are `actor.update()` of `system.attributes.inspiration` / `system.attributes.exhaustion` (what dnd5e's own sheet writes; dnd5e syncs the exhaustion effect). Nothing is computed by the toolkit.
+- Edit-mode warnings badge beside Rested: the count of dnd5e's own preparation warnings (`actor._preparationWarnings`, the list behind dnd5e's header warning button); hidden in Play mode, when there are none, or if a dnd5e version doesn't have the list.
+- **System sheet** header button (and header-menu entry) for GMs: opens `dnd5e.CharacterActorSheet` for the same actor.
+- **Key C** (new action `characterSheet`, *Open character sheet*; needs *Keyboard shortcuts* too): a player's assigned character, a GM's selected token's character (notification if none or not a character); a second press closes it when it is the front window. Registered at PRIORITY precedence because Foundry core's *Toggle Character Sheet* is also C (no modifier); while the sheet is on our action runs first. While a text field, select or editable text has focus the press is not consumed (returns false) so the letter is typed. The existing *Open character pane* action is unchanged (same id, still no default key), so keys users bound to it keep working. Clash check: core Shift+W/A/S/D/C/T, dnd5e Shift+B/E, toolkit Shift+K / L, Red Book Shift+R, Satchel Shift+G, Ctrl+Shift+N: none is plain C.
+- Health check section *Character sheet* (read-only): off / on and default / on but another default picked / not registered.
+- Control panel: feature card; not in the Classic MMO or Minimal presets (Everything turns it on).
+
+**Tests**: `tests/v133-sheet.test.mjs` (feature default and presets, registration gating, dnd5e calls, key default and clash list, typing guard, actor pick, view model, warnings only in edit mode, owner-only buttons, bookmarks and Bastion, limited view, exhaustion pips, CSS scoping / no theme selectors, public-repo words).
+
+**Untested in Foundry** (live checklist)
+- Feature off (default): character sheets are dnd5e's, no C binding, no health warning.
+- Turn it on (reload): opening a character from the sidebar shows *Wanderer's Toolkit sheet*; Sheet configuration lists it; turning it off restores dnd5e's sheet.
+- Both themes: sheet body dark and identical; only the window frame changes.
+- GM: **System sheet** header button and header-menu entry open dnd5e's sheet; players don't see it. **Open in system sheet** on a page opens the matching dnd5e tab.
+- Values match dnd5e's sheet: level, XP bar, AC, HP / temp HP, hit dice, initiative, speed, proficiency, exhaustion, death saves, conditions; equip armour or add an effect and the sheet updates.
+- Buttons: inspiration toggles; Short / Long rest open dnd5e's dialogs; Initiative opens dnd5e's roll dialog (adds to combat); death save button rolls at 0 HP (dnd5e warns otherwise); exhaustion pips set / lower the level and the condition follows.
+- Edit mode: the edit note shows; with two body armours equipped the warnings badge shows 1 warning with the text on hover; Play mode hides it.
+- Bastion bookmark only with bastions enabled and a level 5+ character.
+- Key C: player opens own character, again closes; GM with a character token selected opens it, with nothing selected gets the note, with an NPC selected gets the note; typing "c" in chat, a journal editor or a sheet field types the letter. Rebinding *Open character sheet* in Configure Controls works and survives reload.
+- Observer / limited permission: observer sees values without buttons; limited sees name only.
+
 ## 1.32.0
 
 2026-11-01. Quality-of-life fixes from a live usability pass. No data migration; two new world settings (`pruneToolkitCards`, `permIgnoreUsers`), one new API entry (`api.open()`), and a default key for the control panel.

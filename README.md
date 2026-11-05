@@ -64,8 +64,9 @@ Every tool has its own switch on the control panel's **Features** tab. All are o
 | [Quest objectives find their map pin](docs/quests-and-characters.md#what-players-see) | Click an objective to move the map to the quest's pin. | *Quest objectives find their map pin* |
 | [Updated quests glow](docs/quests-and-characters.md#what-players-see) | A changed quest glows for players until they open it. | *Updated quests glow* |
 | [Character pane](docs/quests-and-characters.md#character-pane) | A classic-MMO-style character sheet with gear slots, weapon sets and comparison tooltips. | *Character pane* |
+| [Character sheet replacement](docs/quests-and-characters.md#character-sheet-replacement) | Off by default, in progress: the toolkit's own dark sheet for player characters (key **C**), run by dnd5e's rules; GMs can always open the system sheet. | *Character sheet replacement* |
 | [Boss frames](docs/quests-and-characters.md#boss-frames) | Health frames at the top of the screen for marked bosses in combat, with phase marks. | *Boss frames* |
-| [Keyboard shortcuts](docs/quests-and-characters.md#keyboard-shortcuts) | Configure Controls entries for the character pane and control panel. | *Keyboard shortcuts* |
+| [Keyboard shortcuts](docs/quests-and-characters.md#keyboard-shortcuts) | Configure Controls entries for the character sheet (C), the character pane and the control panel. | *Keyboard shortcuts* |
 | [Zone title cards](docs/places.md#zone-title-cards) | A scene's title fades in over the map when it's activated. | *Zone title cards* |
 | [Rested at the inn](docs/places.md#rested-at-the-inn) | Inns with room prices; renting makes the party Rested for a bonus on the next long rest. | *Rested at the inn* |
 | [Rest after renting rooms](docs/places.md#rested-at-the-inn) | Long-rest everyone who rented in one click. | *Rest after renting rooms* |

@@ -6,6 +6,7 @@ The story side of the table: the quest log and tracker, the character pane, and 
 
 - [Quest log](#quest-log): [setup](#setup), [making quests](#making-quests-gm), [what players see](#what-players-see) (tracker, map pins, Updated glow), [moments](#moments), [journals](#journals)
 - [Character pane](#character-pane): [slots](#slots), [equipping](#equipping), [what fits where](#what-fits-where), [weapon sets](#weapon-sets), [item comparison](#item-comparison), [MMO-style tooltips](#items-with-mmo-style-tooltips)
+- [Character sheet replacement](#character-sheet-replacement) (in progress, off by default)
 - [Boss frames](#boss-frames) and [phase marks](#phase-marks)
 - [Keyboard shortcuts](#keyboard-shortcuts) and [windows](#windows-and-shortcuts)
 
@@ -197,6 +198,19 @@ Items whose description holds an MMO-style item tooltip, like those in the optio
 **Armour pieces and AC.** MMO-style helms, shoulders, gloves, boots and the like are often typed as light, medium or heavy armour with no AC of their own, and dnd5e only counts one piece of armour for AC. So that a helm doesn't replace the chest armour, armour-typed items worn in a slot other than **Chest** are left out of dnd5e's AC calculation while the character pane is on. Armour in the Chest slot, and equipped armour that isn't in any slot, counts as usual.
 
 
+## Character sheet replacement
+
+**In progress, off by default.** Turn on *Character sheet replacement* (control panel › Features; reloads) and player characters open in the toolkit's own sheet, **Wanderer's Toolkit sheet**, in place of the dnd5e character sheet. The sheet is dark in both Foundry themes; only Foundry's window frame follows the theme. Turn the feature off and the dnd5e sheet is back; nothing in your world changes either way. A single actor can still be switched to another sheet in its *Sheet* configuration, and a GM's choice under *Configure Default Sheets* wins over the toolkit.
+
+The rules stay dnd5e's: every value is dnd5e's own prepared value (armour, items and effects included), and every button calls dnd5e.
+
+- **Title band**: level, name, class · species · background, XP bar (hidden when dnd5e's levelling mode is *no XP*), **Rested** (with *Rested at the inn*), Heroic inspiration, Short rest and Long rest (dnd5e's rest dialogs; hidden from players when dnd5e's *Allow rests* is off), and **Play / Edit**. In Edit mode an orange badge counts dnd5e's sheet warnings (hover for the list).
+- **Vitals**: Armor Class, hit points with temporary hit points, hit dice, **Initiative** (click: dnd5e's initiative roll), speed, proficiency bonus, exhaustion (click a pip to set the level, the lit top pip to lower it) and death saves (click: dnd5e's death saving throw).
+- **Bookmarks** on the left: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. The pages themselves come in later updates; each has an **Open in system sheet** button for now.
+- **Conditions** along the bottom.
+- **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
+- **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet; a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. It replaces Foundry's own C (*Toggle Character Sheet*) while the feature is on; rebind *Open character sheet* in Configure Controls if you prefer another key.
+
 ## Boss frames
 
 **How to use:** select a token, open its token HUD (right-click) and click the **crown** button to mark it as a boss; click again to unmark it. The mark is on the token, so each copy of a creature can be marked separately.
@@ -231,7 +245,7 @@ Frames show only for the combat on the scene you're viewing, and a frame disappe
 
 ## Keyboard shortcuts
 
-With *Keyboard shortcuts* on, **Configure Controls** lists *Open character pane* (no key set: each user picks their own) and *Open the control panel (GM)* (default **Shift+K** since 1.32; Shift+T is Foundry's own "add to targets") under Wanderer's Toolkit. The quest log's own shortcut (**L**) belongs to the quest log and is there whenever the quest log is on.
+With *Keyboard shortcuts* on, **Configure Controls** lists *Open character sheet* (default **C**, only while *Character sheet replacement* is on), *Open character pane* (no key set: each user picks their own) and *Open the control panel (GM)* (default **Shift+K** since 1.32; Shift+T is Foundry's own "add to targets") under Wanderer's Toolkit. The quest log's own shortcut (**L**) belongs to the quest log and is there whenever the quest log is on.
 
 ## Windows and shortcuts
 

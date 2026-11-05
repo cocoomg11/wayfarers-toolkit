@@ -28,12 +28,13 @@ export const FEATURE_CARDS = [
   { id: "mapPins", icon: "fa-solid fa-map-pin", text: "The party marks the map: inked pins with a label and a note, on any scene. Your own pins can stay hidden until you reveal them." },
   { id: "questMapPins", icon: "fa-solid fa-location-dot", text: "Click a quest's objective in the tracker or the quest log and the map moves to its map pin and pings it. Needs the quest log and map pins." },
   { id: "questGlow", icon: "fa-solid fa-star", text: "A quest you change glows for players in their tracker and quest log until they open it. Needs the quest log." },
-  { id: "keybindings", icon: "fa-solid fa-keyboard", text: "Keyboard shortcuts for the character pane and the control panel, set in Configure Controls (no keys until you pick them)." },
+  { id: "keybindings", icon: "fa-solid fa-keyboard", text: "Keyboard shortcuts in Configure Controls: the control panel (Shift+K), the toolkit character sheet (C, when it's on) and the character pane (no key until you pick one)." },
   { id: "coinLog", icon: "fa-solid fa-receipt", text: "GM only: a list of every coin movement the toolkit made, with Undo on the latest ones." },
   { id: "splitCoin", icon: "fa-solid fa-divide", text: "Share the party's coin evenly among its members, with a preview. The odd coins stay with the party." },
   { id: "innRestOffer", icon: "fa-solid fa-moon", text: "After renting rooms, long-rest everyone who rented in one click and move time on. Needs Rested at the inn." },
   { id: "travelConfirm", icon: "fa-solid fa-signs-post", text: "Before Hex Travel or a flight: the cost, the time and who pays, with a confirm." },
   { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
+  { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (pages still being built; each links to the system sheet). Off by default; GMs can always open the system sheet. Key C opens it." },
   { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
@@ -254,14 +255,14 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
  */
 export const PRESETS = {
   minimal: { label: "Minimal", icon: "fa-solid fa-feather", text: "Just the quest log, the on-screen quest tracker and the character pane. Add more any time.", on: ["questLog", "questTracker", "characterPane"] },
-  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights with a route map, junk loot on every creature, boss frames and boss loot, loot rolls, quests, the character pane and the party gold tracker. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "travelPace"].includes(id)), suggestCoins: "threeCoin" },
+  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights with a route map, junk loot on every creature, boss frames and boss loot, loot rolls, quests, the character pane and the party gold tracker. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "travelPace", "characterSheet"].includes(id)), suggestCoins: "threeCoin" },
   everything: { label: "Everything", icon: "fa-solid fa-layer-group", text: "Every tool on, including hex travel and the riding feat.", on: FEATURE_IDS }
 };
 /** A preset → the feature settings it writes: { "feature-<id>": boolean }. */

@@ -28,14 +28,16 @@ export const FEATURES = [
   // 1.28.0
   { id: "questMapPins", label: "Quest objectives find their map pin", hint: "Clicking a tracked quest's objective (or its title) in the tracker, or an objective in the quest log, moves the map to the quest's map pin and pings it. Needs the quest log and map pins." },
   { id: "questGlow", label: "Updated quests glow", hint: "When the GM changes a quest a player can see, it glows in that player's tracker and quest log until they open it. Each player's own computer remembers what they've seen. Needs the quest log." },
-  { id: "keybindings", label: "Keyboard shortcuts", hint: "Shortcuts for the character pane and (GM) the control panel in Configure Controls. No keys are set until you choose them." },
+  { id: "keybindings", label: "Keyboard shortcuts", hint: "Shortcuts in Configure Controls: (GM) the control panel, default Shift+K; the toolkit character sheet, default C, when the character sheet replacement is on; the character pane, no key until you choose one." },
   { id: "coinLog", label: "Coin log", hint: "GM only: every coin movement the toolkit makes (quest rewards, rooms, flight fares, vendor trash sales, loot coin, Split coin) is listed with who, how much, why and when, and the latest ones can be undone." },
   { id: "splitCoin", label: "Split coin", hint: "GM: share the party actor's coin evenly among its members, with a preview first. What doesn't divide evenly stays with the party." },
   { id: "innRestOffer", label: "Rest after renting rooms", hint: "After you rent rooms, the toolkit offers to long-rest everyone who rented and to move world time on (8 hours unless you change it). Needs Rested at the inn." },
   { id: "travelConfirm", label: "Cost and time before travel", hint: "Hex Travel and flights show what the trip costs (gold, silver, copper), how long it takes and who pays, and ask before going." },
   { id: "moduleHooks", label: "Hooks for other modules", hint: "Tells other modules (for example a session log) when quests change and when the party travels, through Foundry hooks. Nothing shows at the table." },
   // 1.31.0
-  { id: "merchantShop", label: "Open shop for players", hint: "GM: open an Item Piles merchant on players' screens, each with their own character as the buyer, from the merchant window's header or the merchant token's HUD, and close it for everyone again. Needs Item Piles." }
+  { id: "merchantShop", label: "Open shop for players", hint: "GM: open an Item Piles merchant on players' screens, each with their own character as the buyer, from the merchant window's header or the merchant token's HUD, and close it for everyone again. Needs Item Piles." },
+  // 1.33.0 (slice 1; off by default)
+  { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Pages are still being built: each links to the system sheet for now. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 /**

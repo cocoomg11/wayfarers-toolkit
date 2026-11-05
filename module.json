@@ -52,7 +52,8 @@
     "styles/loot.css",
     "styles/panel.css",
     "styles/places.css",
-    "styles/pins.css"
+    "styles/pins.css",
+    "styles/sheet.css"
   ],
   "socket": true,
   "languages": [

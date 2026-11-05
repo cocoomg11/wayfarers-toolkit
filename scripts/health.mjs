@@ -224,6 +224,17 @@ function characterPane() {
 }
 
 /** Loot roll history, Sell all junk and boss phase marks. */
+/** Character sheet replacement (1.33): whether our sheet is the default for characters, read-only. */
+function characterSheet() {
+  if (!F.on("characterSheet")) return [off("Character sheet replacement: off (dnd5e's sheet).")];
+  const reg = CONFIG.Actor?.sheetClasses?.character ?? {};
+  const ours = reg[`${ID}.WctCharacterSheet`];
+  if (!ours) return [warn("Character sheet replacement is on but the sheet isn't registered (see the browser console).")];
+  let stored = ""; try { stored = game.settings.get("core", "sheetClasses")?.Actor?.character ?? ""; } catch { stored = ""; }
+  if (stored && stored !== `${ID}.WctCharacterSheet`) return [line("info", `Character sheet replacement: on, but Configure Default Sheets picks another sheet for characters (${esc(stored)}).`)];
+  return [ok("Character sheet replacement: on, the default sheet for player characters. Pages are still placeholders.")];
+}
+
 function lootExtras() {
   const get = k => { try { return game.settings.get(ID, k); } catch { return undefined; } };
   const out = [];
@@ -426,7 +437,7 @@ export function vaultOwnership(current, playerIds, none = 0) {
 /** @type {[string, (api: any) => any][]} */
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Character sheet", characterSheet], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */
