@@ -209,7 +209,7 @@ The rules stay dnd5e's: every value is dnd5e's own prepared value (armour, items
 - **Bookmarks** on the left: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. The pages themselves come in later updates; each has an **Open in system sheet** button for now.
 - **Conditions** along the bottom.
 - **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
-- **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet; a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. It replaces Foundry's own C (*Toggle Character Sheet*) while the feature is on; rebind *Open character sheet* in Configure Controls if you prefer another key.
+- **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet; a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. Foundry's own C (*Toggle Character Sheet*) moves to **Shift+C** on each computer the first time the world loads with the sheet on, but only if nobody changed that key and nothing else uses Shift+C there (the health check says what happened). Turn the sheet or *Keyboard shortcuts* off and Foundry's key goes back to C, unless you have set your own key for it since. Rebind *Open character sheet* in Configure Controls if you prefer another key.
 
 ## Boss frames
 

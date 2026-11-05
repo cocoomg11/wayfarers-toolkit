@@ -225,6 +225,7 @@ function registerSettings() {
   game.settings.register(ID, "showModuleData", { name: "General: Show module data folder", hint: "Shows the shared Module data folder in the Journal sidebar (the toolkit's GM-only records journal, and other modules' stores). Off: hidden. Tidiness only, not secrecy.", scope: "client", config: false, type: Boolean, default: false, onChange: () => ui.journal?.render() });
   // Core's remembered window placement (windows.mjs): one hidden client setting, registered here so cleanup and settings lists see it.
   registerWindowPlacement(ID);
+  Sheet.registerSettings();
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
@@ -929,6 +930,8 @@ Hooks.once("init", () => {
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
+  // Core's own C (Toggle Character Sheet) moves to Shift+C while our sheet owns C; put back when the sheet or its key is off.
+  Sheet.syncCoreSheetKey(F.on("characterSheet") && F.on("keybindings"));
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
   // GM clients find out which of them acts (one GM user can have several tabs open); GM-only ready work waits for that.
   startGMSessions();

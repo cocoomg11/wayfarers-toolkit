@@ -276,9 +276,9 @@ export function presetSettings(preset) {
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE). questParties holds
  * this world's actor ids, which mean nothing in another world.
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement", "permIgnoreUsers"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved"]);
 
-export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement", "permIgnoreUsers"]);
+export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

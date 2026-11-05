@@ -24,7 +24,7 @@ test("sheet: registered only while the feature is on; makeDefault, character typ
   assert.match(s, /DSC\.registerSheet\(Actor, ID, WctCharacterSheet, \{ types: \["character"\], makeDefault: true, label: SM\.SHEET_LABEL \}\)/);
   assert.equal(SM.SHEET_LABEL, "Wanderer's Toolkit sheet");
   assert.doesNotMatch(s, /unregisterSheet|game\.settings\.set\("core", "sheetClasses"/, "never touches dnd5e's registration or stored defaults");
-  assert.match(s, /class WctCharacterSheet extends foundry\.applications\.sheets\.ActorSheetV2/);
+  assert.match(s, /const ActorSheetV2 = [^\n]*foundry\?\.applications\?\.sheets\?\.ActorSheetV2/); assert.match(s, /class WctCharacterSheet extends ActorSheetV2/);
   assert.match(s, /classes: \["wct-sheet", "wct-window", \.\.\.UI_CLASSES\]/);
 });
 
@@ -162,4 +162,62 @@ test("css: scoped to the sheet, dark in both themes (no theme selectors), regist
 test("public repo: no campaign or publisher names in the sheet files", () => {
   const all = src("scripts/sheet.mjs") + src("scripts/sheet-model.mjs") + src("styles/sheet.css");
   assert.doesNotMatch(all, /warcraft|blizzard|azeroth|defias|onyx/i);
+});
+
+// ---------------------------------------------------------------- core's Toggle Character Sheet → Shift+C
+const C = [{ key: "KeyC", modifiers: [] }], SC = [{ key: "KeyC", modifiers: ["Shift"] }];
+const coreSheet = (o = {}) => ({ id: "core.toggleCharacterSheet", namespace: "core", action: "toggleCharacterSheet", name: "Toggle Character Sheet", editable: C, current: C, ...o });
+const others = [
+  { id: "core.target", namespace: "core", action: "target", name: "Target", editable: [{ key: "KeyT", modifiers: [] }], reservedModifiers: ["Shift"] },
+  { id: "dnd5e.toggleSheetMode", namespace: "dnd5e", action: "toggleSheetMode", editable: [{ key: "KeyE", modifiers: ["Shift"] }] },
+  { id: "wayfarers-toolkit.characterSheet", namespace: "wayfarers-toolkit", action: "characterSheet", editable: C, current: C }
+];
+
+test("core key: found by namespace, words and default C only; never assumed", () => {
+  assert.equal(SM.findCoreSheetAction([coreSheet(), ...others])?.id, "core.toggleCharacterSheet");
+  assert.equal(SM.findCoreSheetAction([coreSheet({ action: "sheetToggle", name: "Open Character Sheet" })])?.action, "sheetToggle", "by name");
+  assert.equal(SM.findCoreSheetAction(others), null, "none");
+  assert.equal(SM.findCoreSheetAction([coreSheet({ namespace: "dnd5e", id: "dnd5e.toggleCharacterSheet" })]), null, "core only");
+  assert.equal(SM.findCoreSheetAction([coreSheet({ editable: SC })]), null, "default must be plain C");
+  assert.equal(SM.findCoreSheetAction([coreSheet(), coreSheet({ id: "core.characterSheet2", action: "characterSheet2" })]), null, "ambiguous");
+});
+
+test("core key: Shift+C clashes (Shift binding, or plain C with Shift reserved)", () => {
+  assert.deepEqual(SM.shiftCClashes([coreSheet(), ...others], "core.toggleCharacterSheet"), []);
+  assert.deepEqual(SM.shiftCClashes([...others, { id: "m.a", editable: SC }]), ["m.a"]);
+  assert.deepEqual(SM.shiftCClashes([{ id: "m.b", editable: C, reservedModifiers: ["Shift"] }]), ["m.b"]);
+  assert.deepEqual(SM.shiftCClashes([{ id: "m.c", editable: [{ key: "KeyC", modifiers: ["Control", "Shift"] }] }]), [], "Ctrl+Shift+C is another key");
+  assert.deepEqual(SM.shiftCClashes([{ id: "m.d", editable: SC, current: C }]), [], "user rebound it away");
+  assert.deepEqual(SM.shiftCClashes([{ id: "m.e", editable: C, current: SC }]), ["m.e"], "user rebound it onto Shift+C");
+  assert.deepEqual(SM.shiftCClashes([{ id: "m.f", editable: [], uneditable: SC }]), ["m.f"]);
+});
+
+test("core key: move once, only unchanged and free; restore only our own Shift+C", () => {
+  assert.deepEqual(SM.coreKeyPlan({ on: true, moved: "", actions: [coreSheet(), ...others] }), { do: "move", id: "core.toggleCharacterSheet" });
+  assert.equal(SM.coreKeyPlan({ on: true, moved: "core.toggleCharacterSheet", actions: [coreSheet({ current: SC })] }).why, "moved", "never repeats");
+  assert.equal(SM.coreKeyPlan({ on: true, moved: "core.toggleCharacterSheet", actions: [coreSheet({ current: C })] }).why, "moved", "never fights a later rebind");
+  assert.equal(SM.coreKeyPlan({ on: true, actions: others }).why, "notFound");
+  assert.equal(SM.coreKeyPlan({ on: true, actions: [coreSheet({ current: [{ key: "KeyJ", modifiers: [] }] })] }).why, "rebound");
+  assert.equal(SM.coreKeyPlan({ on: true, actions: [coreSheet({ current: [] })] }).why, "rebound", "cleared by the user");
+  const clash = SM.coreKeyPlan({ on: true, actions: [coreSheet(), { id: "other-mod.thing", editable: SC }] });
+  assert.equal(clash.do, "none"); assert.equal(clash.why, "clash"); assert.deepEqual(clash.clashes, ["other-mod.thing"]);
+  // feature off
+  assert.deepEqual(SM.coreKeyPlan({ on: false, moved: "", actions: [coreSheet()] }), { do: "none", why: "off" });
+  assert.deepEqual(SM.coreKeyPlan({ on: false, moved: "core.toggleCharacterSheet", actions: [coreSheet({ current: SC })] }), { do: "restore", id: "core.toggleCharacterSheet" });
+  assert.deepEqual(SM.coreKeyPlan({ on: false, moved: "core.toggleCharacterSheet", actions: [coreSheet({ current: [{ key: "KeyJ", modifiers: [] }] })] }), { do: "forget" }, "user's later key kept");
+  assert.deepEqual(SM.coreKeyPlan({ on: false, moved: "core.gone", actions: [] }), { do: "forget" });
+  assert.equal(SM.sameBindings([{ key: "KeyC", modifiers: ["Shift", "Control"] }], [{ key: "KeyC", modifiers: ["Control", "Shift"] }]), true);
+  assert.deepEqual(SM.withoutBindings([...C, ...SC], SC), C);
+});
+
+test("core key: wiring (every client on ready, setting, cleanup, health)", () => {
+  const m = src("scripts/main.mjs"); const s = src("scripts/sheet.mjs");
+  assert.match(m, /Sheet\.syncCoreSheetKey\(F\.on\("characterSheet"\) && F\.on\("keybindings"\)\);/);
+  assert.match(m, /Sheet\.registerSettings\(\);/, "the record is registered whether the feature is on or off");
+  assert.match(s, /game\.settings\.register\(ID, SM\.MOVED_SETTING, \{[^}]*scope: "client", config: false, type: String, default: "" \}\)/);
+  assert.equal(SM.MOVED_SETTING, "coreSheetKeyMoved");
+  assert.ok(PM.RECORD_SETTINGS.has("coreSheetKeyMoved")); assert.ok(PM.WIZARD_IGNORE.has("coreSheetKeyMoved"));
+  assert.match(s, /game\.keybindings\.set\(ns, rest\.join\("\."\), SM\.CORE_SHEET_MOVED/);
+  assert.match(src("scripts/cleanup.mjs"), /restoreCoreKey\(\)/);
+  assert.match(src("scripts/health.mjs"), /coreKeyLines\(\)/);
 });

@@ -140,6 +140,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - Registered in `init` only when on: `DocumentSheetConfig.registerSheet(Actor, ID, …, { types: ["character"], makeDefault: true })`. Never unregister dnd5e's sheet or write `core.sheetClasses`. Sheet class name `WctCharacterSheet` (stored by worlds; never rename).
 - Rules stay dnd5e's: read prepared data only; buttons call `shortRest`/`longRest`/`rollInitiativeDialog`/`rollDeathSave` or update `system.attributes.inspiration` / `.exhaustion`. Warnings = `actor._preparationWarnings` (edit mode only).
 - Key: own action `characterSheet` (default C, PRIORITY, registered with `game.keybindings.register` from core's `defineOpenKeybinding` + `keybindingConfig` so a press while typing returns false). `characterPane` action unchanged.
+- Core's Toggle Character Sheet → Shift+C (`syncCoreSheetKey(on)` on `ready`, every client; pure `findCoreSheetAction` / `shiftCClashes` / `coreKeyPlan` / `sameBindings` / `withoutBindings`): action found by scan, never by an assumed id; moved only if unchanged and Shift+C is free; hidden client setting `coreSheetKeyMoved` (action id, registered always; RECORD_SETTINGS + WIZARD_IGNORE) so it happens once; off → restore only if still exactly Shift+C, then clear; cleanup's settings reset calls `restoreCoreKey()` first. `WctCharacterSheet` extends a Node stand-in when Foundry's `ActorSheetV2` is missing (health.mjs imports sheet.mjs in tests).
 - Tests: `tests/v133-sheet.test.mjs`.
 
 ## House practices

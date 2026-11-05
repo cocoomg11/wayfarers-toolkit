@@ -22,6 +22,7 @@ import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wand
 import { sceneTab, fileInDataFolder } from "../vendor/wanderers-core/foundry/index.mjs";
 import { remembered } from "./windows.mjs";
 import * as Cards from "./chat-cards.mjs";
+import * as Sheet from "./sheet.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -232,7 +233,19 @@ function characterSheet() {
   if (!ours) return [warn("Character sheet replacement is on but the sheet isn't registered (see the browser console).")];
   let stored = ""; try { stored = game.settings.get("core", "sheetClasses")?.Actor?.character ?? ""; } catch { stored = ""; }
   if (stored && stored !== `${ID}.WctCharacterSheet`) return [line("info", `Character sheet replacement: on, but Configure Default Sheets picks another sheet for characters (${esc(stored)}).`)];
-  return [ok("Character sheet replacement: on, the default sheet for player characters. Pages are still placeholders.")];
+  const out = [ok("Character sheet replacement: on, the default sheet for player characters. Pages are still placeholders.")];
+  return [...out, ...coreKeyLines()];
+}
+
+/** Where core's own Toggle Character Sheet key is on this client (the sheet moves it to Shift+C). */
+function coreKeyLines() {
+  if (!F.on("keybindings")) return [off("Key C for the sheet: off (Keyboard shortcuts is off), so Foundry's own C is untouched.")];
+  const { plan, moved } = Sheet.coreKeyStatus();
+  if (moved) return [ok(`Foundry's Toggle Character Sheet (${esc(moved)}) is on Shift+C on this computer; C opens the toolkit sheet.`)];
+  if (plan?.why === "notFound") return [line("info", "Foundry's own Toggle Character Sheet key wasn't found on this computer, so it wasn't moved; C opens the toolkit sheet.")];
+  if (plan?.why === "rebound") return [line("info", "Foundry's Toggle Character Sheet has your own key on this computer, so it was left as it is.")];
+  if (plan?.why === "clash") return [warn(`Foundry's Toggle Character Sheet wasn't moved to Shift+C: Shift+C is already used by ${esc((plan.clashes ?? []).join(", "))}. C still opens the toolkit sheet; change one of them in Configure Controls.`)];
+  return [];
 }
 
 function lootExtras() {

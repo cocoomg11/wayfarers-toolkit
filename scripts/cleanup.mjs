@@ -126,6 +126,8 @@ export async function remove(pick = {}) {
   }
   if (pick.settings) {
     let n = 0;
+    // Core's character-sheet key, if the sheet moved it to Shift+C on this client: back to its default before the record is reset.
+    try { await (await import("./sheet.mjs")).restoreCoreKey(); } catch (e) { console.warn(`${ID} | remove data: core sheet key`, e); }
     for (const c of p.settings) { try { const cur = game.settings.get(ID, c.key); const def = foundry.utils.deepClone(c.default); if (JSON.stringify(cur) !== JSON.stringify(def)) { await game.settings.set(ID, c.key, def); n++; } } catch (e) { console.warn(`${ID} | remove data: setting ${c.key}`, e); } }
     done.settings = n;
   }

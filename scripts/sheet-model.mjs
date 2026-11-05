@@ -240,3 +240,81 @@ export function sheetHTML(v) {
     ${footerHTML(v)}
   </div>`;
 }
+
+// ---------------------------------------------------------------- core's Toggle Character Sheet → Shift+C
+/**
+ * While the sheet and its C key are on, Foundry core's own character-sheet toggle (also plain C) moves to Shift+C on each client,
+ * once, and only when the user never rebound it and Shift+C is free. Core's action id isn't assumed: it is found among the
+ * registered actions. The client setting `coreSheetKeyMoved` holds the moved action's id ("" = not moved by us).
+ * Facts are plain data built from `game.keybindings.actions` / `.bindings` (sheet.mjs `keyFacts()`).
+ * @typedef {{ key: string, modifiers?: string[] }} Binding
+ * @typedef {{ id: string, namespace: string, action: string, name?: string, editable?: Binding[], uneditable?: Binding[], reservedModifiers?: string[], current?: Binding[] }} ActionFacts
+ */
+export const MOVED_SETTING = "coreSheetKeyMoved";
+export const CORE_SHEET_PLAIN = Object.freeze([{ key: "KeyC", modifiers: [] }]);
+export const CORE_SHEET_MOVED = Object.freeze([{ key: "KeyC", modifiers: ["Shift"] }]);
+
+const norm = (/** @type {readonly Binding[] | undefined} */ list) => (list ?? []).map(b => [...new Set(b?.modifiers ?? [])].sort().concat(String(b?.key ?? "")).join("+")).sort();
+/** True when two binding lists are the same keys (modifier order ignored). */
+export const sameBindings = (/** @type {readonly Binding[] | undefined} */ a, /** @type {readonly Binding[] | undefined} */ b) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+
+/** `list` without the bindings in `drop` (same keys). @param {readonly Binding[] | undefined} list @param {readonly Binding[] | undefined} drop */
+export function withoutBindings(list, drop) {
+  const gone = new Set(norm(drop));
+  return (list ?? []).filter(b => !gone.has(norm([b])[0]));
+}
+
+/**
+ * Core's character-sheet toggle: namespace "core", id or name mentioning both "character" and "sheet", default bindings exactly
+ * plain C. Exactly one match, else null (none or ambiguous: leave everything alone).
+ * @param {ActionFacts[]} actions
+ */
+export function findCoreSheetAction(actions = []) {
+  const hits = actions.filter(a => a?.namespace === "core" && /character/i.test(`${a.action} ${a.name ?? ""}`) && /sheet/i.test(`${a.action} ${a.name ?? ""}`) && sameBindings(a.editable, CORE_SHEET_PLAIN));
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/**
+ * Actions (other than `except`) that a Shift+C press would fire: a binding on KeyC whose modifiers are none or Shift, where Shift
+ * is either one of its modifiers or one of the action's reserved modifiers (Foundry still fires those with Shift held).
+ * @param {ActionFacts[]} actions @param {string} [except] action id to skip
+ * @returns {string[]} the clashing actions' ids
+ */
+export function shiftCClashes(actions = [], except = "") {
+  const out = [];
+  for (const a of actions) {
+    if (!a || a.id === except) continue;
+    const reserved = a.reservedModifiers ?? [];
+    const hit = [...(a.current ?? a.editable ?? []), ...(a.uneditable ?? [])].some(b => {
+      if (b?.key !== "KeyC") return false;
+      const mods = b.modifiers ?? [];
+      if (mods.some(m => m !== "Shift")) return false;
+      return mods.includes("Shift") || reserved.includes("Shift");
+    });
+    if (hit) out.push(a.id);
+  }
+  return out;
+}
+
+/**
+ * What to do on `ready`. `on` = the sheet and its key are both on; `moved` = the setting's value.
+ * Results: { do: "move", id } | { do: "restore", id } (put core's defaults back, clear the setting) | { do: "forget" } (clear the
+ * setting only: the user changed the binding since) | { do: "none", why } with why "notFound" | "rebound" | "clash" | "moved" | "off".
+ * @param {{ on: boolean, moved?: string, actions: ActionFacts[] }} f
+ */
+export function coreKeyPlan(f) {
+  const moved = String(f.moved ?? "");
+  if (!f.on) {
+    if (!moved) return { do: "none", why: "off" };
+    const a = (f.actions ?? []).find(x => x?.id === moved);
+    if (a && sameBindings(a.current, CORE_SHEET_MOVED)) return { do: "restore", id: a.id };
+    return { do: "forget" };
+  }
+  if (moved) return { do: "none", why: "moved" };
+  const core = findCoreSheetAction(f.actions);
+  if (!core) return { do: "none", why: "notFound" };
+  if (!sameBindings(core.current ?? core.editable, core.editable)) return { do: "none", why: "rebound", id: core.id };
+  const clashes = shiftCClashes(f.actions, core.id);
+  if (clashes.length) return { do: "none", why: "clash", id: core.id, clashes };
+  return { do: "move", id: core.id };
+}
