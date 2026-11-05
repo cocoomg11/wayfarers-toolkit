@@ -930,7 +930,7 @@ Hooks.once("init", () => {
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
-  // Core's own C (Toggle Character Sheet) moves to Shift+C while our sheet owns C; put back when the sheet or its key is off.
+  // Core's own C (Toggle Character Sheet) moves to Alt+C while our sheet owns C; put back when the sheet or its key is off.
   Sheet.syncCoreSheetKey(F.on("characterSheet") && F.on("keybindings"));
   globalThis.WCT = WCT; // lets world macros written for the library version keep working
   // GM clients find out which of them acts (one GM user can have several tabs open); GM-only ready work waits for that.

@@ -210,7 +210,7 @@ export function registerKey() {
   try { game.keybindings.register(ID, def.action, cfg); } catch (e) { console.warn(`${ID} | key binding ${def.action} not registered`, e); }
 }
 
-// ---------------------------------------------------------------- core's Toggle Character Sheet → Shift+C
+// ---------------------------------------------------------------- core's Toggle Character Sheet → Alt+C
 /** The hidden client setting recording which core action we moved ("" = none). Registered on every client, feature on or off. */
 export function registerSettings() {
   game.settings.register(ID, SM.MOVED_SETTING, { name: "Character sheet: core key moved", scope: "client", config: false, type: String, default: "" });
@@ -240,13 +240,15 @@ let lastPlan = /** @type {any} */ (null);
 export const coreKeyStatus = () => ({ plan: lastPlan, moved: moved() });
 
 /**
- * On ready, every client: move core's character-sheet toggle to Shift+C (sheet + keys on), or put it back (off). Never throws.
+ * On ready, every client: move core's character-sheet toggle to Alt+C (sheet + keys on), or put it back (off); a 1.33.0 Shift+C
+ * move is put back first, then the plan runs again. Never throws.
  * `game.keybindings.set` stores the user's binding for that action (client), exactly as Configure Controls does.
  * @param {boolean} on the sheet feature and Keyboard shortcuts are both on
  */
 export async function syncCoreSheetKey(on) {
   try {
-    const plan = SM.coreKeyPlan({ on, moved: moved(), actions: keyFacts() });
+    let plan = SM.coreKeyPlan({ on, moved: moved(), actions: keyFacts() });
+    if (plan.do === "restore" && plan.again) { await restoreCoreKey(plan.id); plan = SM.coreKeyPlan({ on, moved: moved(), actions: keyFacts() }); }
     lastPlan = plan;
     if (plan.do === "move") {
       const [ns, ...rest] = String(plan.id).split(".");
@@ -261,9 +263,9 @@ export async function syncCoreSheetKey(on) {
 export async function restoreCoreKey(id = moved()) {
   if (!id) return false;
   const a = keyFacts().find(x => x.id === id);
-  if (a && SM.sameBindings(a.current, SM.CORE_SHEET_MOVED)) {
+  if (SM.isOurMove(a)) {
     const [ns, ...rest] = id.split(".");
-    await game.keybindings.set(ns, rest.join("."), (a.editable ?? []).map(b => ({ key: b.key, modifiers: [...(b.modifiers ?? [])] })));
+    await game.keybindings.set(ns, rest.join("."), (a?.editable ?? []).map(b => ({ key: b.key, modifiers: [...(b.modifiers ?? [])] })));
   }
   await game.settings.set(ID, SM.MOVED_SETTING, "");
   return true;

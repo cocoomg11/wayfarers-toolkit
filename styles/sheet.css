@@ -83,14 +83,15 @@
 .wct-sheet .wct-cs-editnote { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #1a130a; background: linear-gradient(var(--trimhi), var(--trim)); }
 .wct-sheet .wct-cs-editnote svg { width: 14px; height: 14px; flex: none; }
 
-/* bookmarks + page */
-.wct-sheet .wct-cs-body { display: flex; flex: 1; min-height: 0; }
-.wct-sheet .wct-cs-btabs { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; width: 46px; flex: none; align-items: flex-start; }
-.wct-sheet .wct-cs-btab { all: unset; box-sizing: border-box; cursor: pointer; width: 42px; height: 42px; border-radius: 0 6px 6px 0; display: grid; place-items: center; color: var(--ink3); background: linear-gradient(90deg, #15110d, #231c15); border: 1px solid var(--edge); border-left: none; box-shadow: 0 0 0 1px #000; }
+/* bookmarks + page. 1.33.1: the bookmarks sit on the right edge (row-reverse; the markup, so keyboard order and aria, is unchanged:
+   tabs first, then the page). Flat side against the content, rounded side outward; the active tab grows toward the content. */
+.wct-sheet .wct-cs-body { display: flex; flex-direction: row-reverse; flex: 1; min-height: 0; }
+.wct-sheet .wct-cs-btabs { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; width: 46px; flex: none; align-items: flex-end; }
+.wct-sheet .wct-cs-btab { all: unset; box-sizing: border-box; cursor: pointer; width: 42px; height: 42px; border-radius: 0 6px 6px 0; display: grid; place-items: center; color: var(--ink3); background: linear-gradient(270deg, #15110d, #231c15); border: 1px solid var(--edge); border-left: none; box-shadow: 0 0 0 1px #000; }
 .wct-sheet .wct-cs-btab svg { width: 20px; height: 20px; stroke-width: 1.7; }
 .wct-sheet .wct-cs-btab:hover { color: var(--ink2); }
-.wct-sheet .wct-cs-btab.on { width: 46px; color: var(--gold); border-color: var(--trim); background: linear-gradient(90deg, #3a2e1e, #241b10); box-shadow: 0 0 0 1px #000, 0 0 8px color-mix(in srgb, var(--trimhi) 30%, transparent); }
-.wct-sheet .wct-cs-page { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 12px 10px; }
+.wct-sheet .wct-cs-btab.on { width: 46px; color: var(--gold); border-color: var(--trim); background: linear-gradient(270deg, #3a2e1e, #241b10); box-shadow: 0 0 0 1px #000, 0 0 8px color-mix(in srgb, var(--trimhi) 30%, transparent); }
+.wct-sheet .wct-cs-page { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 10px 12px 14px; }
 .wct-sheet .wct-cs-page-head { display: flex; align-items: baseline; gap: 10px; }
 .wct-sheet .wct-cs-page-head .wct-cs-ttl { font-size: 17px; }
 .wct-sheet .wct-cs-page-head .wct-cs-dim { font-size: 12px; }

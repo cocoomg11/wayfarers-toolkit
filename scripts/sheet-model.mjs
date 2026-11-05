@@ -241,10 +241,12 @@ export function sheetHTML(v) {
   </div>`;
 }
 
-// ---------------------------------------------------------------- core's Toggle Character Sheet → Shift+C
+// ---------------------------------------------------------------- core's Toggle Character Sheet → Alt+C
 /**
- * While the sheet and its C key are on, Foundry core's own character-sheet toggle (also plain C) moves to Shift+C on each client,
- * once, and only when the user never rebound it and Shift+C is free. Core's action id isn't assumed: it is found among the
+ * While the sheet and its C key are on, Foundry core's own character-sheet toggle (also plain C; `core.characterSheet` in v14,
+ * seen live) moves to Alt+C on each client, once, and only when the user never rebound it and nothing else fires on Alt+C.
+ * 1.33.0 moved it to Shift+C, but v14's own `core.focusChat` defaults to Shift+C, so that never happened on a stock client; a
+ * leftover Shift+C move (record set, key still exactly Shift+C) is put back to the defaults first. Core's action id isn't assumed: it is found among the
  * registered actions. The client setting `coreSheetKeyMoved` holds the moved action's id ("" = not moved by us).
  * Facts are plain data built from `game.keybindings.actions` / `.bindings` (sheet.mjs `keyFacts()`).
  * @typedef {{ key: string, modifiers?: string[] }} Binding
@@ -252,7 +254,13 @@ export function sheetHTML(v) {
  */
 export const MOVED_SETTING = "coreSheetKeyMoved";
 export const CORE_SHEET_PLAIN = Object.freeze([{ key: "KeyC", modifiers: [] }]);
-export const CORE_SHEET_MOVED = Object.freeze([{ key: "KeyC", modifiers: ["Shift"] }]);
+/** Where core's toggle goes (one constant: change the target here). */
+export const CORE_SHEET_MOVED = Object.freeze([{ key: "KeyC", modifiers: ["Alt"] }]);
+/** The 1.33.0 target, only recognised to undo it. */
+export const CORE_SHEET_LEGACY = Object.freeze([{ key: "KeyC", modifiers: ["Shift"] }]);
+/** "Alt+C" for messages. @param {readonly Binding[]} b */
+export const keyLabel = b => b.map(x => [...(x.modifiers ?? []), String(x.key).replace(/^Key/, "")].join("+")).join(", ");
+export const MOVED_LABEL = keyLabel(CORE_SHEET_MOVED);
 
 const norm = (/** @type {readonly Binding[] | undefined} */ list) => (list ?? []).map(b => [...new Set(b?.modifiers ?? [])].sort().concat(String(b?.key ?? "")).join("+")).sort();
 /** True when two binding lists are the same keys (modifier order ignored). */
@@ -275,46 +283,55 @@ export function findCoreSheetAction(actions = []) {
 }
 
 /**
- * Actions (other than `except`) that a Shift+C press would fire: a binding on KeyC whose modifiers are none or Shift, where Shift
- * is either one of its modifiers or one of the action's reserved modifiers (Foundry still fires those with Shift held).
- * @param {ActionFacts[]} actions @param {string} [except] action id to skip
+ * Actions (other than `except`) that pressing `target` (default the move target, Alt+C) would fire: a binding on the same key
+ * whose modifiers are all held in `target`, where every held modifier it doesn't list is one of the action's reserved modifiers
+ * (Foundry still fires an action with its reserved modifiers held: core Target is T with Shift reserved).
+ * @param {ActionFacts[]} actions @param {string} [except] action id to skip @param {readonly Binding[]} [target]
  * @returns {string[]} the clashing actions' ids
  */
-export function shiftCClashes(actions = [], except = "") {
+export function keyClashes(actions = [], except = "", target = CORE_SHEET_MOVED) {
   const out = [];
+  const t = target[0]; const held = t.modifiers ?? [];
   for (const a of actions) {
     if (!a || a.id === except) continue;
     const reserved = a.reservedModifiers ?? [];
     const hit = [...(a.current ?? a.editable ?? []), ...(a.uneditable ?? [])].some(b => {
-      if (b?.key !== "KeyC") return false;
+      if (b?.key !== t.key) return false;
       const mods = b.modifiers ?? [];
-      if (mods.some(m => m !== "Shift")) return false;
-      return mods.includes("Shift") || reserved.includes("Shift");
+      if (mods.some(m => !held.includes(m))) return false;
+      return held.every(m => mods.includes(m) || reserved.includes(m));
     });
     if (hit) out.push(a.id);
   }
   return out;
 }
 
+/** True when the action's current keys are exactly one of our moves (Alt+C, or 1.33.0's Shift+C). @param {ActionFacts | undefined} a */
+export const isOurMove = a => !!a && (sameBindings(a.current, CORE_SHEET_MOVED) || sameBindings(a.current, CORE_SHEET_LEGACY));
+
 /**
  * What to do on `ready`. `on` = the sheet and its key are both on; `moved` = the setting's value.
- * Results: { do: "move", id } | { do: "restore", id } (put core's defaults back, clear the setting) | { do: "forget" } (clear the
- * setting only: the user changed the binding since) | { do: "none", why } with why "notFound" | "rebound" | "clash" | "moved" | "off".
+ * Results: { do: "move", id } | { do: "restore", id, again? } (put core's defaults back and clear the setting; `again`: then plan
+ * once more, used to undo 1.33.0's Shift+C before moving to Alt+C) | { do: "forget" } (clear the setting only: the user changed the
+ * binding since) | { do: "none", why } with why "notFound" | "rebound" | "clash" | "moved" | "off".
  * @param {{ on: boolean, moved?: string, actions: ActionFacts[] }} f
  */
 export function coreKeyPlan(f) {
   const moved = String(f.moved ?? "");
+  const recorded = moved ? (f.actions ?? []).find(x => x?.id === moved) : undefined;
   if (!f.on) {
     if (!moved) return { do: "none", why: "off" };
-    const a = (f.actions ?? []).find(x => x?.id === moved);
-    if (a && sameBindings(a.current, CORE_SHEET_MOVED)) return { do: "restore", id: a.id };
+    if (isOurMove(recorded)) return { do: "restore", id: moved };
     return { do: "forget" };
   }
-  if (moved) return { do: "none", why: "moved" };
+  if (moved) {
+    if (recorded && sameBindings(recorded.current, CORE_SHEET_LEGACY)) return { do: "restore", id: moved, again: true };
+    return { do: "none", why: "moved" };
+  }
   const core = findCoreSheetAction(f.actions);
   if (!core) return { do: "none", why: "notFound" };
   if (!sameBindings(core.current ?? core.editable, core.editable)) return { do: "none", why: "rebound", id: core.id };
-  const clashes = shiftCClashes(f.actions, core.id);
+  const clashes = keyClashes(f.actions, core.id);
   if (clashes.length) return { do: "none", why: "clash", id: core.id, clashes };
   return { do: "move", id: core.id };
 }

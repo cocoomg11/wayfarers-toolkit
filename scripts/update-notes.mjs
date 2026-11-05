@@ -25,10 +25,18 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.33.1",
+    changes: [
+      { feature: "characterSheet", text: "Foundry's own Toggle Character Sheet key now moves to Alt+C while the toolkit sheet uses C (Shift+C was already Foundry's Focus Chat, so it never moved there). As before, only if you haven't changed that key yourself, and it goes back to C when you turn the sheet off." },
+      { feature: "characterSheet", text: "Character sheet: the page bookmarks are now on the right edge of the sheet." }
+    ],
+    actions: []
+  },
+  {
     version: "1.33.0",
     changes: [
       "New, optional: a Character sheet replacement. It is off by default; turn it on in the control panel (then reload). It shows the essentials of a character (level, XP, AC, HP, hit dice, initiative, speed, exhaustion, death saves, conditions) with page tabs; the pages themselves come in later releases, and each has an Open in system sheet button for now.",
-      "With it on, the C key opens your character's sheet. Foundry's own Toggle Character Sheet moves to Shift+C when that key is free (it is put back if you turn the sheet off)."
+      "With it on, the C key opens your character's sheet. Foundry's own Toggle Character Sheet moves to another key when one is free (it is put back if you turn the sheet off)."
     ],
     actions: []
   },
