@@ -25,6 +25,14 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.33.0",
+    changes: [
+      "New, optional: a Character sheet replacement. It is off by default; turn it on in the control panel (then reload). It shows the essentials of a character (level, XP, AC, HP, hit dice, initiative, speed, exhaustion, death saves, conditions) with page tabs; the pages themselves come in later releases, and each has an Open in system sheet button for now.",
+      "With it on, the C key opens your character's sheet. Foundry's own Toggle Character Sheet moves to Shift+C when that key is free (it is put back if you turn the sheet off)."
+    ],
+    actions: []
+  },
+  {
     version: "1.32.0",
     changes: [
       "Less clutter in chat: posting a health check or update notes card now removes the toolkit's older cards of that kind, so one of each is left. Switch it off on the control panel's Overview tab, or use Clear old toolkit cards there to tidy up now.",

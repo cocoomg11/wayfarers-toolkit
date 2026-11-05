@@ -2,9 +2,9 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
-## Unreleased
+## 1.33.0
 
-Character sheet replacement, slice 1 (branch `feat/char-sheet-1`; not released, version unchanged). New feature `characterSheet`, **off by default**; no data migration, nothing stored (the Play/Edit mode and the page shown are per window).
+2026-11-05. Character sheet replacement, slice 1. New feature `characterSheet`, **off by default**; no data migration, nothing stored (the Play/Edit mode and the page shown are per window).
 
 **Added**
 - **Wanderer's Toolkit sheet** for dnd5e `character` actors (`scripts/sheet.mjs` UI, `scripts/sheet-model.mjs` pure, `styles/sheet.css`). An `ActorSheetV2` registered with `DocumentSheetConfig.registerSheet(Actor, "wayfarers-toolkit", WctCharacterSheet, { types: ["character"], makeDefault: true, label: "Wanderer's Toolkit sheet" })` in `init`, **only while the feature is on**. `makeDefault` only changes this load's in-memory default (nothing is written), so switching the feature off (reload) unregisters the class and dnd5e's sheet is the default again; an actor set to this sheet by hand falls back to the default; a GM's own pick under Configure Default Sheets still wins.

@@ -135,7 +135,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Keys/API**: control panel default `CONTROL_PANEL_KEY` Shift+K (Shift+T clashes with core `target`, which reserves Shift). `api.open(tab)` = `panel(tab)` (the Satchel calls it).
 - Tests: `tests/v132.test.mjs`.
 
-## Character sheet (unreleased, branch feat/char-sheet-1)
+## 1.33 notes: Character sheet
 - Feature `characterSheet` (default **off**). `sheet.mjs` (UI: `WctCharacterSheet extends ActorSheetV2`, `register()`, `registerKey()`, `openSystemSheet()`, `openSheet()`) / `sheet-model.mjs` (pure: `sheetView(facts, { mode, page })`, HTML builders, `PAGES`, `pickSheetActor`, `isTyping`, `exhaustionTarget`); `styles/sheet.css` scoped under `.wct-sheet`, own palette on `.wct-cs`, no theme selectors (test).
 - Registered in `init` only when on: `DocumentSheetConfig.registerSheet(Actor, ID, …, { types: ["character"], makeDefault: true })`. Never unregister dnd5e's sheet or write `core.sheetClasses`. Sheet class name `WctCharacterSheet` (stored by worlds; never rename).
 - Rules stay dnd5e's: read prepared data only; buttons call `shortRest`/`longRest`/`rollInitiativeDialog`/`rollDeathSave` or update `system.attributes.inspiration` / `.exhaustion`. Warnings = `actor._preparationWarnings` (edit mode only).
