@@ -330,6 +330,7 @@ export class SetupWindow extends AppV2 {
     const find = root.querySelector("[data-find]");
     if (find) {
       if (this._focusFind) { find.focus(); find.setSelectionRange(find.value.length, find.value.length); this._focusFind = false; }
+      find.addEventListener("keydown", ev => { ev.stopPropagation(); if (ev.key === "Enter") ev.preventDefault(); });
       let t = /** @type {any} */ (null); find.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { this.q = find.value; this._focusFind = true; this.render(); }, 250); });
     }
     const form = root.querySelector("form.wct-rn-form"); if (!form) return;
