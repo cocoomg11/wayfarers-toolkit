@@ -249,7 +249,13 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
     // Live bits: range values, dirty markers, the zones editor and the features page.
     root.querySelectorAll(".wct-range input").forEach(r => r.addEventListener("input", () => { r.nextElementSibling.value = r.value; }));
     root.querySelectorAll(".wct-tab:not([data-tab=features]) .wct-row:not(.wct-instant)").forEach(row => {
-      const mark = () => { row.dataset.dirty = "1"; this.markDirty(); };
+      // The mark follows the real difference from the saved value: setting a field back clears it (a row that holds no setting of ours stays marked).
+      const mark = () => {
+        row.dataset.dirty = "1";
+        const ch = this.rowChange(row, true) ?? (this.rowChange(row, false)); // the second look covers the scene list's raw text box
+        if (ch === null) delete row.dataset.dirty;
+        this.markDirty();
+      };
       row.addEventListener("input", mark); row.addEventListener("change", mark);
     });
     // Overview switches save at once (that tab has no Save button).
@@ -384,29 +390,35 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
     }
   }
 
+  /**
+   * The value a setting row would write, or null when it equals the saved value (1.32+: also what the unsaved mark uses). `dirty`:
+   * the row was edited (the list-style rows read their boxes only then). Returns [key, value] | null; `undefined` for rows that
+   * hold no setting of ours.
+   */
+  rowChange(row, dirty = !!row.dataset.dirty) {
+    const root = this.element; const key = row.dataset.key; const kind = row.dataset.kind; const c = cfgOf(key);
+    const changed = (k, v) => (M.sameValue(v, get(k)) ? null : [k, v]);
+    if (key === "hiddenScenes__raw" || !c) return undefined;
+    if (kind === "zones") return dirty ? changed(key, M.rowsToZones(this.zoneRows())) : null;
+    if (kind === "scenes") {
+      const raw = root.querySelector('[name="hiddenScenes__raw"]:not(:disabled)');
+      if (dirty) return changed(key, M.scenesToRegex([...row.querySelectorAll("[data-scene]:checked")].map(i => i.value)));
+      return raw && raw.value !== get(key) ? changed(key, raw.value) : null;
+    }
+    if (kind === "packs") return dirty ? changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))) : null;
+    if (kind === "classes") return dirty ? changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))) : null;
+    if (kind === "parties") return dirty ? changed(key, [...row.querySelectorAll("[data-party]:checked")].map(i => i.value)) : null;
+    if (kind === "users") return dirty ? changed(key, [...row.querySelectorAll("[data-user]:checked")].map(i => i.value)) : null;
+    const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) return undefined;
+    if (c.type === Boolean) return changed(key, !!el.checked);
+    if (c.type === Number) { const n = Number(el.value); return Number.isFinite(n) && String(el.value).trim() !== "" ? changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n) : null; }
+    return changed(key, String(el.value ?? ""));
+  }
+
   /** Values to write from the setting tabs: [[key, value]] (only rows that changed; turned-off rows are skipped). */
   collect() {
-    const root = this.element; const out = []; const changed = (k, v) => { if (JSON.stringify(v) !== JSON.stringify(get(k))) out.push([k, v]); };
-    for (const row of root.querySelectorAll(".wct-tab .wct-row:not(.wct-off):not(.wct-instant)")) {
-      const key = row.dataset.key; const kind = row.dataset.kind; const c = cfgOf(key); const dirty = !!row.dataset.dirty;
-      if (key === "hiddenScenes__raw") continue;
-      if (!c) continue;
-      if (kind === "zones") { if (dirty) changed(key, M.rowsToZones(this.zoneRows())); continue; }
-      if (kind === "scenes") {
-        const raw = root.querySelector('[name="hiddenScenes__raw"]:not(:disabled)');
-        if (dirty) changed(key, M.scenesToRegex([...row.querySelectorAll("[data-scene]:checked")].map(i => i.value)));
-        else if (raw && raw.value !== get(key)) changed(key, raw.value);
-        continue;
-      }
-      if (kind === "packs") { if (dirty) changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))); continue; }
-      if (kind === "classes") { if (dirty) changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))); continue; }
-      if (kind === "parties") { if (dirty) changed(key, [...row.querySelectorAll("[data-party]:checked")].map(i => i.value)); continue; }
-      if (kind === "users") { if (dirty) changed(key, [...row.querySelectorAll("[data-user]:checked")].map(i => i.value)); continue; }
-      const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) continue;
-      if (c.type === Boolean) changed(key, !!el.checked);
-      else if (c.type === Number) { const n = Number(el.value); if (Number.isFinite(n) && String(el.value).trim() !== "") changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n); }
-      else changed(key, String(el.value ?? ""));
-    }
+    const out = [];
+    for (const row of this.element.querySelectorAll(".wct-tab .wct-row:not(.wct-off):not(.wct-instant)")) { const ch = this.rowChange(row); if (ch) out.push(ch); }
     return out;
   }
 

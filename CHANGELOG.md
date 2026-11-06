@@ -62,6 +62,18 @@ Character sheet replacement, slices 3 and 4: every page is now built. Nothing ne
 - **Level up**: single-class character: Edit → click the level badge → dnd5e's advancement windows (HP, features); finish → level and features updated on the Features page. Multiclass: chooser lists each class's next level; *Add a class* opens the browser; at level 20 a notice. Level down from the Features select asks dnd5e's confirmation.
 - Shift+E toggles Edit on every page; the level badge's **+** only shows in Edit for owners.
 
+### Small quality-of-life fixes
+
+**Fixed**
+- **Control panel: the "unsaved" mark stayed after you put a field back.** The mark (on Save, the tab and the footer note) now follows the real difference from the saved value: change a setting and change it back, and the mark goes away. Save uses the same comparison, so what is marked is exactly what Save writes.
+- **A player calling `api.open()` (or any GM-only call that goes through the shared check) got "GM only." with no module name.** The notice now reads "Wanderer's Toolkit: GM only.", like the rest of the GM-only API.
+
+**Live checklist (not run in Foundry)**
+- [ ] Control panel: tick a switch, untick it again: the Save button, the tab and the footer note lose the mark; edit two settings, revert one: "Unsaved changes in 1 setting".
+- [ ] A text field and a number/slider field: change then restore the original value: mark clears; type a different value: mark returns.
+- [ ] Scene list and other tick-lists (hidden scenes, packs, classes): untick then re-tick: mark clears; the raw hidden-scenes text box still marks when edited.
+- [ ] Encounter zones: add a row then remove it again: the mark clears; edit a row: it marks; Save writes only real changes.
+- [ ] As a player, run `game.modules.get("wayfarers-toolkit").api.open()`: the warning reads "Wanderer's Toolkit: GM only."
 
 ## 2.0.1
 
