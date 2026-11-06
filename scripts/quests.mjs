@@ -17,6 +17,8 @@ import { notify, request, isActiveGM, handle } from "./gm.mjs";
 import { card as lookCard } from "./look-model.mjs";
 import { remembered } from "./windows.mjs";
 import { registerOpenKeybinding } from "../vendor/wanderers-core/foundry/index.mjs";
+import * as Renown from "./renown.mjs";
+import { renownRewardLines } from "./renown-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -58,6 +60,16 @@ export function normalize(raw = {}) {
 }
 
 export const isQuest = j => !!j?.flags?.[ID]?.quest;
+/** The public view's options (2.2): renown rewards keep only factions players may see. */
+const PUB = { renownShown: id => Renown.isShown(id) };
+/**
+ * "Renown: Faction +2" lines for a quest's renown rewards. `all`: this user's factions (a GM's include hidden ones, marked);
+ * otherwise only factions players may see (journal page, chat cards).
+ */
+function renownLines(q, all = true) {
+  const list = all ? Renown.factions().map(f => (f.hidden ? { ...f, name: `${f.name} (hidden from players)` } : f)) : Renown.config().factions;
+  return renownRewardLines(q?.rewards?.renown, list);
+}
 /** The quest's data. GM: the full quest from the GM-only store (the journal's flag until the one-time move). Players: the public view. */
 export function data(j) {
   if (game.user?.isGM) { const full = Vault.get("quests", {})?.[j.id]; if (full) return normalize(full); }
@@ -134,7 +146,7 @@ const link = (uuid, name) => uuid ? `@UUID[${uuid}]{${String(name).replace(/[{}[
  * receive the page). A quest players can't see yet gets a short GM note only. GMs see everything in the quest log window.
  */
 export function pageHTML(full, name) {
-  const f = normalize(full); const q = publicQuest(f);
+  const f = normalize(full); const q = publicQuest(f, PUB);
   if (f.hidden || f.status === "available") return `<p><strong>Status:</strong> ${STATUS[f.status].label}${f.hidden ? " (hidden from players)" : ""}</p><p><em>Open the quest log to see and edit this quest.</em></p>`;
   const meta = [`<strong>Status:</strong> ${STATUS[q.status].label}${q.hidden ? " (hidden from players)" : ""}`];
   const lvl = QL.levelInput(q);
@@ -145,7 +157,7 @@ export function pageHTML(full, name) {
   const shown = q.objectives;
   const picked = q.rewards.choice.find(i => i.uuid === q.rewards.pick);
   const choice = q.rewards.choice.length ? `Choose one of: ${q.rewards.choice.map(i => link(i.uuid, i.name) + (picked === i ? " <em>(chosen)</em>" : "")).join(", ")}` : "";
-  const rewards = [coinText(q), ...q.rewards.items.map(i => link(i.uuid, i.name)), choice, q.rewards.other ? esc(q.rewards.other) : ""].filter(Boolean);
+  const rewards = [coinText(q), ...q.rewards.items.map(i => link(i.uuid, i.name)), choice, ...renownLines(q, false).map(esc), q.rewards.other ? esc(q.rewards.other) : ""].filter(Boolean);
   return [
     `<p>${meta.join(" · ")}</p>`,
     q.giver.name ? `<p><strong>Quest giver:</strong> ${link(q.giver.uuid, q.giver.name)}</p>` : "",
@@ -191,7 +203,7 @@ export async function fillRarity(q) {
 async function save(j, q, name = j.name) {
   q = await fillRarity(normalize(q));
   await Vault.setKey("quests", j.id, q);
-  await j.update({ name, ownership: ownershipOf(q), [`flags.${ID}.quest`]: publicQuest(q) });
+  await j.update({ name, ownership: ownershipOf(q), [`flags.${ID}.quest`]: publicQuest(q, PUB) });
   const content = pageHTML(q, name); const page = j.pages.contents[0];
   if (page) { if (page.name !== name || page.text?.content !== content) await page.update({ name, "text.content": content }); }
   else await j.createEmbeddedDocuments("JournalEntryPage", [{ name, type: "text", text: { content, format: 1 } }]);
@@ -253,8 +265,8 @@ async function announceStatus(j, q, prev) {
     playSound("questSoundComplete");
     const coin = coinText(q);
     const plan = QL.rewardPlan(q);
-    const rewards = [coin && `<li class="coin">${esc(coin)}</li>`, ...plan.items.map(i => `<li><img src="${esc(i.img)}" alt=""> ${esc(i.name)}</li>`), plan.missingPick && `<li><em>One reward still to choose (in the quest log)</em></li>`, q.rewards.other && `<li>${esc(q.rewards.other)}</li>`].filter(Boolean);
-    const hasPay = !!(coin || q.rewards.items.length || q.rewards.choice.length);
+    const rewards = [coin && `<li class="coin">${esc(coin)}</li>`, ...plan.items.map(i => `<li><img src="${esc(i.img)}" alt=""> ${esc(i.name)}</li>`), plan.missingPick && `<li><em>One reward still to choose (in the quest log)</em></li>`, ...renownLines(q, false).map(t => `<li>${esc(t)}</li>`), q.rewards.other && `<li>${esc(q.rewards.other)}</li>`].filter(Boolean);
+    const hasPay = QL.hasRewards(q, coin ? 1 : 0);
     const body = `${rewards.length ? `<p class="lbl">Rewards</p><ul class="rewards">${rewards.join("")}</ul>` : ""}${hasPay ? `<button type="button" data-wct-action="pay-quest"><i class="fa-solid fa-coins"></i> Pay rewards</button>` : ""}`;
     return say(card("completed", j, q, body), j, { kind: "completed" });
   }
@@ -278,7 +290,7 @@ const OPS = {
     if (!d.party && !("party" in d)) q.party = parties()[0]?.id ?? "";
     if (q.status === "active") capWarn(q.party, null);
     const folder = await questFolder();
-    const j = await JournalEntry.create({ name, folder: folder.id, ownership: ownershipOf(q), flags: { [ID]: { quest: publicQuest(q) } }, pages: [{ name, type: "text", text: { content: pageHTML(q, name), format: 1 } }] });
+    const j = await JournalEntry.create({ name, folder: folder.id, ownership: ownershipOf(q), flags: { [ID]: { quest: publicQuest(q, PUB) } }, pages: [{ name, type: "text", text: { content: pageHTML(q, name), format: 1 } }] });
     await Vault.setKey("quests", j.id, q);
     emit(j, q.status === "available" ? "updated" : UX.statusChange(q.status));
     if (q.status !== "available" && !q.hidden && d.announce !== false) await announceStatus(j, q, null);
@@ -382,11 +394,25 @@ const OPS = {
       const o = src.toObject(); delete o._id; foundry.utils.setProperty(o, `flags.${ID}.questReward`, j.id); docs.push(o);
     }
     if (docs.length) await party.createEmbeddedDocuments("Item", docs);
+    // 2.2: renown rewards go to each member character of the party, on their own score (feature renown; off: left unpaid with a notice).
+    let renown = 0;
+    if (plan.renown.length) {
+      if (!WCT.features?.on?.("renown")) ui.notifications.warn(`${j.name}: its renown rewards weren't given (Renown is turned off).`);
+      else {
+        const pcs = membersOf(party).filter(a => a.type === "character");
+        if (!pcs.length) ui.notifications.warn(`${j.name}: ${party.name} has no member characters to give renown to.`);
+        for (const r of plan.renown) {
+          if (!pcs.length) break;
+          if (!Renown.faction(r.faction)) { ui.notifications.warn(`${j.name}: a renown reward names a faction that no longer exists.`); continue; }
+          if (await Renown.award(pcs, r.faction, r.amount, { reason: `Quest reward: ${j.name}` })) renown++;
+        }
+      }
+    }
     q.paid = true; await save(j, q);
     emit(j, "updated");
     const msg = messageId ? game.messages.get(messageId) : null;
     if (msg) await msg.setFlag(ID, "quest", { ...(msg.getFlag(ID, "quest") ?? {}), paid: true });
-    ui.notifications.info(`${j.name}: paid ${[amount > 0 && WCT.fmtMoney(amount), docs.length && `${docs.length} item${docs.length === 1 ? "" : "s"}`].filter(Boolean).join(" and ") || "nothing"} to ${party.name}.`);
+    ui.notifications.info(`${j.name}: paid ${[amount > 0 && WCT.fmtMoney(amount), docs.length && `${docs.length} item${docs.length === 1 ? "" : "s"}`, renown && `renown with ${renown} faction${renown === 1 ? "" : "s"}`].filter(Boolean).join(" and ") || "nothing"} to ${party.name}.`);
     return true;
   }
 };
@@ -436,6 +462,8 @@ const stampOf = j => {
   const v = /** @type {any} */ ({ ...data(j) }); delete v.party;
   const plain = list => list.map(({ rarity, ...i }) => i);
   v.rewards = { ...v.rewards, items: plain(v.rewards.items), choice: plain(v.rewards.choice) };
+  // 2.2: an empty renown list (every quest gets one when read) doesn't change the stamp, so nothing glows after the update.
+  if (!v.rewards.renown?.length) delete v.rewards.renown;
   return UX.questStamp(j.name, v);
 };
 /** Whether the quest glows for this client: a player, the feature on, and a view they haven't opened since it changed. */
@@ -743,11 +771,12 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
       r.items.length && `<p class="lbl">You will receive:</p><div class="wctq-slots">${r.items.map(i => this.slot(i)).join("")}</div>`,
       r.choice.length && `<p class="lbl">Choose one of these rewards:</p><div class="wctq-slots choice">${r.choice.map(i => this.slot(i, { pick: true, chosen: i.uuid === r.pick, canPick })).join("")}</div>${!r.pick && canPick && !gm ? `<p class="faint">Pick one; the GM can change it.</p>` : ""}`,
       amount > 0 && `<p class="lbl">You will also receive:</p><div class="wctq-coins">${coinsHTML(amount)}${pName ? `<span class="to">to ${esc(pName)}</span>` : ""}</div>`,
+      ...renownLines(q).map(t => `<p class="other renown"><i class="fa-solid fa-flag"></i> ${esc(t)}${pName ? ` <span class="to">each character of ${esc(pName)}</span>` : ""}</p>`),
       r.other && `<p class="other">${esc(r.other)}</p>`
     ].filter(Boolean).join("");
     const isTracked = tracked().includes(j.id);
     const btn = (action, icon, label, cls = "") => `<button type="button" data-action="${action}" class="wc-btn wc-btn-sm ${cls}"><i class="fa-solid ${icon}"></i> ${esc(label)}</button>`;
-    const hasRewards = !!(amount > 0 || r.items.length || r.choice.length);
+    const hasRewards = QL.hasRewards(q, amount);
     const gmBar = gm ? [
       btn("edit", "fa-pen", "Edit"),
       btn("hide", q.hidden ? "fa-eye" : "fa-eye-slash", q.hidden ? "Show to players" : "Hide from players"),
@@ -843,7 +872,7 @@ function trackedNotice(on) {
 async function completeAndPay(id) {
   const j = await run("setStatus", id, "completed"); if (!j) return null;
   const q = data(j);
-  const has = !!((q.rewards.coin && WCT.parseMoney(q.rewards.coin) > 0) || q.rewards.items.length || q.rewards.choice.length);
+  const has = QL.hasRewards(q, q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0);
   // The completion card just posted gets marked paid too (its Pay rewards button turns into Rewards paid).
   const card = game.messages.contents.findLast(m => m.flags?.[ID]?.quest?.id === id && m.flags[ID].quest.kind === "completed");
   if (has && q.party && !q.paid) await run("pay", id, card?.id ?? null);
@@ -898,6 +927,19 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
       <span class="omove"><button type="button" data-action="up" aria-label="Move up"><i class="fa-solid fa-arrow-up"></i></button><button type="button" data-action="down" aria-label="Move down"><i class="fa-solid fa-arrow-down"></i></button><button type="button" data-action="rm" aria-label="Remove"><i class="fa-solid fa-trash"></i></button></span>
     </li>`;
   }
+  /** 2.2: the Renown reward rows (feature renown on and at least one faction). */
+  renownField(q) {
+    if (!WCT.features?.on?.("renown")) return "";
+    const facs = Renown.factions();
+    if (!facs.length && !q.rewards.renown.length) return `<div class="form-group"><label>Renown</label><span class="hint">No factions yet (control panel › Character › Factions and renown…).</span></div>`;
+    return `<div class="form-group stacked"><label>Renown <small>each character in the party gains (or loses) it on their own score</small></label>
+      <ul class="wctq-rnlist">${q.rewards.renown.map(r => this.renownRow(r, facs)).join("")}</ul>
+      <button type="button" data-action="addrenown"><i class="fa-solid fa-flag"></i> Add renown</button></div>`;
+  }
+  renownRow(r = { faction: "", amount: 1 }, facs = Renown.factions()) {
+    const known = facs.some(f => f.id === r.faction);
+    return `<li class="wctq-rnrow"><span class="wctq-rntag">Renown</span><select class="rnfac" aria-label="Reward faction">${facs.map(f => `<option value="${f.id}" ${f.id === r.faction ? "selected" : ""}>${esc(f.name)}${f.hidden ? " (hidden)" : ""}</option>`).join("")}${r.faction && !known ? `<option value="${esc(r.faction)}" selected>Deleted faction</option>` : ""}</select><input type="text" class="rnamt" value="${r.amount > 0 ? `+${r.amount}` : r.amount}" inputmode="numeric" aria-label="Reward amount"><button type="button" data-action="rmrenown" aria-label="Remove reward"><i class="fa-solid fa-xmark"></i></button></li>`;
+  }
   itemChip(i) { return `<li class="wctq-chip q-${QL.quality(i.rarity)}" data-quality="${coreQuality(i.rarity)}" data-uuid="${esc(i.uuid)}" data-name="${esc(i.name)}" data-img="${esc(i.img)}" data-rarity="${esc(i.rarity ?? "")}"><img src="${esc(i.img)}" alt=""><span>${esc(i.name)}</span><button type="button" data-action="rmitem" aria-label="Remove ${esc(i.name)}"><i class="fa-solid fa-xmark"></i></button></li>`; }
 
   async _renderHTML() {
@@ -925,7 +967,8 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
         <div class="form-group"><label>Coin</label><input type="text" name="coin" value="${esc(q.rewards.coin)}" placeholder="e.g. 1g 20s"><span class="hint coinprev"></span></div>
         <div class="form-group stacked"><label>Items <small>always given; drop items here</small></label><ul class="wctq-items" data-drop="items">${q.rewards.items.map(i => this.itemChip(i)).join("")}</ul></div>
         <div class="form-group stacked"><label>Choose one of <small>a party member picks one; drop items here</small></label><ul class="wctq-items" data-drop="choice">${q.rewards.choice.map(i => this.itemChip(i)).join("")}</ul></div>
-        <div class="form-group"><label>Other</label><input type="text" name="other" value="${esc(q.rewards.other)}" placeholder="e.g. Renown with the town watch"></div>
+        ${this.renownField(q)}
+        <div class="form-group"><label>Other</label><input type="text" name="other" value="${esc(q.rewards.other)}" placeholder="e.g. A favour from the mayor"></div>
       </fieldset>
       <footer class="wctq-bar"><button type="submit" class="primary"><i class="fa-solid fa-floppy-disk"></i> Save</button><button type="button" data-action="cancel">Cancel</button></footer>`;
     // Rich text: Foundry's ProseMirror element when available, else a plain HTML textarea.
@@ -954,6 +997,8 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
         case "down": if (row.nextElementSibling) row.nextElementSibling.after(row); break;
         case "rm": row.remove(); break;
         case "rmitem": b.closest(".wctq-chip").remove(); break;
+        case "addrenown": f.querySelector(".wctq-rnlist")?.insertAdjacentHTML("beforeend", this.renownRow()); break;
+        case "rmrenown": b.closest(".wctq-rnrow").remove(); break;
         case "unlink": f.giverUuid.value = ""; f.querySelector(".linked").classList.add("off"); break;
         case "cancel": this.close(); break;
         default: return;
@@ -996,7 +1041,9 @@ export class QuestEditor extends foundry.applications.api.ApplicationV2 {
           return done === reached ? { ...base, done } : QL.tickObjective(base, done);
         }),
         // The chosen reward isn't sent: a player may pick while this is open (update() keeps the stored pick if it's still a choice).
-        rewards: { coin: f.coin.value, other: f.other.value, items: chips("items"), choice: chips("choice") }
+        rewards: { coin: f.coin.value, other: f.other.value, items: chips("items"), choice: chips("choice"),
+          // 2.2: renown rows (only sent while the feature shows them, so turning Renown off keeps a quest's renown rewards).
+          ...(f.querySelector(".wctq-rnlist") ? { renown: [...f.querySelectorAll(".wctq-rnrow")].map(r => ({ faction: r.querySelector(".rnfac")?.value ?? "", amount: String(r.querySelector(".rnamt")?.value ?? "").replace(/−/g, "-") })) } : {}) }
       };
       const status = f.status.value;
       let j;

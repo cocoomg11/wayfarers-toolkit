@@ -8,6 +8,8 @@
  * are read by `normalizeQuest`; the one-time move `quests2` (migrate.mjs) rewrites them and assigns the party actor.
  */
 
+import { normalizeQuestRenown } from "./renown-model.mjs";
+
 export const QUEST_VERSION = 2;
 export const LEVEL_MAX = 30;
 export const TARGET_MAX = 9999;
@@ -104,12 +106,17 @@ export function normalizeItem(i, lookup = () => null) {
   const src = (!i.name || !i.img || i.rarity === undefined) ? lookup(String(i.uuid)) : null;
   return { uuid: String(i.uuid), name: String(i.name ?? src?.name ?? "Item"), img: String(i.img ?? src?.img ?? "icons/svg/item-bag.svg"), rarity: str(i.rarity ?? src?.system?.rarity ?? "") };
 }
-/** What paying gives: the fixed items plus the picked one; `missingPick` when there's a choice and nobody picked. */
+/**
+ * What paying gives: the fixed items plus the picked one; `missingPick` when there's a choice and nobody picked. `renown` (2.2):
+ * [{ faction, amount }] given to each member character of the quest's party.
+ */
 export function rewardPlan(q) {
   const r = q?.rewards ?? {}; const choice = r.choice ?? [];
   const picked = choice.find(i => i.uuid === r.pick) ?? null;
-  return { items: [...(r.items ?? []), ...(picked ? [picked] : [])], picked, missingPick: choice.length > 0 && !picked };
+  return { items: [...(r.items ?? []), ...(picked ? [picked] : [])], picked, missingPick: choice.length > 0 && !picked, renown: normalizeQuestRenown(r.renown) };
 }
+/** Whether a quest has anything to pay (coin text, items, a choice or renown). `coin`: the coin amount already parsed. */
+export const hasRewards = (q, coin = 0) => !!(coin > 0 || q?.rewards?.items?.length || q?.rewards?.choice?.length || q?.rewards?.renown?.length);
 /**
  * Whether a pick may be stored: the uuid is one of the choices ("" clears, GM only), rewards aren't paid, the quest is active or
  * completed, and the picker is a GM or a member's owner who sees the quest. @returns {{ ok: boolean, reason?: string }}
@@ -157,7 +164,8 @@ export function normalizeQuest(raw = {}, { id = () => Math.random().toString(36)
     summary: str(q.summary),
     description: String(q.description ?? ""),
     objectives: (Array.isArray(q.objectives) ? q.objectives : []).map(o => (typeof o === "string" ? { text: o } : o)).filter(o => str(o?.text)).map(o => normalizeObjective(o, id())),
-    rewards: { coin: str(r.coin), items: items(r.items), choice, pick, other: str(r.other) },
+    // 2.2: renown rewards ([{ faction, amount }]); a missing list is empty, so older records need no version change.
+    rewards: { coin: str(r.coin), items: items(r.items), choice, pick, other: str(r.other), renown: normalizeQuestRenown(r.renown) },
     paid: !!q.paid,
     sort: Number(q.sort) || now
   };

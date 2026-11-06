@@ -198,8 +198,8 @@ test("quests: players' copy (journal flag and page) holds no hidden objectives o
   assert.equal(QM.stripSecrets(`<p>a</p><section class='other secret'>x</section>`), "<p>a</p>");
   assert.ok(QM.isPublic(pub)); assert.ok(!QM.isPublic(full), "an old full flag is moved once");
   const q = src("quests.mjs");
-  assert.match(q, /\[`flags\.\$\{ID\}\.quest`\]: publicQuest\(q\)/, "save writes only the public view to the journal");
-  assert.match(q, /flags: \{ \[ID\]: \{ quest: publicQuest\(q\) \} \}/, "create too");
+  assert.match(q, /\[`flags\.\$\{ID\}\.quest`\]: publicQuest\(q(?:, PUB)?\)/, "save writes only the public view to the journal");
+  assert.match(q, /flags: \{ \[ID\]: \{ quest: publicQuest\(q(?:, PUB)?\) \} \}/, "create too");
   assert.doesNotMatch(q, /class="secret" id="secret-wct-objectives"/, "no secret block on the page");
 });
 

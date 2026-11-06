@@ -254,3 +254,30 @@ test("renown: wiring rules (feature, storage, cleanup, API, hook, CSS scope)", a
   assert.match(src("module.json"), /"styles\/renown\.css"/);
   assert.doesNotMatch(src("scripts/renown-model.mjs") + src("scripts/renown-view-model.mjs") + src("scripts/renown-apps.mjs") + rn, /warcraft|blizzard|azeroth|\bwow\b|friendly|honored|revered|exalted/i);
 });
+
+// ---------------------------------------------------------------- quest renown rewards
+test("quests: renown rewards normalized, planned, and kept out of players' copy for hidden factions", async () => {
+  const QL = await import("../scripts/quest-log-model.mjs");
+  const QM = await import("../scripts/quests-model.mjs");
+  const UX = await import("../scripts/quest-ux-model.mjs");
+  const q = QL.normalizeQuest({ v: 2, status: "active", party: "P1", rewards: { renown: [{ faction: "watch", amount: "+2" }, { faction: "veil", amount: -1 }] } });
+  assert.deepEqual(q.rewards.renown, [{ faction: "watch", amount: 2 }, { faction: "veil", amount: -1 }]);
+  assert.deepEqual(QL.normalizeQuest({ v: 2 }).rewards.renown, [], "older records read an empty list (no version change)");
+  assert.deepEqual(QL.rewardPlan(q).renown, q.rewards.renown);
+  assert.equal(QL.hasRewards(q), true); assert.equal(QL.hasRewards(QL.normalizeQuest({})), false); assert.equal(QL.hasRewards(QL.normalizeQuest({}), 5), true);
+  const pub = QM.publicQuest(q, { renownShown: id => id === "watch" });
+  assert.deepEqual(pub.rewards.renown, [{ faction: "watch", amount: 2 }]);
+  assert.deepEqual(QM.publicQuest(q).rewards.renown, [], "without a check, nothing about renown reaches players");
+  assert.deepEqual(QM.publicQuest({ ...q, hidden: true }).rewards.renown, []);
+  // The glow stamp ignores the empty list every quest now gets, so nothing glows after updating.
+  const qs = src("scripts/quests.mjs");
+  assert.match(qs, /if \(!v\.rewards\.renown\?\.length\) delete v\.rewards\.renown;/);
+  const old = QL.normalizeQuest({ v: 2, status: "active" }); const v = { ...old, rewards: { ...old.rewards } }; delete v.rewards.renown;
+  const before = { ...old, rewards: { coin: "", items: [], choice: [], pick: "", other: "" } };
+  assert.equal(UX.questStamp("Q", v), UX.questStamp("Q", before));
+  // Paying gives renown to each member character, through the award (chat card, hook) and only with the feature on.
+  assert.match(qs, /const pcs = membersOf\(party\)\.filter\(a => a\.type === "character"\);/);
+  assert.match(qs, /await Renown\.award\(pcs, r\.faction, r\.amount, \{ reason: `Quest reward: \$\{j\.name\}` \}\)/);
+  assert.match(qs, /WCT\.features\?\.on\?\.\("renown"\)/);
+  assert.match(qs, /const PUB = \{ renownShown: id => Renown\.isShown\(id\) \};/);
+});

@@ -34,13 +34,18 @@ export function stripSecrets(html) {
 /** Whether players see the quest at all (given and not hidden). */
 export const shown = q => !q.hidden && q.status !== "available";
 
-/** The public view of a normalized quest `q`. */
-export function publicQuest(q) {
+/**
+ * The public view of a normalized quest `q`. `renownShown(factionId)` (2.2): whether players may see a faction; renown rewards with a
+ * hidden faction (or one this check doesn't know) are left out of the public view.
+ * @param {any} q @param {{ renownShown?: (id: string) => boolean }} [o]
+ */
+export function publicQuest(q, { renownShown = () => false } = {}) {
   if (!shown(q)) {
-    return { v: q.v, pub: true, status: q.status, hidden: q.hidden, party: "", zone: "", level: null, levelText: "", giver: { name: "", uuid: "" }, summary: "", description: "", objectives: [], rewards: { coin: "", items: [], choice: [], pick: "", other: "" }, paid: false, sort: q.sort };
+    return { v: q.v, pub: true, status: q.status, hidden: q.hidden, party: "", zone: "", level: null, levelText: "", giver: { name: "", uuid: "" }, summary: "", description: "", objectives: [], rewards: { coin: "", items: [], choice: [], pick: "", other: "", renown: [] }, paid: false, sort: q.sort };
   }
+  const rewards = q.rewards ? { ...q.rewards, renown: (q.rewards.renown ?? []).filter((/** @type {any} */ r) => r && renownShown(r.faction)).map((/** @type {any} */ r) => ({ ...r })) } : q.rewards;
   return {
-    ...q, pub: true,
+    ...q, pub: true, rewards,
     description: stripSecrets(q.description),
     objectives: q.objectives.filter(o => !o.hidden).map(o => ({ ...o }))
   };

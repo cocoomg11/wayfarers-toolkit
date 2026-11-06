@@ -169,8 +169,8 @@ test("ownership: Observer for the party's players while shown, None for others; 
   assert.ok(QL.sameOwnership({ default: 0, u1: 2 }, { default: 0, u1: 2, u2: 0 }), "missing = none");
   assert.ok(!QL.sameOwnership({ default: 2 }, { default: 0, u1: 2 }));
   const s = src("scripts/quests.mjs");
-  assert.match(s, /await j\.update\(\{ name, ownership: ownershipOf\(q\), \[`flags\.\$\{ID\}\.quest`\]: publicQuest\(q\) \}\)/);
-  assert.match(s, /JournalEntry\.create\(\{ name, folder: folder\.id, ownership: ownershipOf\(q\), flags: \{ \[ID\]: \{ quest: publicQuest\(q\) \} \}/);
+  assert.match(s, /await j\.update\(\{ name, ownership: ownershipOf\(q\), \[`flags\.\$\{ID\}\.quest`\]: publicQuest\(q(?:, PUB)?\) \}\)/);
+  assert.match(s, /JournalEntry\.create\(\{ name, folder: folder\.id, ownership: ownershipOf\(q\), flags: \{ \[ID\]: \{ quest: publicQuest\(q(?:, PUB)?\) \} \}/);
 });
 
 test("public view of a hidden quest keeps no party", () => {
