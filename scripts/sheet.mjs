@@ -99,7 +99,57 @@ export class WctCharacterSheet extends ActorSheetV2 {
   get inventorySource() { return this.actor; }
   canExpand(item) { return !["class", "subclass"].includes(item?.type); }
   /** dnd5e's inventory element opens item sheets through the app. */
-  _openDocumentSheet(doc, options = {}) { if (doc?.sheet) doc.sheet.render({ force: true, ...options }); }
+  _openDocumentSheet(doc, options = {}) { if (doc?.sheet) this._renderChild(doc.sheet, options); }
+
+  // ---------------------------------------------------------------- dnd5e's app contract (2.0.1)
+  // Methods dnd5e 6.0.6 calls on "the sheet" from its documents, dialogs and elements (APP_CONTRACT in sheet-model.mjs lists them).
+  // Each does what dnd5e's ApplicationV2Mixin / PrimarySheetMixin / BaseActorSheet does, or hands the work to the dnd5e drop host.
+
+  /** Renders an app in this sheet's workspace (dnd5e: dialogs, advancement, activity choice, item sheets). */
+  _renderChild(app, options = {}) {
+    const parent = /** @type {any} */ (this).parent;
+    if (parent?.renderChild) return parent.renderChild(app, options);
+    if (typeof super.renderChild === "function") return super.renderChild(app, options);
+    return app?.render?.({ force: true, ...options });
+  }
+
+  /** A yes / no confirm as a child of this sheet (dnd5e's `_confirmDialog`: item, effect and activity deletes). Resolves true / false / null. */
+  _confirmDialog(config = {}) {
+    /** @type {(v: any) => void} */
+    let resolve = () => { };
+    const promise = new Promise(r => { resolve = r; });
+    const { yes = {}, no = {}, ...rest } = /** @type {any} */ (config);
+    const loc = WctCharacterSheet.loc;
+    const app = new foundry.applications.api.DialogV2({
+      ...rest,
+      classes: [...(rest.classes ?? []), "wct-dialog", ...UI_CLASSES],
+      buttons: [
+        foundry.utils.mergeObject({ action: "yes", icon: "fa-solid fa-check", label: loc("COMMON.Yes"), default: true }, yes),
+        foundry.utils.mergeObject({ action: "no", icon: "fa-solid fa-xmark", label: loc("COMMON.No") }, no)
+      ],
+      submit: result => resolve(result)
+    });
+    app.addEventListener("close", () => resolve(null), { once: true });
+    this._renderChild(app);
+    return promise;
+  }
+
+  /** dnd5e's "Toggle sheet mode" key (Shift+E) and its sheet API: play ↔ edit. @param {"play" | "edit" | number} [mode] */
+  changeMode(mode) {
+    const want = mode === "edit" || mode === 2 ? "edit" : mode === "play" || mode === 1 ? "play" : this._mode === "edit" ? "play" : "edit";
+    if (want === "edit" && !this.isEditable) return;
+    if (want !== this._mode) { this._mode = want; this.render(); }
+  }
+  /** dnd5e reads `isEditMode` on its sheets. */
+  get isEditMode() { return this._mode === "edit" && !!this.isEditable; }
+
+  /** Group sheets and macros drop items onto `actor.sheet._onDropCreateItems`: dnd5e's creation via the drop host. */
+  _onDropCreateItems(event, items, behavior) { return this.dnd5eHost()?._onDropCreateItems?.(event, items, behavior); }
+  _onDropStackConsumables(event, itemData, options) { return this.dnd5eHost()?._onDropStackConsumables?.(event, itemData, options) ?? null; }
+  _onDropSingleItem(event, itemData, options) { return this.dnd5eHost()?._onDropSingleItem?.(event, itemData, options) ?? itemData; }
+
+  /** dnd5e's effects element asks the app for the actor's concentration data. */
+  get _concentration() { return this.actor?.concentration ?? { items: new Set(), effects: new Set() }; }
 
   /**
    * An unrendered dnd5e character sheet for this actor, used only for dnd5e's own drop handling (_onDropItem / _onDropCreateItems /
@@ -574,14 +624,14 @@ export class WctCharacterSheet extends ActorSheetV2 {
       el.addEventListener("drop", async ev => {
         ev.preventDefault(); ev.stopPropagation(); el.classList.remove("over");
         const r = await Pane.dropOnDoll(a, ev, el);
-        if (r && "ask" in r) this._showPop(null, Pane.askSlotMenu(a, /** @type {any} */ (r).item, /** @type {string[]} */ (r.ask)));
+        const ask = PM.askOf(r); if (ask) this._showPop(null, Pane.askSlotMenu(a, /** @type {any} */ (r).item, ask));
       });
     }
     root.querySelectorAll(".wct-cs-slot.wct-slot").forEach(el => {
       el.addEventListener("click", ev => { ev.stopPropagation(); const m = Pane.slotMenu(a, el); if (m) this._showPop(el, m); });
       el.addEventListener("contextmenu", ev => { ev.preventDefault(); ev.stopPropagation(); const i = el.classList.contains("filled") ? itemOf(el) : null; if (i) Pane.unslotItem(i); });
     });
-    const equip = async (el, item) => { const r = await Pane.autoEquip(a, item); if (r && "ask" in r) this._showPop(el, Pane.askSlotMenu(a, item, /** @type {string[]} */ (r.ask))); };
+    const equip = async (el, item) => { const r = await Pane.autoEquip(a, item); const ask = PM.askOf(r); if (ask) this._showPop(el, Pane.askSlotMenu(a, item, ask)); };
     root.querySelectorAll(".wct-cs-bag .wct-item").forEach(el => {
       el.addEventListener("click", ev => { ev.stopPropagation(); equip(el, itemOf(el)); });
       el.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); equip(el, itemOf(el)); } });
@@ -702,7 +752,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
  */
 export async function equipToSlot(actor, item) {
   const r = await Pane.autoEquip(actor, item);
-  if (!r || "ask" in r) { if (!item.system.equipped) await item.update({ "system.equipped": true }); }
+  if (!r || PM.askOf(r)) { if (!item.system.equipped) await item.update({ "system.equipped": true }); }
   return r;
 }
 

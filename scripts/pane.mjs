@@ -664,7 +664,7 @@ export async function dropOnDoll(actor, ev, el) {
     }
     return slotItem(actor, item, slot);
   }
-  const r = await autoEquip(actor, item); return r && "ask" in r ? { ...r, item } : r;
+  const r = await autoEquip(actor, item); return PM.askOf(r) ? { ...r, item } : r;
 }
 
 /**
@@ -986,12 +986,12 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
 
   async _onDrop(ev, el) {
     const r = await dropOnDoll(this.actor, ev, el);
-    if (r && "ask" in r) this._askSlot(null, /** @type {any} */ (r).item, r.ask);
+    const ask = PM.askOf(r); if (ask) this._askSlot(null, /** @type {any} */ (r).item, ask);
   }
 
   async _equipFromBag(el, item) {
     const r = await autoEquip(this.actor, item);
-    if (r && "ask" in r) this._askSlot(el, item, r.ask);
+    const ask = PM.askOf(r); if (ask) this._askSlot(el, item, ask);
   }
 
   _askSlot(el, item, slots) {

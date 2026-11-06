@@ -221,6 +221,18 @@ export function tabsHTML(v) {
   return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}" data-action="wctPage" data-page="${p.id}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip="${esc(p.label)}" data-tooltip-direction="RIGHT">${svg(p.icon)}</button>`).join("")}</nav>`;
 }
 
+/**
+ * dnd5e 6.0.6's app contract: the members its documents, dialogs and elements use on a sheet passed as `sheet` / found as the app
+ * (Item / ActiveEffect / activity deleteDialog → `_confirmDialog`; createDialog, ActivityChoiceDialog, ActivityUsageDialog,
+ * AdvancementConfirmationDialog, deleteDialog's AdvancementManager → `_renderChild`; activity context menu → `item.sheet._renderChild`;
+ * group sheet drops → `actor.sheet._onDropCreateItems`; the toggleSheetMode key → `changeMode` / `isEditable`; the inventory and
+ * effects elements → `inventorySource`, `expandedSections`, `canExpand`, `_openDocumentSheet`, `_concentration`, `render`).
+ * Found by searching dnd5e's source for `sheet._`, `sheet?.`, `this.app.`, `this.#app.` and `app.` calls. sheet.mjs implements each
+ * (test).
+ */
+export const APP_CONTRACT = Object.freeze(["_renderChild", "_confirmDialog", "changeMode", "isEditMode", "_onDropCreateItems", "_onDropStackConsumables", "_onDropSingleItem",
+  "inventorySource", "expandedSections", "canExpand", "_openDocumentSheet", "_concentration"]);
+
 /** The pages built so far (slice 2: Character, Details, Inventory); the others are placeholders. */
 export const BUILT_PAGES = Object.freeze(["character", "details", "inventory"]);
 

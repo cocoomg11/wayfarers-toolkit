@@ -130,7 +130,7 @@ test("pane and sheet share the slot and weapon-set logic and flags (no second st
 test("inventory equip toggle places the item in its paper-doll slot with the pane's rules", () => {
   const s = src("scripts/sheet.mjs");
   assert.match(s, /addEventListener\("inventory", ev => \{[\s\S]*?if \(e\.detail !== "equip"\) return;[\s\S]*?e\.preventDefault\(\);[\s\S]*?return equipToSlot\(a, item\);/);
-  assert.match(s, /export async function equipToSlot\(actor, item\) \{\s*const r = await Pane\.autoEquip\(actor, item\);\s*if \(!r \|\| "ask" in r\) \{ if \(!item\.system\.equipped\) await item\.update\(\{ "system\.equipped": true \}\); \}/,
+  assert.match(s, /export async function equipToSlot\(actor, item\) \{\s*const r = await Pane\.autoEquip\(actor, item\);\s*if \(!r \|\| PM\.askOf\(r\)\) \{ if \(!item\.system\.equipped\) await item\.update\(\{ "system\.equipped": true \}\); \}/,
     "no clear slot: equipped without a slot (the Character page's note)");
   assert.match(s, /if \(item\.system\.equipped\) return Pane\.unslotItem\(item\)/, "unequip clears the slot / set too");
 });
@@ -314,4 +314,22 @@ test("sheet stays pure-importable and every new window bit keeps the core look",
   assert.match(s, /classes: \["wct-sheet", "wct-window", \.\.\.UI_CLASSES\]/);
   assert.match(s, /form: \{ submitOnChange: false \}/);
   assert.doesNotMatch(src("scripts/sheet-pages-model.mjs").replace(/\/\*[\s\S]*?\*\//g, ""), /\b(game|canvas|ui|CONFIG|foundry)\./, "the page model is pure");
+});
+
+// ---------------------------------------------------------------- 2.0.1 fixes
+test("2.0.1: equip / drop results are only asked about when they are objects (a slot string no longer throws)", () => {
+  assert.equal(PM.askOf("finger1"), null, "dropOnDoll can resolve to a slot string");
+  assert.equal(PM.askOf(undefined), null); assert.equal(PM.askOf(null), null); assert.equal(PM.askOf({ slot: "head" }), null); assert.equal(PM.askOf({ set: "melee", hand: "main" }), null);
+  assert.deepEqual(PM.askOf({ ask: ["head", "neck"], item: {} }), ["head", "neck"]);
+  assert.equal(PM.askOf({ ask: "head" }), null);
+  for (const f of ["scripts/pane.mjs", "scripts/sheet.mjs"]) assert.doesNotMatch(src(f), /"ask" in r/, `${f}: every caller goes through askOf`);
+});
+
+test("2.0.1: the sheet implements dnd5e 6.0.6's app contract (delete, create, dialogs, group drops, sheet-mode key)", () => {
+  const s = src("scripts/sheet.mjs");
+  assert.deepEqual([...SM.APP_CONTRACT].sort(), ["_concentration", "_confirmDialog", "_onDropCreateItems", "_onDropSingleItem", "_onDropStackConsumables", "_openDocumentSheet", "_renderChild", "canExpand", "changeMode", "expandedSections", "inventorySource", "isEditMode"].sort());
+  for (const name of SM.APP_CONTRACT) assert.match(s, new RegExp(`\\n  (get |async )?${name.replace(/\$/g, "\\$")}\\(`), name);
+  assert.match(s, /_confirmDialog\(config = \{\}\) \{[\s\S]*?new foundry\.applications\.api\.DialogV2\(\{[\s\S]*?classes: \[\.\.\.\(rest\.classes \?\? \[\]\), "wct-dialog", \.\.\.UI_CLASSES\][\s\S]*?submit: result => resolve\(result\)[\s\S]*?addEventListener\("close", \(\) => resolve\(null\), \{ once: true \}\);\s*this\._renderChild\(app\);/);
+  assert.match(s, /_onDropCreateItems\(event, items, behavior\) \{ return this\.dnd5eHost\(\)\?\._onDropCreateItems\?\.\(event, items, behavior\); \}/);
+  assert.match(s, /Item\.implementation\.createDialog\(\{\}, \{ types, parent: this\.actor \}, \{ sheet: this \}\)/, "create still passes the sheet (now it has _renderChild)");
 });

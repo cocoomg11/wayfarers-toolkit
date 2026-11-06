@@ -2,6 +2,30 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.0.1
+
+2026-11-06. Fixes from the 2.0.0 live test. No data migration, nothing new stored.
+
+**Live test of 2.0.0** (Foundry 14.369, dnd5e 6.0.6, warcraft-dev world): almost everything passed: the three pages in both themes, GM and player, rolls and config apps, equip from Inventory into the doll slot, pane and sheet staying in sync, drag and drop through dnd5e. Three bugs, fixed here:
+
+**Fixed**
+- **Inventory Delete** (the edit-mode row button and ⋮ → Delete) did nothing: dnd5e's `Item#deleteDialog({ sheet })` calls `sheet._confirmDialog(config)`, which the toolkit sheet lacked ("sheet._confirmDialog is not a function").
+- **Create item** did nothing: dnd5e's create dialog calls `sheet._renderChild(dialog)` ("sheet._renderChild is not a function").
+- Both come from one gap, so the sheet now implements **dnd5e 6.0.6's whole app contract** (`APP_CONTRACT` in sheet-model.mjs, found by searching dnd5e's source for what its documents, dialogs and elements call on a sheet): `_renderChild` (dialogs, activity choice and usage dialogs, advancement confirmations, item sheets), `_confirmDialog` (item, effect and activity deletes; a DialogV2 in the toolkit look, resolving true / false / null like dnd5e's), `changeMode` / `isEditMode` (dnd5e's Shift+E *Toggle sheet mode* key now switches Play / Edit), `_onDropCreateItems` / `_onDropStackConsumables` / `_onDropSingleItem` (group sheets dropping items on a member, through the dnd5e drop host), and `_concentration` (dnd5e's effects element), alongside slice 2's `inventorySource`, `expandedSections`, `canExpand` and `_openDocumentSheet` (which now renders as a child too).
+- **Dropping on a Finger slot** logged "Cannot use 'in' operator to search for 'ask' in finger1": a doll drop can resolve to a slot string, and the callers tested it with `in`. Every caller (the sheet's drop and equip handlers, the pane's `_onDrop` / `_equipFromBag`, `dropOnDoll`, `equipToSlot`) now goes through `askOf(r)` (pane-model.mjs), which only reads `{ ask: [...] }` objects.
+
+**Noted, not ours**: dnd5e labels an item with no range value "Range NaN ft" (seen in the Attack box and item tooltips); that text is dnd5e's own `labels.range`.
+
+**Tests**: `tests/v134-sheet.test.mjs` (askOf on strings, objects and empty results; no `"ask" in r` left; every `APP_CONTRACT` member defined on the sheet; the confirm dialog's shape; group drops through the host).
+
+**Untested in Foundry** (live checklist)
+- Inventory: edit-mode Delete and ⋮ → Delete ask for confirmation and delete (and the advancement question for an item with advancement); No / closing the dialog keeps the item.
+- Create item opens dnd5e's create dialog; the new item appears.
+- Drop an item on Finger 1 and Finger 2 (empty and filled), and swap them: no console error.
+- Delete an activity from an item's ⋮ (activity row) and an effect: confirmation shows.
+- Shift+E on the toolkit sheet toggles Play / Edit (owners only).
+- Drag an item from a group (party) sheet onto a member using the toolkit sheet: the item is created once.
+
 ## 2.0.0
 
 2026-11-06. Character sheet replacement, slice 2: the **Character**, **Details** and **Inventory** pages. No data migration and nothing new stored: the Character page uses the character pane's existing item flag `slot` and actor flag `weaponSets`.

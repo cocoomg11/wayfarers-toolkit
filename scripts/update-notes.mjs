@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.0.1",
+    changes: [
+      { feature: "characterSheet", text: "Character sheet fixes: Delete and Create item on the Inventory page work again, and dropping an item on a Finger slot no longer logs an error." }
+    ],
+    actions: []
+  },
+  {
     version: "2.0.0",
     changes: [
       { feature: "characterSheet", text: "Wanderer's Toolkit 2.0: the character sheet replacement gets its first real pages. Character is the paper doll with weapon sets, Details has the abilities, skills, tools and traits, and Inventory lists your items with prices, weight, quantity and uses." },

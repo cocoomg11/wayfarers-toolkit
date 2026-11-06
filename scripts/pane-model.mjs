@@ -52,6 +52,18 @@ export function qualityKey(f = {}) {
   return TIP_QUALITY[c] ?? quality(f.rarity);
 }
 
+// ---------------------------------------------------------------- equip results
+/**
+ * The slot list from an equip / drop result that asks the user to pick a slot (`{ ask: [...] }`), else null. Results can also be a
+ * slot string ("finger1"), `{ slot }`, `{ set, hand }`, undefined or a notification's return, so never use `in` on them directly.
+ * @param {unknown} r @returns {string[] | null}
+ */
+export function askOf(r) {
+  if (!r || typeof r !== "object" || !("ask" in r)) return null;
+  const a = /** @type {any} */ (r).ask;
+  return Array.isArray(a) ? a.map(String) : null;
+}
+
 // ---------------------------------------------------------------- header
 /**
  * "Level 5 Fighter · Human · The Party": level (a number, or "CR 2" text for NPCs), classes, species, party name; blanks left out.
