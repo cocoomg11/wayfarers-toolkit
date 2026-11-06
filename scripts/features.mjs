@@ -37,7 +37,9 @@ export const FEATURES = [
   // 1.31.0
   { id: "merchantShop", label: "Open shop for players", hint: "GM: open an Item Piles merchant on players' screens, each with their own character as the buyer, from the merchant window's header or the merchant token's HUD, and close it for everyone again. Needs Item Piles." },
   // 1.33.0 (slice 1; off by default)
-  { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Character (paper doll shared with the character pane), Details and Inventory pages are built; the other pages link to the system sheet for now. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." }
+  { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Character (paper doll shared with the character pane), Details and Inventory pages are built; the other pages link to the system sheet for now. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." },
+  // 2.1.0 (off by default: it changes a setting of Item Piles)
+  { id: "merchantRounding", default: false, label: "Merchant coin rounding", hint: "Item Piles merchants round prices to a whole smallest coin instead of dropping the fraction, so a 1-copper item at half price costs 1 copper instead of nothing. Sets Item Piles' Currency decimal digits through its API when the world loads (and puts the old value back when turned off). Needs Item Piles." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 /**

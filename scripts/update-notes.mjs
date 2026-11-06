@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.1.0",
+    changes: [
+      "New, off by default: Merchant coin rounding. Item Piles merchant prices round to a whole smallest coin (half a coin or more rounds up), so a 1-copper item at half price costs 1 copper instead of nothing. Turn it on on the control panel's Features tab; it sets Item Piles' Currency decimal digits when the world loads and puts the old value back when you turn it off."
+    ],
+    actions: []
+  },
+  {
     version: "2.0.1",
     changes: [
       { feature: "characterSheet", text: "Character sheet fixes: Delete and Create item on the Inventory page work again, and dropping an item on a Finger slot no longer logs an error." }

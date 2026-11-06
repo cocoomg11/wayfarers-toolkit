@@ -34,7 +34,7 @@ export const CATEGORIES = [
   ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history; the shared Module data folder too when nothing else is in it)"],
   ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
-  ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; reloads)"]
+  ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; puts back Item Piles' Currency decimal digits if Merchant coin rounding changed it; reloads)"]
 ];
 
 /** Every actor whose items can hold toolkit items: world actors and unlinked tokens' own actors. */
@@ -128,6 +128,8 @@ export async function remove(pick = {}) {
     let n = 0;
     // Core's character-sheet key, if the sheet moved it (Alt+C, or 1.33.0's Shift+C) on this client: back to its default before the record is reset.
     try { await (await import("./sheet.mjs")).restoreCoreKey(); } catch (e) { console.warn(`${ID} | remove data: core sheet key`, e); }
+    // Merchant coin rounding: Item Piles' Currency decimal digits goes back to what it was before the toolkit set it.
+    try { await (await import("./rounding.mjs")).restore(); } catch (e) { console.warn(`${ID} | remove data: merchant rounding`, e); }
     for (const c of p.settings) { try { const cur = game.settings.get(ID, c.key); const def = foundry.utils.deepClone(c.default); if (JSON.stringify(cur) !== JSON.stringify(def)) { await game.settings.set(ID, c.key, def); n++; } } catch (e) { console.warn(`${ID} | remove data: setting ${c.key}`, e); } }
     done.settings = n;
   }

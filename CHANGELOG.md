@@ -2,6 +2,28 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## Unreleased
+
+Merchant coin rounding (planned as 2.1.0; the update note is filed under 2.1.0, so rename it if the release gets another number). Nothing stored in documents; one hidden world setting.
+
+**Added**
+- **Merchant coin rounding** (new feature `merchantRounding`, **off by default**, Features tab; needs Item Piles). Item Piles 3.3.4 rounds a merchant price (item price × the merchant's modifier) to its *Currency decimal digits* (default 0.00001 of the primary coin) and then floors each coin, so with gold primary and copper at 0.0001, a 1-copper item at 50% showed "0g 0s 0c" and was free, and 3 copper at 50% became 1 copper. With the feature on, the active GM sets Item Piles' *Currency decimal digits* to the smallest coin (the finest exchange rate among Item Piles' currencies and every merchant's own currency list; 0.0001 for the three-coin economy) through Item Piles' public `game.itempiles.API.setCurrencyDecimalDigits`, once Item Piles is ready on each load and again when Item Piles' currencies change. Prices then round to a whole smallest coin, half up: 1 cp at 50% → 1c, 3 cp at 50% → 2c, 1 sp at 50% → 50c, quantity applied after rounding, free items stay free.
+- Setting **Merchant prices round** (`merchantRoundingMode`, world, Loot › Advanced): *Round to the nearest whole coin* (default) or *Item Piles default*. Hidden world setting `merchantRoundingPrev` remembers Item Piles' value before the toolkit changed it (RECORD_SETTINGS + WIZARD_IGNORE); it is put back when the feature is off on a load, the mode is Item Piles default, or Remove toolkit data resets the settings, unless someone changed Item Piles' value since (then theirs stays).
+- Health check (Loot extras): on / off / not applied yet, a sample (an item worth 1 smallest coin at half price), merchants whose buy or sell modifier is under 0.5, and an info line when Item Piles is newer than 3.3.4.
+
+**Why this seam**: Item Piles 3.3.4 fires no hook around its price maths (`getPriceData`, `getPriceArray`, `getPaymentData` in `src/helpers/pile-utilities.js`) and ships as one bundled file, so its helpers can't be wrapped; `PRICE_MODIFIER_TRANSFORMER` / `ITEM_COST_TRANSFORMER` belong to the system integration (Item Piles: D&D 5e) and the modifier is rounded to 2 decimals after them anyway. The decimal-digits setting is public API and is used for every price, payment and change sum, so display, trade and change agree. **Limit**: it rounds half up, not always up: less than half a smallest coin still rounds down, and at a merchant under 50% an item worth exactly 1 smallest coin has no price (Item Piles then refuses the trade instead of giving it away).
+
+**Tests**: `tests/v210-rounding.test.mjs` (step from currency lists, plan set / restore / forget, a copy of Item Piles 3.3.4's price maths showing the bug at 0.00001 and the fix at 0.0001, the 1 cp / 3 cp / 1 sp / free / quantity cases, under-half merchants, health lines, wiring).
+
+**Untested in Foundry** (live checklist)
+- Turn on Merchant coin rounding, reload: Item Piles settings › Currency decimal digits reads 0.0001 (three-coin) and the health check's line is ok with "costs 1".
+- Merchant at 50%: a 1-copper item shows 1c (buy and sell), 3-copper item 2c, 1-silver item 50c; buy 3 of the 3-copper item: 6c paid, change correct.
+- Buy and sell with a purse of only gold or silver: Item Piles makes change correctly.
+- A merchant at 25%: health check names it; the 1-copper item there can't be traded (no error in the console beyond Item Piles' own refusal: check this).
+- Set the mode to Item Piles default: Currency decimal digits goes back to 0.00001 at once. Turn the feature off and reload: same.
+- Change Item Piles' currencies with the feature on: the value is set again.
+- Standard 5e coins (gold primary, copper 0.01): set to 0.01.
+
 ## 2.0.1
 
 2026-11-06. Fixes from the 2.0.0 live test. No data migration, nothing new stored.
