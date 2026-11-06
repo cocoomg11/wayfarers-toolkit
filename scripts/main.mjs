@@ -21,6 +21,7 @@ import * as FlightEditor from "./flight-editor.mjs";
 import * as Cleanup from "./cleanup.mjs";
 import * as Merchant from "./merchant.mjs";
 import * as Shop from "./shop.mjs";
+import * as Rounding from "./rounding.mjs";
 import { log } from "./log.mjs";
 import * as Pace from "./travel-pace.mjs";
 import * as FlightMap from "./flight-map.mjs";
@@ -226,6 +227,8 @@ function registerSettings() {
   // Core's remembered window placement (windows.mjs): one hidden client setting, registered here so cleanup and settings lists see it.
   registerWindowPlacement(ID);
   Sheet.registerSettings();
+  // 2.1: merchant coin rounding (mode, and the Item Piles value it replaced).
+  Rounding.registerSettings();
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
@@ -918,6 +921,8 @@ Hooks.once("init", () => {
   if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
   if (F.on("merchantShop")) Shop.init();
+  // Merchant coin rounding: always one item-piles-ready check, so a turned-off feature still puts Item Piles' value back.
+  Rounding.init();
   if (F.on("bossFrames")) Bosses.init();
   if (F.on("lootRolls")) Loot.init();
   // After Vendor Trash's hooks, so a body gets its trash before its boss loot joins it in the same pile.

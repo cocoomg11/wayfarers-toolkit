@@ -4,7 +4,7 @@
 
 Everything that drops, is rolled for, sold or paid: junk loot on every creature, boss drops, Need / Greed loot rolls, shops, and the coins themselves.
 
-- [Vendor Trash](#vendor-trash): [Sell all junk](#sell-all-junk-at-a-merchant), [Open shop for players](#open-shop-for-players), [Item Piles](#with-item-piles-loot-the-bodies) ([setup](#setting-up-item-piles)), [what drops](#what-drops), [your own loot](#adding-your-own-loot), [no loot](#no-loot), [value by CR](#value-by-challenge-rating), [rules page](#your-own-rules-the-vendor-trash-rules-page), [dungeons](#dungeon-loot)
+- [Vendor Trash](#vendor-trash): [Sell all junk](#sell-all-junk-at-a-merchant), [Open shop for players](#open-shop-for-players), [Merchant coin rounding](#merchant-coin-rounding), [Item Piles](#with-item-piles-loot-the-bodies) ([setup](#setting-up-item-piles)), [what drops](#what-drops), [your own loot](#adding-your-own-loot), [no loot](#no-loot), [value by CR](#value-by-challenge-rating), [rules page](#your-own-rules-the-vendor-trash-rules-page), [dungeons](#dungeon-loot)
 - [Loot rolls](#loot-rolls) and [loot history](#loot-history)
 - [Boss loot](#boss-loot)
 - [Party gold tracker](#party-gold-tracker)
@@ -70,6 +70,18 @@ The pick dialog lists the connected players who have a character they own, all t
 `api.shop.open(merchantTokenOrActor, { users })` and `api.shop.close(merchant)` (GM only). Leave `users` out to get the pick dialog; `users: null` means every connected player with a character; otherwise a user, user id, user name or a list of them. `{ onlyOnScene: true }` skips players whose character has no token on the scene being viewed. `api.shop.openedFor(merchant)` lists the user ids it was last opened for from this client. Item Piles opens the window through its own `renderItemPileInterface` API; the toolkit sends no socket message.
 
 </details>
+
+### Merchant coin rounding
+
+Item Piles works a merchant's price out in the primary coin, multiplies it by the merchant's price modifier and then drops any part of the smallest coin. With gold as the primary coin, an item worth 1 copper sold or bought at half price comes to half a copper, which Item Piles shows as "0g 0s 0c" and gives away; 3 copper at half price becomes 1 copper.
+
+With **Merchant coin rounding** on (a feature of its own, **off by default**; needs Item Piles), merchant prices round to a whole smallest coin: **half a coin or more rounds up**. A 1-copper item at half price costs 1 copper, 3 copper at half price costs 2, 1 silver at half price costs 50 copper, and items with no price stay free. The quantity is applied after rounding (three of the 3-copper item at half price cost 6 copper).
+
+How: Item Piles has no hook or setting for rounding up, but its *Currency decimal digits* setting is the precision its merchant maths rounds to. When the world loads, the active GM sets it (through Item Piles' own API) to the smallest coin of Item Piles' currencies and of any merchant's own currency list, for example 0.0001 when copper is 1/10000 of a gold piece. The value found first is remembered and put back when you turn the feature off (on the next load), set **Merchant prices round** (control panel › Loot › Advanced) to **Item Piles default**, or reset the settings in Remove toolkit data.
+
+Limits:
+- Less than half a smallest coin still rounds down. At a merchant that buys or sells under half price, an item worth exactly 1 smallest coin rounds to no price at all, and Item Piles won't trade it there; the health check names those merchants.
+- It changes nothing when Item Piles has a single coin, or two coins with the same exchange rate (Item Piles then works the precision out itself), and it doesn't change Item Piles' code. Checked against Item Piles 3.3.4.
 
 ### With Item Piles: loot the bodies
 

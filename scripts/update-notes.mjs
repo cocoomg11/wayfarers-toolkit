@@ -25,6 +25,16 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.1.0",
+    changes: [
+      { feature: "characterSheet", text: "Character sheet: every page is now built. Features and Spells (sections, prepared counts, use and recharge), Effects (conditions, exhaustion), Biography, Bastion (when bastions are on), Special traits, and levelling up from the level badge in Edit mode." },
+      "Control panel: the unsaved mark goes away when you put a field back to its saved value.",
+      "A player calling a GM-only toolkit function now gets a notice that names the module.",
+      "New, off by default: Merchant coin rounding. Item Piles merchant prices round to a whole smallest coin (half a coin or more rounds up), so a 1-copper item at half price costs 1 copper instead of nothing. Turn it on on the control panel's Features tab; it sets Item Piles' Currency decimal digits when the world loads and puts the old value back when you turn it off."
+    ],
+    actions: []
+  },
+  {
     version: "2.0.1",
     changes: [
       { feature: "characterSheet", text: "Character sheet fixes: Delete and Create item on the Inventory page work again, and dropping an item on a Finger slot no longer logs an error." }

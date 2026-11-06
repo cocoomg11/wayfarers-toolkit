@@ -24,6 +24,8 @@ import { remembered } from "./windows.mjs";
 import * as Cards from "./chat-cards.mjs";
 import * as Sheet from "./sheet.mjs";
 import * as SM from "./sheet-model.mjs";
+import * as Rounding from "./rounding.mjs";
+import * as RM from "./rounding-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -267,6 +269,8 @@ function lootExtras() {
     else if (!IP?.renderItemPileInterface || !IP?.unrenderItemPileInterface) out.push(bad("Open shop for players: this Item Piles version has no renderItemPileInterface / unrenderItemPileInterface."));
     else out.push(ok(`Open shop for players: on (merchant window header and merchant token HUD; chat line ${get("shopChatLine") ? "on" : "off"}).`));
   } else out.push(off("Open shop for players: off."));
+  // Merchant coin rounding (2.1): read-only facts → the model's lines.
+  for (const l of RM.healthLines(Rounding.facts())) out.push(line(l.level, esc(l.text)));
   if (F.on("bossFrames")) {
     const marked = [];
     for (const t of allTokens()) { try { if (phasesOf(t).length) marked.push(t.name); } catch { } }

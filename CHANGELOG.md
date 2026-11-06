@@ -2,9 +2,9 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
-## Unreleased
+## 2.1.0
 
-Character sheet replacement, slices 3 and 4: every page is now built. Nothing new stored, no migration.
+2026-11-06. Character sheet replacement, slices 3 and 4: every page is now built. Also small quality-of-life fixes, README screenshots and an optional Merchant coin rounding. Nothing new stored, no migration.
 
 ### Slice 3: Features and Spells
 
@@ -21,12 +21,6 @@ Character sheet replacement, slices 3 and 4: every page is now built. Nothing ne
 
 **Tests**: `tests/v21-sheet-book.test.mjs` (chips and sorts by dnd5e's rules, feature grouping and sections, classes box and edit controls, slot pips and the togglePip rule, spellcasting cards, sections with data-level / data-method, columns, tags, prepare toggle, edit/observer differences, wiring to dnd5e's methods, CSS scope).
 
-**Untested in Foundry** (live checklist; Foundry 14.369, dnd5e 6.0.6)
-- **Both themes**, **GM and player owner**, **observer** (no buttons, pips not clickable), **edit mode**.
-- **Features**: sections match dnd5e's Features tab for a multiclass character (class features under their class, subclass features with the class, species, background, other); Group button → Active / Passive. Uses input (`-1`), recharge roll, Use (activity choice for multi-activity features), description toggle, ⋮ menu (edit, duplicate, delete, display card). Search, each chip, sort. Edit: level up (advancement manager opens), level down (confirmation), delete a class and a subclass, Add class and Add subclass (compendium browser filtered), Create feature. Drop a feat from a compendium (its advancement runs), drop a class (advancement), drop a background.
-- **Spells**: cards for each spellcasting class (and a subclass caster); prepared count matches dnd5e; radio changes the spellcasting ability. Sections match dnd5e's (cantrips, levels with slots, pact, at-will / innate / ritual, item-granted spells only when shown in the spellbook). Pips: click the last lit pip spends one, an empty pip restores; a long rest refills; temporary slots show dashed; edit mode shows the gear → dnd5e's spell slot config. Prepare toggle; always-prepared star can't be toggled; prepared filter. Columns (time, range, target, roll) match dnd5e's. Cast a spell (upcast dialog, slot spent). Filters (each school, a class, ritual, concentration) and sorts (priority). Drop a spell onto 1st level / pact section: it gets that method. Create spell.
-- Drag a spell row onto the hotbar (dnd5e's macro); drag a feature onto a container on the Inventory page is refused like dnd5e.
-- Nothing from slice 2 changed: Character, Details, Inventory still behave as in 2.0.1.
 
 ### Slice 4: Effects, Biography, Bastion, Special traits, level up
 
@@ -53,7 +47,40 @@ Character sheet replacement, slices 3 and 4: every page is now built. Nothing ne
 
 **Tests**: `tests/v22-sheet-extra.test.mjs` (effect categories by dnd5e's rules, effects markup for dnd5e's element incl. item effects and conditions, edit / observer differences, biography fields and editor, bastion slot counts, facilities, occupants and dnd5e's actions, bastion only when offered, special traits disabled in Play, level-up medallion and choices, the one changeLevel path, APP_CONTRACT intact, every bookmark has a page).
 
-**Untested in Foundry** (slice 4 live checklist)
+
+### Small quality-of-life fixes
+
+**Fixed**
+- **Control panel: the "unsaved" mark stayed after you put a field back.** The mark (on Save, the tab and the footer note) now follows the real difference from the saved value: change a setting and change it back, and the mark goes away. Save uses the same comparison, so what is marked is exactly what Save writes.
+- **A player calling `api.open()` (or any GM-only call that goes through the shared check) got "GM only." with no module name.** The notice now reads "Wanderer's Toolkit: GM only.", like the rest of the GM-only API.
+
+### Merchant coin rounding
+
+Nothing stored in documents; one hidden world setting.
+
+**Added**
+- **Merchant coin rounding** (new feature `merchantRounding`, **off by default**, Features tab; needs Item Piles). Item Piles 3.3.4 rounds a merchant price (item price × the merchant's modifier) to its *Currency decimal digits* (default 0.00001 of the primary coin) and then floors each coin, so with gold primary and copper at 0.0001, a 1-copper item at 50% showed "0g 0s 0c" and was free, and 3 copper at 50% became 1 copper. With the feature on, the active GM sets Item Piles' *Currency decimal digits* to the smallest coin (the finest exchange rate among Item Piles' currencies and every merchant's own currency list; 0.0001 for the three-coin economy) through Item Piles' public `game.itempiles.API.setCurrencyDecimalDigits`, once Item Piles is ready on each load and again when Item Piles' currencies change. Prices then round to a whole smallest coin, half up: 1 cp at 50% → 1c, 3 cp at 50% → 2c, 1 sp at 50% → 50c, quantity applied after rounding, free items stay free.
+- Setting **Merchant prices round** (`merchantRoundingMode`, world, Loot › Advanced): *Round to the nearest whole coin* (default) or *Item Piles default*. Hidden world setting `merchantRoundingPrev` remembers Item Piles' value before the toolkit changed it (RECORD_SETTINGS + WIZARD_IGNORE); it is put back when the feature is off on a load, the mode is Item Piles default, or Remove toolkit data resets the settings, unless someone changed Item Piles' value since (then theirs stays).
+- Health check (Loot extras): on / off / not applied yet, a sample (an item worth 1 smallest coin at half price), merchants whose buy or sell modifier is under 0.5, and an info line when Item Piles is newer than 3.3.4.
+
+**Why this seam**: Item Piles 3.3.4 fires no hook around its price maths (`getPriceData`, `getPriceArray`, `getPaymentData` in `src/helpers/pile-utilities.js`) and ships as one bundled file, so its helpers can't be wrapped; `PRICE_MODIFIER_TRANSFORMER` / `ITEM_COST_TRANSFORMER` belong to the system integration (Item Piles: D&D 5e) and the modifier is rounded to 2 decimals after them anyway. The decimal-digits setting is public API and is used for every price, payment and change sum, so display, trade and change agree. **Limit**: it rounds half up, not always up: less than half a smallest coin still rounds down, and at a merchant under 50% an item worth exactly 1 smallest coin has no price (Item Piles then refuses the trade instead of giving it away).
+
+**Tests**: `tests/v210-rounding.test.mjs` (step from currency lists, plan set / restore / forget, a copy of Item Piles 3.3.4's price maths showing the bug at 0.00001 and the fix at 0.0001, the 1 cp / 3 cp / 1 sp / free / quantity cases, under-half merchants, health lines, wiring).
+
+### Screenshots
+
+README and docs gain screenshots (`docs/images`; not in the module zip).
+
+**Untested in Foundry** (live checklist; Foundry 14.369, dnd5e 6.0.6)
+
+_Features and Spells_
+- **Both themes**, **GM and player owner**, **observer** (no buttons, pips not clickable), **edit mode**.
+- **Features**: sections match dnd5e's Features tab for a multiclass character (class features under their class, subclass features with the class, species, background, other); Group button → Active / Passive. Uses input (`-1`), recharge roll, Use (activity choice for multi-activity features), description toggle, ⋮ menu (edit, duplicate, delete, display card). Search, each chip, sort. Edit: level up (advancement manager opens), level down (confirmation), delete a class and a subclass, Add class and Add subclass (compendium browser filtered), Create feature. Drop a feat from a compendium (its advancement runs), drop a class (advancement), drop a background.
+- **Spells**: cards for each spellcasting class (and a subclass caster); prepared count matches dnd5e; radio changes the spellcasting ability. Sections match dnd5e's (cantrips, levels with slots, pact, at-will / innate / ritual, item-granted spells only when shown in the spellbook). Pips: click the last lit pip spends one, an empty pip restores; a long rest refills; temporary slots show dashed; edit mode shows the gear → dnd5e's spell slot config. Prepare toggle; always-prepared star can't be toggled; prepared filter. Columns (time, range, target, roll) match dnd5e's. Cast a spell (upcast dialog, slot spent). Filters (each school, a class, ritual, concentration) and sorts (priority). Drop a spell onto 1st level / pact section: it gets that method. Create spell.
+- Drag a spell row onto the hotbar (dnd5e's macro); drag a feature onto a container on the Inventory page is refused like dnd5e.
+- Nothing from slice 2 changed: Character, Details, Inventory still behave as in 2.0.1.
+
+_Effects, Biography, Bastion, Special traits, level up_
 - **Both themes**, GM, player owner, observer, Edit mode on every new page.
 - **Effects**: conditions match dnd5e's (blinded on / off; exhaustion click up, right-click down, matches the vitals pips); concentrate on a spell → the effect shows, its switch is missing and ⋮ → Break concentration ends it; a temporary effect shows its duration; an item effect lists the item as source (click opens it) and moves to *Unavailable* when the item is unequipped / unattuned; disable / enable; edit (dnd5e's effect sheet); duplicate; delete (confirmation); expand shows changes and description; Create effect; search. Drop an effect from an item or compendium onto the page.
 - **Biography**: characteristics and text boxes match dnd5e's tab; edit each (saved on leaving the field); biography editor opens, saves, and the play view shows the enriched text (links, secrets for owners only).
@@ -62,18 +89,21 @@ Character sheet replacement, slices 3 and 4: every page is now built. Nothing ne
 - **Level up**: single-class character: Edit → click the level badge → dnd5e's advancement windows (HP, features); finish → level and features updated on the Features page. Multiclass: chooser lists each class's next level; *Add a class* opens the browser; at level 20 a notice. Level down from the Features select asks dnd5e's confirmation.
 - Shift+E toggles Edit on every page; the level badge's **+** only shows in Edit for owners.
 
-### Small quality-of-life fixes
-
-**Fixed**
-- **Control panel: the "unsaved" mark stayed after you put a field back.** The mark (on Save, the tab and the footer note) now follows the real difference from the saved value: change a setting and change it back, and the mark goes away. Save uses the same comparison, so what is marked is exactly what Save writes.
-- **A player calling `api.open()` (or any GM-only call that goes through the shared check) got "GM only." with no module name.** The notice now reads "Wanderer's Toolkit: GM only.", like the rest of the GM-only API.
-
-**Live checklist (not run in Foundry)**
+_Quality-of-life fixes_
 - [ ] Control panel: tick a switch, untick it again: the Save button, the tab and the footer note lose the mark; edit two settings, revert one: "Unsaved changes in 1 setting".
 - [ ] A text field and a number/slider field: change then restore the original value: mark clears; type a different value: mark returns.
 - [ ] Scene list and other tick-lists (hidden scenes, packs, classes): untick then re-tick: mark clears; the raw hidden-scenes text box still marks when edited.
 - [ ] Encounter zones: add a row then remove it again: the mark clears; edit a row: it marks; Save writes only real changes.
 - [ ] As a player, run `game.modules.get("wayfarers-toolkit").api.open()`: the warning reads "Wanderer's Toolkit: GM only."
+
+_Merchant coin rounding_
+- Turn on Merchant coin rounding, reload: Item Piles settings › Currency decimal digits reads 0.0001 (three-coin) and the health check's line is ok with "costs 1".
+- Merchant at 50%: a 1-copper item shows 1c (buy and sell), 3-copper item 2c, 1-silver item 50c; buy 3 of the 3-copper item: 6c paid, change correct.
+- Buy and sell with a purse of only gold or silver: Item Piles makes change correctly.
+- A merchant at 25%: health check names it; the 1-copper item there can't be traded (no error in the console beyond Item Piles' own refusal: check this).
+- Set the mode to Item Piles default: Currency decimal digits goes back to 0.00001 at once. Turn the feature off and reload: same.
+- Change Item Piles' currencies with the feature on: the value is set again.
+- Standard 5e coins (gold primary, copper 0.01): set to 0.01.
 
 ## 2.0.1
 
