@@ -6,7 +6,7 @@ The story side of the table: the quest log and tracker, the character pane, and 
 
 - [Quest log](#quest-log): [setup](#setup), [making quests](#making-quests-gm), [what players see](#what-players-see) (tracker, map pins, Updated glow), [moments](#moments), [journals](#journals)
 - [Character pane](#character-pane): [slots](#slots), [equipping](#equipping), [what fits where](#what-fits-where), [weapon sets](#weapon-sets), [item comparison](#item-comparison), [MMO-style tooltips](#items-with-mmo-style-tooltips)
-- [Character sheet replacement](#character-sheet-replacement) (Character, Details and Inventory pages; off by default)
+- [Character sheet replacement](#character-sheet-replacement) (Character, Details, Inventory, Features and Spells pages; off by default)
 - [Boss frames](#boss-frames) and [phase marks](#phase-marks)
 - [Keyboard shortcuts](#keyboard-shortcuts) and [windows](#windows-and-shortcuts)
 
@@ -206,8 +206,11 @@ The rules stay dnd5e's: every value is dnd5e's own prepared value (armour, items
 
 - **Title band**: level, name, class · species · background, XP bar (hidden when dnd5e's levelling mode is *no XP*), **Rested** (with *Rested at the inn*), Heroic inspiration, Short rest and Long rest (dnd5e's rest dialogs; hidden from players when dnd5e's *Allow rests* is off), and **Play / Edit**. In Edit mode an orange badge counts dnd5e's sheet warnings (hover for the list).
 - **Vitals**: Armor Class, hit points with temporary hit points, hit dice, **Initiative** (click: dnd5e's initiative roll), speed, proficiency bonus, exhaustion (click a pip to set the level, the lit top pip to lower it) and death saves (click: dnd5e's death saving throw).
-- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. **Character**, **Details** and **Inventory** are built (below); the other pages come in later updates and show an **Open in system sheet** button for now. Every page has a small *Open in system sheet* link at the bottom.
+- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. **Character**, **Details**, **Inventory**, **Features** and **Spells** are built (below); the other pages come in later updates and show an **Open in system sheet** button for now. Every page has a small *Open in system sheet* link at the bottom.
 - **Play / Edit**: Play is for rolling and using; Edit shows the inputs and the gear buttons that open dnd5e's own settings windows.
+- **Conditions** along the bottom.
+- **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
+- **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet (with none assigned: the character you own, or with several, the one whose token is selected); a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. Foundry's own C (*Toggle Character Sheet*) moves to **Alt+C** on each computer the first time the world loads with the sheet on, but only if nobody changed that key and nothing else uses Alt+C there (the health check says what happened). (1.33.0 aimed for Shift+C, but Foundry v14 already uses Shift+C for *Focus Chat*, so it never moved there; 1.33.1 moves it to Alt+C instead.) Turn the sheet or *Keyboard shortcuts* off and Foundry's key goes back to C, unless you have set your own key for it since. Rebind *Open character sheet* in Configure Controls if you prefer another key.
 
 ### Character page
 
@@ -233,9 +236,21 @@ The **paper doll** is the [character pane](#character-pane)'s, on the same data:
 - **Equipping here also puts the item in its slot on the paper doll** (the pane's rules: its best free slot, a free hand of a weapon set, or the relic slot). An item with no clear slot is equipped without one and shows on the Character page as *equipped but not in a slot*. Unequipping takes it out of its slot.
 - **Search** and the **Action / Bonus / Reaction / Equipped / Magical** filters work like dnd5e's; **Sort** switches between your manual order and A–Z.
 - Drag and drop works as on dnd5e's sheet: drop items from a compendium, the sidebar or another actor to add them, drag rows to reorder them, drop them on a container to put them inside.
-- **Conditions** along the bottom.
-- **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
-- **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet (with none assigned: the character you own, or with several, the one whose token is selected); a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. Foundry's own C (*Toggle Character Sheet*) moves to **Alt+C** on each computer the first time the world loads with the sheet on, but only if nobody changed that key and nothing else uses Alt+C there (the health check says what happened). (1.33.0 aimed for Shift+C, but Foundry v14 already uses Shift+C for *Focus Chat*, so it never moved there; 1.33.1 moves it to Alt+C instead.) Turn the sheet or *Keyboard shortcuts* off and Foundry's key goes back to C, unless you have set your own key for it since. Rebind *Open character sheet* in Configure Controls if you prefer another key.
+
+### Features page
+
+- **Classes**: each class with its level, subclass and hit die (click an icon to open it). When dnd5e says a subclass is due, **+ Add subclass** opens dnd5e's compendium browser on that class's subclasses. In Edit mode: change a class's level (dnd5e's own level change, with its advancement steps), delete a class or subclass (dnd5e's dialog), and **+ Add class**.
+- The features themselves in dnd5e's groups: one section per class (subclass features with their class), species, background and other features; the **Group** button switches to dnd5e's Active / Passive grouping. Each row shows uses (edit them in place), recovery (*SR*, *LR*…), a recharge button when one is due, the description toggle and **⋮** for dnd5e's item menu. Click a name to use the feature.
+- **Search** and the **Action / Bonus / Reaction / Short rest / Long rest / Concentration / Magical** filters, **Sort** manual / A–Z. Edit mode: edit and delete buttons on rows and **+ Create feature**.
+- Drop features, classes, species or backgrounds from a compendium: dnd5e's advancement runs as on its own sheet.
+
+### Spells page
+
+- A card per **spellcasting class**: its ability modifier, spell attack, save DC and prepared spells (*n / max*, red when over). The small circle picks the character's main spellcasting ability (dnd5e's setting).
+- Spells in dnd5e's sections: cantrips, each spell level, pact magic, and at-will, innate and ritual spells and spells cast from items. Slot sections show **slot pips**: click a lit pip to spend that slot, an empty one to get slots back (dnd5e's rule); pact slots are purple. In Edit mode a gear button opens dnd5e's spell slot settings instead.
+- Each spell shows its source and components, casting time, range, target, attack bonus or save, **C** (concentration) and **R** (ritual) tags, and dnd5e's **prepare** button (the star means always prepared). Click a name to cast it.
+- **Search** and the **Action / Bonus / Reaction / Concentration / Ritual / Prepared** filters, plus one per spellcasting class and per school; **Sort** A–Z / priority / manual. Edit mode: edit and delete buttons and **+ Create spell**.
+- Drop spells from a compendium onto a section to learn them with that section's casting method (dnd5e's rule).
 
 ## Boss frames
 

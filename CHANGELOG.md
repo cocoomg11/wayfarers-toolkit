@@ -2,6 +2,30 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## Unreleased
+
+Character sheet replacement, slice 3: the **Features** and **Spells** pages. Nothing new stored, no migration.
+
+**Added**
+- **Features page**: a **Classes** box (level, subclass, hit die; *+ Add subclass* when dnd5e's subclass advancement is due, through dnd5e's compendium browser; edit mode: dnd5e's level change with its advancement manager and level-down confirmation, delete via dnd5e's dialog, *+ Add class*), then the features in dnd5e's sections (by origin: each class with its subclass, species, background, other; or Active / Passive with the Group button), each row with uses, recovery, recharge, use, description toggle and dnd5e's item menu inside dnd5e's `<dnd5e-inventory>` element. Search, the Action / Bonus / Reaction / Short rest / Long rest / Concentration / Magical chips (dnd5e's filter rules), sort manual / A–Z, *+ Create feature* (dnd5e's create dialog with its Features types).
+- **Spells page**: a card per spellcasting class (ability modifier, spell attack, save DC, prepared n / max; the radio sets the character's spellcasting ability like dnd5e's), the spellbook sections dnd5e builds (cantrips, spell levels, pact magic, at-will / innate / ritual, spells from items) with **slot pips** (dnd5e's click rule; pact pips purple; temporary slots dashed; edit mode: the spell slot settings gear), time / range / target / roll columns, C and R tags, dnd5e's prepare toggle (always-prepared shown, not toggled), cast by clicking the name. Filters: action types, concentration, ritual, prepared, each spellcasting class and school; sort A–Z / priority / manual; *+ Create spell* in edit mode.
+- Drops on these pages go through the dnd5e drop host with the page as its tab: features get dnd5e's advancement, spells take the section's casting method (dnd5e's rule), and only the Inventory page turns spells into scrolls.
+
+**Not 1:1 with dnd5e 6.0.6**
+- No favourites (by design). The Classes box replaces dnd5e's class pills (same actions); its level select lists levels 1–20 by delta like dnd5e's but doesn't grey out levels beyond the character cap (dnd5e's own level change still refuses them).
+- Filter chips can only include (dnd5e also lets you exclude with a right-click); list state is per window, not remembered per user.
+- Spell rows don't list their activities as sub-rows (cast the spell to pick one); spell slots can't be dragged to the hotbar from the section header.
+- The spell "Range" column shows dnd5e's range value and unit as text (dnd5e draws its own number parts).
+
+**Tests**: `tests/v21-sheet-book.test.mjs` (chips and sorts by dnd5e's rules, feature grouping and sections, classes box and edit controls, slot pips and the togglePip rule, spellcasting cards, sections with data-level / data-method, columns, tags, prepare toggle, edit/observer differences, wiring to dnd5e's methods, CSS scope).
+
+**Untested in Foundry** (live checklist; Foundry 14.369, dnd5e 6.0.6)
+- **Both themes**, **GM and player owner**, **observer** (no buttons, pips not clickable), **edit mode**.
+- **Features**: sections match dnd5e's Features tab for a multiclass character (class features under their class, subclass features with the class, species, background, other); Group button → Active / Passive. Uses input (`-1`), recharge roll, Use (activity choice for multi-activity features), description toggle, ⋮ menu (edit, duplicate, delete, display card). Search, each chip, sort. Edit: level up (advancement manager opens), level down (confirmation), delete a class and a subclass, Add class and Add subclass (compendium browser filtered), Create feature. Drop a feat from a compendium (its advancement runs), drop a class (advancement), drop a background.
+- **Spells**: cards for each spellcasting class (and a subclass caster); prepared count matches dnd5e; radio changes the spellcasting ability. Sections match dnd5e's (cantrips, levels with slots, pact, at-will / innate / ritual, item-granted spells only when shown in the spellbook). Pips: click the last lit pip spends one, an empty pip restores; a long rest refills; temporary slots show dashed; edit mode shows the gear → dnd5e's spell slot config. Prepare toggle; always-prepared star can't be toggled; prepared filter. Columns (time, range, target, roll) match dnd5e's. Cast a spell (upcast dialog, slot spent). Filters (each school, a class, ritual, concentration) and sorts (priority). Drop a spell onto 1st level / pact section: it gets that method. Create spell.
+- Drag a spell row onto the hotbar (dnd5e's macro); drag a feature onto a container on the Inventory page is refused like dnd5e.
+- Nothing from slice 2 changed: Character, Details, Inventory still behave as in 2.0.1.
+
 ## 2.0.1
 
 2026-11-06. Fixes from the 2.0.0 live test. No data migration, nothing new stored.
