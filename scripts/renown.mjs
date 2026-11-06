@@ -161,7 +161,8 @@ export async function award(actorsRef, factionRef, amount, { reason = "", card: 
       speaker: { alias: "Renown" }, whisper: cardReaders(actors, f), flags: { [ID]: { renownCard: { v: 1 } } }
     });
   }
-  scheduleSync(); onChanged();
+  // 2.2.1: an award updates merchant prices at once (other changes still batch with scheduleSync).
+  await syncNow(); onChanged();
   return out;
 }
 
@@ -177,7 +178,10 @@ export async function setScore(actorRef, factionRef, score) {
 export async function addSource(actorRef, factionRef, text, amount = 0) {
   if (!gmOnly()) return null;
   const a = actorOf(actorRef); const f = faction(factionRef); if (!a || !f) return null;
-  const rib = R.normalizeRibbon({ text, amount: Number(String(amount).replace(/−/g, "-")) || 0 }, { now: Date.now() }); if (!rib) return null;
+  // 2.2.1: a label must be text (an object used to be stored as "[object Object]") and an amount a whole number.
+  const check = R.sourceInput(text, amount);
+  if (!check.ok) { ui.notifications.warn(`Renown: ${check.reason}`); return null; }
+  const rib = R.normalizeRibbon({ text: check.text, amount: check.amount }, { now: Date.now() }); if (!rib) return null;
   const cur = entryFor(a, f);
   if (cur.ribbons.length >= R.RIBBONS_MAX) { ui.notifications.warn(`Renown: at most ${R.RIBBONS_MAX} other sources per faction.`); return null; }
   const res = await change(a, f, e => ({ ...e, ribbons: [...e.ribbons, rib] }));
@@ -346,6 +350,12 @@ export async function syncMerchants() {
 }
 let syncTimer = /** @type {any} */ (null);
 /** A sync a moment later (several changes in a row write once). GM clients only. */
+/** GM: the merchant discount update now, instead of a moment later (a pending scheduled one is dropped). Never throws. */
+export async function syncNow() {
+  if (!game.user?.isGM || !discountsOn()) return null;
+  clearTimeout(syncTimer);
+  try { return await syncMerchants(); } catch (e) { console.warn(`${ID} | renown sync`, e); return null; }
+}
 export function scheduleSync() {
   if (!game.user?.isGM || !discountsOn()) return;
   clearTimeout(syncTimer);

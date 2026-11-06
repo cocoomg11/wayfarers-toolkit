@@ -189,7 +189,7 @@ export class AwardWindow extends AppV2 {
     const hint = () => {
       const fac = Renown.faction(f.elements.faction.value); const c = Renown.config();
       const rows = fac ? this.chosen(f).map(a => ({ name: a.name, entry: Renown.entryFor(a, fac), tiers: R.tiersOf(fac, c) })) : [];
-      f.querySelector("[data-hint]").textContent = RV.awardHint(rows, R.parseAmount(this.amountOf(f)));
+      f.querySelector("[data-hint]").textContent = RV.awardHint(rows, R.parseAmount(this.amountOf(f)), fac?.name ?? "");
       f.elements.custom.hidden = f.elements.loss.value !== "custom";
     };
     f.querySelectorAll("[data-gain]").forEach(b => b.addEventListener("click", () => { f.elements.gain.value = `+${b.dataset.gain}`; f.elements.loss.value = ""; hint(); }));
@@ -230,16 +230,21 @@ function merchants() {
   return game.actors.filter(a => { try { return !!IP.isItemPileMerchant(a); } catch { return false; } }).map(a => ({ id: a.id, name: a.name }));
 }
 
-/** One tier row of the editor. */
-function tierRow(t, i) {
+/**
+ * The tier table's field names. Each starts with "tier" so none can share a name with the faction form's own fields (2.2.1: the tier
+ * rows' `name` inputs turned `form.elements.name` into a list, so Save always said the faction had no name).
+ */
+export const TIER_FIELDS = Object.freeze({ color: "tierColor", name: "tierName", from: "tierFrom", discount: "tierDiscount", rarity: "tierRarity", perk: "tierPerk", title: "tierTitle" });
+/** One tier row of the editor. @param {any} t @param {number} i */
+export function tierRow(t, i) {
   return `<tr data-tier>
-    <td><input type="color" name="color" value="${esc(t.color)}" aria-label="Colour"></td>
-    <td><input type="text" name="name" value="${esc(t.name)}" maxlength="40" aria-label="Tier name" placeholder="Tier ${i + 1}"></td>
-    <td><input type="number" name="from" value="${t.from}" min="1" max="${R.SCORE_MAX}" class="n" aria-label="Starts at"></td>
-    <td><input type="number" name="discount" value="${t.discount}" min="0" max="${R.DISCOUNT_MAX}" class="n" aria-label="Merchant discount %"></td>
-    <td><input type="text" name="rarity" value="${esc(t.rarity)}" aria-label="Unlocked rarity" placeholder="e.g. up to uncommon"></td>
-    <td><input type="text" name="perk" value="${esc(t.perk)}" aria-label="Perk"></td>
-    <td><input type="text" name="title" value="${esc(t.title)}" aria-label="Title"></td>
+    <td><input type="color" name="tierColor" value="${esc(t.color)}" aria-label="Colour"></td>
+    <td><input type="text" name="tierName" value="${esc(t.name)}" maxlength="40" aria-label="Tier name" placeholder="Tier ${i + 1}"></td>
+    <td><input type="number" name="tierFrom" value="${t.from}" min="1" max="${R.SCORE_MAX}" class="n" aria-label="Starts at"></td>
+    <td><input type="number" name="tierDiscount" value="${t.discount}" min="0" max="${R.DISCOUNT_MAX}" class="n" aria-label="Merchant discount %"></td>
+    <td><input type="text" name="tierRarity" value="${esc(t.rarity)}" aria-label="Unlocked rarity" placeholder="e.g. up to uncommon"></td>
+    <td><input type="text" name="tierPerk" value="${esc(t.perk)}" aria-label="Perk"></td>
+    <td><input type="text" name="tierTitle" value="${esc(t.title)}" aria-label="Title"></td>
     <td><button type="button" class="wc-btn wc-btn-sm wc-btn-icon" data-act="rm-tier" aria-label="Remove tier"><i class="fa-solid fa-xmark"></i></button></td>
   </tr>`;
 }
@@ -251,7 +256,7 @@ function tiersTable(tiers, disabled = false) {
 /** Tier rows read back from a table. */
 function readTiers(root) {
   return [...root.querySelectorAll("tr[data-tier]")].map(tr => {
-    const v = n => /** @type {HTMLInputElement} */ (tr.querySelector(`[name=${n}]`))?.value ?? "";
+    const v = (/** @type {keyof typeof TIER_FIELDS} */ n) => /** @type {HTMLInputElement} */ (tr.querySelector(`[name=${TIER_FIELDS[n]}]`))?.value ?? "";
     return { color: v("color"), name: v("name"), from: Number(v("from")), discount: Number(v("discount")), rarity: v("rarity"), perk: v("perk"), title: v("title") };
   });
 }

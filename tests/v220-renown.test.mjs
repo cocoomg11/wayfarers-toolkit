@@ -208,7 +208,7 @@ test("renown card and award hint", () => {
   const rolled = V.cardHTML({ faction: "F", rows: [{ name: "A", delta: -7, roll: { formula: "2d6", total: 7 }, before: 9, after: 2, tierBefore: 0, tierAfter: -1, tierName: "No tier", tierColor: "#e8d35a" }] });
   assert.match(rolled, /<span class="wct-rn-amt">Renown<\/span>/); assert.match(rolled, /−7<\/b> <span class="wct-rn-roll">\(2d6 = 7\)/);
   const tiers = R.normalizeTiers(null);
-  assert.equal(V.awardHint([{ name: "Maren Ashby", entry: { score: 8 }, tiers }], R.parseAmount("+2")), "Each character gains it on their own score: Maren 8 → 10 (Trusted).");
+  assert.equal(V.awardHint([{ name: "Maren Ashby", entry: { score: 8 }, tiers }], R.parseAmount("+2")), "Each character gains it on their own score: Maren Ashby 8 → 10 (Trusted)."); // 2.2.1: full names
   assert.match(V.awardHint([{ name: "A", entry: {}, tiers }], R.parseAmount("-2d6")), /rolls 2d6 and loses it/);
   assert.match(V.awardHint([], null), /Pick at least one/);
 });
@@ -368,7 +368,7 @@ test("renown defaults: the shipped numbers, every one GM-editable, with Reset to
   assert.deepEqual([d.gains, d.losses, d.startBonus], [[1, 2, 3], ["1d8", "2d6", "2d12"], [1, 2, 3, 5]]);
   d.tiers[0].from = 99; assert.equal(R.DEFAULT_TIERS[0].from, 3, "a copy");
   const apps = src("scripts/renown-apps.mjs");
-  for (const n of ["name", "from", "discount", "rarity", "perk", "title", "color"]) assert.match(apps, new RegExp(`name="${n}"`), `tier field ${n}`);
+  for (const n of ["tierName", "tierFrom", "tierDiscount", "tierRarity", "tierPerk", "tierTitle", "tierColor"]) assert.match(apps, new RegExp(`name="${n}"`), `tier field ${n}`); // 2.2.1 names
   for (const n of ["gains", "losses", "startBonus"]) assert.match(apps, new RegExp(`name="${n}" value=`), `preset field ${n}`);
   assert.match(apps, /data-act="reset-shared"/);
   assert.match(apps, /await Renown\.saveShared\(d\);/);

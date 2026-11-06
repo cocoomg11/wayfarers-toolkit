@@ -160,19 +160,23 @@ export function cardHTML({ faction, reason = "", rows = [] }) {
     <ul>${rows.map(line).join("")}</ul>${reason ? `<p class="wct-rn-why">${esc(reason)}</p>` : ""}</div>`;
 }
 
+/** A name for one-line text: in full, or cut with an ellipsis past `max` characters (2.2.1: the preview used to keep the first word). */
+export const shortName = (/** @type {unknown} */ n, max = 28) => { const s = String(n ?? "").trim(); return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s; };
+
 /**
  * The award dialog's preview line. `rows`: [{ name, total, tiers }] for the picked characters; `amount` from parseAmount.
- * @param {Array<{ name: string, entry: any, tiers: any[] }>} rows @param {ReturnType<typeof R.parseAmount>} amount
+ * @param {Array<{ name: string, entry: any, tiers: any[] }>} rows @param {ReturnType<typeof R.parseAmount>} amount @param {string} [faction] the faction's name (in full; cut with an ellipsis only when long)
  */
-export function awardHint(rows, amount) {
+export function awardHint(rows, amount, faction = "") {
   if (!rows.length) return "Pick at least one character.";
   if (!amount) return "Choose a gain, a loss or type an amount (e.g. +2, −1 or −2d6).";
-  if (amount.kind === "dice") return `Each character rolls ${amount.formula} and ${amount.sign < 0 ? "loses" : "gains"} it on their own score (never below 0).`;
+  const w = faction ? ` with ${shortName(faction, 40)}` : "";
+  if (amount.kind === "dice") return `Each character rolls ${amount.formula} and ${amount.sign < 0 ? "loses" : "gains"} it${w} on their own score (never below 0).`;
   const parts = rows.map(r => {
     const before = R.totalOf(r.entry);
     const after = R.totalOf({ ...r.entry, score: R.applyDelta(r.entry?.score ?? 0, amount.value) });
     const ti = R.tierIndex(after, r.tiers);
-    return `${r.name.split(" ")[0]} ${before} → ${after}${ti !== R.tierIndex(before, r.tiers) && ti >= 0 ? ` (${r.tiers[ti].name})` : ""}`;
+    return `${shortName(r.name)} ${before} → ${after}${ti !== R.tierIndex(before, r.tiers) && ti >= 0 ? ` (${r.tiers[ti].name})` : ""}`;
   });
-  return `Each character ${amount.value >= 0 ? "gains" : "loses"} it on their own score: ${parts.join(" · ")}.`;
+  return `Each character ${amount.value >= 0 ? "gains" : "loses"} it${w} on their own score: ${parts.join(" · ")}.`;
 }

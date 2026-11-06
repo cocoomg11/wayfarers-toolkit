@@ -198,6 +198,20 @@ export function merchantFactions(factions) {
 }
 
 // ---------------------------------------------------------------- a character's renown
+/**
+ * An "other source" as typed or passed to api.renown.addSource: `text` a non-empty string of at most NAME_MAX characters, `amount` a
+ * whole number (or "+1" / "−2" text) within ±AMOUNT_MAX. { ok, text, amount } or { ok: false, reason }.
+ * @param {unknown} text @param {unknown} amount
+ */
+export function sourceInput(text, amount = 0) {
+  if (typeof text !== "string") return { ok: false, reason: "the source's label must be text." };
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return { ok: false, reason: "give the source a label." };
+  if (t.length > NAME_MAX) return { ok: false, reason: `the source's label is too long (at most ${NAME_MAX} characters).` };
+  const raw = typeof amount === "number" ? amount : typeof amount === "string" ? Number(amount.replace(/−/g, "-").replace(/^\+/, "").trim() || "0") : NaN;
+  if (!Number.isInteger(raw) || Math.abs(raw) > AMOUNT_MAX) return { ok: false, reason: `the amount must be a whole number from −${AMOUNT_MAX} to +${AMOUNT_MAX}.` };
+  return { ok: true, text: t, amount: raw };
+}
 /** One ribbon (an "other source" the GM added by hand): { id, text, amount, at }. */
 export function normalizeRibbon(r, { makeId = () => newId(), now = 0 } = {}) {
   const o = obj(r);

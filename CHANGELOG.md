@@ -2,6 +2,26 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.2.1
+
+2026-11-06. Fixes from the 2.2.0 live test. No migration, nothing stored changes.
+
+**Live test of 2.2.0**: everything passed except one blocking bug, fixed here: creating or saving a faction in *Factions and renown* always warned "Give the faction a name."
+
+**Fixed**
+- **Create / Save faction**: the tier table's inputs were also named `name` (and so on), so `form.elements.name` was a list with no value. Tier inputs are now `tierName`, `tierFrom`, `tierDiscount`, `tierRarity`, `tierPerk`, `tierTitle`, `tierColor` (`TIER_FIELDS` in renown-apps.mjs, read by `readTiers`); a test checks that no tier field shares a name with the faction or presets form.
+- `api.renown.addSource(actor, faction, text, amount)` refuses a label that isn't text (an object was stored as "[object Object]"), an empty or over-long label (80 characters), and an amount that isn't a whole number within ±999, with a warning (`R.sourceInput`).
+- The award preview shows full names (characters and the faction), cut with an ellipsis only when long (`RV.shortName`); it used to keep only the first word.
+- Merchant discounts: an award now updates the Item Piles prices at once (`syncNow`); other changes still batch for under a second, which the docs now say.
+
+**Tests**: `tests/v221.test.mjs` (tier and faction field names never collide, `readTiers` field map, source input validation, full names in the preview with the faction, award syncs at once, version, note).
+
+**Untested in Foundry** (live checklist)
+- Factions and renown › New faction: type a name and Create faction → saved, selected in the list; edit it (custom tiers on), Save faction → kept; Tiers and presets › Save still saves the tiers.
+- Console as GM: `api.renown.addSource(actor, faction, { a: 1 }, 1)` → warning, nothing stored; a normal label works.
+- Award window: the preview line names the faction and characters in full.
+- With Renown merchant discounts on: after an award, the merchant price and the health check update straight away.
+
 ## 2.2.0
 
 2026-11-06. Renown (reputation), one slice, and a character page portrait fix. New feature `renown` (on by default; until the GM adds a faction, the Reputation page only says there are none). Nothing to migrate: older quests read an empty renown reward list (quest record version unchanged), and no stored shape changed.

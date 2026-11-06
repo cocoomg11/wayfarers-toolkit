@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.2.1",
+    changes: [
+      { feature: "renown", text: "Factions and renown: Create faction and Save faction work again (they always said the faction had no name). The award preview shows full names, and merchant prices follow an award at once." }
+    ],
+    actions: []
+  },
+  {
     version: "2.2.0",
     changes: [
       { feature: "characterSheet", text: "Character page: the portrait now shows whole on a portrait-shaped plate instead of being cropped to a wide frame." },
