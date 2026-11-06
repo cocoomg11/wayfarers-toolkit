@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.1.2",
+    changes: [
+      { feature: "characterSheet", text: "Character sheet, Special traits page: players who can only view a character no longer see the \"Switch to Edit\" hint." }
+    ],
+    actions: []
+  },
+  {
     version: "2.1.1",
     changes: [
       "Item Piles shows silver again: coins are now listed gold, silver, copper (with copper first, Item Piles skipped silver and some silver payments failed). Worlds using the three-coin economy are corrected on the next load.",

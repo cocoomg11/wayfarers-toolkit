@@ -42,7 +42,7 @@ test("quest flag: schema version, old shapes read", () => {
 test("module.json: compatibility and dnd5e range", () => {
   const m = JSON.parse(readFileSync(new URL("../module.json", import.meta.url), "utf8"));
   assert.equal(m.compatibility.minimum, "13");
-  assert.equal(m.compatibility.verified, "14");
+  assert.equal(m.compatibility.verified, "14.370");
   const sys = m.relationships.systems.find(s => s.id === "dnd5e");
   assert.ok(sys?.compatibility?.minimum && sys.compatibility.verified === "6.0.6");
   assert.ok(!m.relationships.requires?.length, "optional modules are recommends, never requires");

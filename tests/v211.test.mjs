@@ -46,9 +46,7 @@ test("2.1.1: tick-lists compare without order and Save writes the saved order ba
   for (const k of ["pack", "class", "party", "user", "scene"]) assert.match(p, new RegExp(`listChanged\\("\\[data-${k}\\]"\\)`), k);
 });
 
-test("2.1.1: version, update note", () => {
-  assert.equal(JSON.parse(src("module.json")).version, "2.1.1");
-  assert.match(JSON.parse(src("module.json")).download, /\/v2\.1\.1\/module\.zip$/);
+test("2.1.1: update note", () => {
   const n = N.NOTES.find(x => x.version === "2.1.1");
   assert.ok(n && JSON.stringify(n.changes).includes("Item Piles shows silver again"));
 });

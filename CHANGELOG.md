@@ -3,6 +3,24 @@
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
 
+## 2.1.2
+
+2026-11-06. Live-tested on Foundry 14.370; one small sheet fix. No migration.
+
+**Live test** (Foundry 14.370, dnd5e 6.0.6, Item Piles 3.3.4): the 2.1.1 coin fix and the tick-lists PASS; player views as owner, observer and limited PASS; 14.370 checks PASS (Red Book session time, map pins, GM-only data). Real mouse drags for container move and doll slots still need a manual try.
+
+**Fixed**
+- Character sheet, Special traits page: a user who can only view the character (observer) saw "Switch to Edit to change these". The hint now shows only to users who can edit.
+
+**Changed**
+- `compatibility.verified` is now 14.370 (minimum 13, no maximum; dnd5e verified stays 6.0.6).
+
+**Tests**: `tests/v212.test.mjs` (hint only when editable, version, note).
+
+**Untested in Foundry** (live checklist)
+- Drag an item into a container and onto doll slots with a real mouse.
+- Special traits page as an observer: no hint, fields disabled; as owner in Play mode: hint shown.
+
 ## 2.1.1
 
 2026-11-06. Two fixes from the 2.1.0 live test. No migration; Item Piles' currency list is rewritten once on the next load in three-coin worlds (as before, only with *Set Item Piles coins for three coins* on).

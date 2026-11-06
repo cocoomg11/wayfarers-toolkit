@@ -282,7 +282,7 @@ export function specialPageHTML(f) {
     return `<div class="wct-cs-field${x.type === "boolean" ? " check" : ""}"><label for="${id}">${esc(x.label)}</label>${input}${x.hint ? `<p class="wct-cs-dim wct-cs-hint">${esc(x.hint)}</p>` : ""}</div>`;
   };
   const cls = `<div class="wct-cs-field"><label for="wct-st-oc">Original class</label><select id="wct-st-oc" class="wct-cs-sel" data-name="system.details.originalClass"${dis}>${(f.classes ?? []).map(c => `<option value="${esc(c.value)}"${c.value === f.originalClass ? " selected" : ""}>${esc(c.label)}</option>`).join("")}</select>${f.classHint ? `<p class="wct-cs-dim wct-cs-hint">${esc(f.classHint)}</p>` : ""}</div>`;
-  return `${on ? "" : `<p class="wct-cs-dim wct-cs-boxnote">Switch to Edit to change these.</p>`}${box("Class", cls)}${(f.sections ?? []).map(s => box(s.label, `<div class="wct-cs-fields">${s.fields.map(field).join("")}</div>`)).join("")}`;
+  return `${!on && f.editable ? `<p class="wct-cs-dim wct-cs-boxnote">Switch to Edit to change these.</p>` : ""}${box("Class", cls)}${(f.sections ?? []).map(s => box(s.label, `<div class="wct-cs-fields">${s.fields.map(field).join("")}</div>`)).join("")}`;
 }
 
 /** True when a dnd5e flag field was emptied (it should be unset, not set to 0). @param {string} path @param {unknown} value */
