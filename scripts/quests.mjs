@@ -211,6 +211,21 @@ async function save(j, q, name = j.name) {
 }
 
 /**
+ * GM (2.2): re-saves every quest whose renown rewards name `factionId` through save() (GM-only record, the journal's public view
+ * and page), so what players read follows the faction's current visibility and name. Returns how many were saved.
+ * @param {string} factionId
+ */
+export async function resaveNaming(factionId) {
+  if (!game.user?.isGM) return 0;
+  let n = 0;
+  for (const j of all()) {
+    const q = data(j); if (!QL.namesFaction(q, factionId)) continue;
+    await save(j, q); n++;
+  }
+  return n;
+}
+
+/**
  * The one-time move to quest record version 2 (migrate.mjs quests2): the quest gets `partyId` when it has no party, its level is
  * read as a number (text that isn't a number is kept), and the GM-only record, the journal's public view, its ownership (players
  * who own a member of the party) and its page are rewritten. Returns whether anything was written.
@@ -266,7 +281,7 @@ async function announceStatus(j, q, prev) {
     const coin = coinText(q);
     const plan = QL.rewardPlan(q);
     const rewards = [coin && `<li class="coin">${esc(coin)}</li>`, ...plan.items.map(i => `<li><img src="${esc(i.img)}" alt=""> ${esc(i.name)}</li>`), plan.missingPick && `<li><em>One reward still to choose (in the quest log)</em></li>`, ...renownLines(q, false).map(t => `<li>${esc(t)}</li>`), q.rewards.other && `<li>${esc(q.rewards.other)}</li>`].filter(Boolean);
-    const hasPay = QL.hasRewards(q, coin ? 1 : 0);
+    const hasPay = QL.hasRewards(q, coin ? 1 : 0, { renown: renownOn() });
     const body = `${rewards.length ? `<p class="lbl">Rewards</p><ul class="rewards">${rewards.join("")}</ul>` : ""}${hasPay ? `<button type="button" data-wct-action="pay-quest"><i class="fa-solid fa-coins"></i> Pay rewards</button>` : ""}`;
     return say(card("completed", j, q, body), j, { kind: "completed" });
   }
@@ -379,43 +394,54 @@ const OPS = {
   async remove(ref) { const j = need(ref); const id = j.id; await j.delete(); await Vault.setKey("quests", id, null); return true; },
   /** Pays a completed quest's coin, fixed items and the chosen item to the quest's party actor, once. */
   async pay(ref, messageId = null) {
-    const j = need(ref); const q = data(j);
-    if (q.paid) { ui.notifications.info(`${j.name}: rewards already paid.`); return false; }
-    const party = q.party ? game.actors.get(q.party) : null;
-    if (!party) { ui.notifications.warn(`${j.name}: the quest has no party. Choose one in the quest log first.`); return false; }
-    const plan = QL.rewardPlan(q);
-    if (plan.missingPick) { ui.notifications.warn(`${j.name}: nobody has chosen a reward yet. Pick one in the quest log (you can choose for them).`); return false; }
-    const amount = q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0;
-    if (amount > 0) await WCT.addMoney(party, amount, { reason: `Quest reward: ${j.name}` });
-    const docs = [];
-    for (const i of plan.items) {
-      const src = await fromUuid(i.uuid).catch(() => null);
-      if (!(src instanceof Item)) { ui.notifications.warn(`${j.name}: reward item ${i.name} not found.`); continue; }
-      const o = src.toObject(); delete o._id; foundry.utils.setProperty(o, `flags.${ID}.questReward`, j.id); docs.push(o);
-    }
-    if (docs.length) await party.createEmbeddedDocuments("Item", docs);
-    // 2.2: renown rewards go to each member character of the party, on their own score (feature renown; off: left unpaid with a notice).
-    let renown = 0;
-    if (plan.renown.length) {
-      if (!WCT.features?.on?.("renown")) ui.notifications.warn(`${j.name}: its renown rewards weren't given (Renown is turned off).`);
-      else {
-        const pcs = membersOf(party).filter(a => a.type === "character");
-        if (!pcs.length) ui.notifications.warn(`${j.name}: ${party.name} has no member characters to give renown to.`);
-        for (const r of plan.renown) {
-          if (!pcs.length) break;
-          if (!Renown.faction(r.faction)) { ui.notifications.warn(`${j.name}: a renown reward names a faction that no longer exists.`); continue; }
-          if (await Renown.award(pcs, r.faction, r.amount, { reason: `Quest reward: ${j.name}` })) renown++;
-        }
-      }
-    }
-    q.paid = true; await save(j, q);
-    emit(j, "updated");
-    const msg = messageId ? game.messages.get(messageId) : null;
-    if (msg) await msg.setFlag(ID, "quest", { ...(msg.getFlag(ID, "quest") ?? {}), paid: true });
-    ui.notifications.info(`${j.name}: paid ${[amount > 0 && WCT.fmtMoney(amount), docs.length && `${docs.length} item${docs.length === 1 ? "" : "s"}`, renown && `renown with ${renown} faction${renown === 1 ? "" : "s"}`].filter(Boolean).join(" and ") || "nothing"} to ${party.name}.`);
-    return true;
+    const j = need(ref);
+    // 2.2: one payment at a time per quest on this client (a double click or Complete + Pay together paid twice).
+    if (PAYING.has(j.id)) return false;
+    PAYING.add(j.id);
+    try { return await payOnce(j, messageId); } finally { PAYING.delete(j.id); }
   }
 };
+/** Quests being paid on this client. */
+const PAYING = new Set();
+/** Whether Renown is on (renown rewards are paid only then). */
+const renownOn = () => !!WCT?.features?.on?.("renown");
+/** Pays a completed quest's coin, items and renown once (OPS.pay holds the per-quest guard). */
+async function payOnce(j, messageId) {
+  const q = data(j);
+  if (q.paid) { ui.notifications.info(`${j.name}: rewards already paid.`); return false; }
+  const party = q.party ? game.actors.get(q.party) : null;
+  if (!party) { ui.notifications.warn(`${j.name}: the quest has no party. Choose one in the quest log first.`); return false; }
+  const plan = QL.rewardPlan(q);
+  if (plan.missingPick) { ui.notifications.warn(`${j.name}: nobody has chosen a reward yet. Pick one in the quest log (you can choose for them).`); return false; }
+  // 2.2: renown rewards with Renown off: nothing is paid (and the quest isn't marked paid), so they can still be given later.
+  if (plan.renown.length && !renownOn()) { ui.notifications.warn(`${j.name}: it has renown rewards, but Renown is turned off. Turn it on (control panel › Features) or remove the renown rows, then pay. Nothing was paid.`); return false; }
+  const amount = q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0;
+  if (amount > 0) await WCT.addMoney(party, amount, { reason: `Quest reward: ${j.name}` });
+  const docs = [];
+  for (const i of plan.items) {
+    const src = await fromUuid(i.uuid).catch(() => null);
+    if (!(src instanceof Item)) { ui.notifications.warn(`${j.name}: reward item ${i.name} not found.`); continue; }
+    const o = src.toObject(); delete o._id; foundry.utils.setProperty(o, `flags.${ID}.questReward`, j.id); docs.push(o);
+  }
+  if (docs.length) await party.createEmbeddedDocuments("Item", docs);
+  // 2.2: renown rewards go to each member character of the party, on their own score (Renown is on: checked above).
+  let renown = 0;
+  if (plan.renown.length) {
+    const pcs = membersOf(party).filter(a => a.type === "character");
+    if (!pcs.length) ui.notifications.warn(`${j.name}: ${party.name} has no member characters to give renown to.`);
+    for (const r of plan.renown) {
+      if (!pcs.length) break;
+      if (!Renown.faction(r.faction)) { ui.notifications.warn(`${j.name}: a renown reward names a faction that no longer exists.`); continue; }
+      if (await Renown.award(pcs, r.faction, r.amount, { reason: `Quest reward: ${j.name}` })) renown++;
+    }
+  }
+  q.paid = true; await save(j, q);
+  emit(j, "updated");
+  const msg = messageId ? game.messages.get(messageId) : null;
+  if (msg) await msg.setFlag(ID, "quest", { ...(msg.getFlag(ID, "quest") ?? {}), paid: true });
+  ui.notifications.info(`${j.name}: paid ${[amount > 0 && WCT.fmtMoney(amount), docs.length && `${docs.length} item${docs.length === 1 ? "" : "s"}`, renown && `renown with ${renown} faction${renown === 1 ? "" : "s"}`].filter(Boolean).join(" and ") || "nothing"} to ${party.name}.`);
+  return true;
+}
 /** Warns the GM (never blocks) when one more active quest takes the party past the Quest cap. `except`: the quest being changed. */
 function capWarn(partyId, except) {
   if (!partyId || !game.user?.isGM) return;
@@ -776,7 +802,7 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
     ].filter(Boolean).join("");
     const isTracked = tracked().includes(j.id);
     const btn = (action, icon, label, cls = "") => `<button type="button" data-action="${action}" class="wc-btn wc-btn-sm ${cls}"><i class="fa-solid ${icon}"></i> ${esc(label)}</button>`;
-    const hasRewards = QL.hasRewards(q, amount);
+    const hasRewards = QL.hasRewards(q, amount, { renown: renownOn() });
     const gmBar = gm ? [
       btn("edit", "fa-pen", "Edit"),
       btn("hide", q.hidden ? "fa-eye" : "fa-eye-slash", q.hidden ? "Show to players" : "Hide from players"),
@@ -872,7 +898,7 @@ function trackedNotice(on) {
 async function completeAndPay(id) {
   const j = await run("setStatus", id, "completed"); if (!j) return null;
   const q = data(j);
-  const has = QL.hasRewards(q, q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0);
+  const has = QL.hasRewards(q, q.rewards.coin ? WCT.parseMoney(q.rewards.coin) : 0, { renown: renownOn() });
   // The completion card just posted gets marked paid too (its Pay rewards button turns into Rewards paid).
   const card = game.messages.contents.findLast(m => m.flags?.[ID]?.quest?.id === id && m.flags[ID].quest.kind === "completed");
   if (has && q.party && !q.paid) await run("pay", id, card?.id ?? null);
@@ -1122,6 +1148,8 @@ function refresh() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (L
  */
 export function init(wct, { tracker = true, goToPin: pinFn = null, glow = false, hooks = false } = {}) {
   WCT = wct; TRACKER = !!tracker; GO_TO_PIN = pinFn; GLOW = !!glow; HOOKS = !!hooks;
+  // 2.2: a faction hidden, shown, renamed or deleted rebuilds the public copy of the quests that name it.
+  Renown.setQuestResaver(resaveNaming);
   // Core's open-keybinding helper (1.30): same action id "questLog" and default key L, so users' own bindings carry over.
   try {
     registerOpenKeybinding({ moduleId: ID, action: "questLog", name: "Open quest log", hint: "Opens or closes the Wanderer's Toolkit quest log.", editable: [{ key: "KeyL" }], onDown: () => { toggle(); }, precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL });

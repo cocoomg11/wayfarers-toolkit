@@ -947,6 +947,8 @@ Hooks.once("init", () => {
   if (F.on("merchantShop")) Shop.init();
   // 2.2: Renown (Reputation header button on dnd5e's sheet, redraws; the renownChanged hook with Hooks for other modules on).
   if (F.on("renown")) { Renown.init({ hooks: F.on("moduleHooks") }); RenownUI.init(); }
+  // Always: a turned-off Renown puts back the Item Piles prices it set (leader, once Item Piles is ready).
+  Renown.initAlways();
   // Merchant coin rounding: always one item-piles-ready check, so a turned-off feature still puts Item Piles' value back.
   Rounding.init();
   if (F.on("bossFrames")) Bosses.init();

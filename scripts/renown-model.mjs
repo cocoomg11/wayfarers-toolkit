@@ -5,7 +5,7 @@
  *
  * Where things live (renown.mjs reads and writes them):
  *   world setting `renownConfig`      { v, tiers, gains, losses, factions } — shared tiers, award presets, factions players may see
- *   GM-only store bucket `renown`     { v, factions, scores, applied } — hidden factions, characters' renown with them, and the
+ *   GM-only store bucket `renown`     { v: 2, factions, scores: [rows], applied: [rows] } (storeHidden; arrays, see HIDDEN_VERSION) — hidden factions, characters' renown with them, and the
  *                                     Item Piles price entries the toolkit set (so it only ever changes its own)
  *   actor flag `renown`               { v, scores, ribbons, tracked } — a character's renown with visible factions (players read it)
  *
@@ -42,7 +42,7 @@ export const NO_TIER = Object.freeze({ name: "No tier", color: "#e8d35a" });
 /** Award presets: gains (whole numbers) and losses (dice formulas, subtracted). */
 export const DEFAULT_GAINS = Object.freeze([1, 2, 3]);
 export const DEFAULT_LOSSES = Object.freeze(["1d8", "2d6", "2d12"]);
-/** The starting-faction bonus a subfaction's new tiers may give (data only; nothing applies it yet). */
+/** The default starting-faction bonus steps a subfaction's new tiers may give (GM-editable world data; nothing applies it yet). */
 export const START_BONUS = Object.freeze([1, 2, 3, 5]);
 
 // ---------------------------------------------------------------- small helpers
@@ -101,6 +101,18 @@ export function normalizeLosses(v) {
   const out = [...new Set(raw.map(x => cleanFormula(String(x).replace(/^[-−+]\s*/, ""))).filter(Boolean))].slice(0, PRESETS_MAX);
   return out.length ? out : [...DEFAULT_LOSSES];
 }
+
+/**
+ * Starting-faction bonus steps (one per tier, in tier order): whole numbers 1–AMOUNT_MAX, at most TIERS_MAX, order kept (repeats
+ * allowed); none readable → START_BONUS. Accepts "1, 2, 3, 5".
+ */
+export function normalizeStartBonus(v) {
+  const raw = typeof v === "string" ? v.split(/[,\s]+/) : Array.isArray(v) ? v : [];
+  const out = raw.map(x => int(String(x).replace(/^\+/, ""), 0, AMOUNT_MAX, 0)).filter(n => n > 0).slice(0, TIERS_MAX);
+  return out.length ? out : [...START_BONUS];
+}
+/** Every GM-editable default, as the world setting would hold it (Reset to defaults in the setup window). */
+export const defaultShared = () => ({ tiers: DEFAULT_TIERS.map(t => ({ ...t })), gains: [...DEFAULT_GAINS], losses: [...DEFAULT_LOSSES], startBonus: [...START_BONUS] });
 
 // ---------------------------------------------------------------- amounts and formulas
 const DICE_RE = /^\d{0,3}d\d{1,3}$/i;
@@ -169,10 +181,10 @@ export function normalizeFactions(list, max = FACTIONS_MAX) {
   }
   return out;
 }
-/** The world setting: { v, tiers, gains, losses, factions } (factions players may see). */
+/** The world setting: { v, tiers, gains, losses, startBonus, factions } (factions players may see). */
 export function normalizeConfig(raw) {
   const o = obj(raw);
-  return { v: RENOWN_VERSION, tiers: normalizeTiers(o.tiers), gains: normalizeGains(o.gains), losses: normalizeLosses(o.losses), factions: normalizeFactions(o.factions) };
+  return { v: RENOWN_VERSION, tiers: normalizeTiers(o.tiers), gains: normalizeGains(o.gains), losses: normalizeLosses(o.losses), startBonus: normalizeStartBonus(o.startBonus), factions: normalizeFactions(o.factions) };
 }
 /** The tiers a faction uses: its own set, else the shared one. */
 export const tiersOf = (faction, config) => (faction?.tiers?.length ? faction.tiers : config?.tiers?.length ? config.tiers : normalizeTiers(null));
@@ -226,26 +238,52 @@ export function withoutFaction(actorData, factionId) {
 export const totalOf = e => Math.max(0, Number(e?.score ?? 0) + (e?.ribbons ?? []).reduce((n, r) => n + (Number(r.amount) || 0), 0));
 
 /**
- * The GM-only store bucket: { v, factions (hidden ones), scores: { actorId: { factionId: entry } }, applied: { merchantId: { actorUuid:
- * buyModifier } } }. Capped (factions, SCORES_MAX actors, APPLIED_MAX price entries in all).
+ * The GM-only store bucket's stored shape version. 2 (the first release): `scores` and `applied` are stored as arrays, which a
+ * Foundry update replaces whole. As keyed maps (1, pre-release builds) removed keys below the store's deletion depth were merged
+ * back (a hidden score set to 0, a cleared discount record). normalizeHidden reads both; storeHidden writes 2.
+ */
+export const HIDDEN_VERSION = 2;
+/** Stored rows at most (hidden faction entries; Item Piles price records is APPLIED_MAX). */
+export const HIDDEN_ROWS_MAX = 2000;
+const okUuid = u => typeof u === "string" && !!u && u.length <= 200;
+const okBuy = b => Number.isFinite(b) && b >= 0 && b <= 1;
+/**
+ * The GM-only store bucket, read into maps for the code: { v, factions (hidden ones), scores: { actorId: { factionId: entry } },
+ * applied: { merchantId: { actorUuid: buyModifier } } }. Reads the stored arrays (version 2:
+ * scores [{ actor, faction, score, ribbons }], applied [{ merchant, actorUuid, buy }]) and the older maps. Capped.
  */
 export function normalizeHidden(raw) {
   const o = obj(raw); const scores = {}; const applied = {};
-  for (const [actor, map] of Object.entries(obj(o.scores)).slice(0, SCORES_MAX)) {
-    if (!isId(actor)) continue; const m = {};
-    for (const [fid, e] of Object.entries(obj(map))) if (isId(fid)) { const n = normalizeEntry(e); if (n.score || n.ribbons.length) m[fid] = n; }
-    if (Object.keys(m).length) scores[actor] = m;
+  /** @type {Array<{ actor: string, faction: string, e: any }>} */
+  const rows = Array.isArray(o.scores) ? o.scores.map(r => ({ actor: obj(r).actor, faction: obj(r).faction, e: r }))
+    : Object.entries(obj(o.scores)).flatMap(([actor, map]) => Object.entries(obj(map)).map(([faction, e]) => ({ actor, faction, e })));
+  let n = 0;
+  for (const r of rows) {
+    if (n >= HIDDEN_ROWS_MAX) break;
+    if (!isId(r.actor) || !isId(r.faction)) continue;
+    if (!scores[r.actor] && Object.keys(scores).length >= SCORES_MAX) continue;
+    const e = normalizeEntry(r.e); if (!e.score && !e.ribbons.length) continue;
+    (scores[r.actor] ??= {})[r.faction] = e; n++;
   }
+  /** @type {Array<{ merchant: string, actorUuid: string, buy: number }>} */
+  const recs = Array.isArray(o.applied) ? o.applied.map(r => ({ merchant: obj(r).merchant, actorUuid: obj(r).actorUuid, buy: Number(obj(r).buy) }))
+    : Object.entries(obj(o.applied)).flatMap(([merchant, map]) => Object.entries(obj(map)).map(([actorUuid, buy]) => ({ merchant, actorUuid, buy: Number(buy) })));
   let count = 0;
-  for (const [merchant, map] of Object.entries(obj(o.applied))) {
-    if (!isId(merchant)) continue; const m = {};
-    for (const [uuid, buy] of Object.entries(obj(map))) {
-      if (count >= APPLIED_MAX) break;
-      const b = Number(buy); if (typeof uuid === "string" && uuid.length <= 200 && Number.isFinite(b) && b >= 0 && b <= 1) { m[uuid] = b; count++; }
-    }
-    if (Object.keys(m).length) applied[merchant] = m;
+  for (const r of recs) {
+    if (count >= APPLIED_MAX) break;
+    if (!isId(r.merchant) || !okUuid(r.actorUuid) || !okBuy(r.buy)) continue;
+    (applied[r.merchant] ??= {})[r.actorUuid] = r.buy; count++;
   }
-  return { v: RENOWN_VERSION, factions: normalizeFactions(o.factions), scores, applied };
+  return { v: HIDDEN_VERSION, factions: normalizeFactions(o.factions), scores, applied };
+}
+/** The bucket as stored (version 2): arrays only, so every write replaces them whole. */
+export function storeHidden(h) {
+  const n = normalizeHidden(h);
+  return {
+    v: HIDDEN_VERSION, factions: n.factions,
+    scores: Object.entries(n.scores).flatMap(([actor, m]) => Object.entries(m).map(([faction, e]) => ({ actor, faction, score: e.score, ribbons: e.ribbons }))),
+    applied: Object.entries(n.applied).flatMap(([merchant, m]) => Object.entries(m).map(([actorUuid, buy]) => ({ merchant, actorUuid, buy })))
+  };
 }
 
 // ---------------------------------------------------------------- hidden factions: merged view and moves
@@ -321,9 +359,14 @@ export function standing(entry, tiers) {
   };
 }
 /** "10% off" / "10% off, up to Rare" / "no discount". */
-export const discountText = t => (t?.discount ? `${t.discount}% off${t.rarity ? `, ${t.rarity}` : ""}` : "no discount");
+/**
+ * "10% off" / "10% off, up to Rare" / "no discount". With merchant discounts off (feature renownDiscounts), the tier's discount is
+ * information only: "10% (discounts off)".
+ * @param {any} t @param {{ on?: boolean }} [o]
+ */
+export const discountText = (t, { on = true } = {}) => (t?.discount ? (on ? `${t.discount}% off${t.rarity ? `, ${t.rarity}` : ""}` : `${t.discount}% (discounts off)`) : "no discount");
 /** What a tier gives, as one line: perk, title, discount (empty parts left out). */
-export const tierText = t => (t ? [t.perk, t.title && `title: ${t.title}`, t.discount ? discountText(t) : ""].filter(Boolean).join(" · ") : "");
+export const tierText = (/** @type {any} */ t, /** @type {{ on?: boolean }} */ o = {}) => (t ? [t.perk, t.title && `title: ${t.title}`, t.discount ? discountText(t, o) : ""].filter(Boolean).join(" · ") : "");
 
 // ---------------------------------------------------------------- quest rewards
 /** Renown rewards on a quest: [{ faction, amount }], amount a whole number ±1…AMOUNT_MAX, at most 10, one per faction. */
@@ -396,3 +439,12 @@ export function removedPaths(prev, next, base) {
   for (const part of ["scores", "ribbons"]) for (const k of Object.keys(p[part])) if (!(k in n[part])) out.push(`${base}.${part}.${k}`);
   return out;
 }
+
+// ---------------------------------------------------------------- feature off
+/**
+ * Whether the leader puts back Renown's Item Piles prices at load: the feature is off, the GM-only store still records prices it set
+ * (`count`), and Item Piles' API is there to change them. (Like Merchant coin rounding, a turned-off feature undoes what it set.)
+ */
+export const offReset = ({ on = false, count = 0, itemPiles = false } = {}) => !on && count > 0 && !!itemPiles;
+/** Whether merchant discounts are applied: Renown and its separate Merchant discounts switch (default off) both on. */
+export const discountsOn = (/** @type {(id: string) => boolean} */ isOn) => !!isOn("renown") && !!isOn("renownDiscounts");

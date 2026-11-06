@@ -37,6 +37,7 @@ export const FEATURE_CARDS = [
   { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (all pages: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion, Special traits). Off by default; GMs can always open the system sheet. Key C opens it." },
   { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
   { id: "renown", icon: "fa-solid fa-flag", text: "Factions you define, and each character's renown with them: tiers with discounts and perks, GM awards with a chat card, quest renown rewards and a Reputation page." },
+  { id: "renownDiscounts", icon: "fa-solid fa-tags", text: "Renown tier discounts become each character's own price at the faction's Item Piles merchants. Off by default. Needs Renown and Item Piles." },
   { id: "merchantRounding", icon: "fa-solid fa-scale-unbalanced", text: "Merchant prices round to a whole coin, so cheap items at a discount don't become free. Off by default. Needs Item Piles." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
@@ -296,14 +297,14 @@ export function sameList(kind, a, b) {
 }
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet", "merchantRounding", "renown"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet", "merchantRounding", "renown", "renownDiscounts"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
  */
 export const PRESETS = {
   minimal: { label: "Minimal", icon: "fa-solid fa-feather", text: "Just the quest log, the on-screen quest tracker and the character pane. Add more any time.", on: ["questLog", "questTracker", "characterPane"] },
-  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights with a route map, junk loot on every creature, boss frames and boss loot, loot rolls, quests, the character pane and the party gold tracker. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "travelPace", "characterSheet"].includes(id)), suggestCoins: "threeCoin" },
+  classic: { label: "Classic MMO", icon: "fa-solid fa-dragon", text: "Flights with a route map, junk loot on every creature, boss frames and boss loot, loot rolls, quests, the character pane and the party gold tracker. No hex-by-hex overland travel.", on: FEATURE_IDS.filter(id => !["hexTravel", "riderFeat", "travelPace", "characterSheet", "renownDiscounts"].includes(id)), suggestCoins: "threeCoin" },
   everything: { label: "Everything", icon: "fa-solid fa-layer-group", text: "Every tool on, including hex travel and the riding feat.", on: FEATURE_IDS }
 };
 /** A preset → the feature settings it writes: { "feature-<id>": boolean }. */

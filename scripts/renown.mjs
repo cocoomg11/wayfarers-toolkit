@@ -29,6 +29,18 @@ let HOOKS = false;
 /** @type {() => void} */
 let onChanged = () => { };
 export const setRefresher = (/** @type {() => void} */ fn) => { onChanged = fn; };
+/**
+ * Rebuilds the public copy (journal flag and page) of every quest whose rewards name a faction, so a faction hidden, shown, renamed
+ * or deleted never leaves its name (or misses its reward) in what players read. Set by quests.mjs (quest log on); resolves to the
+ * number of quests re-saved.
+ * @type {(factionId: string) => Promise<number>}
+ */
+let resaveQuests = async () => 0;
+export const setQuestResaver = (/** @type {(factionId: string) => Promise<number>} */ fn) => { resaveQuests = fn; };
+/** Calls the quest re-save, never throwing (a quest that fails to save is logged; the faction change stands). */
+async function refreshQuests(fid) {
+  try { return await resaveQuests(fid); } catch (e) { console.warn(`${ID} | renown: quests naming ${fid}`, e); return 0; }
+}
 
 // ---------------------------------------------------------------- reading
 /** The world setting, cleaned. */
@@ -55,8 +67,17 @@ export function actorOf(ref) {
 }
 /** The actor flag, cleaned. */
 export const actorData = (/** @type {any} */ a) => R.normalizeActor(a?.getFlag?.(ID, FLAG));
-/** A character's entry with a faction ({ score, ribbons }) from where it is kept. */
-export const entryFor = (/** @type {any} */ a, /** @type {any} */ f) => R.readEntry({ actorId: a.id, actorData: actorData(a), hidden: hidden(), faction: f });
+/**
+ * A character's entry with a faction ({ score, ribbons }) from where it is kept. Pass `h` (one hidden() read) when calling in a loop.
+ * @param {any} a @param {any} f @param {any} [h]
+ */
+export const entryFor = (a, f, h = undefined) => R.readEntry({ actorId: a.id, actorData: actorData(a), hidden: f?.hidden ? (h ?? hidden()) : null, faction: f });
+/**
+ * GM: changes the GM-only bucket with `fn(current) → next` (both read as maps) and stores it as arrays (R.storeHidden), so removed
+ * entries and records really go (a Foundry update merges objects but replaces arrays).
+ * @param {(h: ReturnType<typeof R.normalizeHidden>) => any} fn
+ */
+export const writeHidden = fn => Vault.update(v => withBucket(v, "renown", R.storeHidden(fn(R.normalizeHidden(bucket(v, "renown", null))))));
 /** Every faction this user sees → this character's entry. */
 export function entriesFor(a) {
   const h = hidden(); const d = actorData(a); const out = {};
@@ -79,7 +100,7 @@ const gmOnly = () => { if (game.user?.isGM) return true; ui.notifications.warn("
 /** Writes one character's entry with one faction where it belongs. */
 async function setEntry(a, f, entry) {
   if (f.hidden) {
-    await Vault.update(v => withBucket(v, "renown", R.withHiddenEntry(bucket(v, "renown", null), a.id, f.id, entry)));
+    await writeHidden(h => R.withHiddenEntry(h, a.id, f.id, entry));
     return;
   }
   const prev = actorData(a); const next = R.withEntry(prev, f.id, entry);
@@ -130,7 +151,8 @@ export async function award(actorsRef, factionRef, amount, { reason = "", card: 
     else { const r = await new Roll(amt.formula).evaluate(); roll = { formula: amt.formula, total: r.total }; delta = amt.sign * Math.max(0, Math.round(r.total)); }
     const res = await change(a, f, e => ({ ...e, score: R.applyDelta(e.score, delta) }));
     const ti = R.tierIndex(res.after, tiers); const t = ti >= 0 ? tiers[ti] : null;
-    rows.push({ name: a.name, delta, roll, before: res.before, after: res.after, tierBefore: R.tierIndex(res.before, tiers), tierAfter: ti, tierName: t?.name ?? R.NO_TIER.name, tierColor: t?.color ?? R.NO_TIER.color, tierText: R.tierText(t) });
+    // The card shows what was applied (a loss stops at 0), with the roll as rolled.
+    rows.push({ name: a.name, delta: res.score - res.prevScore, roll, before: res.before, after: res.after, tierBefore: R.tierIndex(res.before, tiers), tierAfter: ti, tierName: t?.name ?? R.NO_TIER.name, tierColor: t?.color ?? R.NO_TIER.color, tierText: R.tierText(t, { on: discountsOn() }) });
     out.push({ actorId: a.id, delta: res.score - res.prevScore, before: res.before, after: res.after });
   }
   if (post) {
@@ -204,10 +226,11 @@ export async function saveFaction(data) {
   const f = R.normalizeFaction(data); const wantHidden = !!data?.hidden;
   let c = config(); let h = hidden();
   const wasHidden = h.factions.some(x => x.id === f.id); const wasVisible = c.factions.some(x => x.id === f.id);
+  const before = R.factionById(R.allFactions(c, h), f.id);
   if ((wasHidden && !wantHidden) || (wasVisible && wantHidden)) {
     const m = R.moveFaction({ config: c, hidden: h, actors: flagged(), factionId: f.id, hide: wantHidden });
     // Write the destination first, so a character's renown is never only in the place that is about to be cleared.
-    const store = () => Vault.update(v => withBucket(v, "renown", { ...m.hidden, applied: R.normalizeHidden(bucket(v, "renown", null)).applied }));
+    const store = () => writeHidden(cur => ({ ...m.hidden, applied: cur.applied }));
     if (wantHidden) { await store(); await writeActors(m.actors); } else { await writeActors(m.actors); await store(); }
     c = m.config; h = m.hidden;
   }
@@ -216,7 +239,9 @@ export async function saveFaction(data) {
   const vis = strip(wantHidden ? c.factions : put(c.factions)); const hid = strip(wantHidden ? put(h.factions) : h.factions);
   if (vis.length + hid.length > R.FACTIONS_MAX) { ui.notifications.warn(`Renown: at most ${R.FACTIONS_MAX} factions.`); return null; }
   await game.settings.set(ID, SETTING, R.normalizeConfig({ ...c, factions: vis }));
-  await Vault.update(v => { const cur = R.normalizeHidden(bucket(v, "renown", null)); return withBucket(v, "renown", R.normalizeHidden({ ...cur, factions: hid })); });
+  await writeHidden(cur => ({ ...cur, factions: hid }));
+  // Players' copy of quests naming it: rebuilt when its visibility or name changed (old pages would show or miss it).
+  if (before && (before.hidden !== wantHidden || before.name !== f.name)) await refreshQuests(f.id);
   scheduleSync(); onChanged();
   return f.id;
 }
@@ -225,20 +250,20 @@ export async function deleteFaction(id) {
   if (!gmOnly()) return false;
   const c = config();
   await writeActors(flagged().filter(a => a.data.scores[id] || a.data.ribbons[id] || a.data.tracked === id).map(a => ({ id: a.id, data: R.withoutFaction(a.data, id) })));
-  await Vault.update(v => {
-    const h = R.normalizeHidden(bucket(v, "renown", null));
+  await writeHidden(h => {
     const scores = Object.fromEntries(Object.entries(h.scores).map(([k, m]) => [k, Object.fromEntries(Object.entries(m).filter(([fid]) => fid !== id))]));
-    return withBucket(v, "renown", R.normalizeHidden({ ...h, scores, factions: h.factions.filter(f => f.id !== id) }));
+    return { ...h, scores, factions: h.factions.filter(f => f.id !== id) };
   });
   if (c.factions.some(f => f.id === id)) await game.settings.set(ID, SETTING, R.normalizeConfig({ ...c, factions: c.factions.filter(f => f.id !== id) }));
+  await refreshQuests(id);
   scheduleSync(); onChanged();
   return true;
 }
-/** GM: the shared tier set and the award presets. @param {{ tiers?: any, gains?: any, losses?: any }} [o] */
-export async function saveShared({ tiers, gains, losses } = {}) {
+/** GM: the shared tier set, the award presets and the starting-faction bonus steps. @param {{ tiers?: any, gains?: any, losses?: any, startBonus?: any }} [o] */
+export async function saveShared({ tiers, gains, losses, startBonus } = {}) {
   if (!gmOnly()) return null;
   const c = config();
-  await game.settings.set(ID, SETTING, R.normalizeConfig({ ...c, tiers: tiers ?? c.tiers, gains: gains ?? c.gains, losses: losses ?? c.losses }));
+  await game.settings.set(ID, SETTING, R.normalizeConfig({ ...c, tiers: tiers ?? c.tiers, gains: gains ?? c.gains, losses: losses ?? c.losses, startBonus: startBonus ?? c.startBonus }));
   scheduleSync(); onChanged();
   return config();
 }
@@ -255,10 +280,13 @@ export function characterCounts() {
 /** Every other source on every character for a faction: [{ actor, text, amount }] (the setup window lists them). GM. */
 export function sourcesOf(fid) {
   const f = faction(fid); if (!f) return [];
-  return game.actors.filter(a => a.type === "character").flatMap(a => entryFor(a, f).ribbons.map(r => ({ actor: a.name, text: r.text, amount: r.amount })));
+  const h = hidden();
+  return game.actors.filter(a => a.type === "character").flatMap(a => entryFor(a, f, h).ribbons.map(r => ({ actor: a.name, text: r.text, amount: r.amount })));
 }
 
 // ---------------------------------------------------------------- Item Piles merchant discount
+/** Whether merchant discounts are applied through Item Piles (features renown and renownDiscounts both on). */
+export const discountsOn = () => R.discountsOn(featureOn);
 /** Item Piles' API when it is active and offers per-actor merchant prices, else null. */
 export function itemPiles() {
   if (!game.modules.get("item-piles")?.active) return null;
@@ -283,7 +311,7 @@ export function discountPlans() {
     const wants = {};
     if (f) {
       const tiers = R.tiersOf(f, c);
-      for (const pc of pcs) { const d = R.standing(entryFor(pc, f), tiers).discount; if (d) wants[pc.uuid] = d; }
+      for (const pc of pcs) { const d = R.standing(entryFor(pc, f, h), tiers).discount; if (d) wants[pc.uuid] = d; }
     }
     const entries = foundry.utils.getProperty(m, "flags.item-piles.data.actorPriceModifiers") ?? [];
     return { merchantId: mid, merchant: m, faction: f, plan: R.merchantPlan({ entries: Array.isArray(entries) ? entries : [], applied: h.applied[mid] ?? {}, wants }), problem: null };
@@ -297,7 +325,7 @@ export const syncStatus = () => lastSync;
  * (`updateMerchantPriceModifiers`), changing only entries the toolkit set itself, and records what it set in the GM-only store.
  */
 export async function syncMerchants() {
-  if (!game.user?.isGM || !featureOn("renown") || !itemPiles()) return null;
+  if (!game.user?.isGM || !discountsOn() || !itemPiles()) return null;
   const IP = itemPiles(); const plans = discountPlans(); const applied = { ...hidden().applied };
   let written = 0; const skipped = [];
   try {
@@ -308,7 +336,7 @@ export async function syncMerchants() {
       if (Object.keys(p.plan.applied).length) applied[p.merchantId] = p.plan.applied; else delete applied[p.merchantId];
       for (const uuid of p.plan.skipped) skipped.push(`${p.merchant.name}: ${(() => { try { return foundry.utils.fromUuidSync(uuid)?.name ?? uuid; } catch { return uuid; } })()}`);
     }
-    if (JSON.stringify(applied) !== JSON.stringify(hidden().applied)) await Vault.update(v => withBucket(v, "renown", R.normalizeHidden({ ...R.normalizeHidden(bucket(v, "renown", null)), applied })));
+    if (JSON.stringify(applied) !== JSON.stringify(hidden().applied)) await writeHidden(cur => ({ ...cur, applied }));
     lastSync = { at: Date.now(), written, skipped };
   } catch (e) {
     console.warn(`${ID} | renown: merchant discounts`, e);
@@ -319,7 +347,7 @@ export async function syncMerchants() {
 let syncTimer = /** @type {any} */ (null);
 /** A sync a moment later (several changes in a row write once). GM clients only. */
 export function scheduleSync() {
-  if (!game.user?.isGM || !featureOn("renown")) return;
+  if (!game.user?.isGM || !discountsOn()) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => { syncMerchants().catch(e => console.warn(`${ID} | renown sync`, e)); }, 800);
 }
@@ -336,7 +364,7 @@ export async function resetDiscounts() {
     const plan = R.merchantPlan({ entries: Array.isArray(entries) ? entries : [], applied: map, wants: {} });
     try { if (plan.writes.length) { await IP.updateMerchantPriceModifiers(m, plan.writes); n += plan.writes.length; } } catch (e) { console.warn(`${ID} | renown: reset discounts on ${m.name}`, e); }
   }
-  if (Object.keys(h.applied).length && Vault.entry()) await Vault.update(v => withBucket(v, "renown", R.normalizeHidden({ ...R.normalizeHidden(bucket(v, "renown", null)), applied: {} })));
+  if (Object.keys(h.applied).length && Vault.entry()) await writeHidden(cur => ({ ...cur, applied: {} }));
   return n;
 }
 /** How many Item Piles price entries the toolkit set (cleanup counts them). GM. */
@@ -347,10 +375,26 @@ export const discountCount = () => Object.values(hidden().applied).reduce((n, m)
 export function registerSettings() {
   game.settings.register(ID, SETTING, { name: "Renown: factions, tiers and presets", hint: "Edited in Factions and renown (control panel › Character).", scope: "world", config: false, type: Object, default: {}, onChange: () => onChanged() });
 }
+/**
+ * init, whatever the feature setting: with Renown or its Merchant discounts switch turned off, the leader puts back the Item Piles
+ * prices it recorded once Item Piles is ready (R.offReset), so a turned-off feature leaves no discount behind.
+ */
+export function initAlways() {
+  if (discountsOn()) return;
+  Hooks.once("ready", () => {
+    const run = () => settled().then(async () => {
+      if (!isActiveGM() || !R.offReset({ on: discountsOn(), count: discountCount(), itemPiles: !!game.itempiles?.API?.updateMerchantPriceModifiers })) return;
+      const n = await resetDiscounts();
+      if (n) ui.notifications.info(`Wanderer's Toolkit: Renown merchant discounts are off, so the ${n} Item Piles merchant price${n === 1 ? "" : "s"} it set ${n === 1 ? "is" : "are"} back to normal.`);
+    }).catch(e => console.warn(`${ID} | renown off: prices`, e));
+    if (game.itempiles?.API) run(); else Hooks.once("item-piles-ready", () => setTimeout(run, 2500));
+  });
+}
 /** init (feature on): the hook switch. */
 export function init({ hooks = false } = {}) { HOOKS = !!hooks; }
 /** ready (feature on): the leader re-checks merchant discounts once Item Piles is ready (its data may have changed meanwhile). */
 export function ready() {
+  if (!discountsOn()) return; // initAlways puts back what a turned-off discount set
   const run = () => settled().then(() => { if (isActiveGM()) scheduleSync(); }).catch(() => { });
   if (game.itempiles?.API) run(); else Hooks.once("item-piles-ready", () => setTimeout(run, 2500));
 }

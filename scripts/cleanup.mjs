@@ -11,6 +11,7 @@ import { isToolkitFolderName } from "./macros.mjs";
 import { pinsByScene } from "./pins-model.mjs";
 import { hasFlags, confirmed, CONFIRM_WORD, UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
+import { normalizeHidden } from "./renown-model.mjs";
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ours = doc => hasFlags(doc, ID);
@@ -32,14 +33,14 @@ export const CATEGORIES = [
   ["pins", "Delete map pins (the map notes the toolkit's Map pins tool placed, every scene, party and GM pins)"],
   ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests; the tracker journal's trip counter)"],
   ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history, hidden renown factions and renown with them; the shared Module data folder too when nothing else is in it)"],
-  ["renown", "Put back the Item Piles merchant prices Renown set (each character's own buy price at a faction's merchants; Item Piles' other prices stay)"],
+  ["renown", "Put back the Item Piles merchant prices Renown set (each character's own buy price at a faction's merchants; Item Piles' other prices stay; always done when the GM-only records journal is deleted)"],
   ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
   ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; puts back Item Piles' Currency decimal digits if Merchant coin rounding changed it; reloads)"]
 ];
 
-/** The Item Piles price entries Renown recorded: ["merchantId actorUuid", …]. */
-export const renownApplied = bucket => Object.entries(bucket?.applied ?? {}).flatMap(([m, map]) => Object.keys(map && typeof map === "object" ? map : {}).map(u => `${m} ${u}`));
+/** The Item Piles price entries Renown recorded (stored bucket, either shape): ["merchantId actorUuid", …]. */
+export const renownApplied = bucket => Object.entries(normalizeHidden(bucket).applied).flatMap(([m, map]) => Object.keys(map).map(u => `${m} ${u}`));
 
 /** Every actor whose items can hold toolkit items: world actors and unlinked tokens' own actors. */
 function* holders() {
@@ -104,8 +105,9 @@ export async function remove(pick = {}) {
   if (!game.user.isGM) { ui.notifications.warn("GM only."); return null; }
   const p = plan(); const done = {};
   const each = async (list, fn) => { let n = 0; for (const d of list) { try { n += (await fn(d)) ?? 1; } catch (e) { console.warn(`${ID} | remove data: ${d?.name ?? d?.id}`, e); } } return n; };
-  // First, while the GM-only records still say which Item Piles prices Renown set.
-  if (pick.renown) { try { done.renown = await (await import("./renown.mjs")).resetDiscounts(); } catch (e) { console.warn(`${ID} | remove data: renown prices`, e); done.renown = 0; } }
+  // First, while the GM-only records still say which Item Piles prices Renown set (also when only the records are deleted: they're
+  // the only list of those prices, so they'd stay on the merchants for good).
+  if (pick.renown || pick.vault) { try { done.renown = await (await import("./renown.mjs")).resetDiscounts(); } catch (e) { console.warn(`${ID} | remove data: renown prices`, e); done.renown = 0; } }
   if (pick.deleteItems) {
     const byParent = new Map(); const world = [];
     for (const i of p.deleteItems) { if (i.parent) { if (!byParent.has(i.parent)) byParent.set(i.parent, []); byParent.get(i.parent).push(i.id); } else world.push(i.id); }

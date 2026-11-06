@@ -40,6 +40,8 @@ export const FEATURES = [
   { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Every page is built: Character (paper doll shared with the character pane), Details, Inventory, Features, Spells, Effects, Biography, Bastion and Special traits, plus level up from the level badge in Edit mode. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." },
   // 2.2.0
   { id: "renown", label: "Renown (reputation)", hint: "Factions you define in your world and each character's renown with them (no party score): configurable tiers with a merchant discount, unlocked rarity, perk and title per tier; GM awards (+1 / +2 / +3, dice losses, or any amount) with a chat card; quest renown rewards; other sources as labels; a Reputation page on the toolkit character sheet (or a Reputation button on dnd5e's sheet). Hidden factions stay in the GM-only records. With Item Piles, the discount becomes each character's own price at the faction's merchants." },
+  // 2.2.0 (off by default: it changes Item Piles merchants' prices)
+  { id: "renownDiscounts", default: false, label: "Renown merchant discounts", hint: "Each renown tier's discount becomes the character's own buy price at the Item Piles merchants you link to the faction (Item Piles' per-character price). Off: tier discounts are shown as information only, Item Piles prices aren't changed, and any the toolkit set are put back on the next load. Needs Renown and Item Piles." },
   // 2.1.0 (off by default: it changes a setting of Item Piles)
   { id: "merchantRounding", default: false, label: "Merchant coin rounding", hint: "Item Piles merchants round prices to a whole smallest coin instead of dropping the fraction, so a 1-copper item at half price costs 1 copper instead of nothing. Sets Item Piles' Currency decimal digits through its API when the world loads (and puts the old value back when turned off). Needs Item Piles." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
@@ -48,7 +50,7 @@ export const FEATURES = [
  * Hard needs, checked by core: a feature whose needs are off counts as off. Kept to the pairs whose hints say "Needs …" and where
  * the dependent tool does nothing alone; call sites still check both (F.need twice) as before.
  */
-const NEEDS = { questTracker: ["questLog"], questMapPins: ["questLog", "mapPins"], questGlow: ["questLog"], innRestOffer: ["restedInn"] };
+const NEEDS = { questTracker: ["questLog"], questMapPins: ["questLog", "mapPins"], questGlow: ["questLog"], innRestOffer: ["restedInn"], renownDiscounts: ["renown"] };
 
 /** Core's feature registry bound to this module (wanderers-core createFeatures): same keys, same rules. */
 const CORE = createFeatures(ID, FEATURES.map(f => ({ ...f, needs: NEEDS[f.id] ?? [] })), { title: "Wanderer's Toolkit" });

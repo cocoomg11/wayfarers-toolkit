@@ -232,8 +232,8 @@ test("renown: wiring rules (feature, storage, cleanup, API, hook, CSS scope)", a
   assert.ok(P.RECORD_SETTINGS.has("renownConfig") && P.WIZARD_IGNORE.has("renownConfig"));
   const C = src("scripts/cleanup.mjs");
   assert.match(C, /\["renown", "Put back the Item Piles merchant prices Renown set/);
-  assert.match(C, /if \(pick\.renown\)[^\n]*resetDiscounts\(\)/);
-  assert.ok(C.indexOf("pick.renown") < C.indexOf("pick.vault && p.vault.length"), "prices put back before the records go");
+  assert.match(C, /if \(pick\.renown \|\| pick\.vault\)[^\n]*resetDiscounts\(\)/, "prices put back whenever the records go too");
+  assert.ok(C.indexOf("pick.renown || pick.vault") < C.indexOf("pick.vault && p.vault.length"), "prices put back before the records go");
   const CU = await import("../scripts/cleanup.mjs");
   assert.deepEqual(CU.renownApplied({ applied: { m1: { "Actor.a": 0.9, "Actor.b": 0.85 } } }), ["m1 Actor.a", "m1 Actor.b"]);
   const main = src("scripts/main.mjs");
@@ -280,4 +280,97 @@ test("quests: renown rewards normalized, planned, and kept out of players' copy 
   assert.match(qs, /await Renown\.award\(pcs, r\.faction, r\.amount, \{ reason: `Quest reward: \$\{j\.name\}` \}\)/);
   assert.match(qs, /WCT\.features\?\.on\?\.\("renown"\)/);
   assert.match(qs, /const PUB = \{ renownShown: id => Renown\.isShown\(id\) \};/);
+});
+
+// ---------------------------------------------------------------- review fixes (2.2): feature off, pay, card, guards
+test("renown off: the leader puts back the prices it set; health says so; always registered", () => {
+  assert.equal(R.offReset({ on: false, count: 2, itemPiles: true }), true);
+  assert.equal(R.offReset({ on: true, count: 2, itemPiles: true }), false, "on: the sync owns them");
+  assert.equal(R.offReset({ on: false, count: 0, itemPiles: true }), false);
+  assert.equal(R.offReset({ on: false, count: 2, itemPiles: false }), false, "no Item Piles API: nothing to call");
+  const main = src("scripts/main.mjs");
+  assert.match(main, /\n {2}Renown\.initAlways\(\);/, "registered whatever the feature setting");
+  const rn = src("scripts/renown.mjs");
+  assert.match(rn, /export function initAlways\(\) \{\n {2}if \(discountsOn\(\)\) return;/, "runs when Renown or its discounts are off");
+  assert.match(rn, /!R\.offReset\(\{ on: discountsOn\(\),/);
+  assert.match(rn, /if \(!isActiveGM\(\) \|\| !R\.offReset\(/, "leader only");
+  assert.match(rn, /const n = await resetDiscounts\(\);/);
+  assert.match(src("scripts/health.mjs"), /set by Renown \$\{left === 1 \? "is" : "are"\} still in place/);
+});
+
+test("quest pay with Renown off: nothing paid, not marked paid; no Pay button for renown-only rewards; one payment at a time", async () => {
+  const QL = await import("../scripts/quest-log-model.mjs");
+  const q = QL.normalizeQuest({ v: 2, rewards: { renown: [{ faction: "watch", amount: 1 }] } });
+  assert.equal(QL.hasRewards(q, 0, { renown: false }), false);
+  assert.equal(QL.hasRewards(q, 0, { renown: true }), true);
+  assert.equal(QL.hasRewards(q, 5, { renown: false }), true);
+  const qs = src("scripts/quests.mjs");
+  const pay = qs.slice(qs.indexOf("async function payOnce"), qs.indexOf("function capWarn"));
+  assert.ok(pay.indexOf("if (plan.renown.length && !renownOn())") < pay.indexOf("WCT.addMoney"), "refused before anything is paid");
+  assert.match(pay, /if \(plan\.renown\.length && !renownOn\(\)\) \{ ui\.notifications\.warn\([\s\S]*?Nothing was paid\.`\); return false; \}/);
+  assert.match(qs, /if \(PAYING\.has\(j\.id\)\) return false;\n\s+PAYING\.add\(j\.id\);\n\s+try \{ return await payOnce\(j, messageId\); \} finally \{ PAYING\.delete\(j\.id\); \}/);
+  assert.equal(qs.split("QL.hasRewards(").length, qs.split(", { renown: renownOn() })").length, "every Pay decision knows whether Renown is on");
+  assert.equal(qs.split("QL.hasRewards(").length - 1, 3);
+});
+
+test("award: the card shows the change applied (a loss stops at 0); the window awards once", () => {
+  const rn = src("scripts/renown.mjs");
+  assert.match(rn, /rows\.push\(\{ name: a\.name, delta: res\.score - res\.prevScore, roll,/);
+  const html = V.cardHTML({ faction: "F", rows: [{ name: "A", delta: -2, before: 2, after: 0, tierBefore: -1, tierAfter: -1, tierName: "No tier", tierColor: "#e8d35a" }] });
+  assert.match(html, /−2 renown/);
+  const apps = src("scripts/renown-apps.mjs");
+  assert.match(apps, /if \(this\._busy\) return;/);
+  assert.match(apps, /this\._busy = true; const btn = f\.querySelector\("button\[type=submit\]"\); if \(btn\) btn\.disabled = true;/);
+});
+
+test("renown: loops read the GM-only bucket once", () => {
+  const rn = src("scripts/renown.mjs");
+  assert.match(rn, /export const entryFor = \(a, f, h = undefined\) =>/);
+  assert.match(rn, /entryFor\(pc, f, h\)/);
+  assert.match(src("scripts/health.mjs"), /Renown\.entryFor\(a, f, hh\)/);
+});
+
+test("renown merchant discounts: their own switch, default off, needs Renown; off = information only, no Item Piles writes", async () => {
+  const { FEATURES } = await import("../scripts/features.mjs");
+  const f = FEATURES.find(x => x.id === "renownDiscounts");
+  assert.ok(f); assert.equal(f.default, false); assert.equal(f.key, "feature-renownDiscounts");
+  assert.match(src("scripts/features.mjs"), /renownDiscounts: \["renown"\]/);
+  const P = await import("../scripts/panel-model.mjs");
+  assert.ok(P.FEATURE_IDS.includes("renownDiscounts") && P.FEATURE_CARDS.some(c => c.id === "renownDiscounts"));
+  assert.ok(!P.PRESETS.classic.on.includes("renownDiscounts"), "presets other than Everything leave it off");
+  assert.equal(R.discountsOn(id => id === "renown"), false);
+  assert.equal(R.discountsOn(() => true), true);
+  assert.equal(R.discountsOn(id => id === "renownDiscounts"), false);
+  assert.equal(R.discountText({ discount: 10 }, { on: false }), "10% (discounts off)");
+  assert.match(R.tierText({ perk: "p", discount: 15 }, { on: false }), /15% \(discounts off\)/);
+  const on = V.pageHTML(V.pageModel({ factions: FACS, entries: ENTRIES }));
+  const offHtml = V.pageHTML(V.pageModel({ factions: FACS, entries: ENTRIES, discounts: false }));
+  assert.match(on, /wct-rn-disc on/); assert.doesNotMatch(offHtml, /wct-rn-disc on/);
+  assert.match(offHtml, /wct-rn-disc off[^>]*>10% \(discounts off\)/);
+  const rn = src("scripts/renown.mjs");
+  assert.match(rn, /export const discountsOn = \(\) => R\.discountsOn\(featureOn\);/);
+  assert.match(rn, /if \(!game\.user\?\.isGM \|\| !discountsOn\(\) \|\| !itemPiles\(\)\) return null;/, "sync needs the switch");
+  assert.match(rn, /export function scheduleSync\(\) \{\n {2}if \(!game\.user\?\.isGM \|\| !discountsOn\(\)\) return;/);
+  assert.match(rn, /export function ready\(\) \{\n {2}if \(!discountsOn\(\)\) return;/);
+  assert.match(src("scripts/renown-apps.mjs"), /discounts: Renown\.discountsOn\(\)/);
+  assert.match(src("scripts/health.mjs"), /Merchant discounts: off \(Renown merchant discounts on the Features tab\)/);
+});
+
+test("renown defaults: the shipped numbers, every one GM-editable, with Reset to defaults", () => {
+  const c = R.normalizeConfig(null);
+  assert.deepEqual(c.startBonus, [1, 2, 3, 5]);
+  assert.deepEqual(R.normalizeStartBonus("2, 2, +4"), [2, 2, 4], "order kept, repeats allowed");
+  assert.deepEqual(R.normalizeStartBonus("x"), [1, 2, 3, 5]);
+  assert.equal(R.normalizeStartBonus(Array(20).fill(1)).length, R.TIERS_MAX);
+  assert.deepEqual(R.normalizeConfig({ startBonus: [3] }).startBonus, [3]);
+  const d = R.defaultShared();
+  assert.deepEqual(d.tiers.map(t => [t.from, t.discount]), [[3, 0], [10, 10], [25, 15], [50, 25]]);
+  assert.deepEqual([d.gains, d.losses, d.startBonus], [[1, 2, 3], ["1d8", "2d6", "2d12"], [1, 2, 3, 5]]);
+  d.tiers[0].from = 99; assert.equal(R.DEFAULT_TIERS[0].from, 3, "a copy");
+  const apps = src("scripts/renown-apps.mjs");
+  for (const n of ["name", "from", "discount", "rarity", "perk", "title", "color"]) assert.match(apps, new RegExp(`name="${n}"`), `tier field ${n}`);
+  for (const n of ["gains", "losses", "startBonus"]) assert.match(apps, new RegExp(`name="${n}" value=`), `preset field ${n}`);
+  assert.match(apps, /data-act="reset-shared"/);
+  assert.match(apps, /await Renown\.saveShared\(d\);/);
+  assert.match(apps, /startBonus: R\.normalizeStartBonus\(form\.elements\.startBonus\.value\)/);
 });

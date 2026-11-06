@@ -67,6 +67,7 @@ Every tool has its own switch on the control panel's **Features** tab. All are o
 | [Character pane](docs/quests-and-characters.md#character-pane) | A classic-MMO-style character sheet with gear slots, weapon sets and comparison tooltips. | *Character pane* |
 | [Character sheet replacement](docs/quests-and-characters.md#character-sheet-replacement) | Off by default, in progress: the toolkit's own dark sheet for player characters (key **C**), run by dnd5e's rules; GMs can always open the system sheet. | *Character sheet replacement* |
 | [Renown](docs/quests-and-characters.md#renown) | Factions you define and each character's renown with them: tiers with discounts and perks, GM awards with a chat card, quest renown rewards, a Reputation page; discounts at Item Piles merchants. | *Renown (reputation)* |
+| [Renown merchant discounts](docs/quests-and-characters.md#merchant-discounts) | Renown tier discounts become each character's own price at the faction's Item Piles merchants. Off by default. | *Renown merchant discounts* |
 | [Boss frames](docs/quests-and-characters.md#boss-frames) | Health frames at the top of the screen for marked bosses in combat, with phase marks. | *Boss frames* |
 | [Keyboard shortcuts](docs/quests-and-characters.md#keyboard-shortcuts) | Configure Controls entries for the character sheet (C), the character pane and the control panel. | *Keyboard shortcuts* |
 | [Zone title cards](docs/places.md#zone-title-cards) | A scene's title fades in over the map when it's activated. | *Zone title cards* |
@@ -189,7 +190,7 @@ After an update, the GMs get one whispered chat card with what's new and a **To 
 **Remove toolkit data** (a button on the control panel's Overview tab, GM only) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
 - the toolkit's own data on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (only the toolkit's data: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the hidden GM journal *Wanderer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history, the coin log and hidden renown factions), and the shared *Module data* folder if nothing else is left in it;
-- the **Item Piles merchant prices Renown set** (each character's own buy price at a faction's merchants), put back to no change;
+- the **Item Piles merchant prices Renown set** (each character's own buy price at a faction's merchants), put back to no change (always, when the GM-only records journal is deleted too);
 - optionally, the toolkit's data on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
 - optionally, **map pins** (the map notes placed with the Map pin tool, on every scene, party and GM pins alike: they're deleted);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);

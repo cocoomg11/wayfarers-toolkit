@@ -244,16 +244,24 @@ function characterSheet() {
 
 /** Renown (2.2): factions, tiers, where players see it, merchant discounts through Item Piles, quest rewards naming a lost faction. */
 function renown() {
-  if (!F.on("renown")) return [off("Renown: off.")];
+  if (!F.on("renown")) {
+    const left = Renown.discountCount(); // read whatever the feature setting: a turned-off Renown may have left prices behind
+    return [off("Renown: off."), ...(left ? [warn(`${plural(left, "Item Piles merchant price")} set by Renown ${left === 1 ? "is" : "are"} still in place; the acting GM puts them back on the next load (with Item Piles active), or use Remove toolkit data.`)] : [])];
+  }
   const facs = Renown.factions(); const c = Renown.config(); const out = [];
   if (!facs.length) return [line("info", "Renown: no factions yet (control panel › Character › Factions and renown…).")];
   const hid = facs.filter(f => f.hidden).length;
-  const withRenown = game.actors.filter(a => a.type === "character" && facs.some(f => { const e = Renown.entryFor(a, f); return e.score > 0 || e.ribbons.length > 0; })).length;
+  const hh = Renown.hidden();
+  const withRenown = game.actors.filter(a => a.type === "character" && facs.some(f => { const e = Renown.entryFor(a, f, hh); return e.score > 0 || e.ribbons.length > 0; })).length;
   out.push(ok(`Renown: ${plural(facs.length, "faction")}${hid ? ` (${hid} hidden from players, kept in the GM-only records)` : ""}; ${plural(withRenown, "character")} with renown.`));
   out.push(line("info", `Shared tiers: ${c.tiers.map(t => `${esc(t.name)} ${t.from}${t.discount ? ` (${t.discount}% off)` : ""}`).join(", ")}.`));
   out.push(F.on("characterSheet") ? ok("Players see renown on the toolkit sheet's Reputation page.") : line("info", "Players see renown through the Reputation button in dnd5e's character sheet header (the toolkit sheet is off)."));
   const linked = facs.filter(f => f.merchants.length);
-  if (!linked.length) out.push(off("No merchants linked to a faction: tier discounts are shown on the sheet only."));
+  if (!Renown.discountsOn()) {
+    out.push(off("Merchant discounts: off (Renown merchant discounts on the Features tab): tier discounts are shown as information only."));
+    const left = Renown.discountCount();
+    if (left) out.push(warn(`${plural(left, "Item Piles merchant price")} set by Renown ${left === 1 ? "is" : "are"} still in place; the acting GM puts them back on the next load (with Item Piles active), or use Remove toolkit data.`));
+  } else if (!linked.length) out.push(off("No merchants linked to a faction: tier discounts are shown on the sheet only."));
   else if (!Renown.itemPiles()) out.push(line("info", `Item Piles isn't active: ${plural(linked.reduce((n, f) => n + f.merchants.length, 0), "merchant link")} kept; tier discounts are shown on the sheet only.`));
   else {
     let applied = 0; let pending = 0;

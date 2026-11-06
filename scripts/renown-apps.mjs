@@ -19,7 +19,7 @@ const AppV2 = /** @type {any} */ (globalThis).foundry?.applications?.api?.Applic
 export function pageBody(actor, state, { edit = false } = {}) {
   const facts = {
     factions: Renown.factions(), config: Renown.config(), entries: Renown.entriesFor(actor), tracked: Renown.actorData(actor).tracked,
-    isGM: !!game.user?.isGM, canTrack: !!actor.isOwner, edit, name: actor.name
+    isGM: !!game.user?.isGM, canTrack: !!actor.isOwner, edit, name: actor.name, discounts: Renown.discountsOn()
   };
   return RV.pageHTML(RV.pageModel(facts, state));
 }
@@ -200,11 +200,16 @@ export class AwardWindow extends AppV2 {
     hint();
     f.onsubmit = async ev => {
       ev.preventDefault();
+      // One award per window: a double click or Enter pressed twice must not award twice.
+      if (this._busy) return;
       const actors = this.chosen(f); const amount = this.amountOf(f);
       if (!actors.length) return ui.notifications.warn("Award renown: pick at least one character.");
       if (!R.parseAmount(amount)) return ui.notifications.warn("Award renown: choose a gain or a loss.");
-      const done = await Renown.award(actors, f.elements.faction.value, amount, { reason: f.elements.reason.value });
-      if (done) this.close();
+      this._busy = true; const btn = f.querySelector("button[type=submit]"); if (btn) btn.disabled = true;
+      try {
+        const done = await Renown.award(actors, f.elements.faction.value, amount, { reason: f.elements.reason.value });
+        if (done) return this.close();
+      } finally { this._busy = false; if (btn) btn.disabled = false; }
     };
   }
 }
@@ -287,7 +292,9 @@ export class SetupWindow extends AppV2 {
       <h3>Award presets</h3>
       <div class="form-group"><label>Gains</label><div class="form-fields"><input type="text" name="gains" value="${esc(c.gains.join(", "))}"></div><p class="hint">Whole numbers, separated by commas (buttons in the award window).</p></div>
       <div class="form-group"><label>Losses</label><div class="form-fields"><input type="text" name="losses" value="${esc(c.losses.join(", "))}"></div><p class="hint">Dice formulas, separated by commas; each is rolled per character and subtracted.</p></div>
-      <footer class="form-footer"><button type="submit" class="wc-btn wc-btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save tiers and presets</button></footer>
+      <h3>Starting faction bonus</h3>
+      <div class="form-group"><label>Steps</label><div class="form-fields"><input type="text" name="startBonus" value="${esc(c.startBonus.join(", "))}"></div><p class="hint">For factions with <em>Starting faction bonus</em> on: what reaching each tier there would add to the parent side's starting faction (first tier first), separated by commas. Recorded only; not applied automatically.</p></div>
+      <footer class="form-footer"><button type="button" class="wc-btn" data-act="reset-shared"><i class="fa-solid fa-rotate-left"></i> Reset to defaults</button><button type="submit" class="wc-btn wc-btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save tiers and presets</button></footer>
     </form>`;
   }
   factionHTML(f, counts) {
@@ -308,15 +315,15 @@ export class SetupWindow extends AppV2 {
       </div>
       <datalist id="wct-rn-parents">${parents.map(p => `<option value="${esc(p)}">`).join("")}</datalist><datalist id="wct-rn-groups">${groupsList.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
       <div class="wct-rn-sws">
-        ${sw("hidden", fac.hidden, "Hidden from players <span class=\"hint\">(kept in the GM-only records with every character's renown until you switch it off)</span>")}
+        ${sw("hidden", fac.hidden, "Hidden from players <span class=\"hint\">(kept in the GM-only records with every character's renown until you switch it off; quests naming it are rewritten for players. Chat cards already posted stay as they are, and a linked merchant's per-character prices are in Item Piles' data, which players' clients receive)</span>")}
         ${sw("inactive", fac.inactive, "Inactive <span class=\"hint\">(folded away on the sheet unless Show inactive is on)</span>")}
-        ${sw("startBonus", fac.startBonus, `Starting faction bonus <span class="hint">(new tiers here would raise the parent side's starting faction ${R.START_BONUS.map(n => `+${n}`).join(" / ")}; recorded only, not applied automatically)</span>`)}
+        ${sw("startBonus", fac.startBonus, `Starting faction bonus <span class="hint">(new tiers here would raise the parent side's starting faction ${c.startBonus.map(n => `+${n}`).join(" / ")}, set under Tiers and presets; recorded only, not applied automatically)</span>`)}
       </div>
       <h3>Tiers</h3>
       <div class="wct-rn-seg"><label><input type="radio" name="tierset" value="shared" ${own ? "" : "checked"}> Shared tier set</label><label><input type="radio" name="tierset" value="own" ${own ? "checked" : ""}> Custom for this faction</label></div>
       <div data-tiers>${tiersTable(own ? fac.tiers : c.tiers, !own)}</div>
       <h3>Merchants</h3>
-      ${IP ? ms.length ? `<p class="hint">Item Piles merchants that belong to this faction: each character's tier discount is set as their own buy price there (Item Piles' per-character price). A merchant belongs to one faction.</p><div class="wct-rn-ms">${ms.map(m => `<label class="wct-rn-pc"><input type="checkbox" name="merchant" value="${m.id}" ${fac.merchants.includes(m.id) ? "checked" : ""}> ${esc(m.name)}${linked[m.id] && linked[m.id] !== fac.id ? ` <span class="hint">(now ${esc(R.factionById(facs, linked[m.id])?.name ?? "another faction")})</span>` : ""}</label>`).join("")}</div>` : `<p class="hint">No Item Piles merchants in this world yet.</p>` : `<p class="hint">Item Piles isn't active: discounts are shown on the sheet only.</p>${fac.merchants.length ? `<p class="hint">${fac.merchants.length} merchant link(s) kept.</p>` : ""}`}
+      ${!Renown.discountsOn() ? `<p class="hint">Merchant discounts are off (control panel › Features › <em>Renown merchant discounts</em>): tier discounts are shown as information only and Item Piles prices aren't changed.${fac.merchants.length ? ` ${fac.merchants.length} merchant link(s) kept.` : ""}</p>` : IP ? ms.length ? `<p class="hint">Item Piles merchants that belong to this faction: each character's tier discount is set as their own buy price there (Item Piles' per-character price). A merchant belongs to one faction.</p><div class="wct-rn-ms">${ms.map(m => `<label class="wct-rn-pc"><input type="checkbox" name="merchant" value="${m.id}" ${fac.merchants.includes(m.id) ? "checked" : ""}> ${esc(m.name)}${linked[m.id] && linked[m.id] !== fac.id ? ` <span class="hint">(now ${esc(R.factionById(facs, linked[m.id])?.name ?? "another faction")})</span>` : ""}</label>`).join("")}</div>` : `<p class="hint">No Item Piles merchants in this world yet.</p>` : `<p class="hint">Item Piles isn't active: discounts are shown on the sheet only.</p>${fac.merchants.length ? `<p class="hint">${fac.merchants.length} merchant link(s) kept.</p>` : ""}`}
       <h3>Other sources</h3>
       ${sources.length ? `<ul class="wct-rn-srcs">${sources.map(s => `<li><span class="wc-badge">${esc(s.text)} ${esc(R.signed(s.amount))}</span> ${esc(s.actor)}</li>`).join("")}</ul>` : `<p class="hint">None yet.</p>`}
       <p class="hint">Added per character from the Reputation page (+ on a row): a label with an amount, counted into that character's total. No automation.</p>
@@ -346,6 +353,7 @@ export class SetupWindow extends AppV2 {
       }
       if (b.dataset.act === "rm-tier" && !b.closest("[data-disabled]")) b.closest("tr")?.remove();
       if (b.dataset.act === "delete") this.deleteFaction(form.dataset.id);
+      if (b.dataset.act === "reset-shared") this.resetShared();
     });
     form.querySelectorAll("input[name=tierset]").forEach(r => r.addEventListener("change", () => {
       const own = form.elements.tierset.value === "own";
@@ -356,7 +364,7 @@ export class SetupWindow extends AppV2 {
     form.addEventListener("submit", async ev => {
       ev.preventDefault();
       if (form.dataset.form === "shared") {
-        await Renown.saveShared({ tiers: R.normalizeTiers(readTiers(form)), gains: R.normalizeGains(form.elements.gains.value), losses: R.normalizeLosses(form.elements.losses.value) });
+        await Renown.saveShared({ tiers: R.normalizeTiers(readTiers(form)), gains: R.normalizeGains(form.elements.gains.value), losses: R.normalizeLosses(form.elements.losses.value), startBonus: R.normalizeStartBonus(form.elements.startBonus.value) });
         return ui.notifications.info("Renown: tiers and presets saved.");
       }
       const name = form.elements.name.value.trim(); if (!name) return ui.notifications.warn("Give the faction a name.");
@@ -365,11 +373,18 @@ export class SetupWindow extends AppV2 {
         id: form.dataset.id || undefined, name, note: form.elements.note.value, parent: form.elements.parent.value, group: form.elements.group.value,
         hidden: form.elements.hidden.checked, inactive: form.elements.inactive.checked, startBonus: form.elements.startBonus.checked,
         tiers: own ? R.normalizeTiers(readTiers(form)) : null,
-        merchants: Renown.itemPiles() ? [...form.querySelectorAll("input[name=merchant]:checked")].map(i => i.value) : (R.factionById(Renown.factions(), form.dataset.id)?.merchants ?? [])
+        merchants: Renown.itemPiles() && Renown.discountsOn() ? [...form.querySelectorAll("input[name=merchant]:checked")].map(i => i.value) : (R.factionById(Renown.factions(), form.dataset.id)?.merchants ?? [])
       };
       const id = await Renown.saveFaction(data);
       if (id) { this.sel = id; ui.notifications.info(`Renown: ${name} saved.`); this.render(); }
     });
+  }
+  /** Tiers and presets › Reset to defaults: the shared tiers, gain and loss presets and starting-faction steps (factions untouched). */
+  async resetShared() {
+    const d = R.defaultShared();
+    const ok = await foundry.applications.api.DialogV2.confirm({ classes: ["wct-dialog", ...UI_CLASSES], window: { title: "Reset to defaults" }, content: `<p>Put the shared tiers (${d.tiers.map(t => `${esc(t.name)} ${t.from}, ${t.discount}%`).join(" · ")}), the gains (${d.gains.map(g => `+${g}`).join(", ")}), the losses (${d.losses.join(", ")}) and the starting-faction steps (${d.startBonus.map(n => `+${n}`).join(" / ")}) back to the defaults? Your factions, their own tiers and every character's renown stay.</p>`, rejectClose: false });
+    if (!ok) return;
+    await Renown.saveShared(d); ui.notifications.info("Renown: tiers and presets back to the defaults."); this.render();
   }
   async deleteFaction(id) {
     const f = R.factionById(Renown.factions(), id); if (!f) return;

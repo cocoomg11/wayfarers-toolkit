@@ -115,8 +115,14 @@ export function rewardPlan(q) {
   const picked = choice.find(i => i.uuid === r.pick) ?? null;
   return { items: [...(r.items ?? []), ...(picked ? [picked] : [])], picked, missingPick: choice.length > 0 && !picked, renown: normalizeQuestRenown(r.renown) };
 }
-/** Whether a quest has anything to pay (coin text, items, a choice or renown). `coin`: the coin amount already parsed. */
-export const hasRewards = (q, coin = 0) => !!(coin > 0 || q?.rewards?.items?.length || q?.rewards?.choice?.length || q?.rewards?.renown?.length);
+/** Whether a quest's renown rewards name a faction (2.2: its public copy is rebuilt when that faction changes). */
+export const namesFaction = (q, factionId) => normalizeQuestRenown(q?.rewards?.renown).some(r => r.faction === factionId);
+/**
+ * Whether a quest has anything to pay (coin, items, a choice, or renown while `renown` (the feature) is on). `coin`: the amount
+ * already parsed. A quest whose only rewards are renown shows no Pay button while Renown is off.
+ * @param {any} q @param {number} [coin] @param {{ renown?: boolean }} [o]
+ */
+export const hasRewards = (q, coin = 0, { renown = true } = {}) => !!(coin > 0 || q?.rewards?.items?.length || q?.rewards?.choice?.length || (renown && q?.rewards?.renown?.length));
 /**
  * Whether a pick may be stored: the uuid is one of the choices ("" clears, GM only), rewards aren't paid, the quest is active or
  * completed, and the picker is a GM or a member's owner who sees the quest. @returns {{ ok: boolean, reason?: string }}

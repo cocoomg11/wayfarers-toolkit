@@ -30,6 +30,7 @@
 .wct-sheet .wct-rn-bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 1px 1px #000, 0 0 3px #000; white-space: nowrap; }
 .wct-sheet .wct-rn-disc { font-size: 11px; color: var(--ink3); text-align: right; white-space: nowrap; }
 .wct-sheet .wct-rn-disc.on { color: #3fd18a; font-weight: 600; }
+.wct-sheet .wct-rn-disc.off { color: var(--ink3); opacity: 0.7; font-style: italic; }
 .wct-sheet .wct-rn-acts { display: flex; gap: 3px; align-items: center; justify-content: flex-end; }
 .wct-sheet .wct-rn-ic { all: unset; box-sizing: border-box; cursor: pointer; width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; color: var(--ink3); border: 1px solid transparent; }
 .wct-sheet .wct-rn-ic svg { width: 14px; height: 14px; }

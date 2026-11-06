@@ -39,19 +39,21 @@ export function pageState(s = {}) {
 
 /**
  * The page's view model.
- * @param {{ factions?: any[], config?: any, entries?: Record<string, any>, tracked?: string, isGM?: boolean, canTrack?: boolean, edit?: boolean, name?: string }} f
+ * @param {{ factions?: any[], config?: any, entries?: Record<string, any>, tracked?: string, isGM?: boolean, canTrack?: boolean, edit?: boolean, name?: string, discounts?: boolean }} f
  *   `factions`: what this user may see (GM: visible and hidden, marked `hidden`); `entries`: { factionId: { score, ribbons } }.
  * @param {any} [state]
  */
 export function pageModel(f = {}, state = {}) {
   const st = pageState(state); const config = R.normalizeConfig(f.config);
+  // Merchant discounts (feature renownDiscounts, default off): off, a tier's discount shows greyed as information only.
+  const discounts = f.discounts !== false;
   const q = st.search.trim().toLowerCase();
   const row = fac => {
     const tiers = R.tiersOf(fac, config); const entry = R.normalizeEntry(f.entries?.[fac.id]); const s = R.standing(entry, tiers);
     return {
       id: fac.id, name: fac.name, note: fac.note, hidden: !!fac.hidden, inactive: !!fac.inactive, sub: !!fac.parent,
       group: fac.inactive ? INACTIVE_GROUP : R.groupOf(fac), score: entry.score, ribbons: entry.ribbons, s, tiers,
-      discount: R.discountText(s.tier), now: R.tierText(s.tier), next: s.next ? R.tierText(s.next) : "", tracked: f.tracked === fac.id,
+      discount: R.discountText(s.tier, { on: discounts }), now: R.tierText(s.tier, { on: discounts }), next: s.next ? R.tierText(s.next, { on: discounts }) : "", tracked: f.tracked === fac.id,
       merchants: (fac.merchants ?? []).length
     };
   };
@@ -68,7 +70,7 @@ export function pageModel(f = {}, state = {}) {
   const order = [...new Set(all.map(r => r.group))].sort((a, b) => (a === INACTIVE_GROUP ? 1 : 0) - (b === INACTIVE_GROUP ? 1 : 0));
   return {
     st, isGM: !!f.isGM, canTrack: !!f.canTrack, edit: !!f.edit && !!f.isGM, name: String(f.name ?? ""),
-    tracked, count: all.length, shown: shown.length,
+    tracked, count: all.length, shown: shown.length, discounts,
     groups: order.filter(g => groups.has(g)).map(g => ({ label: g, rows: groups.get(g) ?? [], open: !st.closed.includes(g) })),
     tiers: config.tiers
   };
@@ -91,7 +93,7 @@ function rowHTML(r, m) {
     <span class="wct-rn-nm"><b>${esc(r.name)}${r.hidden ? hiddenTag : ""}</b>${r.note ? `<small>${esc(r.note)}</small>` : ""}${ribbons}</span>
     <span class="wct-rn-tier"${tip ? ` data-tooltip="${esc(tip)}"` : ""}>${esc(r.s.name)}</span>
     ${bar(r.s, `${r.name} renown`)}
-    <span class="wct-rn-disc${r.s.discount ? " on" : ""}" data-tooltip="${esc(r.merchants ? `At ${r.name} merchants` : "Discount at this faction's merchants (none linked yet)")}">${esc(r.discount)}</span>
+    <span class="wct-rn-disc${r.s.discount ? (m.discounts ? " on" : " off") : ""}" data-tooltip="${esc(!m.discounts ? "Merchant discounts are off in this world: shown for information" : r.merchants ? `At ${r.name} merchants` : "Discount at this faction's merchants (none linked yet)")}">${esc(r.discount)}</span>
     <span class="wct-rn-acts">${score}${gm}${track}</span>
   </div>`;
 }
@@ -125,7 +127,7 @@ export function pageHTML(m) {
       <h4 class="wct-rn-gh"><button type="button" class="wct-rn-cat" data-wct-rn="group" data-group="${esc(g.label)}" aria-expanded="${g.open}">${svg(g.open ? ICONS.open : ICONS.closed)}${esc(g.label)}<span class="n">${g.rows.length} ${g.rows.length === 1 ? "faction" : "factions"}</span></button></h4>
       ${g.open ? g.rows.map(r => rowHTML(r, m)).join("") : ""}
     </div>`).join("");
-  const tiers = `<div class="wct-rn-key"><span class="wct-cs-lab">Renown tiers</span><span class="wct-rn-tkey"><span style="--tc:${R.NO_TIER.color}">${R.NO_TIER.name} 0–${Math.max(0, (m.tiers[0]?.from ?? 1) - 1)}</span>${m.tiers.map(t => `<span style="--tc:${esc(t.color)}" data-tooltip="${esc(R.tierText(t) || "No perk written yet")}">${esc(t.name)} ${t.from}</span>`).join("")}</span></div>`;
+  const tiers = `<div class="wct-rn-key"><span class="wct-cs-lab">Renown tiers</span><span class="wct-rn-tkey"><span style="--tc:${R.NO_TIER.color}">${R.NO_TIER.name} 0–${Math.max(0, (m.tiers[0]?.from ?? 1) - 1)}</span>${m.tiers.map(t => `<span style="--tc:${esc(t.color)}" data-tooltip="${esc(R.tierText(t, { on: m.discounts }) || "No perk written yet")}">${esc(t.name)} ${t.from}</span>`).join("")}</span></div>`;
   return `<div class="wct-rn">
     ${m.tracked ? trackedHTML(m.tracked) : ""}
     <section class="wct-cs-box wct-rn-list">${tbar}
