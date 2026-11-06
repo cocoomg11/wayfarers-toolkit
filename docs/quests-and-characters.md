@@ -6,7 +6,7 @@ The story side of the table: the quest log and tracker, the character pane, and 
 
 - [Quest log](#quest-log): [setup](#setup), [making quests](#making-quests-gm), [what players see](#what-players-see) (tracker, map pins, Updated glow), [moments](#moments), [journals](#journals)
 - [Character pane](#character-pane): [slots](#slots), [equipping](#equipping), [what fits where](#what-fits-where), [weapon sets](#weapon-sets), [item comparison](#item-comparison), [MMO-style tooltips](#items-with-mmo-style-tooltips)
-- [Character sheet replacement](#character-sheet-replacement) (in progress, off by default)
+- [Character sheet replacement](#character-sheet-replacement) (Character, Details and Inventory pages; off by default)
 - [Boss frames](#boss-frames) and [phase marks](#phase-marks)
 - [Keyboard shortcuts](#keyboard-shortcuts) and [windows](#windows-and-shortcuts)
 
@@ -206,7 +206,33 @@ The rules stay dnd5e's: every value is dnd5e's own prepared value (armour, items
 
 - **Title band**: level, name, class · species · background, XP bar (hidden when dnd5e's levelling mode is *no XP*), **Rested** (with *Rested at the inn*), Heroic inspiration, Short rest and Long rest (dnd5e's rest dialogs; hidden from players when dnd5e's *Allow rests* is off), and **Play / Edit**. In Edit mode an orange badge counts dnd5e's sheet warnings (hover for the list).
 - **Vitals**: Armor Class, hit points with temporary hit points, hit dice, **Initiative** (click: dnd5e's initiative roll), speed, proficiency bonus, exhaustion (click a pip to set the level, the lit top pip to lower it) and death saves (click: dnd5e's death saving throw).
-- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. The pages themselves come in later updates; each has an **Open in system sheet** button for now.
+- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. **Character**, **Details** and **Inventory** are built (below); the other pages come in later updates and show an **Open in system sheet** button for now. Every page has a small *Open in system sheet* link at the bottom.
+- **Play / Edit**: Play is for rolling and using; Edit shows the inputs and the gear buttons that open dnd5e's own settings windows.
+
+### Character page
+
+The **paper doll** is the [character pane](#character-pane)'s, on the same data: anything you slot here shows in the pane and the other way round. The gear slots run down both sides of the portrait (Head, Neck, Shoulder, Back, Chest, Shirt, Tabard, Wrist on the left; Hands, Waist, Legs, Feet, two Fingers and two Trinkets on the right). Each filled slot has its item's quality colour on the border; hover for the item's tooltip and comparison. The portrait shows **Attuned n / max** (click the picture to view it full size). Below it are the **weapon sets** (Melee, Ranged, Utility) with the set in hand lit and the others stowed, plus the **Relic** slot for the classes that use it (the pane's setting). Click a set's tab to swap to it.
+
+- **Drag** an item onto a slot or a hand to equip it there; drop it on the portrait to put it in its best place. Drag a slotted item onto *Equippable items* (or right-click the slot) to take it off. Click a slot to pick what goes there.
+- **Attributes**: each ability's name, score and modifier in three columns; click a name to roll dnd5e's ability check. In Edit mode the scores become inputs (`+2`, `-1` and `=15` work as on dnd5e's sheet).
+- **Defence** (AC, hit points, hit dice, initiative, speed, saves) and **Attack**, which follows the weapon set in hand (Melee, Ranged, or Spell for a caster's Utility set; pick another view in its menu). **Use** rolls the weapon through dnd5e.
+- **Equippable items**: everything that could be worn or held but isn't in a slot; items marked *E* are equipped without a slot. The note *n equipped but not in a slot* has a **Slot equipped items** button.
+- Edit mode: **Change portrait** (or the token art) and **Show token instead of portrait** (dnd5e's own setting).
+
+### Details page
+
+- Six **ability** medallions: modifier (large), score, and the saving throw in the corner (gold when proficient). Click the medallion for dnd5e's ability check, the corner for the saving throw. While concentrating, a **Concentration** button rolls dnd5e's concentration save.
+- **Skills**: proficiency mark (empty, half, full, expertise), ability, total and passive score; click a skill to roll it. **Tools** the same way.
+- **Origin** (species and background, click to open them; creature type; size) and **Traits** (senses, resistances, immunities, vulnerabilities, damage modification, armour and weapon proficiencies, languages), exactly as dnd5e lists them.
+- Edit mode: click a proficiency mark to cycle it (dnd5e's own control), change a skill's ability, scores and size, and use the gear buttons to open dnd5e's configuration windows for abilities, skills, tools, senses, damage traits, armour, weapons, languages and the creature type.
+
+### Inventory page
+
+- **Encumbrance** bar from dnd5e (with its encumbered and heavily encumbered marks), the **coins** (edit them in place, or **Manage coin** for dnd5e's currency manager; with the three-coin economy the purse also shows as gold, silver and copper), your **containers** (drop items on one to put them inside) and the attunement count.
+- The item list uses dnd5e's sections (Weapons, Equipment, Consumables, Tools, Loot…). Each row shows the item's quality colour, name and type, its **doll slot**, price, weight, quantity (with − / +), uses, **equip** and **attune** buttons, a description toggle and **⋮** for dnd5e's item menu (view, edit, duplicate, delete, split stack, display card…). Click a name to use the item (or view it). In Edit mode rows get edit and delete buttons and there is a **Create item** button.
+- **Equipping here also puts the item in its slot on the paper doll** (the pane's rules: its best free slot, a free hand of a weapon set, or the relic slot). An item with no clear slot is equipped without one and shows on the Character page as *equipped but not in a slot*. Unequipping takes it out of its slot.
+- **Search** and the **Action / Bonus / Reaction / Equipped / Magical** filters work like dnd5e's; **Sort** switches between your manual order and A–Z.
+- Drag and drop works as on dnd5e's sheet: drop items from a compendium, the sidebar or another actor to add them, drag rows to reorder them, drop them on a container to put them inside.
 - **Conditions** along the bottom.
 - **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
 - **Key C** (with *Keyboard shortcuts* on): opens your own character's sheet (with none assigned: the character you own, or with several, the one whose token is selected); a GM opens the selected token's character (or gets a note to select one). Press again to close. It never fires while you type in a field. Foundry's own C (*Toggle Character Sheet*) moves to **Alt+C** on each computer the first time the world loads with the sheet on, but only if nobody changed that key and nothing else uses Alt+C there (the health check says what happened). (1.33.0 aimed for Shift+C, but Foundry v14 already uses Shift+C for *Focus Chat*, so it never moved there; 1.33.1 moves it to Alt+C instead.) Turn the sheet or *Keyboard shortcuts* off and Foundry's key goes back to C, unless you have set your own key for it since. Rebind *Open character sheet* in Configure Controls if you prefer another key.
