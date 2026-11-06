@@ -166,7 +166,7 @@ test("sheet: Features and Spells are built; facts follow dnd5e's preparation; ac
   const s = src("scripts/sheet.mjs");
   for (const x of ['getFlag?.("dnd5e", "advancementRoot")', 'getFlag?.("dnd5e", "advancementOrigin")', "sc.getAvailableLevels?.(a)", "sc.getSpellSlotKey(l)", 'getFlag?.("dnd5e", "cachedFor")', "s.linkedActivity?.displayInSpellbook",
     "a.spellcastingClasses", "c.advancement?.byType?.Subclass?.[0]", "CB.selectOne({ filters })", "A.AdvancementManager.forLevelChange(a, cls.id, delta)", "A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })",
-    'cls.update({ "system.levels": cls.system.levels + delta })', "item?.deleteDialog({ sheet: this })", "this._onDropCreateItems(event, [game.items.fromCompendium("])
+    'cls.update({ "system.levels": cls.system.levels + delta })', "item?.deleteDialog({ sheet: this })", "host._onDropCreateItems(event, [game.items.fromCompendium("])
     assert.ok(s.includes(x), x);
   assert.match(s, /primary: \["inventory", "features", "spells", "effects", "bastion"\]\.includes\(this\._page\) \? this\._page : "details"/, "dnd5e's spell drop (method from the section) and scrolls only on Inventory");
   assert.doesNotMatch(src("scripts/sheet-book-model.mjs").replace(/\/\*[\s\S]*?\*\//g, ""), /\b(game|canvas|ui|CONFIG|foundry)\./, "pure");
@@ -181,4 +181,11 @@ test("css and public repo", () => {
   for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
     for (const sel of rule.split(",")) assert.match(sel.trim(), /^\.(application\.)?wct-sheet\b/, sel);
   assert.doesNotMatch(src("scripts/sheet-book-model.mjs") + src("scripts/sheet.mjs"), /warcraft|blizzard|azeroth|defias|onyx/i);
+});
+
+test("review: subclass can be deleted in Edit mode (dnd5e's delete dialog via wctDeleteItem)", () => {
+  const e = BM.featuresPageHTML(feats({ edit: true }));
+  assert.match(e, /data-action="wctDeleteItem" data-item-id="s1" aria-label="Delete Champion"/);
+  assert.doesNotMatch(BM.featuresPageHTML(feats()), /Delete Champion/);
+  assert.match(src("scripts/sheet.mjs"), /item\?\.deleteDialog\(\{ sheet: this \}\)/);
 });

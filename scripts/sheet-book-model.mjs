@@ -228,6 +228,7 @@ export function featuresPageHTML(f) {
       <span class="wct-cs-nm"><b>${esc(c.name)}</b><small>${esc([c.subclass?.name, c.hitDie ? `hit die ${c.hitDie}` : ""].filter(Boolean).join(" · ")) || "&nbsp;"}${c.needsSubclass && ed ? ` <button type="button" class="wct-cs-chip" data-action="wctFindItem" data-item-type="subclass" data-class-identifier="${esc(c.identifier ?? "")}">+ Add subclass</button>` : ""}</small></span>
       ${edit ? `<label class="wct-cs-lvlsel"><span class="wc-sr">${esc(c.name)} level</span><select class="wct-cs-sel" data-wct-level="${esc(c.id)}">${Array.from({ length: 20 }, (_, i) => i + 1).map(l => `<option value="${l - (num(c.levels) ?? 0)}"${l === num(c.levels) ? " selected" : ""}>${l}</option>`).join("")}</select></label>` : `<span class="c">Level ${esc(num(c.levels) ?? "–")}</span>`}
       ${edit ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" aria-label="Delete ${esc(c.name)}" data-tooltip="Delete ${esc(c.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
+      ${edit && c.subclass ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" data-item-id="${esc(c.subclass.id)}" aria-label="Delete ${esc(c.subclass.name)}" data-tooltip="Delete ${esc(c.subclass.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
     </div>`).join("");
   const addClass = ed && (!(f.classes ?? []).length || edit) ? `<button type="button" class="wct-cs-chip" data-action="wctFindItem" data-item-type="class">+ Add class</button>` : "";
   const s = f.summary ?? {};

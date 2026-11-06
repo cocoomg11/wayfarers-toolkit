@@ -30,6 +30,14 @@ Character sheet replacement, slices 3 and 4: every page is now built. Nothing ne
 
 ### Slice 4: Effects, Biography, Bastion, Special traits, level up
 
+**Review fixes (slices 3–4)**
+- Level down: declining dnd5e's "remove advancements" question now still lowers the level, as dnd5e does (closing the dialog cancels).
+- Bastion: the × on occupants and defenders shows in Edit mode only (dnd5e); pending trades still ask dnd5e's question. Facility subtitles are escaped.
+- Features: a subclass can be deleted in Edit mode (dnd5e's delete dialog).
+- Leaving Edit mode saves text still open in a ProseMirror editor (biography, bastion description) first; the Play / Edit switch and Shift+E share one path.
+- Special traits: emptying a numeric flag (crit threshold, …) unsets it. Add class / subclass / facility set the dnd5e drop helper's page explicitly.
+- Live checks: level down with and without removing advancements; occupant × hidden in Play; delete a subclass; type in the biography editor and switch to Play without saving (text kept); clear a crit threshold (dnd5e's sheet shows it empty).
+
 **Added**
 - **Effects page**: dnd5e's own `<dnd5e-effects>` element with the sheet's markup, so dnd5e does the work: conditions as buttons (click to add / remove; exhaustion and other levelled conditions up on click, down on right-click), effects in dnd5e's categories (temporary, passive, inactive, unavailable, enchantments) with duration, source link, on/off switch (not for concentration), description with its changes, and dnd5e's effect menu (edit, duplicate, delete, disable, break concentration). Effects on items show with their item. Search; *+ Create effect* in Edit mode.
 - **Biography page**: dnd5e's nine characteristics, the ideals / bonds / flaws / personality traits / appearance boxes and the biography; Edit mode uses fields, text areas and Foundry's ProseMirror editor (as dnd5e's sheet).

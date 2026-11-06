@@ -155,10 +155,24 @@ export class WctCharacterSheet extends ActorSheetV2 {
   }
 
   /** dnd5e's "Toggle sheet mode" key (Shift+E) and its sheet API: play ↔ edit. @param {"play" | "edit" | number} [mode] */
-  changeMode(mode) {
+  async changeMode(mode) {
     const want = mode === "edit" || mode === 2 ? "edit" : mode === "play" || mode === 1 ? "play" : this._mode === "edit" ? "play" : "edit";
     if (want === "edit" && !this.isEditable) return;
-    if (want !== this._mode) { this._mode = want; this.render(); }
+    if (want === this._mode) return;
+    // Leaving Edit: save text still open in a ProseMirror editor first (dnd5e's sheet submits its form on a mode change).
+    if (this._mode === "edit") await this.saveEditors();
+    this._mode = want; this.render();
+  }
+
+  /** Writes every open or changed `<prose-mirror data-wct-prose>` on this sheet to its path (one actor update). */
+  async saveEditors() {
+    /** @type {Record<string, unknown>} */
+    const data = {};
+    for (const el of /** @type {any[]} */ ([...(this.element?.querySelectorAll?.("prose-mirror[data-wct-prose]") ?? [])])) {
+      const path = el.dataset.wctProse; const value = el.value;
+      if (path && typeof value === "string" && value !== String(foundry.utils.getProperty(this.actor._source ?? {}, path) ?? "")) data[path] = value;
+    }
+    if (Object.keys(data).length && this.isEditable) await this.actor.update(data);
   }
   /** dnd5e reads `isEditMode` on its sheets. */
   get isEditMode() { return this._mode === "edit" && !!this.isEditable; }
@@ -655,11 +669,11 @@ export class WctCharacterSheet extends ActorSheetV2 {
     for (const f of a.itemTypes?.facility ?? []) {
       const s = f.system ?? {};
       const sub = [s.building?.built ? loc(D.facilities?.sizes?.[s.size]?.label ?? s.size ?? "") : loc("DND5E.FACILITY.Build.Unbuilt")];
-      if (s.trade?.stock?.max) sub.push(`${s.trade.stock.value ?? 0} &sol; ${s.trade.stock.max}`);
+      if (s.trade?.stock?.max) sub.push(`${s.trade.stock.value ?? 0} / ${s.trade.stock.max}`);
       const craft = s.craft?.item ? await fromUuid(s.craft.item).catch(() => null) : null;
       const pending = await Promise.all((s.trade?.pending?.creatures ?? []).map(async (uuid, index) => { const act = await fromUuid(uuid).catch(() => null); return { index, uuid, name: act?.name, img: act?.img, pending: true }; }));
       const fact = {
-        id: f.id, name: f.name, img: f.img, subtitle: sub.map(x => String(x).replace(/[<>]/g, "")).join(" &bull; "), built: !!s.building?.built, disabled: !!s.disabled,
+        id: f.id, name: f.name, img: f.img, subtitle: sub.map(String).join(" • "), built: !!s.building?.built, disabled: !!s.disabled,
         special: s.type?.value === "special", free: !!s.free, progress: s.progress?.max ? { value: s.progress.value, max: s.progress.max, pct: s.progress.pct } : null,
         order: s.progress?.order ? loc(D.facilities?.orders?.[s.progress.order]?.label ?? s.progress.order) : "",
         craft: craft ? { uuid: craft.uuid, name: craft.name, img: craft.img } : null,
@@ -745,7 +759,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
 
   // ---------------------------------------------------------------- actions (this = the sheet)
   static #systemSheet(event, target) { if (game.user.isGM || target?.dataset?.page) openSystemSheet(this.actor, target?.dataset?.page ?? ""); }
-  static #mode(event, target) { const m = target.dataset.mode === "edit" ? "edit" : "play"; if (m !== this._mode) { this._mode = m; this.render(); } }
+  static #mode(event, target) { return this.changeMode(target.dataset.mode === "edit" ? "edit" : "play"); }
   static #page(event, target) { const p = target.dataset.page; if (p && p !== this._page) { this._page = p; this.render(); } }
   static async #inspiration() {
     if (!this.isEditable) return;
@@ -875,7 +889,11 @@ export class WctCharacterSheet extends ActorSheetV2 {
       filters.locked.additional = { type: { [facilityType]: 1, [other]: -1 }, level: { max: this.actor.system.details.level } };
     }
     const result = await CB.selectOne({ filters });
-    if (result) await this._onDropCreateItems(event, [game.items.fromCompendium(await fromUuid(result), { keepId: true })]);
+    if (!result) return;
+    const host = this.dnd5eHost(); if (!host) return;
+    // The drop helper's tab is set for this pick (classes / subclasses → Features, facilities → Bastion), never left from the last drop.
+    host.tabGroups = { ...(host.tabGroups ?? {}), primary: type === "facility" ? "bastion" : "features" };
+    await host._onDropCreateItems(event, [game.items.fromCompendium(await fromUuid(result), { keepId: true })]);
   }
 
   /** Deletes a class or subclass with dnd5e's own dialog (its advancement question included). */
@@ -974,8 +992,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
       const manager = A.AdvancementManager.forLevelChange(a, cls.id, delta);
       if (manager.steps.length) {
         if (delta > 0) return this._renderChild(manager);
+        // dnd5e: removing advancements runs the manager; declining them still lowers the level; closing the dialog cancels.
         try { if (await A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })) return this._renderChild(manager); } catch { return this.render(); }
-        return;
       }
     }
     return cls.update({ "system.levels": cls.system.levels + delta });
@@ -1055,6 +1073,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
         if (t.tagName === "SELECT") return a.update({ [path]: t.value });
         // Text fields (characteristics, bastion name, special-trait text and bonus formulas) are saved as typed; numbers take dnd5e's deltas.
         if (t.classList.contains("wct-cs-tin") && t.inputMode !== "numeric") return a.update({ [path]: t.value });
+        // An emptied dnd5e flag (crit threshold, …) is unset, as dnd5e's sheet deletes empty flags on submit.
+        if (SX.isClearedFlag(path, t.value)) { t.value = ""; return a.update({ [SX.unsetPath(path)]: null }); }
         const v = SP.parseDelta(t.value, foundry.utils.getProperty(a._source ?? a, path) ?? foundry.utils.getProperty(a, path));
         if (v === null) return;
         t.value = String(v);

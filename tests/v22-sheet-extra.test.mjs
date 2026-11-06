@@ -115,7 +115,8 @@ test("bastion: defenders, basic and special facilities with occupants, order pro
   assert.match(h, /occupant-slot pending" data-index="0" data-uuid="Actor\.cow" data-tooltip="Trade pending">/);
   assert.match(h, /data-action="wctFindItem" data-item-type="facility" data-facility-type="special">\+ Free special facility/);
   assert.match(h, /<span class="r">1 \/ 2<\/span>/);
-  assert.match(h, /data-action="wctDeleteOccupant"/);
+  assert.doesNotMatch(h, /data-action="wctDeleteOccupant"/, "2.2 review: the × is Edit mode only (dnd5e)");
+  assert.match(SX.bastionPageHTML(bastion({ edit: true })), /data-action="wctDeleteOccupant"/);
   const ro = SX.bastionPageHTML(bastion({ editable: false }));
   assert.doesNotMatch(ro, /wctDeleteOccupant|wctFindItem|wctUseFacility/);
   const e = SX.bastionPageHTML(bastion({ edit: true }));
@@ -187,4 +188,47 @@ test("all pages built; pure model; css scoped; public repo", () => {
   assert.doesNotMatch(src("scripts/sheet-extra-model.mjs") + src("scripts/sheet.mjs") + css, /warcraft|blizzard|azeroth|defias|onyx/i);
   const all = SX.effectsPageHTML(fx()) + SX.biographyPageHTML(bio()) + SX.bastionPageHTML(bastion()) + SX.specialPageHTML(special());
   assert.doesNotMatch(all, /favourite|favorite/i);
+});
+
+// ---------------------------------------------------------------- slices 3–4 review fixes
+test("review: level down without removing advancements still lowers the level (dnd5e's #changeLevel)", () => {
+  const s = src("scripts/sheet.mjs");
+  const body = s.slice(s.indexOf("async changeLevel(cls, delta) {")); const fn = body.slice(0, body.indexOf("\n  }\n"));
+  assert.match(fn, /forLevelDown\(cls, \{ sheet: this \}\)\) return this\._renderChild\(manager\); \} catch \{ return this\.render\(\); \}\n {6}\}\n {4}\}\n {4}return cls\.update\(\{ "system\.levels": cls\.system\.levels \+ delta \}\);/, "falls through to the level update");
+});
+
+test("review: occupant × only in Edit mode; pending trades still confirm via dnd5e's question", () => {
+  const play = SX.bastionPageHTML(bastion({ editable: true, edit: false }));
+  assert.doesNotMatch(play, /wctDeleteOccupant/);
+  const edit = SX.bastionPageHTML(bastion({ edit: true }));
+  assert.match(edit, /occupant-slot pending[^>]*>[\s\S]*?data-action="wctDeleteOccupant"/);
+  assert.match(edit, /<li class="defender"[\s\S]*?data-action="wctDeleteOccupant"/);
+  assert.match(src("scripts/sheet.mjs"), /target\.closest\("\.occupant-slot\.pending"\)[\s\S]*?DialogV2\.confirm/);
+});
+
+test("review: facility subtitle is escaped", () => {
+  const b = bastion(); b.basic.chosen[0].subtitle = "<img src=x onerror=1> • 2 / 4";
+  const h = SX.bastionPageHTML(b);
+  assert.doesNotMatch(h, /<img src=x/); assert.match(h, /&lt;img src=x onerror=1&gt; • 2 \/ 4/);
+  assert.doesNotMatch(src("scripts/sheet.mjs"), /&sol;|&bull;/, "plain text from the facts");
+});
+
+test("review: emptied dnd5e flags are unset, not saved as 0", () => {
+  assert.equal(SX.isClearedFlag("flags.dnd5e.weaponCriticalThreshold", ""), true);
+  assert.equal(SX.isClearedFlag("flags.dnd5e.weaponCriticalThreshold", " 19"), false);
+  assert.equal(SX.isClearedFlag("system.abilities.str.value", ""), false);
+  assert.equal(SX.unsetPath("flags.dnd5e.weaponCriticalThreshold"), "flags.dnd5e.-=weaponCriticalThreshold");
+  assert.match(src("scripts/sheet.mjs"), /if \(SX\.isClearedFlag\(path, t\.value\)\) \{ t\.value = ""; return a\.update\(\{ \[SX\.unsetPath\(path\)\]: null \}\); \}/);
+});
+
+test("review: compendium-browser picks set the drop helper's page explicitly", () => {
+  const s = src("scripts/sheet.mjs");
+  assert.match(s, /host\.tabGroups = \{ \.\.\.\(host\.tabGroups \?\? \{\}\), primary: type === "facility" \? "bastion" : "features" \};\n {4}await host\._onDropCreateItems/);
+});
+
+test("review: leaving Edit saves open ProseMirror text first; the Play/Edit switch goes through changeMode", () => {
+  const s = src("scripts/sheet.mjs");
+  assert.match(s, /if \(this\._mode === "edit"\) await this\.saveEditors\(\);\n {4}this\._mode = want; this\.render\(\);/);
+  assert.match(s, /async saveEditors\(\) \{[\s\S]*?prose-mirror\[data-wct-prose\][\s\S]*?await this\.actor\.update\(data\)/);
+  assert.match(s, /static #mode\(event, target\) \{ return this\.changeMode\(/);
 });

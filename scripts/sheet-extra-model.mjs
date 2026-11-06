@@ -229,26 +229,27 @@ export function facilitySlots(type, chosen, max) {
  * @property {boolean} [edit]
  */
 
+// The × to remove an occupant shows in Edit mode only (dnd5e's deletion-control is `@root.editable`, which is Edit mode).
 const occupants = (list, prop, kind, ed) => list?.length ? `<div class="wct-cs-occ facility-occupants ${kind}" data-prop="${prop}">${list.map(o => `<span class="wct-cs-oslot occupant-slot${o.empty ? " empty" : ""}${o.pending ? " pending" : ""}" data-index="${esc(o.index ?? "")}"${o.uuid ? ` data-uuid="${esc(o.uuid)}"` : ""}${o.pending ? ' data-tooltip="Trade pending"' : o.name ? ` data-tooltip="${esc(o.name)}"` : ""}>${o.uuid && !o.pending ? `<button type="button" class="wct-cs-oimg" data-action="wctShowUuid" aria-label="${esc(o.name ?? "")}"><img src="${esc(o.img)}" alt=""></button>` : ""}${ed && (o.uuid || o.pending) ? `<button type="button" class="wct-cs-odel" data-action="wctDeleteOccupant" aria-label="Remove">×</button>` : ""}</span>`).join("")}</div>` : "";
 
-const facilityCard = (c, ed) => `<li class="wct-cs-fac${c.built === false ? " building" : ""}${c.disabled ? " damaged" : ""}" data-item-id="${esc(c.id)}" data-facility-id="${esc(c.id)}">
+const facilityCard = (c, ed, o = { edit: false }) => `<li class="wct-cs-fac${c.built === false ? " building" : ""}${c.disabled ? " damaged" : ""}" data-item-id="${esc(c.id)}" data-facility-id="${esc(c.id)}">
     <div class="wct-cs-fachead">
       <span class="wct-cs-ico wc-item-slot" data-quality="common"><img src="${esc(c.img)}" alt=""></span>
-      ${ed && !c.disabled ? `<button type="button" class="wct-cs-nm wct-cs-facname" data-action="wctUseFacility" data-tooltip="Give an order"><b>${esc(c.name)}</b><small>${c.subtitle ?? ""}</small></button>` : `<span class="wct-cs-nm wct-cs-facname"><b>${esc(c.name)}</b><small>${c.subtitle ?? ""}</small></span>`}
+      ${ed && !c.disabled ? `<button type="button" class="wct-cs-nm wct-cs-facname" data-action="wctUseFacility" data-tooltip="Give an order"><b>${esc(c.name)}</b><small>${esc(c.subtitle ?? "")}</small></button>` : `<span class="wct-cs-nm wct-cs-facname"><b>${esc(c.name)}</b><small>${esc(c.subtitle ?? "")}</small></span>`}
       ${c.craft ? `<button type="button" class="wct-cs-ico wc-item-slot" data-quality="common" data-action="wctShowUuid" data-uuid="${esc(c.craft.uuid)}" aria-label="${esc(c.craft.name)}" data-tooltip="Crafting: ${esc(c.craft.name)}"><img src="${esc(c.craft.img)}" alt=""></button>` : ""}
       ${c.order ? `<span class="wct-cs-chip static" data-tooltip="Current order">${esc(c.order)}</span>` : ""}
       <button type="button" class="wct-cs-ic2" data-action="wctShowItem" aria-label="Open ${esc(c.name)}" data-tooltip="Open">${svg(PAGE_ICONS.more)}</button>
     </div>
     ${c.progress && num(c.progress.max) ? `<div class="wct-cs-rbar sm" role="meter" aria-label="Order progress" aria-valuemin="0" aria-valuemax="${esc(num(c.progress.max))}" aria-valuenow="${esc(num(c.progress.value) ?? 0)}"><i class="hd" style="width:${Math.max(0, Math.min(100, num(c.progress.pct) ?? 0))}%"></i><span>${esc(num(c.progress.value) ?? 0)} / ${esc(num(c.progress.max))}</span></div>` : ""}
-    ${occupants(c.hirelings, "system.hirelings", "hirelings", ed)}${occupants(c.defenders, "system.defenders", "defenders", ed)}${occupants(c.creatures, "system.trade.creatures", "creatures", ed)}
+    ${occupants(c.hirelings, "system.hirelings", "hirelings", o.edit)}${occupants(c.defenders, "system.defenders", "defenders", o.edit)}${occupants(c.creatures, "system.trade.creatures", "creatures", o.edit)}
   </li>`;
 
 /** The Bastion page body. @param {BastionFacts} f */
 export function bastionPageHTML(f) {
   const ed = !!f.editable; const edit = !!f.edit && ed;
   const name = edit ? `<input type="text" class="wct-cs-tin wct-cs-bname" data-name="system.bastion.name" value="${esc(f.nameSource ?? f.name ?? "")}" aria-label="Bastion name" placeholder="Bastion name">` : `<h3 class="wct-cs-ttl wct-cs-bname">${esc(f.name || "Bastion")}</h3>`;
-  const roster = (f.defenders ?? []).length ? `<ul class="wct-cs-roster">${f.defenders.map(d => `<li class="defender" data-facility-id="${esc(d.facility)}" data-prop="system.defenders" data-index="${esc(d.index)}" data-uuid="${esc(d.uuid)}"><button type="button" class="wct-cs-oimg" data-action="wctShowUuid" aria-label="${esc(d.name)}" data-tooltip="${esc(d.name)}"><img src="${esc(d.img)}" alt=""></button>${ed ? `<button type="button" class="wct-cs-odel" data-action="wctDeleteOccupant" aria-label="Remove ${esc(d.name)}">×</button>` : ""}</li>`).join("")}</ul>` : `<p class="wct-cs-dim wct-cs-boxnote">No defenders.</p>`;
-  const group = (type, g) => `<ul class="wct-cs-facs">${g.chosen.map(c => facilityCard(c, ed)).join("")}${ed ? g.available.map(a => `<li><button type="button" class="wct-cs-fac empty" data-action="wctFindItem" data-item-type="facility" data-facility-type="${type}">${a.build ? "+ Build a basic facility" : `+ Free ${type} facility`}</button></li>`).join("") : ""}</ul>`;
+  const roster = (f.defenders ?? []).length ? `<ul class="wct-cs-roster">${f.defenders.map(d => `<li class="defender" data-facility-id="${esc(d.facility)}" data-prop="system.defenders" data-index="${esc(d.index)}" data-uuid="${esc(d.uuid)}"><button type="button" class="wct-cs-oimg" data-action="wctShowUuid" aria-label="${esc(d.name)}" data-tooltip="${esc(d.name)}"><img src="${esc(d.img)}" alt=""></button>${edit ? `<button type="button" class="wct-cs-odel" data-action="wctDeleteOccupant" aria-label="Remove ${esc(d.name)}">×</button>` : ""}</li>`).join("")}</ul>` : `<p class="wct-cs-dim wct-cs-boxnote">No defenders.</p>`;
+  const group = (type, g) => `<ul class="wct-cs-facs">${g.chosen.map(c => facilityCard(c, ed, { edit })).join("")}${ed ? g.available.map(a => `<li><button type="button" class="wct-cs-fac empty" data-action="wctFindItem" data-item-type="facility" data-facility-type="${type}">${a.build ? "+ Build a basic facility" : `+ Free ${type} facility`}</button></li>`).join("") : ""}</ul>`;
   const desc = edit
     ? `<prose-mirror name="system.bastion.description" value="${esc(f.description?.source ?? "")}" document-uuid="${esc(f.uuid)}" data-wct-prose="system.bastion.description"></prose-mirror>`
     : `<div class="wct-cs-bio editor-content">${f.description?.enriched || `<p class="wct-cs-dim">No description.</p>`}</div>`;
@@ -283,6 +284,11 @@ export function specialPageHTML(f) {
   const cls = `<div class="wct-cs-field"><label for="wct-st-oc">Original class</label><select id="wct-st-oc" class="wct-cs-sel" data-name="system.details.originalClass"${dis}>${(f.classes ?? []).map(c => `<option value="${esc(c.value)}"${c.value === f.originalClass ? " selected" : ""}>${esc(c.label)}</option>`).join("")}</select>${f.classHint ? `<p class="wct-cs-dim wct-cs-hint">${esc(f.classHint)}</p>` : ""}</div>`;
   return `${on ? "" : `<p class="wct-cs-dim wct-cs-boxnote">Switch to Edit to change these.</p>`}${box("Class", cls)}${(f.sections ?? []).map(s => box(s.label, `<div class="wct-cs-fields">${s.fields.map(field).join("")}</div>`)).join("")}`;
 }
+
+/** True when a dnd5e flag field was emptied (it should be unset, not set to 0). @param {string} path @param {unknown} value */
+export const isClearedFlag = (path, value) => String(path).startsWith("flags.dnd5e.") && String(value ?? "").trim() === "";
+/** Foundry's unset form of a path ("flags.dnd5e.x" → "flags.dnd5e.-=x"). @param {string} path */
+export const unsetPath = path => String(path).replace(/\.([^.]+)$/, ".-=$1");
 
 // ---------------------------------------------------------------- level up
 /**
