@@ -912,6 +912,8 @@ Hooks.once("init", () => {
   if (F.on("keybindings")) registerKeybindings();
   // Character sheet replacement (off by default): registered only while on, so switching it off (reload) leaves dnd5e's sheet.
   if (F.on("characterSheet")) { Sheet.register(); if (F.on("keybindings")) Sheet.registerKey(); }
+  // The sheet's Character page uses the pane's slots and weapon sets (same flags), so it needs the pane's slot bookkeeping too.
+  if (F.on("characterSheet")) Pane.registerSlotHooks();
   if (F.on("flightMaster")) registerFlightHooks();
   if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }

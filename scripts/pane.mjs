@@ -42,9 +42,9 @@ export const SLOTS = {
   // Weapon sets only: a worn slot (no hand) for a spellcasting focus or a relic, shown for the classes set in "Classes with a relic slot".
   relic: { label: "Relic", icon: "fa-sun" }
 };
-const LEFT = ["head", "neck", "shoulder", "back", "chest", "shirt", "tabard", "wrist"];
-const RIGHT = ["hands", "waist", "legs", "feet", "finger1", "finger2", "trinket1", "trinket2"];
-const BOTTOM = ["mainhand", "offhand", "ranged"];
+export const LEFT = ["head", "neck", "shoulder", "back", "chest", "shirt", "tabard", "wrist"];
+export const RIGHT = ["hands", "waist", "legs", "feet", "finger1", "finger2", "trinket1", "trinket2"];
+export const BOTTOM = ["mainhand", "offhand", "ranged"];
 const WEAPON_SLOTS = new Set(BOTTOM);
 const GEAR_SLOTS = Object.keys(SLOTS).filter(s => !WEAPON_SLOTS.has(s) && s !== "relic");
 const group = s => s.replace(/\d$/, "");
@@ -137,7 +137,7 @@ const hint = item => NAME_HINTS.find(([, re]) => /** @type {RegExp} */ (re).test
 const props = item => { const p = item.system?.properties; return p instanceof Set ? p : new Set(p ?? []); };
 const ARMOR = ["light", "medium", "heavy", "natural"];
 const isBodyArmor = item => item.type === "equipment" && ARMOR.includes(item.system?.type?.value);
-const isShield = item => item.type === "equipment" && item.system?.type?.value === "shield";
+export const isShield = item => item.type === "equipment" && item.system?.type?.value === "shield";
 
 /**
  * Where an item can go. { slots: concrete slots in order of preference, strict: false when the user may pick any gear slot,
@@ -182,8 +182,8 @@ export function slotted(actor) {
   return out;
 }
 /** The gear slots only (weapon sets on: the weapon slots are shown by set instead). */
-const gearSlotted = actor => Object.fromEntries(Object.entries(slotted(actor)).filter(([k]) => !WEAPON_SLOTS.has(k)));
-const isTwo = (item, slot = "mainhand") => slot === "mainhand" && !!fits(item)?.two;
+export const gearSlotted = actor => Object.fromEntries(Object.entries(slotted(actor)).filter(([k]) => !WEAPON_SLOTS.has(k)));
+export const isTwo = (item, slot = "mainhand") => slot === "mainhand" && !!fits(item)?.two;
 
 // ---------------------------------------------------------------- slotting
 const flagPath = `flags.${ID}.slot`;
@@ -259,8 +259,8 @@ export function autoSlot(actor, item, cur = slotted(actor)) {
   return ok.find(s => !cur[s]) ?? ok[0] ?? null;
 }
 
-/** Items that could be slotted but aren't. */
-function unslottedItems(actor, cur) {
+/** Items that could be slotted but aren't (the "Equippable items" list; the toolkit sheet's Character page shows the same). */
+export function unslottedItems(actor, cur) {
   const used = new Set(Object.values(cur));
   const sets = setsOn(); const relic = relicShown(actor);
   if (sets) for (const id of WS.assignedIds(weaponState(actor))) { const i = actor.items.get(id); if (i) used.add(i); }
@@ -269,10 +269,11 @@ function unslottedItems(actor, cur) {
 }
 
 /** Copies an item dropped from a compendium, the sidebar or another actor onto this actor, the way the dnd5e sheet does. */
-async function adopt(actor, item, event) {
+export async function adopt(actor, item, event) {
   if (item.parent === actor) return item;
   if (!actor.isOwner) return null;
-  const sheet = actor.sheet;
+  // dnd5e's sheet (or, while the toolkit sheet is the actor's sheet, its hidden dnd5e drop host) handles creation the dnd5e way.
+  const sheet = typeof actor.sheet?._onDropCreateItems === "function" ? actor.sheet : actor.sheet?.dnd5eHost?.();
   try {
     if (typeof sheet?._onDropCreateItems === "function") {
       const created = await sheet._onDropCreateItems(event, [item], "copy");
@@ -318,14 +319,14 @@ const handItem = d => !!d && WS.SET_IDS.some(set => WS.fitsHand(d, set, "main") 
  * tools, spellcasting foci, light sources, and held things with no gear slot. A trinket or wondrous item that only sounds held (an orb,
  * a horn) keeps its gear slot; it can still be dropped on a hand.
  */
-function prefersHand(item) {
+export function prefersHand(item) {
   const d = describeItem(item); if (!handItem(d)) return false;
   const f = fits(item);
   return !f || !!f.ask || f.slots.some(s => WEAPON_SLOTS.has(s)) || item.type === "tool" || WS.isFocus(item) || /\b(torch|lantern|lamp|candle)\b/i.test(item.name);
 }
-const hasAmmo = actor => actor.items.some(i => i.type === "consumable" && i.system?.type?.value === "ammo" && (i.system?.quantity ?? 1) > 0);
-const equippedShields = actor => actor.items.filter(i => isShield(i) && i.system?.equipped).map(describeItem);
-const describedSetItems = (actor, state) => Object.fromEntries(WS.assignedIds(state).map(id => [id, describeItem(actor.items.get(id))]).filter(([, d]) => d));
+export const hasAmmo = actor => actor.items.some(i => i.type === "consumable" && i.system?.type?.value === "ammo" && (i.system?.quantity ?? 1) > 0);
+export const equippedShields = actor => actor.items.filter(i => isShield(i) && i.system?.equipped).map(describeItem);
+export const describedSetItems = (actor, state) => Object.fromEntries(WS.assignedIds(state).map(id => [id, describeItem(actor.items.get(id))]).filter(([, d]) => d));
 
 /** The actor's weapon sets. Without the flag yet (an actor from before weapon sets), worked out from its old weapon slots. */
 export function weaponState(actor) {
@@ -434,7 +435,7 @@ export async function stowShield(actor, shieldId) {
 }
 
 /** The best hand for an item with weapon sets on: a free hand it fits in the active set, else in any set, else null. */
-function autoHand(actor, item) {
+export function autoHand(actor, item) {
   const d = /** @type {any} */ (describeItem(item)); if (!handItem(d)) return null;
   const state = weaponState(actor); const at = WS.locate(state, item.id); if (at) return at;
   const order = [state.active, ...WS.SET_IDS.filter(x => x !== state.active)];
@@ -446,6 +447,73 @@ function autoHand(actor, item) {
   for (const set of order) for (const hand of hands) if (WS.fitsHand(d, set, hand) && !state.sets[set][hand] && !twoBlocked(set, hand)) return { set, hand };
   for (const set of order) for (const hand of hands) if (WS.fitsHand(d, set, hand) && !twoBlocked(set, hand)) return { set, hand };
   return null;
+}
+
+/** The Attack box's facts, read from prepared dnd5e data: the set in hand, its main-hand weapon labels and the spellcasting. */
+export function attackFacts(a) {
+  const sys = a.system;
+  const sets = setsOn(); const state = sets ? weaponState(a) : null; const active = state?.active ?? "melee";
+  const handItems = state ? [state.sets[active].main, state.sets[active].off].map(id => a.items.get(id)).filter(Boolean) : [slotted(a).mainhand, slotted(a).offhand].filter(Boolean);
+  const prog = c => { try { return c?.spellcasting?.progression ?? c?.system?.spellcasting?.progression ?? "none"; } catch { return "none"; } };
+  const caster = !!sys.attributes?.spellcasting && Object.values(a.classes ?? {}).some(c => prog(c) !== "none");
+  const relic = relicShown(a) ? slotted(a).relic : null;
+  const focus = handItems.find(i => WS.isFocus(i)) ?? relic ?? null;
+  const weaponOf = item => {
+    if (!item || item.type !== "weapon") return null;
+    const L = item.labels ?? {};
+    const dmg = Array.isArray(L.damages) && L.damages.length ? L.damages[0]?.label ?? L.damages[0]?.formula : L.damage;
+    return { id: item.id, name: item.name, toHit: L.toHit ?? (L.modifier ? `${L.modifier}` : ""), damage: dmg ?? "", range: L.range ?? L.reach ?? "", quality: qualityOf(item) };
+  };
+  const rangedItem = state ? a.items.get(state.sets.ranged.main) : slotted(a).ranged;
+  const weapon = mode => mode === "ranged" ? weaponOf(rangedItem) : weaponOf(handItems.find(i => i.type === "weapon"));
+  const spell = sys.attributes?.spell ?? {};
+  const abil = CONFIG.DND5E.abilities?.[sys.attributes?.spellcasting];
+  return {
+    active, caster, focusInHand: !!handItems.find(i => WS.isFocus(i)), weaponInHand: handItems.some(i => i.type === "weapon"), weapon,
+    spell: { attack: spell.attack ?? null, dc: spell.dc ?? null, ability: abil ? game.i18n?.localize?.(abil.label) ?? abil.label : "", focus: focus ? { name: focus.name, quality: qualityOf(focus) } : null }
+  };
+}
+
+/**
+ * Equips an owned item into its best place, the way clicking it in the pane's item list does (also the toolkit sheet's Character page
+ * and its Inventory equip toggle): the relic slot, a free hand of a weapon set, else its best gear slot. Returns `{ slot }`,
+ * `{ set, hand }`, `{ ask: slots }` when the user should choose a gear slot, or null when it has no place.
+ * @param {any} actor @param {any} item
+ */
+export async function autoEquip(actor, item) {
+  if (!item) return null;
+  if (setsOn()) {
+    if (relicShown(actor) && canSlot(item, "relic") && !slotted(actor).relic) { await slotItem(actor, item, "relic"); return { slot: "relic" }; }
+    if (prefersHand(item)) {
+      const h = autoHand(actor, item); if (h) { await assignWeapon(actor, item, h.set, h.hand); return h; }
+      if (!fits(item)) return null;
+    }
+  }
+  const s = autoSlot(actor, item);
+  if (s) { await slotItem(actor, item, s); return { slot: s }; }
+  const f = fits(item); if (!f) return null;
+  return { ask: f.slots };
+}
+
+/** Puts every equipped item that isn't in a slot into its best free slot (one write for gear). Items with no clear slot are left alone. */
+export async function slotEquippedItems(actor) {
+  // Plans every slot against a local copy of the slot map, then writes them all in one update.
+  const left = []; const cur = setsOn() ? gearSlotted(actor) : slotted(actor); const updates = [];
+  if (relicShown(actor)) { const r = slotted(actor).relic; if (r) cur.relic = r; }
+  for (const i of unslottedItems(actor, cur).filter(i => i.system.equipped)) {
+    if (setsOn() && prefersHand(i) && !(relicShown(actor) && canSlot(i, "relic") && !cur.relic)) {
+      // Weapons and held items go into a free hand of a set, one at a time (each write re-reads the sets).
+      const h = autoHand(actor, i); const st = weaponState(actor);
+      if (h && !st.sets[h.set][h.hand]) await assignWeapon(actor, i, h.set, h.hand); else left.push(i.name);
+      continue;
+    }
+    const s = autoSlot(actor, i, cur);
+    if (!s || cur[s]) { left.push(i.name); continue; }
+    if (s === "offhand" && cur.mainhand && isTwo(cur.mainhand)) { left.push(i.name); continue; }
+    cur[s] = i; updates.push({ _id: i.id, [flagPath]: s });
+  }
+  if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
+  if (left.length) ui.notifications.info(`No free slot found for: ${left.join(", ")}. Click a slot to choose.`);
 }
 
 // ---------------------------------------------------------------- item comparison
@@ -532,6 +600,110 @@ async function pileRowTip(element, item) {
   const tip = document.createElement("div"); tip.className = "wct-tip-body";
   tip.innerHTML = `<h4 style="color:${qualityColor(item)}">${esc(item.name)}</h4><p class="type">For ${esc(actor.name)}</p>${cmp}`;
   game.tooltip.activate(element, { html: tip, cssClass: "wct-tip", direction: "RIGHT" });
+}
+
+let tipFor = /** @type {any} */ (null);
+/**
+ * The pane's item tooltip (name in its quality colour, type line, description, set/slot notes and, for list items, the comparison),
+ * shown on `el`. Shared with the toolkit sheet: an element with `wct-item` gets the comparison, `ghost` / `worn` / a stowed set get
+ * their notes, one inside `.wct-col.right` opens to the left. @param {any} actor @param {HTMLElement} el @param {any} item
+ */
+export async function itemTooltip(actor, el, item) {
+  if (!item || !game.tooltip?.activate) return;
+  tipFor = el;
+  const desc = item.system.description?.value ?? "";
+  const wowTip = desc.includes("font-size:1.08em");
+  let body = "";
+  try { body = await TextEditorImpl().enrichHTML(desc, { relativeTo: item, secrets: item.isOwner }); } catch { body = ""; }
+  if (tipFor !== el || !el.matches(":hover")) return;
+  const f = fits(item); const slot = item.getFlag(ID, "slot");
+  const typeLine = [item.system.type?.label, f?.wow ? `Slot: ${f.wow}` : "", item.system.attunement === "required" ? (item.system.attuned ? "Attuned" : "Requires attunement") : ""].filter(Boolean).join(" · ");
+  const tip = document.createElement("div");
+  tip.className = "wct-tip-body";
+  tip.innerHTML = wowTip ? `<div class="desc wow">${body}</div>` : `<h4 style="color:${qualityColor(item)}">${esc(item.name)}</h4>${typeLine ? `<p class="type">${esc(typeLine)}</p>` : ""}${body ? `<div class="desc">${body}</div>` : ""}`;
+  if (wowTip && typeLine && item.system.attunement) tip.insertAdjacentHTML("beforeend", `<p class="type">${esc(typeLine)}</p>`);
+  if (el.classList.contains("ghost")) tip.insertAdjacentHTML("afterbegin", `<p class="type">Two-handed: fills the off hand.</p>`);
+  else if (el.classList.contains("worn")) tip.insertAdjacentHTML("beforeend", `<p class="type">Still worn on the arm (shields stay on through a swap). Take it off from the pane's note, or unequip it on the sheet.</p>`);
+  else if (el.dataset.set && el.closest(".wct-set.stowed")) tip.insertAdjacentHTML("beforeend", `<p class="type">Stowed: not equipped until you swap to the ${esc(WS.SETS[el.dataset.set].label)} set.</p>`);
+  else if (el.classList.contains("wct-item") && item.system.equipped && !slot) tip.insertAdjacentHTML("beforeend", `<p class="type">Equipped, not in a slot.</p>`);
+  if (el.classList.contains("wct-item")) { const cmp = comparisonHTML(actor, item); if (cmp) tip.insertAdjacentHTML("beforeend", cmp); }
+  game.tooltip.activate(el, { html: tip, cssClass: "wct-tip", direction: el.closest(".wct-col.right") ? "LEFT" : "RIGHT" });
+}
+
+/**
+ * A drop on the paper doll (shared by the pane and the toolkit sheet's Character page): `el` is a gear slot (`data-slot`), a set's
+ * hand (`data-set` + `data-hand`), the item list (`data-drop="bag"`: takes the item out of its slot, or adopts it from elsewhere) or
+ * the portrait (`data-drop="auto"`: best place). Items from elsewhere are adopted the dnd5e way first. Returns autoEquip's result
+ * when the drop went to the best place (`{ ask }` = the caller lets the user pick a slot).
+ * @param {any} actor @param {DragEvent} ev @param {HTMLElement} el
+ */
+export async function dropOnDoll(actor, ev, el) {
+  let data; try { data = JSON.parse(ev.dataTransfer?.getData("text/plain") ?? ""); } catch { return; }
+  if (data?.type !== "Item") return;
+  const src = await Item.implementation.fromDropData(data).catch(() => null); if (!src) return;
+  const slot = el.dataset.slot; const zone = el.dataset.drop;
+  if (zone === "bag") {
+    if (src.parent === actor) { if ((src.getFlag(ID, "slot") && src.system.equipped) || (setsOn() && WS.locate(weaponState(actor), src.id))) await unslotItem(src); return; }
+    await adopt(actor, src, ev); return;
+  }
+  if (el.dataset.set) {
+    const { set, hand } = el.dataset;
+    if (!WS.fitsHand(describeItem(src), set, hand)) return ui.notifications.warn(`${src.name} doesn't go in the ${WS.SETS[set].label} set's ${WS.handLabel(set, hand).toLowerCase()}.`);
+    const item = await adopt(actor, src, ev); if (!item) return;
+    return assignWeapon(actor, item, set, hand);
+  }
+  if (slot && !canSlot(src, slot)) return ui.notifications.warn(`${src.name} doesn't go in the ${SLOTS[slot].label} slot.`);
+  if (!fits(src)) return ui.notifications.warn(`${src.name} can't be equipped.`);
+  const item = await adopt(actor, src, ev); if (!item) return;
+  if (slot) {
+    // Dragging between the two finger or trinket slots swaps them.
+    const from = data.wctSlot; const cur = slotted(actor);
+    if (from && from !== slot && cur[from] === item && cur[slot] && canSlot(cur[slot], from) && group(from) === group(slot)) {
+      await actor.updateEmbeddedDocuments("Item", [{ _id: item.id, [flagPath]: slot }, { _id: cur[slot].id, [flagPath]: from }]);
+      return;
+    }
+    return slotItem(actor, item, slot);
+  }
+  const r = await autoEquip(actor, item); return r && "ask" in r ? { ...r, item } : r;
+}
+
+/**
+ * The "where does it go?" picker for an item with no clear slot: `{ html, pick(li) }` (rows carry data-pick-slot).
+ * @param {any} actor @param {any} item @param {string[]} slots
+ */
+export function askSlotMenu(actor, item, slots) {
+  const cur = slotted(actor);
+  return { html: `<h4>Where does ${esc(item.name)} go?</h4><ul>${slots.map(sl => `<li data-pick-slot="${sl}"><i class="fa-solid ${SLOTS[sl].icon}"></i> ${esc(SLOTS[sl].label)}${cur[sl] ? ` <small>(replaces ${esc(cur[sl].name)})</small>` : ""}</li>`).join("")}</ul>`,
+    pick: li => slotItem(actor, item, li.dataset.pickSlot) };
+}
+
+/**
+ * The picker for a clicked slot or hand (shared by the pane and the toolkit sheet): `{ html, pick(li) }`, or null after a notice
+ * (a hand blocked by a two-handed weapon). Rows carry data-pick-item ("" = take out).
+ * @param {any} actor @param {HTMLElement} el
+ */
+export function slotMenu(actor, el) {
+  if (el.dataset.set) return handMenu(actor, el);
+  const slot = el.dataset.slot; const cur = slotted(actor); const inSlot = el.classList.contains("filled") ? cur[slot] : null;
+  if (el.classList.contains("ghost")) { ui.notifications.info(`${cur.mainhand.name} is two-handed: the off hand is taken.`); return null; }
+  const first = new Map(); const firstIs = i => { if (!first.has(i)) first.set(i, slot === "relic" || fits(i)?.slots[0] === slot); return first.get(i); };
+  const choices = actor.items.filter(i => i !== inSlot && canSlot(i, slot) && !i.system.container).sort((a, b) => firstIs(b) - firstIs(a) || a.name.localeCompare(b.name));
+  const where = i => { const s = Object.entries(cur).find(([, x]) => x === i)?.[0]; return s ? ` <small>(${esc(SLOTS[s].label)})</small>` : ""; };
+  const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
+  return { html: `<h4>${esc(SLOTS[slot].label)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take off</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(actor.name)} fits here.</li>`)}</ul>`,
+    pick: li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unslotItem(inSlot); const it = actor.items.get(id); if (it) slotItem(actor, it, slot); } };
+}
+
+function handMenu(actor, el) {
+  const { set, hand } = el.dataset; const state = weaponState(actor);
+  const title = `${WS.SETS[set].label}: ${WS.handLabel(set, hand)}`;
+  if (el.classList.contains("ghost")) { ui.notifications.info(`${actor.items.get(state.sets[set].main)?.name ?? "The main-hand weapon"} is two-handed: the off hand is taken.`); return null; }
+  const inSlot = el.classList.contains("filled") ? actor.items.get(state.sets[set][hand]) : null;
+  const choices = actor.items.filter(i => i !== inSlot && !i.system.container && WS.fitsHand(describeItem(i), set, hand)).sort((a, b) => a.name.localeCompare(b.name));
+  const where = i => { const at = WS.locate(state, i.id); return at ? ` <small>(${esc(WS.SETS[at.set].label)})</small>` : ""; };
+  const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
+  return { html: `<h4>${esc(title)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take out of the set</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(actor.name)} fits here.</li>`)}</ul>`,
+    pick: li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unassignWeapon(inSlot); const it = actor.items.get(id); if (it) assignWeapon(actor, it, set, hand); } };
 }
 
 // ---------------------------------------------------------------- the pane
@@ -641,34 +813,9 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
     try { return game.actors?.find(g => g.type === "group" && (g.system?.members ?? []).some(m => (m?.actor ?? m) === this.actor || m?.actor?.id === this.actor.id))?.name ?? ""; } catch { return ""; }
   }
 
-  /** The Attack box's facts, read from prepared dnd5e data: the set in hand, its main-hand weapon labels and the spellcasting. */
-  attackFacts() {
-    const a = this.actor; const sys = a.system;
-    const sets = setsOn(); const state = sets ? weaponState(a) : null; const active = state?.active ?? "melee";
-    const handItems = state ? [state.sets[active].main, state.sets[active].off].map(id => a.items.get(id)).filter(Boolean) : [slotted(a).mainhand, slotted(a).offhand].filter(Boolean);
-    const prog = c => { try { return c?.spellcasting?.progression ?? c?.system?.spellcasting?.progression ?? "none"; } catch { return "none"; } };
-    const caster = !!sys.attributes?.spellcasting && Object.values(a.classes ?? {}).some(c => prog(c) !== "none");
-    const relic = relicShown(a) ? slotted(a).relic : null;
-    const focus = handItems.find(i => WS.isFocus(i)) ?? relic ?? null;
-    const weaponOf = item => {
-      if (!item || item.type !== "weapon") return null;
-      const L = item.labels ?? {};
-      const dmg = Array.isArray(L.damages) && L.damages.length ? L.damages[0]?.label ?? L.damages[0]?.formula : L.damage;
-      return { name: item.name, toHit: L.toHit ?? (L.modifier ? `${L.modifier}` : ""), damage: dmg ?? "", range: L.range ?? L.reach ?? "", quality: qualityOf(item) };
-    };
-    const rangedItem = state ? a.items.get(state.sets.ranged.main) : slotted(a).ranged;
-    const weapon = mode => mode === "ranged" ? weaponOf(rangedItem) : weaponOf(handItems.find(i => i.type === "weapon"));
-    const spell = sys.attributes?.spell ?? {};
-    const abil = CONFIG.DND5E.abilities?.[sys.attributes?.spellcasting];
-    return {
-      active, caster, focusInHand: !!handItems.find(i => WS.isFocus(i)), weaponInHand: handItems.some(i => i.type === "weapon"), weapon,
-      spell: { attack: spell.attack ?? null, dc: spell.dc ?? null, ability: abil ? game.i18n?.localize?.(abil.label) ?? abil.label : "", focus: focus ? { name: focus.name, quality: qualityOf(focus) } : null }
-    };
-  }
-
   /** The Attack box: follows the set in hand, with a dropdown to pick a mode by hand (per window, not saved). */
   attackHTML() {
-    let f; try { f = this.attackFacts(); } catch (e) { console.warn(`${ID} | character pane attack box`, e); return ""; }
+    let f; try { f = attackFacts(this.actor); } catch (e) { console.warn(`${ID} | character pane attack box`, e); return ""; }
     const auto = PM.attackMode({ ...f, override: "" });
     const mode = PM.attackMode({ ...f, override: this._attackMode ?? "" });
     const r = PM.attackRows(mode, { weapon: mode === "spell" ? null : f.weapon(mode), spell: f.spell });
@@ -838,75 +985,23 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
   }
 
   async _onDrop(ev, el) {
-    let data; try { data = JSON.parse(ev.dataTransfer.getData("text/plain")); } catch { return; }
-    if (data?.type !== "Item") return;
-    const src = await Item.implementation.fromDropData(data).catch(() => null); if (!src) return;
-    const slot = el.dataset.slot; const zone = el.dataset.drop;
-    if (zone === "bag") {
-      if (src.parent === this.actor) { if ((src.getFlag(ID, "slot") && src.system.equipped) || (setsOn() && WS.locate(weaponState(this.actor), src.id))) await unslotItem(src); return; }
-      await adopt(this.actor, src, ev); return;
-    }
-    if (el.dataset.set) {
-      const { set, hand } = el.dataset;
-      if (!WS.fitsHand(describeItem(src), set, hand)) return ui.notifications.warn(`${src.name} doesn't go in the ${WS.SETS[set].label} set's ${WS.handLabel(set, hand).toLowerCase()}.`);
-      const item = await adopt(this.actor, src, ev); if (!item) return;
-      return assignWeapon(this.actor, item, set, hand);
-    }
-    if (slot && !canSlot(src, slot)) return ui.notifications.warn(`${src.name} doesn't go in the ${SLOTS[slot].label} slot.`);
-    if (!fits(src)) return ui.notifications.warn(`${src.name} can't be equipped.`);
-    const item = await adopt(this.actor, src, ev); if (!item) return;
-    if (slot) {
-      // Dragging between the two finger or trinket slots swaps them.
-      const from = data.wctSlot; const cur = slotted(this.actor);
-      if (from && from !== slot && cur[from] === item && cur[slot] && canSlot(cur[slot], from) && group(from) === group(slot)) {
-        await this.actor.updateEmbeddedDocuments("Item", [{ _id: item.id, [flagPath]: slot }, { _id: cur[slot].id, [flagPath]: from }]);
-        return;
-      }
-      return slotItem(this.actor, item, slot);
-    }
-    return this._equipFromBag(null, item);
+    const r = await dropOnDoll(this.actor, ev, el);
+    if (r && "ask" in r) this._askSlot(null, /** @type {any} */ (r).item, r.ask);
   }
 
   async _equipFromBag(el, item) {
-    if (!item) return;
-    if (setsOn()) {
-      if (relicShown(this.actor) && canSlot(item, "relic") && !slotted(this.actor).relic) return slotItem(this.actor, item, "relic");
-      if (prefersHand(item)) {
-        const h = autoHand(this.actor, item); if (h) return assignWeapon(this.actor, item, h.set, h.hand);
-        if (!fits(item)) return;
-      }
-    }
-    const s = autoSlot(this.actor, item);
-    if (s) return slotItem(this.actor, item, s);
-    const f = fits(item); if (!f) return;
-    const cur = slotted(this.actor);
-    this._showPop(el ?? this.element.querySelector(".wct-portrait"), `<h4>Where does ${esc(item.name)} go?</h4><ul>${f.slots.map(sl => `<li data-pick-slot="${sl}"><i class="fa-solid ${SLOTS[sl].icon}"></i> ${esc(SLOTS[sl].label)}${cur[sl] ? ` <small>(replaces ${esc(cur[sl].name)})</small>` : ""}</li>`).join("")}</ul>`,
-      li => slotItem(this.actor, item, li.dataset.pickSlot));
+    const r = await autoEquip(this.actor, item);
+    if (r && "ask" in r) this._askSlot(el, item, r.ask);
   }
 
-  _handMenu(el) {
-    const { set, hand } = el.dataset; const state = weaponState(this.actor);
-    const title = `${WS.SETS[set].label}: ${WS.handLabel(set, hand)}`;
-    if (el.classList.contains("ghost")) return ui.notifications.info(`${this.actor.items.get(state.sets[set].main)?.name ?? "The main-hand weapon"} is two-handed: the off hand is taken.`);
-    const inSlot = el.classList.contains("filled") ? this.actor.items.get(state.sets[set][hand]) : null;
-    const choices = this.actor.items.filter(i => i !== inSlot && !i.system.container && WS.fitsHand(describeItem(i), set, hand)).sort((a, b) => a.name.localeCompare(b.name));
-    const where = i => { const at = WS.locate(state, i.id); return at ? ` <small>(${esc(WS.SETS[at.set].label)})</small>` : ""; };
-    const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
-    this._showPop(el, `<h4>${esc(title)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take out of the set</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
-      li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unassignWeapon(inSlot); const it = this.actor.items.get(id); if (it) assignWeapon(this.actor, it, set, hand); });
+  _askSlot(el, item, slots) {
+    const m = askSlotMenu(this.actor, item, slots);
+    this._showPop(el ?? this.element.querySelector(".wct-portrait"), m.html, m.pick);
   }
 
-  _slotMenu(el) {
-    if (el.dataset.set) return this._handMenu(el);
-    const slot = el.dataset.slot; const cur = slotted(this.actor); const inSlot = el.classList.contains("filled") ? cur[slot] : null;
-    if (el.classList.contains("ghost")) return ui.notifications.info(`${cur.mainhand.name} is two-handed: the off hand is taken.`);
-    const first = new Map(); const firstIs = i => { if (!first.has(i)) first.set(i, slot === "relic" || fits(i)?.slots[0] === slot); return first.get(i); };
-    const choices = this.actor.items.filter(i => i !== inSlot && canSlot(i, slot) && !i.system.container).sort((a, b) => firstIs(b) - firstIs(a) || a.name.localeCompare(b.name));
-    const where = i => { const s = Object.entries(cur).find(([, x]) => x === i)?.[0]; return s ? ` <small>(${esc(SLOTS[s].label)})</small>` : ""; };
-    const rows = choices.map(i => `<li data-pick-item="${i.id}" ${qAttr(i)}><img src="${esc(i.img)}" alt=""> <span>${esc(i.name)}</span>${where(i)}</li>`).join("");
-    this._showPop(el, `<h4>${esc(SLOTS[slot].label)}</h4>${inSlot ? `<p class="cur" ${qAttr(inSlot)}><img src="${esc(inSlot.img)}" alt=""> <span>${esc(inSlot.name)}</span></p>` : ""}<ul>${inSlot ? `<li data-pick-item="" class="remove"><i class="fa-solid fa-xmark"></i> Take off</li>` : ""}${rows || (inSlot ? "" : `<li class="none">Nothing on ${esc(this.actor.name)} fits here.</li>`)}</ul>`,
-      li => { const id = li.dataset.pickItem; if (id === undefined) return; if (!id) return inSlot && unslotItem(inSlot); const it = this.actor.items.get(id); if (it) slotItem(this.actor, it, slot); });
-  }
+  _slotMenu(el) { const m = slotMenu(this.actor, el); if (m) this._showPop(el, m.html, m.pick); }
+  /** A set's hand clicked (slotMenu routes it to handMenu). */
+  _handMenu(el) { return this._slotMenu(el); }
 
   _showPop(anchor, html, onPick) {
     const pop = this.element.querySelector(".wct-pop"); if (!pop) return;
@@ -918,48 +1013,9 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
   }
   _closePop() { const pop = this.element?.querySelector(".wct-pop"); if (pop) pop.hidden = true; }
 
-  async _tooltip(el, item) {
-    if (!item || !game.tooltip?.activate) return;
-    this._tipFor = el;
-    const desc = item.system.description?.value ?? "";
-    const wowTip = desc.includes("font-size:1.08em");
-    let body = "";
-    try { body = await TextEditorImpl().enrichHTML(desc, { relativeTo: item, secrets: item.isOwner }); } catch { body = ""; }
-    if (this._tipFor !== el || !el.matches(":hover")) return;
-    const f = fits(item); const slot = item.getFlag(ID, "slot");
-    const typeLine = [item.system.type?.label, f?.wow ? `Slot: ${f.wow}` : "", item.system.attunement === "required" ? (item.system.attuned ? "Attuned" : "Requires attunement") : ""].filter(Boolean).join(" · ");
-    const tip = document.createElement("div");
-    tip.className = "wct-tip-body";
-    tip.innerHTML = wowTip ? `<div class="desc wow">${body}</div>` : `<h4 style="color:${qualityColor(item)}">${esc(item.name)}</h4>${typeLine ? `<p class="type">${esc(typeLine)}</p>` : ""}${body ? `<div class="desc">${body}</div>` : ""}`;
-    if (wowTip && typeLine && item.system.attunement) tip.insertAdjacentHTML("beforeend", `<p class="type">${esc(typeLine)}</p>`);
-    if (el.classList.contains("ghost")) tip.insertAdjacentHTML("afterbegin", `<p class="type">Two-handed: fills the off hand.</p>`);
-    else if (el.classList.contains("worn")) tip.insertAdjacentHTML("beforeend", `<p class="type">Still worn on the arm (shields stay on through a swap). Take it off from the pane's note, or unequip it on the sheet.</p>`);
-    else if (el.dataset.set && el.closest(".wct-set.stowed")) tip.insertAdjacentHTML("beforeend", `<p class="type">Stowed: not equipped until you swap to the ${esc(WS.SETS[el.dataset.set].label)} set.</p>`);
-    else if (el.classList.contains("wct-item") && item.system.equipped && !slot) tip.insertAdjacentHTML("beforeend", `<p class="type">Equipped, not in a slot.</p>`);
-    if (el.classList.contains("wct-item")) { const cmp = comparisonHTML(this.actor, item); if (cmp) tip.insertAdjacentHTML("beforeend", cmp); }
-    game.tooltip.activate(el, { html: tip, cssClass: "wct-tip", direction: el.closest(".wct-col.right") ? "LEFT" : "RIGHT" });
-  }
+  async _tooltip(el, item) { return itemTooltip(this.actor, el, item); }
 
-  /** Puts every equipped item that isn't in a slot into its best free slot. Items with no clear slot are left alone. */
-  async slotEquipped() {
-    // Plans every slot against a local copy of the slot map, then writes them all in one update.
-    const left = []; const cur = setsOn() ? gearSlotted(this.actor) : slotted(this.actor); const updates = [];
-    if (relicShown(this.actor)) { const r = slotted(this.actor).relic; if (r) cur.relic = r; }
-    for (const i of unslottedItems(this.actor, cur).filter(i => i.system.equipped)) {
-      if (setsOn() && prefersHand(i) && !(relicShown(this.actor) && canSlot(i, "relic") && !cur.relic)) {
-        // Weapons and held items go into a free hand of a set, one at a time (each write re-reads the sets).
-        const h = autoHand(this.actor, i); const st = weaponState(this.actor);
-        if (h && !st.sets[h.set][h.hand]) await assignWeapon(this.actor, i, h.set, h.hand); else left.push(i.name);
-        continue;
-      }
-      const s = autoSlot(this.actor, i, cur);
-      if (!s || cur[s]) { left.push(i.name); continue; }
-      if (s === "offhand" && cur.mainhand && isTwo(cur.mainhand)) { left.push(i.name); continue; }
-      cur[s] = i; updates.push({ _id: i.id, [flagPath]: s });
-    }
-    if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
-    if (left.length) ui.notifications.info(`No free slot found for: ${left.join(", ")}. Click a slot to choose.`);
-  }
+  async slotEquipped() { return slotEquippedItems(this.actor); }
 }
 
 /** Re-renders every open pane on this client (a weapon-set setting changed). */
@@ -1029,10 +1085,14 @@ function addItemFlagBoxes(app, element) {
   }
 }
 
-/** Header button on dnd5e character and NPC sheets, and slot bookkeeping. */
-export function registerHooks() {
-  // Pre-1.30 pane size and position: read once (legacyPosition), no longer written; core's windowPlacement holds it now.
-  game.settings.register(ID, SIZE_KEY, { scope: "client", config: false, type: Object, default: {} });
+/**
+ * Slot bookkeeping (registered once, by the character pane or by the toolkit character sheet, which shares the pane's slots and weapon
+ * sets): an item equipped or unequipped elsewhere that disagrees with its weapon set leaves the set, and unequipping an item anywhere
+ * takes it out of its slot.
+ */
+let slotHooks = false;
+export function registerSlotHooks() {
+  if (slotHooks) return; slotHooks = true;
   // An item equipped or unequipped outside the pane (the dnd5e sheet, a macro) that disagrees with its weapon set leaves the set,
   // so the sets never claim something the sheet says otherwise. Runs on the client that made the change.
   Hooks.on("updateItem", (item, changes, options, userId) => {
@@ -1044,6 +1104,18 @@ export function registerHooks() {
     st.sets[at.set][at.hand] = null;
     actor.update({ [SETS_FLAG]: st }).catch(() => { });
   });
+  // Unequipping an item anywhere (the dnd5e sheet, a macro) takes it out of its slot too.
+  Hooks.on("preUpdateItem", (item, changes) => {
+    if (foundry.utils.getProperty(changes, "system.equipped") === false && item.getFlag(ID, "slot") && !foundry.utils.hasProperty(changes, flagPath))
+      foundry.utils.setProperty(changes, flagPath, null);
+  });
+}
+
+/** Header button on dnd5e character and NPC sheets, and slot bookkeeping. */
+export function registerHooks() {
+  // Pre-1.30 pane size and position: read once (legacyPosition), no longer written; core's windowPlacement holds it now.
+  game.settings.register(ID, SIZE_KEY, { scope: "client", config: false, type: Object, default: {} });
+  registerSlotHooks();
   // Item comparison on Item Piles pile and merchant rows (the user's character's gear).
   for (const k of ["PileItem", "MerchantItem", "VaultGridItem"]) {
     Hooks.on(`item-piles-mouseHover${k}`, (el, item) => { pileRowTip(el, item); });
@@ -1051,11 +1123,6 @@ export function registerHooks() {
   }
   // Buckler and Relic checkboxes on item sheets (GM), like Vendor Trash's Lootable checkbox.
   Hooks.on("renderDocumentSheetV2", (app, element) => { if (app.document instanceof Item) addItemFlagBoxes(app, element); });
-  // Unequipping an item anywhere (the dnd5e sheet, a macro) takes it out of its slot too.
-  Hooks.on("preUpdateItem", (item, changes) => {
-    if (foundry.utils.getProperty(changes, "system.equipped") === false && item.getFlag(ID, "slot") && !foundry.utils.hasProperty(changes, flagPath))
-      foundry.utils.setProperty(changes, flagPath, null);
-  });
   const add = (app, controls) => {
     const actor = app.document ?? app.actor;
     if (!actor || !["character", "npc"].includes(actor.type) || !actor.isOwner) return;
