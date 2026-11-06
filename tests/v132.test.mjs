@@ -79,7 +79,7 @@ test("ignored users: setting, panel row, health fix", () => {
   assert.ok(LABELS.permIgnoreUsers[0]); assert.ok(RECORD_SETTINGS.has("permIgnoreUsers")); assert.ok(WIZARD_IGNORE.has("permIgnoreUsers"));
   assert.match(h, /ignored: ignored\.has\(u\.id\)/); assert.match(h, /FIXES\.ignoreUsers\(l\.ignore\)/);
   assert.match(h, /ignoreUsers: ids => \(\{ label: "Ignore these users", confirm:/);
-  assert.match(src("scripts/panel.mjs"), /kind === "users"\) return dirty \? changed\(key, \[\.\.\.row\.querySelectorAll\("\[data-user\]:checked"\)\]/);
+  assert.match(src("scripts/panel.mjs"), /kind === "users"\) return dirty \? listChanged\("\[data-user\]"\)/);
 });
 
 // ---------------------------------------------------------------- 3. flight warnings

@@ -398,17 +398,20 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
   rowChange(row, dirty = !!row.dataset.dirty) {
     const root = this.element; const key = row.dataset.key; const kind = row.dataset.kind; const c = cfgOf(key);
     const changed = (k, v) => (M.sameValue(v, get(k)) ? null : [k, v]);
+    // Tick-lists (2.1.1): order doesn't count; the value written keeps the saved order (M.listValue), so Save writes what was compared.
+    const picked = sel => [...row.querySelectorAll(`${sel}:checked`)].map(i => /** @type {HTMLInputElement} */ (i).value);
+    const listChanged = (sel) => { const v = M.listValue(kind, get(key), picked(sel)); return M.sameList(kind, v, get(key)) ? null : [key, v]; };
     if (key === "hiddenScenes__raw" || !c) return undefined;
     if (kind === "zones") return dirty ? changed(key, M.rowsToZones(this.zoneRows())) : null;
     if (kind === "scenes") {
       const raw = root.querySelector('[name="hiddenScenes__raw"]:not(:disabled)');
-      if (dirty) return changed(key, M.scenesToRegex([...row.querySelectorAll("[data-scene]:checked")].map(i => i.value)));
+      if (dirty) return listChanged("[data-scene]");
       return raw && raw.value !== get(key) ? changed(key, raw.value) : null;
     }
-    if (kind === "packs") return dirty ? changed(key, M.listToPacks([...row.querySelectorAll("[data-pack]:checked")].map(i => i.value))) : null;
-    if (kind === "classes") return dirty ? changed(key, M.listToClasses([...row.querySelectorAll("[data-class]:checked")].map(i => i.value))) : null;
-    if (kind === "parties") return dirty ? changed(key, [...row.querySelectorAll("[data-party]:checked")].map(i => i.value)) : null;
-    if (kind === "users") return dirty ? changed(key, [...row.querySelectorAll("[data-user]:checked")].map(i => i.value)) : null;
+    if (kind === "packs") return dirty ? listChanged("[data-pack]") : null;
+    if (kind === "classes") return dirty ? listChanged("[data-class]") : null;
+    if (kind === "parties") return dirty ? listChanged("[data-party]") : null;
+    if (kind === "users") return dirty ? listChanged("[data-user]") : null;
     const el = row.querySelector(`[name="${CSS.escape(key)}"]`); if (!el) return undefined;
     if (c.type === Boolean) return changed(key, !!el.checked);
     if (c.type === Number) { const n = Number(el.value); return Number.isFinite(n) && String(el.value).trim() !== "" ? changed(key, c.range ? Math.min(c.range.max, Math.max(c.range.min, n)) : n) : null; }

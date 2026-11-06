@@ -182,6 +182,11 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - Settings: `merchantRoundingMode` (`coin` | `itemPiles`, Loot › Advanced), hidden `merchantRoundingPrev` (Item Piles' value before; RECORD_SETTINGS + WIZARD_IGNORE). `init()` always adds the one ready listener so a turned-off feature restores; restore only when Item Piles still holds our value. Cleanup's settings reset calls `restore()` first. Never write Item Piles' setting with `game.settings.set` (test).
 - Tests: `tests/v210-rounding.test.mjs`.
 
+## 2.1.1 notes
+- **Item Piles currencies are largest first** (`rounding-model.mjs` `IP_COIN_ROWS`, `ipCoins()`, `descending`, `ipCoinsMatchList`; main.mjs `IP_COINS` = `ipCoins()`). Item Piles 3.3.4 drops silver and can compute NaN with copper first (seen live). Never reorder; the match requires the order, so old copper-first worlds are corrected once.
+- **Control panel tick-lists** (classes, packs, parties, users, scenes) compare as sets (`M.sameList`) and write `M.listValue` (saved order kept, new picks after, `keepOrder`).
+- Tests: `tests/v211.test.mjs`.
+
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.5.1` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.

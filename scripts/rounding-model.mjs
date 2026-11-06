@@ -14,6 +14,29 @@
  * True "always up" rounding is not reachable without patching Item Piles' internals.
  */
 
+/**
+ * Item Piles' currency list for the three-coin economy (2.1.1: largest first). Item Piles 3.3.4 needs its currencies ordered from
+ * the largest to the smallest coin: with copper first it never shows silver ("1g 5000c" for 1.5 gp) and silver payments can come out
+ * NaN (seen live). Gold is primary; silver and copper are worth 1/100 and 1/10000 of it.
+ */
+export const IP_COIN_ROWS = Object.freeze([
+  Object.freeze(["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"]),
+  Object.freeze(["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"]),
+  Object.freeze(["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"])
+]);
+/** Item Piles currency objects for IP_COIN_ROWS. */
+export const ipCoins = () => IP_COIN_ROWS.map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
+/** True when a currency list is ordered largest first (exchange rates strictly falling). @param {Array<{ exchangeRate?: number }>} list */
+export const descending = list => (list ?? []).every((c, i, a) => i === 0 || Number(a[i - 1]?.exchangeRate) > Number(c?.exchangeRate));
+/**
+ * Whether Item Piles' current currencies are exactly the three-coin set in that order (same path, rate and primary flag per position):
+ * a copper-first list from 2.1.0 or earlier doesn't match, so it is corrected once.
+ * @param {Array<any>} cur @param {Array<any>} [want]
+ */
+export function ipCoinsMatchList(cur, want = ipCoins()) {
+  return Array.isArray(cur) && cur.length === want.length && want.every((w, i) => { const c = cur[i]; return c?.data?.path === w.data.path && Math.abs((c?.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c?.primary === w.primary; });
+}
+
 /** The rounding modes (setting merchantRoundingMode). */
 export const MODES = { coin: "Round to the nearest whole coin", itemPiles: "Item Piles default" };
 export const DEFAULT_MODE = "coin";

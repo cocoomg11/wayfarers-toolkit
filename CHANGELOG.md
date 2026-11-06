@@ -2,6 +2,24 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+
+## 2.1.1
+
+2026-11-06. Two fixes from the 2.1.0 live test. No migration; Item Piles' currency list is rewritten once on the next load in three-coin worlds (as before, only with *Set Item Piles coins for three coins* on).
+
+**Live test of 2.1.0** (GM side, Foundry 14.369, dnd5e 6.0.6, Item Piles 3.3.4): ready to keep building. Two problems, fixed here.
+
+**Fixed**
+- **Item Piles never showed silver** ("1g 5000c" for 1.5 gp) and silver payments could compute NaN: Item Piles 3.3.4 needs its currencies largest first. The toolkit's three-coin list (`IP_COIN_ROWS` / `ipCoins()` in rounding-model.mjs) is now gold, silver, copper, and `ipCoinsMatchList` only accepts that order, so a world set copper-first by 2.1.0 (or earlier) is corrected once with the GM whisper, which now reads "gold, silver and copper". Merchant rounding and Sell all junk read rates by size, not position (tested).
+- **Control panel tick-lists**: unticking and re-ticking a relic class (also compendiums, parties, ignored users, hidden scenes) left "Unsaved changes in 1 setting" because the rebuilt list came out in a different order. Tick-lists now compare as sets (`M.sameList`) and Save writes the saved order first, then new picks (`M.listValue` / `keepOrder`).
+
+**Tests**: `tests/v211.test.mjs` (coin order descending, copper-first doesn't match, helpers order-independent, tick-list comparison and values for every list kind, version and note).
+
+**Untested in Foundry** (live checklist)
+- Load a three-coin world whose Item Piles list is copper-first: whisper "set to gold, silver and copper"; Item Piles' currency settings show gold, silver, copper; a 1.5 gp purchase shows "1g 50s" and pays with correct change. Next load: no whisper.
+- Health check: "Item Piles' currencies match the three coins."
+- Control panel › Character › relic classes: untick and re-tick a class → no unsaved mark; change one and Save → the stored list keeps the old order with the new class at the end. Same for Vendor Trash compendiums, quest parties, ignored users.
+
 ## 2.1.0
 
 2026-11-06. Character sheet replacement, slices 3 and 4: every page is now built. Also small quality-of-life fixes, README screenshots and an optional Merchant coin rounding. Nothing new stored, no migration.

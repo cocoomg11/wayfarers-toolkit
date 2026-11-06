@@ -22,6 +22,7 @@ import * as Cleanup from "./cleanup.mjs";
 import * as Merchant from "./merchant.mjs";
 import * as Shop from "./shop.mjs";
 import * as Rounding from "./rounding.mjs";
+import * as RoundingModel from "./rounding-model.mjs";
 import { log } from "./log.mjs";
 import * as Pace from "./travel-pace.mjs";
 import * as FlightMap from "./flight-map.mjs";
@@ -171,25 +172,21 @@ const coinRatio = () => { try { const v = Object.fromEntries(coins()); return v.
 /** Amount in the smallest coin → core's coin markup (gold / silver / copper dots and numbers; platinum and electrum folded in). 1.30. */
 function moneyHTML(amount) { return coinsMarkup(Math.max(0, Math.round(Number(amount) || 0)), { ratio: coinRatio() }); }
 
-/** Item Piles' currency list for the three-coin economy, copper first: gold is primary, silver and copper are worth 1/100 and 1/10000 of it. */
-const IP_COINS = /** @type {[string, string, string, number, boolean, string][]} */ ([
-  ["cp", "DND5E.CurrencyCP", "{#}c", 0.0001, false, "icons/commodities/currency/coin-engraved-waves-copper.webp"],
-  ["sp", "DND5E.CurrencySP", "{#}s", 0.01, false, "icons/commodities/currency/coin-engraved-moon-silver.webp"],
-  ["gp", "DND5E.CurrencyGP", "{#}g", 1, true, "icons/commodities/currency/coin-embossed-crown-gold.webp"]
-]).map(([k, name, abbreviation, exchangeRate, primary, img]) => ({ type: "attribute", name, img, abbreviation, data: { path: `system.currency.${k}` }, primary, exchangeRate }));
+/** Item Piles' currency list for the three-coin economy, largest first (2.1.1; rounding-model.mjs IP_COIN_ROWS). */
+const IP_COINS = RoundingModel.ipCoins();
 /** Whether Item Piles' currencies are the three-coin set (null when Item Piles isn't active and set up). */
 function ipCoinsMatch() {
   const IP = game.modules.get("item-piles")?.active ? game.itempiles?.API : null;
   if (!IP?.setCurrencies || !IP.ITEM_QUANTITY_ATTRIBUTE) return null;
   const cur = IP.CURRENCIES ?? [];
-  return cur.length === IP_COINS.length && IP_COINS.every((w, i) => { const c = cur[i]; return c?.data?.path === w.data.path && Math.abs((c.exchangeRate ?? 0) - w.exchangeRate) < 1e-9 && !!c.primary === w.primary; });
+  return RoundingModel.ipCoinsMatchList(cur, IP_COINS);
 }
 /** Keeps Item Piles' currencies in step with the three-coin economy (active GM, only once Item Piles is set up for the system). */
 async function syncItemPilesCoins() {
   if (!isActiveGM() || setting("coinSystem") !== "threeCoin" || !setting("itemPilesCoins")) return;
   const same = ipCoinsMatch(); if (same !== false) return;
   const IP = game.itempiles.API;
-  try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to copper, silver and gold at 100 to 1.</p>"); }
+  try { await IP.setCurrencies(foundry.utils.deepClone(IP_COINS)); WCT.gmWhisper("<p><strong>Three-coin economy:</strong> Item Piles' currencies set to gold, silver and copper at 100 to 1.</p>"); }
   catch (e) { console.warn(`${ID} | couldn't set Item Piles currencies`, e); }
 }
 

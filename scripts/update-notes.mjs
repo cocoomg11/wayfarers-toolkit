@@ -25,6 +25,14 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.1.1",
+    changes: [
+      "Item Piles shows silver again: coins are now listed gold, silver, copper (with copper first, Item Piles skipped silver and some silver payments failed). Worlds using the three-coin economy are corrected on the next load.",
+      "Control panel: unticking and re-ticking an item in a tick-list (relic classes, compendiums, parties, users, scenes) no longer leaves an \"unsaved changes\" mark."
+    ],
+    actions: []
+  },
+  {
     version: "2.1.0",
     changes: [
       { feature: "characterSheet", text: "Character sheet: every page is now built. Features and Spells (sections, prepared counts, use and recharge), Effects (conditions, exhaustion), Biography, Bastion (when bastions are on), Special traits, and levelling up from the level badge in Edit mode." },

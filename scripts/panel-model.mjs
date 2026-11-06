@@ -259,6 +259,41 @@ export const classesToList = s => [...new Set(String(s ?? "").toLowerCase().spli
 /** List → stored value. */
 export const listToClasses = ids => [...new Set((ids ?? []).map(i => String(i).toLowerCase()).filter(Boolean))].join(", ");
 
+// ---------------------------------------------------------------- tick-lists: order doesn't count (2.1.1)
+/**
+ * The picked items in a stable order: those already saved keep their saved order, new ones follow in the order picked. So unticking
+ * and re-ticking an item gives back exactly the saved value, and Save writes the same value the comparison used.
+ * @param {string[]} saved @param {string[]} picked
+ */
+export function keepOrder(saved, picked) {
+  const want = new Set(picked ?? []);
+  const first = [...new Set(saved ?? [])].filter(x => want.has(x));
+  return [...first, ...[...want].filter(x => !first.includes(x))];
+}
+/** A tick-list row's saved value as a list (classes, packs, parties, users, scenes); null for other kinds or a hand-written scene pattern. @param {string} kind @param {unknown} v */
+export function listOf(kind, v) {
+  if (kind === "classes") return classesToList(v);
+  if (kind === "packs") return packsToList(v);
+  if (kind === "parties" || kind === "users") return Array.isArray(v) ? v.map(String) : [];
+  if (kind === "scenes") return regexToScenes(v);
+  return null;
+}
+/** The value to store for a tick-list row from the ticked items (saved order kept). @param {string} kind @param {unknown} saved @param {string[]} picked */
+export function listValue(kind, saved, picked) {
+  const list = keepOrder(listOf(kind, saved) ?? [], kind === "classes" ? (picked ?? []).map(i => String(i).toLowerCase()) : picked ?? []);
+  if (kind === "classes") return listToClasses(list);
+  if (kind === "packs") return listToPacks(list);
+  if (kind === "scenes") return scenesToRegex(list);
+  return list;
+}
+/** Same tick-list contents, in any order. @param {string} kind @param {unknown} a @param {unknown} b */
+export function sameList(kind, a, b) {
+  const x = listOf(kind, a); const y = listOf(kind, b);
+  if (!x || !y) return sameValue(a, b);
+  const sx = new Set(x); const sy = new Set(y);
+  return sx.size === sy.size && [...sx].every(i => sy.has(i));
+}
+
 // ---------------------------------------------------------------- welcome wizard
 export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet", "merchantRounding"];
 /**
