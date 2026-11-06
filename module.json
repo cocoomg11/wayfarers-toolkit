@@ -2,7 +2,7 @@
   "id": "wayfarers-toolkit",
   "title": "Wanderer's Toolkit",
   "description": "A GM kit for D&D 5e. Hex travel with pace and encounter rolls, a flight-master network, a quest log (players read their quests in journals; the full data stays in a GM-only store), a character pane, boss frames, Need / Greed loot rolls, vendor-trash loot, a three-coin economy, inns and rest, map pins, zone title cards, a Table Tools section in scene settings, a health report, and migrations that bring older worlds forward. Every tool can be switched on or off per world. Your campaign content stays in your world.",
-  "version": "1.33.2",
+  "version": "2.0.0",
   "authors": [
     {
       "name": "cocoomg11"
@@ -89,7 +89,7 @@
   ],
   "url": "https://github.com/cocoomg11/wayfarers-toolkit",
   "manifest": "https://github.com/cocoomg11/wayfarers-toolkit/releases/latest/download/module.json",
-  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v1.33.2/module.zip",
+  "download": "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v2.0.0/module.zip",
   "bugs": "https://github.com/cocoomg11/wayfarers-toolkit/issues",
   "license": "LICENSE",
   "readme": "README.md"

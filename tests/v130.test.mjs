@@ -264,7 +264,7 @@ test("look: toolkit CSS reads core tokens; only in-world surfaces keep their own
 
 test("1.30.0: version, download URL, update note, changelog with the live checklist", async () => {
   const m = JSON.parse(src("module.json"));
-  assert.match(m.version, /^1\.(30|31|32|33)\.\d+$/);
+  assert.match(m.version, /^(1\.(30|31|32|33)|2\.0)\.\d+$/);
   assert.equal(m.download, `https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v${m.version}/module.zip`);
   assert.equal(m.styles[0], "vendor/wanderers-core/styles/wanderers-ui.css");
   const { NOTES } = await import("../scripts/update-notes.mjs");

@@ -2,9 +2,9 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
-## Unreleased
+## 2.0.0
 
-Character sheet replacement, slice 2: the **Character**, **Details** and **Inventory** pages. No version bump or update notes yet. No data migration and nothing new stored: the Character page uses the character pane's existing item flag `slot` and actor flag `weaponSets`.
+2026-11-06. Character sheet replacement, slice 2: the **Character**, **Details** and **Inventory** pages. No data migration and nothing new stored: the Character page uses the character pane's existing item flag `slot` and actor flag `weaponSets`.
 
 **Added**
 - **Character page**: the paper doll (left and right slot columns, portrait from dnd5e's preferred artwork with *Attuned n / max*, Melee / Ranged / Utility weapon sets with the set in hand lit and a Stowed label on the others, the Relic slot when the pane shows one, the pane's set notes and *Stow shield*), then **Attributes** (name | score | (mod), aligned; click = dnd5e's ability check), **Defence** and **Attack** (follows the weapon set in hand, with the Auto / Melee / Ranged / Spell menu and a **Use** button = `item.use`), and **Equippable items** with *n equipped but not in a slot* and **Slot equipped items**. Drag onto slots or hands, onto the portrait (best place) or back to the strip (take off); click a slot for the picker; right-click to take off. Item quality colours on slot borders (`data-quality`); the pane's tooltips and comparisons. Edit mode: ability score inputs, **Change portrait** / token art (Foundry's file picker; prototype token config for wildcard images) and dnd5e's **Show token instead of portrait** flag.

@@ -17,7 +17,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - `merchant.mjs` Sell all junk on Item Piles merchants; `junk-rules.mjs` pure junk rules. `shop.mjs` / `shop-model.mjs` Open shop for players (1.31; UI / pure user pick, per-player calls, close targets).
 - `bosses.mjs` boss frames; `phases.mjs` pure phase thresholds; `bossloot.mjs` boss loot tables.
 - `loot.mjs` Need/Greed/Pass; `history.mjs` / `history-model.mjs` loot roll history (UI / pure).
-- `sheet.mjs` / `sheet-model.mjs` character sheet replacement (UI / pure shell, key rules); `sheet-pages-model.mjs` (1.34, pure) the Character, Details and Inventory pages' HTML and display rules.
+- `sheet.mjs` / `sheet-model.mjs` character sheet replacement (UI / pure shell, key rules); `sheet-pages-model.mjs` (2.0, pure) the Character, Details and Inventory pages' HTML and display rules.
 - `pane.mjs` character pane; `pane-model.mjs` (1.30, pure) the sheet's header, HP bar, purse, stat boxes, Attack box and slot outlines; `weapon-sets.mjs` pure weapon-set rules; `compare.mjs` pure item comparison tooltips.
 - `flight-map.mjs` route map window (model: `Flight.mapModel`, `autoLayout`, `newlyUnlocked`, `withPositions`, `mapBackground` in flight.mjs).
 - `travel-pace.mjs` pure pace rules (SRD 5.2 figures, effect text, trip hours/days, socket request reader); UI and socket in main.mjs (`travelPace`, `setTravelPace`, `paceRequest`).
@@ -146,7 +146,7 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - Bookmarks on the right (1.33.1): `.wct-cs-body` is `row-reverse`; markup keeps tabs first (keyboard order, aria); bookmarks flat side left (toward the page), active one wider toward the page.
 - Tests: `tests/v133-sheet.test.mjs`.
 
-## 1.34 notes: Character sheet pages (slice 2, unreleased)
+## 2.0 notes: Character sheet pages
 - **Built pages**: `SM.BUILT_PAGES` = character, details, inventory; `pageHTML(v, body)` shows the body plus a small footer link (`wct-cs-linkbtn`, `wctSystemSheet`); other pages stay placeholders. `sheet.mjs` `pageBody(page)` builds facts (`characterFacts` / `detailsFacts` / `inventoryFacts`, prepared dnd5e data only) → `sheet-pages-model.mjs` HTML. A page that throws renders a short error line, not a broken sheet. `form: { submitOnChange: false }`: our fields write through listeners.
 - **One storage with the pane**: the Character page calls pane.mjs exports only (`slotted`, `gearSlotted`, `weaponState`, `autoEquip`, `slotEquippedItems`, `dropOnDoll`, `slotMenu`/`askSlotMenu`, `itemTooltip`, `attackFacts`, `activateSet`, `stowShield`, `unslotItem`, `ensureSets`, …); the pane's own methods call the same functions. The sheet never writes `flags.wayfarers-toolkit.slot` / `weaponSets` itself (test). Slot bookkeeping hooks are `Pane.registerSlotHooks()` (once; main.mjs registers it for either feature).
 - **Inventory equip = doll slot** (user decision): the `inventory` CustomEvent from dnd5e's element (cancelable, fires before its handler) is intercepted for `equip`: equip → `equipToSlot` (`Pane.autoEquip`; no clear slot → plain `system.equipped: true`, shown in the Character page's "not in a slot" note); unequip → `Pane.unslotItem` (clears slot / set).

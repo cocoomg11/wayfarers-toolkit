@@ -25,6 +25,15 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.0.0",
+    changes: [
+      { feature: "characterSheet", text: "Wanderer's Toolkit 2.0: the character sheet replacement gets its first real pages. Character is the paper doll with weapon sets, Details has the abilities, skills, tools and traits, and Inventory lists your items with prices, weight, quantity and uses." },
+      { feature: "characterSheet", text: "Equipping an item from the Inventory page now puts it in the matching paper-doll slot (and unequipping frees the slot), the same as on the character pane." },
+      { feature: "characterSheet", text: "The other pages (Features, Spells, Effects, Biography, Bastion, Special traits) still open the system sheet for now." }
+    ],
+    actions: []
+  },
+  {
     version: "1.33.2",
     changes: [
       { feature: "characterSheet", text: "Key C: a player without an assigned character now opens the character they own (with several, the one whose token is selected)." }
