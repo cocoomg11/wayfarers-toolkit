@@ -367,7 +367,7 @@ export const WCT = {
   info(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, ok: { label, icon: "fa-solid fa-check" }, rejectClose: false }); },
   form(title, content, label = "OK") { return foundry.applications.api.DialogV2.prompt({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, position: { width: 460 }, ok: { label, callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }, rejectClose: false }); },
   confirm(title, content) { return foundry.applications.api.DialogV2.confirm({ classes: ["wct-window", "wct-dialog", ...UI_CLASSES], window: { title }, content, rejectClose: false }); },
-  gmOnly() { if (!game.user.isGM) { ui.notifications.warn("GM only."); return false; } return true; },
+  gmOnly() { if (!game.user.isGM) { ui.notifications.warn("Wanderer's Toolkit: GM only."); return false; } return true; },
   opt(v, label, sel) { return `<option value="${esc(v)}" ${sel ? "selected" : ""}>${esc(label ?? v)}</option>`; },
   campaign() { return setting("campaignName") || game.world.title; },
   trackerPages() { return { ...TRACKER_PAGES, ...(F.on("vendorTrash") ? { [Trash.RULES_PAGE]: Trash.RULES_PAGE_HTML } : {}) }; },

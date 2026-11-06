@@ -40,6 +40,9 @@ export const FEATURE_CARDS = [
 ];
 
 /** The tab whose Advanced section holds the General settings (Debug logging, Show module data folder) and Reset window positions. */
+/** Whether an edited value equals the saved one (what the unsaved mark and Save both ask). */
+export const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
 export const GENERAL_TAB = "loot";
 /**
  * Tabs. Each setting row: key, the feature(s) it needs ("a", or "a:b" for both; null for always) and an optional picker kind.
