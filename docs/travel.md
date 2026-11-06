@@ -41,7 +41,7 @@ Problems show under the tables as you type, and the rows are outlined: a point w
 
 Flight Master always takes the cheapest way through unlocked points, so the party can fly *Harbor Town → Hill Fort → River Camp* in one booking if each leg is a route.
 
-<!-- screenshot: the flight network editor with a few points and routes -->
+![The flight network editor with a few points and routes](images/flight-editor.png)
 
 ### Flying
 

@@ -36,7 +36,7 @@ You need a world that uses the **dnd5e** system, and you need to be the GM.
 5. **Try one thing.** Press **L** for the quest log and click **New quest**; or click the shirt button on a character sheet for the character pane; or place a few NPC tokens, reduce one to 0 HP and loot its body.
 6. **Optional:** install **Item Piles** and **Item Piles: D&D 5e** for lootable bodies, loot rolls and merchants. See [Setting up Item Piles](docs/loot-and-coins.md#setting-up-item-piles).
 
-<!-- screenshot: control panel Overview tab showing "Everything looks good" -->
+![The control panel's Overview tab saying "Everything looks good"](docs/images/control-panel-overview.png)
 
 ## Tools at a glance
 
@@ -92,7 +92,7 @@ Every tool can be turned off. A tool that's switched off adds nothing: no button
 
 ### Control panel
 
-<!-- screenshot (1.30): the control panel on the shared look, dark and light theme -->
+![The control panel's Loot tab in the dark and the light theme](docs/images/control-panel-themes.png)
 
 All of the toolkit's settings live in one window: **Game Settings → Configure Settings → Wanderer's Toolkit → Open the control panel** (GM only). The only other entry in the module's settings list is **Show the quest tracker on my screen**, which each player sets for themselves.
 

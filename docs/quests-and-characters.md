@@ -27,7 +27,7 @@ Since 1.29 each quest belongs to **one party** (a group actor). Players see a qu
 3. **Parties** (control panel › Quests): tick the group actors quests can be given to. None ticked: the party actor (General tab). **Quest cap** (Advanced, default 25): how many active quests one party can have before you're warned; giving more still works. The list's header shows *Quest Log (n / cap)*.
 4. Optional settings (control panel › Quests): **Quest folder** (the journal folder quests live in, default *Quest Log*), **Announce objectives in chat**, and **Sound when a quest is given** / **Sound when a quest is completed** with a **Quest sound volume** (blank by default; pick your own audio files).
 
-<!-- screenshot: the quest log with a quest open -->
+![The quest log with a quest open](images/quest-log.png)
 
 ### Making quests (GM)
 
@@ -107,7 +107,7 @@ The sheet is an in-world panel: it stays dark in both Foundry themes, while the 
 
 The window is resizable: the slots and portrait grow with it, the *Equippable items* list scrolls inside it, and each player's size and position are remembered on their own computer.
 
-<!-- screenshot (1.30): the character sheet with title line, slots, HP bar, coins and the three stat boxes (dark theme) -->
+![The character pane: title line, slots, HP bar, coins, weapon sets and the three stat boxes](images/character-pane.png)
 
 ### Slots
 
@@ -251,7 +251,7 @@ Each user can arrange the frames on their own screen. Drag a group's top frame t
 
 **Creatures with boss loot get a boss frame** (control panel › Boss & Combat, on by default, with Boss loot turned on): a creature with a boss loot table gets a frame in combat without the crown. Turning the crown off on such a token hides its frame (the token stores an explicit "not a boss").
 
-<!-- screenshot: boss frame at the top of the screen with phase marks -->
+![A boss frame with two phase marks on its health bar](images/boss-frame.png)
 
 ### Phase marks
 

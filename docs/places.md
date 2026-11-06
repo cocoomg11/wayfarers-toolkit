@@ -57,7 +57,7 @@ The chosen characters become **Rested**: the GM's client records each rental in 
 
 **How to use:** click the **Map pin** button (the pin icon in the token controls), then click the map. An empty spot opens the new-pin dialog; a pin opens its card. Double-clicking a pin opens its card too. **Esc** cancels.
 
-<!-- Screenshot placeholder: a hex travel map with three inked pins (camp, cave, question) and an open pin card. -->
+![A hex map with three inked pins (camp, cave, question) and an open pin card](images/map-pins.png)
 
 With **Map pins** on, the party can mark up any scene, the way you'd pencil notes onto a paper map: no glowing markers, just ink on parchment.
 
