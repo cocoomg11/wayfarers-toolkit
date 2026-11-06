@@ -21,6 +21,7 @@ import * as WS from "./weapon-sets.mjs";
 import { restedTip } from "./pane-model.mjs";
 import { BENEFITS } from "./inn-model.mjs";
 import { on as featureOn } from "./features.mjs";
+import * as RenownUI from "./renown-apps.mjs";
 import { UI_CLASSES, defineOpenKeybinding, keybindingConfig, esc } from "../vendor/wanderers-core/index.mjs";
 const ID = "wayfarers-toolkit";
 
@@ -112,6 +113,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
   _spell = { search: "", filters: /** @type {string[]} */ ([]), sort: "a" };
   /** Effects page: search text (per window). */
   _fx = { search: "" };
+  /** Reputation page (2.2): search, filter, sort and folded groups (per window, not saved; renown-view-model.mjs pageState). */
+  _rn = /** @type {any} */ (undefined);
 
   /** dnd5e's own expand state for inventory rows (dnd5e's inventory element reads app.expandedSections). */
   get expandedSections() { return (this._expanded ??= new Map()); }
@@ -250,7 +253,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
       exhaustion: { value: at.exhaustion, max: CONFIG.DND5E?.conditionTypes?.exhaustion?.levels ?? 6 },
       death: at.death, warnings,
       conditions: [...(a.statuses ?? [])].map(id => ({ id, name: statusName(id) })),
-      bastion, editable: this.isEditable, isGM: game.user.isGM,
+      bastion, renown: featureOn("renown"), editable: this.isEditable, isGM: game.user.isGM,
       showRests: game.user.isGM || tryGet("dnd5e", "allowRests", true) !== false,
       limited: !game.user.isGM && a.limited
     };
@@ -732,6 +735,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
     if (page === "biography") return SX.biographyPageHTML(await this.biographyFacts());
     if (page === "bastion") return SX.bastionPageHTML(/** @type {any} */ (await this.bastionFacts()));
     if (page === "special") return SX.specialPageHTML(/** @type {any} */ (this.specialFacts()));
+    // 2.2: Renown (renown-apps.mjs builds it from the world setting, the actor flag and, for GMs, the GM-only store).
+    if (page === "reputation") return RenownUI.pageBody(this.actor, this._rn, { edit: this._mode === "edit" && game.user.isGM });
     return null;
   }
 
@@ -1094,6 +1099,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
     if (this._page === "spells") this._onRenderBook(root, "_spell");
     if (this._page === "effects") this._onRenderEffects(root);
     if (["biography", "bastion", "special"].includes(this._page)) this._onRenderText(root);
+    if (this._page === "reputation") RenownUI.wire(root, a, this);
   }
 
   /** Character page: the pane's slot and weapon-set handling (pane.mjs), on the same flags. */

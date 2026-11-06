@@ -24,18 +24,22 @@ export const trackerFlag = (j, journalName) => !!(j && journalName && j.name ===
 /** The flags on the GM-only records journal (vault.mjs): its marker, its data, and core's one-time "filed in Module data" mark. */
 export const VAULT_FLAGS = ["vaultEntry", "vault", "dataFolderFiled"];
 export const CATEGORIES = [
-  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested and its status icon, …)"],
+  ["actors", "Toolkit flags on actors (boss loot links, phase marks, No loot, Everything is lootable, weapon sets, Rested and its status icon, renown and tracked factions, …)"],
   ["tokens", "Toolkit flags on tokens and their own actors, every scene (pre-rolled loot, looted, boss, phase marks, No loot, Everything is lootable, …)"],
   ["scenes", "Toolkit flags on scenes (Dungeon, Title card, inns; the old Hub and Inn marks too, which the Red Book module may still read)"],
   ["items", "Toolkit flags on items (world items and items on actors; Lootable, Buckler and Relic marks too, the items themselves stay)"],
   ["deleteItems", "Also delete items created by the toolkit (vendor trash, boss loot) wherever they are"],
   ["pins", "Delete map pins (the map notes the toolkit's Map pins tool placed, every scene, party and GM pins)"],
   ["journals", "Toolkit flags on journals and roll tables (flags only; quests stop being quests; the tracker journal's trip counter)"],
-  ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history; the shared Module data folder too when nothing else is in it)"],
+  ["vault", "Delete the GM-only records journal (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history, hidden renown factions and renown with them; the shared Module data folder too when nothing else is in it)"],
+  ["renown", "Put back the Item Piles merchant prices Renown set (each character's own buy price at a faction's merchants; Item Piles' other prices stay)"],
   ["messages", "Toolkit flags on chat messages (loot, loot roll, quest, health and update cards; their buttons stop working)"],
   ["macros", "World macros created by Run setup (or imported from the toolkit's macro compendium)"],
   ["settings", "Reset the module's settings to their defaults (feature toggles and the loot roll history too; puts back Item Piles' Currency decimal digits if Merchant coin rounding changed it; reloads)"]
 ];
+
+/** The Item Piles price entries Renown recorded: ["merchantId actorUuid", …]. */
+export const renownApplied = bucket => Object.entries(bucket?.applied ?? {}).flatMap(([m, map]) => Object.keys(map && typeof map === "object" ? map : {}).map(u => `${m} ${u}`));
 
 /** Every actor whose items can hold toolkit items: world actors and unlinked tokens' own actors. */
 function* holders() {
@@ -46,12 +50,14 @@ function* holders() {
 /** Counts what each category would remove. Nothing is changed. */
 export function plan() {
   /** @type {Record<string, any>} */
-  const p = { actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], pins: [], hiddenPins: 0, items: [], deleteItems: [], journals: [], vault: [], trackers: [], messages: [], macros: [], settings: [] };
+  const p = { renown: [], actors: [], effects: [], tokens: [], tokenActors: [], scenes: [], pins: [], hiddenPins: 0, items: [], deleteItems: [], journals: [], vault: [], trackers: [], messages: [], macros: [], settings: [] };
   for (const a of game.actors) if (ours(a)) p.actors.push(a);
   // Map pins: Note documents carrying flags.wayfarers-toolkit.pin; grouped by scene so each scene is one delete.
   p.pins = pinsByScene(game.scenes);
   // Hidden GM pins have no Note: they're records in the GM-only store (removed with it, or on their own with "pins").
   try { p.hiddenPins = Object.keys(game.journal.find(j => j.flags?.[ID]?.vaultEntry === true)?.flags?.[ID]?.vault?.buckets?.pins ?? {}).length; } catch { p.hiddenPins = 0; }
+  // Renown (2.2): the per-character Item Piles price entries it set, recorded in the GM-only store ({ merchantId: { actorUuid: buy } }).
+  try { p.renown = renownApplied(game.journal.find(j => j.flags?.[ID]?.vaultEntry === true)?.flags?.[ID]?.vault?.buckets?.renown); } catch { p.renown = []; }
   for (const s of game.scenes) {
     if (ours(s)) p.scenes.push(s);
     for (const t of s.tokens) {
@@ -98,6 +104,8 @@ export async function remove(pick = {}) {
   if (!game.user.isGM) { ui.notifications.warn("GM only."); return null; }
   const p = plan(); const done = {};
   const each = async (list, fn) => { let n = 0; for (const d of list) { try { n += (await fn(d)) ?? 1; } catch (e) { console.warn(`${ID} | remove data: ${d?.name ?? d?.id}`, e); } } return n; };
+  // First, while the GM-only records still say which Item Piles prices Renown set.
+  if (pick.renown) { try { done.renown = await (await import("./renown.mjs")).resetDiscounts(); } catch (e) { console.warn(`${ID} | remove data: renown prices`, e); done.renown = 0; } }
   if (pick.deleteItems) {
     const byParent = new Map(); const world = [];
     for (const i of p.deleteItems) { if (i.parent) { if (!byParent.has(i.parent)) byParent.set(i.parent, []); byParent.get(i.parent).push(i.id); } else world.push(i.id); }

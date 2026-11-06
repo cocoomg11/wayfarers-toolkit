@@ -36,6 +36,7 @@ export const FEATURE_CARDS = [
   { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
   { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (all pages: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion, Special traits). Off by default; GMs can always open the system sheet. Key C opens it." },
   { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
+  { id: "renown", icon: "fa-solid fa-flag", text: "Factions you define, and each character's renown with them: tiers with discounts and perks, GM awards with a chat card, quest renown rewards and a Reputation page." },
   { id: "merchantRounding", icon: "fa-solid fa-scale-unbalanced", text: "Merchant prices round to a whole coin, so cheap items at a discount don't become free. Off by default. Needs Item Piles." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
@@ -295,7 +296,7 @@ export function sameList(kind, a, b) {
 }
 
 // ---------------------------------------------------------------- welcome wizard
-export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet", "merchantRounding"];
+export const FEATURE_IDS = ["hexTravel", "flightMaster", "vendorTrash", "riderFeat", "characterPane", "questLog", "questTracker", "bossFrames", "lootRolls", "bossLoot", "flightMap", "flightMapBackground", "travelPace", "partyGold", "zoneTitles", "restedInn", "mapPins", "questMapPins", "questGlow", "keybindings", "coinLog", "splitCoin", "innRestOffer", "travelConfirm", "moduleHooks", "merchantShop", "characterSheet", "merchantRounding", "renown"];
 /**
  * Style presets. Classic MMO is everything except the two overland-travel tools (Hex Travel and the riding feat, whose main use is
  * mounted hex travel); Everything turns every tool on. `suggestCoins` is only shown as a suggestion: the wizard starts on standard coins.
@@ -316,9 +317,9 @@ export function presetSettings(preset) {
  * settings IO, through api.settingsRecords) leaves them out. Add new record settings here (and to WIZARD_IGNORE). questParties holds
  * this world's actor ids, which mean nothing in another world.
  */
-export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved", "merchantRoundingPrev"]);
+export const RECORD_SETTINGS = new Set(["lootHistoryData", "lastSeenVersion", "setupReminded", "wizardDone", "flightCache", "goldSnapshots", "pinsNotesShown", "trackerPos", "questSeen", "questZonesCollapsed", "questParties", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved", "merchantRoundingPrev", "renownConfig"]);
 
-export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved", "merchantRoundingPrev"]);
+export const WIZARD_IGNORE = new Set(["questZonesCollapsed", "questParties", "wizardDone", "flightCache", "bossLayout", "bossFramePos", "trackedQuests", "trackerCollapsed", "trackerPos", "paneWindow", "questTracker", "setupReminded", "lastSeenVersion", "lootHistoryData", "travelPaceCurrent", "goldSnapshots", "onlineHudPos", "pinsNotesShown", "questSeen", "showModuleData", "windowPlacement", "permIgnoreUsers", "coreSheetKeyMoved", "merchantRoundingPrev", "renownConfig"]);
 /**
  * Whether the welcome wizard should stay away: the world already uses the toolkit when any world setting differs from its default
  * (`settings`: [{ key, scope, value, default }]), anything Run setup makes already exists (`setupFound`), or an earlier version of the

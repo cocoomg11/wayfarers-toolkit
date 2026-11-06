@@ -26,6 +26,8 @@ import * as Sheet from "./sheet.mjs";
 import * as SM from "./sheet-model.mjs";
 import * as Rounding from "./rounding.mjs";
 import * as RM from "./rounding-model.mjs";
+import * as Renown from "./renown.mjs";
+import * as RN from "./renown-model.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -238,6 +240,41 @@ function characterSheet() {
   if (stored && stored !== `${ID}.WctCharacterSheet`) return [line("info", `Character sheet replacement: on, but Configure Default Sheets picks another sheet for characters (${esc(stored)}).`)];
   const out = [ok("Character sheet replacement: on, the default sheet for player characters. Pages are still placeholders.")];
   return [...out, ...coreKeyLines()];
+}
+
+/** Renown (2.2): factions, tiers, where players see it, merchant discounts through Item Piles, quest rewards naming a lost faction. */
+function renown() {
+  if (!F.on("renown")) return [off("Renown: off.")];
+  const facs = Renown.factions(); const c = Renown.config(); const out = [];
+  if (!facs.length) return [line("info", "Renown: no factions yet (control panel › Character › Factions and renown…).")];
+  const hid = facs.filter(f => f.hidden).length;
+  const withRenown = game.actors.filter(a => a.type === "character" && facs.some(f => { const e = Renown.entryFor(a, f); return e.score > 0 || e.ribbons.length > 0; })).length;
+  out.push(ok(`Renown: ${plural(facs.length, "faction")}${hid ? ` (${hid} hidden from players, kept in the GM-only records)` : ""}; ${plural(withRenown, "character")} with renown.`));
+  out.push(line("info", `Shared tiers: ${c.tiers.map(t => `${esc(t.name)} ${t.from}${t.discount ? ` (${t.discount}% off)` : ""}`).join(", ")}.`));
+  out.push(F.on("characterSheet") ? ok("Players see renown on the toolkit sheet's Reputation page.") : line("info", "Players see renown through the Reputation button in dnd5e's character sheet header (the toolkit sheet is off)."));
+  const linked = facs.filter(f => f.merchants.length);
+  if (!linked.length) out.push(off("No merchants linked to a faction: tier discounts are shown on the sheet only."));
+  else if (!Renown.itemPiles()) out.push(line("info", `Item Piles isn't active: ${plural(linked.reduce((n, f) => n + f.merchants.length, 0), "merchant link")} kept; tier discounts are shown on the sheet only.`));
+  else {
+    let applied = 0; let pending = 0;
+    for (const p of Renown.discountPlans()) {
+      const fname = esc(p.faction?.name ?? "a deleted faction");
+      if (p.problem === "missing") out.push(warn(`A merchant linked to ${fname} no longer exists (save the faction to drop the link).`));
+      else if (p.problem === "notMerchant") out.push(warn(`${esc(p.merchant?.name ?? "?")} is linked to ${fname} but isn't an Item Piles merchant: no discount there.`));
+      else if (p.plan) {
+        applied += Object.keys(p.plan.applied).length; pending += p.plan.writes.length;
+        for (const uuid of p.plan.skipped) { let n = uuid; try { n = foundry.utils.fromUuidSync(uuid)?.name ?? uuid; } catch { /* keep the uuid */ } out.push(warn(`${esc(p.merchant?.name ?? "?")} has its own Item Piles price for ${esc(n)}, so the ${fname} discount isn't applied there (remove that price in the merchant's Item Piles settings to let renown set it).`)); }
+      }
+    }
+    out.push(pending ? line("info", `Merchant discounts: ${plural(pending, "price")} to update at the next change (or api.renown.sync()).`) : ok(`Merchant discounts: ${plural(applied, "character price")} set through Item Piles at ${plural(linked.reduce((n, f) => n + f.merchants.length, 0), "linked merchant")}.`));
+    const st = Renown.syncStatus(); if (st?.error) out.push(warn(`The last discount update failed: ${esc(st.error)}.`));
+  }
+  // Quest rewards naming a faction that no longer exists.
+  const ids = new Set(facs.map(f => f.id)); let lost = 0;
+  try { for (const q of Object.values(Vault.get("quests", {}) ?? {})) lost += RN.normalizeQuestRenown(/** @type {any} */ (q)?.rewards?.renown).filter(r => !ids.has(r.faction)).length; } catch { lost = 0; }
+  if (lost) out.push(warn(`${plural(lost, "quest renown reward")} name a deleted faction and won't be given (edit the quests).`));
+  out.push(F.on("moduleHooks") ? line("info", "Hook wayfarers-toolkit.renownChanged fires after each change (Hooks for other modules).") : off("Hooks for other modules is off: no renownChanged hook."));
+  return out;
 }
 
 /** Where core's own Toggle Character Sheet key is on this client (the sheet moves it to Alt+C). */
@@ -455,7 +492,7 @@ export function vaultOwnership(current, playerIds, none = 0) {
 /** @type {[string, (api: any) => any][]} */
 const SECTIONS = [
   ["Features", features], ["Dependencies", dependencies], ["Setup", setupState], ["Boss loot", bossLoot], ["No loot", noLoot], ["Your own loot", ownLoot],
-  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Character sheet", characterSheet], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
+  ["Vendor Trash Rules page", rulesPage], ["Dungeon scenes", dungeons], ["Flight Master", flights], ["Encounter zones", zones], ["Character pane", characterPane], ["Character sheet", characterSheet], ["Renown", renown], ["Loot, junk and phases", lootExtras], ["Map, pace, gold and settings", bundle2], ["Title cards and inns", places], ["Map pins", mapPins], ["Permissions", permissions], ["Update notes", updateNotes], ["GMs", gms], ["Shared core", shared]
 ];
 
 /** Runs every check: [{ title, lines: [{ level, text }] }]. Never throws. */

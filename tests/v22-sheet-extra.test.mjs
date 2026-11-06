@@ -178,7 +178,7 @@ test("advancement prompts open dnd5e's own windows as children of the sheet (APP
 
 // ---------------------------------------------------------------- shell, look, repo
 test("all pages built; pure model; css scoped; public repo", () => {
-  assert.deepEqual(SM.BUILT_PAGES, ["character", "details", "inventory", "features", "spells", "effects", "biography", "bastion", "special"]);
+  assert.deepEqual(SM.BUILT_PAGES, ["character", "details", "inventory", "features", "spells", "effects", "biography", "reputation", "bastion", "special"]); // 2.2: + reputation
   assert.deepEqual([...SM.BUILT_PAGES].sort(), SM.PAGE_IDS.slice().sort(), "every bookmark has a page");
   assert.doesNotMatch(src("scripts/sheet-extra-model.mjs").replace(/\/\*[\s\S]*?\*\//g, ""), /\b(game|canvas|ui|CONFIG|foundry)\./);
   const css = src("styles/sheet.css");

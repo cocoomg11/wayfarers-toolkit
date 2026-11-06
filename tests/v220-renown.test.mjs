@@ -147,3 +147,110 @@ test("renown: Item Piles discount plan changes only the toolkit's own entries", 
   p = R.merchantPlan({ entries: [{ actorUuid: "Actor.a", buyPriceModifier: 1, sellPriceModifier: 1 }], applied: {}, wants: { "Actor.a": 15 } });
   assert.equal(p.writes[0].buyPriceModifier, 0.85);
 });
+
+// ---------------------------------------------------------------- the page, card and hint (renown-view-model.mjs)
+const V = await import("../scripts/renown-view-model.mjs");
+const SM = await import("../scripts/sheet-model.mjs");
+const { readFileSync } = await import("node:fs");
+const src = p => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+const FACS = [
+  { id: "watch", name: "Town <Watch>", parent: "Kingdom", note: "city guard", merchants: ["m1"] },
+  { id: "couriers", name: "Couriers", parent: "Kingdom" },
+  { id: "traders", name: "Traders", group: "Neutral factions" },
+  { id: "old", name: "Old Order", inactive: true },
+  { id: "veil", name: "Veiled Hand", hidden: true }
+].map(f => ({ ...R.normalizeFaction(f), hidden: !!f.hidden }));
+const ENTRIES = { watch: { score: 10, ribbons: [{ id: "r1", text: "Base", amount: 2 }] }, couriers: { score: 4 }, traders: { score: 27 } };
+
+test("renown page: groups, tracked pin, filters, inactive, sort", () => {
+  const m = V.pageModel({ factions: FACS, entries: ENTRIES, tracked: "watch", isGM: true, canTrack: true });
+  assert.equal(m.tracked?.id, "watch");
+  assert.deepEqual(m.groups.map(g => g.label), ["Kingdom · subfactions", "Neutral factions", "Factions"]);
+  assert.equal(m.groups[0].rows[0].id, "watch", "sorted by renown");
+  assert.ok(!m.groups.some(g => g.label === V.INACTIVE_GROUP), "inactive hidden by default");
+  assert.ok(V.pageModel({ factions: FACS }, { inactive: true }).groups.some(g => g.label === V.INACTIVE_GROUP));
+  assert.deepEqual(V.pageModel({ factions: FACS }, { filter: "sub" }).groups.map(g => g.label), ["Kingdom · subfactions"]);
+  assert.deepEqual(V.pageModel({ factions: FACS }, { filter: "neutral" }).groups.flatMap(g => g.rows.map(r => r.id)), ["traders", "veil"]);
+  assert.deepEqual(V.pageModel({ factions: FACS, entries: ENTRIES }, { sort: "name" }).groups[0].rows.map(r => r.id), ["couriers", "watch"]);
+  assert.equal(V.pageModel({ factions: FACS }, { search: "trad" }).shown, 1);
+  assert.equal(V.pageModel({ factions: FACS }, { closed: ["Neutral factions"] }).groups[1].open, false);
+  assert.equal(m.groups[0].rows[0].s.bar, "12 / 25 to Esteemed");
+});
+
+test("renown page HTML: escaped, GM controls only for GMs, hidden marked, empty states", () => {
+  const gm = V.pageHTML(V.pageModel({ factions: FACS, entries: ENTRIES, tracked: "watch", isGM: true, canTrack: true, edit: true }));
+  assert.match(gm, /Town &lt;Watch&gt;/); assert.doesNotMatch(gm, /<Watch>/);
+  assert.match(gm, /hidden from players/);
+  assert.match(gm, /data-wct-rn="award"/); assert.match(gm, /data-wct-rn="ribbon"/); assert.match(gm, /data-wct-rn-score="watch"/);
+  assert.match(gm, /Base \+2/); assert.match(gm, /data-wct-rn="unribbon"/);
+  assert.match(gm, /10% off/);
+  // A player: their own facts never contain hidden factions; no GM controls; tracking their own character.
+  const players = FACS.filter(f => !f.hidden);
+  const pl = V.pageHTML(V.pageModel({ factions: players, entries: ENTRIES, tracked: "watch", canTrack: true }));
+  assert.doesNotMatch(pl, /Veiled|hidden from players|data-wct-rn="award"|data-wct-rn="ribbon"|data-wct-rn-score|unribbon|data-wct-rn="setup"/);
+  assert.match(pl, /data-wct-rn="track"/);
+  const observer = V.pageHTML(V.pageModel({ factions: players, entries: ENTRIES, tracked: "watch" }));
+  assert.doesNotMatch(observer, /data-wct-rn="track"/, "observers read only");
+  assert.match(V.pageHTML(V.pageModel({ factions: [], isGM: true })), /Factions and renown…/);
+  assert.match(V.pageHTML(V.pageModel({ factions: [] })), /hasn't set up any factions/);
+  assert.match(gm, /Renown tiers/);
+});
+
+test("renown card and award hint", () => {
+  const html = V.cardHTML({ faction: "Town <Watch>", reason: "Broke the <ring>", rows: [
+    { name: "Maren", delta: 2, before: 8, after: 10, tierBefore: 0, tierAfter: 1, tierName: "Trusted", tierColor: "#3fd18a", tierText: "10% off" },
+    { name: "Tobin", delta: 2, before: 3, after: 5, tierBefore: 0, tierAfter: 0, tierName: "Known", tierColor: "#7ad65a", tierText: "" }] });
+  assert.match(html, /\+2 renown<\/span> Town &lt;Watch&gt;/);
+  assert.match(html, /Maren<\/strong> is now <span class="wct-rn-tierup"[^>]*>Trusted<\/span> \(10\): 10% off/);
+  assert.match(html, /Tobin<\/strong> 3 → 5/);
+  assert.match(html, /Broke the &lt;ring&gt;/);
+  const rolled = V.cardHTML({ faction: "F", rows: [{ name: "A", delta: -7, roll: { formula: "2d6", total: 7 }, before: 9, after: 2, tierBefore: 0, tierAfter: -1, tierName: "No tier", tierColor: "#e8d35a" }] });
+  assert.match(rolled, /<span class="wct-rn-amt">Renown<\/span>/); assert.match(rolled, /−7<\/b> <span class="wct-rn-roll">\(2d6 = 7\)/);
+  const tiers = R.normalizeTiers(null);
+  assert.equal(V.awardHint([{ name: "Maren Ashby", entry: { score: 8 }, tiers }], R.parseAmount("+2")), "Each character gains it on their own score: Maren 8 → 10 (Trusted).");
+  assert.match(V.awardHint([{ name: "A", entry: {}, tiers }], R.parseAmount("-2d6")), /rolls 2d6 and loses it/);
+  assert.match(V.awardHint([], null), /Pick at least one/);
+});
+
+test("renown: sheet bookmark only with the feature on, after Biography", () => {
+  assert.ok(!SM.visiblePages({}).some(p => p.id === "reputation"));
+  const ids = SM.visiblePages({ renown: true }).map(p => p.id);
+  assert.equal(ids[ids.indexOf("biography") + 1], "reputation");
+  assert.ok(SM.BUILT_PAGES.includes("reputation"));
+  const sheet = src("scripts/sheet.mjs");
+  assert.match(sheet, /renown: featureOn\("renown"\)/);
+  assert.match(sheet, /if \(page === "reputation"\) return RenownUI\.pageBody\(/);
+});
+
+test("renown: wiring rules (feature, storage, cleanup, API, hook, CSS scope)", async () => {
+  const { FEATURES } = await import("../scripts/features.mjs");
+  assert.ok(FEATURES.some(f => f.id === "renown"));
+  const VM = await import("../scripts/vault-model.mjs");
+  assert.ok(VM.BUCKETS.includes("renown"), "hidden factions in the GM-only store");
+  const P = await import("../scripts/panel-model.mjs");
+  assert.ok(P.RECORD_SETTINGS.has("renownConfig") && P.WIZARD_IGNORE.has("renownConfig"));
+  const C = src("scripts/cleanup.mjs");
+  assert.match(C, /\["renown", "Put back the Item Piles merchant prices Renown set/);
+  assert.match(C, /if \(pick\.renown\)[^\n]*resetDiscounts\(\)/);
+  assert.ok(C.indexOf("pick.renown") < C.indexOf("pick.vault && p.vault.length"), "prices put back before the records go");
+  const CU = await import("../scripts/cleanup.mjs");
+  assert.deepEqual(CU.renownApplied({ applied: { m1: { "Actor.a": 0.9, "Actor.b": 0.85 } } }), ["m1 Actor.a", "m1 Actor.b"]);
+  const main = src("scripts/main.mjs");
+  assert.match(main, /get renown\(\) \{\n\s+if \(!F\.on\("renown"\)\) return undefined;\n\s+return gmOnlyApi\(/);
+  assert.match(main, /\{ open: \["factions", "faction", "tiers", "get", "open", "track"\] \}/);
+  const rn = src("scripts/renown.mjs");
+  assert.match(rn, /Hooks\.callAll\(R\.RENOWN_HOOK, p\)/);
+  assert.match(rn, /content: card\(RV\.cardHTML\(/, "card through look-model card()");
+  assert.match(rn, /IP\.updateMerchantPriceModifiers\(/, "discounts only through Item Piles' API");
+  assert.doesNotMatch(rn, /setFlag\("item-piles"|flags\.item-piles\.data[^"]*"\s*\]?\s*:/, "never writes Item Piles' flags itself");
+  assert.match(src("scripts/health.mjs"), /\["Renown", renown\]/);
+  const css = src("styles/renown.css");
+  assert.doesNotMatch(css, /\.theme-(dark|light)|wc-r\d/);
+  for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@container[^{]*\{/g, "").match(/(^|\})\s*([^{}@]+)\{/g) ?? []) {
+    const s = sel.replace(/^\}?\s*/, "").replace(/\{$/, "");
+    for (const part of s.split(",")) assert.match(part.trim(), /^(\.wct-sheet|\.application\.wct-renown-window|\.wct-chat-card\.wct-renown|\.wct-renown-award|\.wct-renown-setup)\b/, `unscoped: ${part.trim()}`);
+  }
+  assert.match(src("module.json"), /"styles\/renown\.css"/);
+  assert.doesNotMatch(src("scripts/renown-model.mjs") + src("scripts/renown-view-model.mjs") + src("scripts/renown-apps.mjs") + rn, /warcraft|blizzard|azeroth|\bwow\b|friendly|honored|revered|exalted/i);
+});

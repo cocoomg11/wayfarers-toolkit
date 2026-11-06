@@ -20,7 +20,10 @@ export const SHEET_ACTION = "characterSheet";
 export const SHEET_KEY = /** @type {Array<{ key: string, modifiers: Array<"Alt" | "Control" | "Shift"> }>} */ ([{ key: "KeyC", modifiers: [] }]);
 
 // ---------------------------------------------------------------- pages
-/** Bookmarks in order. Icons are small original stroke drawings on a 24 × 24 grid. `bastion` shows only when dnd5e offers one. */
+/**
+ * Bookmarks in order. Icons are small original stroke drawings on a 24 × 24 grid. `bastion` shows only when dnd5e offers one,
+ * `reputation` (2.2) only while the Renown feature is on.
+ */
 export const PAGES = Object.freeze([
   { id: "character", label: "Character", hint: "slots, weapon sets, quick stats", icon: "M8 3l4 2l4-2l5 4l-3 3l-2-1v12H8V9l-2 1l-3-3z" },
   { id: "details", label: "Details", hint: "abilities, saves, skills, tools, traits", icon: "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" },
@@ -29,15 +32,16 @@ export const PAGES = Object.freeze([
   { id: "spells", label: "Spells", hint: "slots, preparation, casting", icon: "M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM9 8h6M9 12h6" },
   { id: "effects", label: "Effects", hint: "conditions and active effects", icon: "M13 2L4 14h7l-1 8l9-12h-7z" },
   { id: "biography", label: "Biography", hint: "characteristics and story", icon: "M20 4C10 4 6 10 5 20M5 20l4-1M9 12h6" },
+  { id: "reputation", label: "Reputation", hint: "renown per faction · this character only", icon: "M5 21V4M5 4h12l-2.5 4L17 12H5" },
   { id: "bastion", label: "Bastion", hint: "facilities and orders", icon: "M4 21V8l3-2v3l3-2v3l2-2l2 2V7l3 2V6l3 2v13zM10 21v-5h4v5" },
   { id: "special", label: "Special traits", hint: "flags and original class", icon: "M12 3l2.6 5.6l6 .7l-4.5 4.1l1.2 6L12 16.4L6.7 19.4l1.2-6L3.4 9.3l6-.7z" }
 ]);
 export const PAGE_IDS = PAGES.map(p => p.id);
 
-/** The pages shown: all but Bastion unless the actor has one. @param {{ bastion?: boolean }} f */
-export const visiblePages = (f = {}) => PAGES.filter(p => p.id !== "bastion" || f.bastion);
+/** The pages shown: all but Bastion unless the actor has one, and Reputation only with Renown on. @param {{ bastion?: boolean, renown?: boolean }} f */
+export const visiblePages = (f = {}) => PAGES.filter(p => (p.id !== "bastion" || f.bastion) && (p.id !== "reputation" || f.renown));
 
-/** The page to show: the asked one when it's visible, else Character. @param {string | null | undefined} page @param {{ bastion?: boolean }} f */
+/** The page to show: the asked one when it's visible, else Character. @param {string | null | undefined} page @param {{ bastion?: boolean, renown?: boolean }} f */
 export function pickPage(page, f = {}) {
   return visiblePages(f).some(p => p.id === page) ? /** @type {string} */ (page) : "character";
 }
@@ -121,6 +125,7 @@ const group = n => (Number.isFinite(n) ? Math.trunc(n).toLocaleString("en-US") :
  * @property {string[] | null} [warnings] dnd5e's preparation warnings (messages), or null when dnd5e exposes none
  * @property {Array<{ id: string, name: string, img?: string }>} [conditions]
  * @property {boolean} [bastion]
+ * @property {boolean} [renown] the Renown feature is on (Reputation page)
  * @property {boolean} [editable] the user may change the actor
  * @property {boolean} [isGM]
  * @property {boolean} [showRests]
@@ -234,7 +239,7 @@ export const APP_CONTRACT = Object.freeze(["_renderChild", "_confirmDialog", "ch
   "inventorySource", "expandedSections", "canExpand", "_openDocumentSheet", "_concentration"]);
 
 /** The pages built so far (slice 2: Character, Details, Inventory); the others are placeholders. */
-export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "features", "spells", "effects", "biography", "bastion", "special"]);
+export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "features", "spells", "effects", "biography", "reputation", "bastion", "special"]);
 
 /**
  * The page body. A built page shows `body` (sheet-pages-model.mjs, built by sheet.mjs from the actor) with a small "Open in system

@@ -43,6 +43,8 @@ import { registerOpenKeybinding, hideDataFolder, registerWindowPlacement } from 
 import { card } from "./look-model.mjs";
 import * as Cards from "./chat-cards.mjs";
 import * as Sheet from "./sheet.mjs";
+import * as Renown from "./renown.mjs";
+import * as RenownUI from "./renown-apps.mjs";
 
 const ID = "wayfarers-toolkit";
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -226,6 +228,8 @@ function registerSettings() {
   Sheet.registerSettings();
   // 2.1: merchant coin rounding (mode, and the Item Piles value it replaced).
   Rounding.registerSettings();
+  // 2.2: Renown's world record (shared tiers, award presets, the factions players may see).
+  Renown.registerSettings();
   s("playerFlights", "Flight Master: Players can book flights", "Players get a Flight Master button in the token controls and can book flights themselves. A GM must be logged in; the fare comes out of the party purse.", Boolean, { onChange: () => ui.controls?.render?.({ reset: true }) });
   s("flightSound", "Flight Master: Departure sound", "Audio file played for everyone when a flight departs. Defaults to the bundled departure clip; clear it for no sound.", String, { filePicker: "audio" });
   s("flightVolume", "Flight Master: Sound volume", "", Number, { range: { min: 0, max: 1, step: 0.05 } });
@@ -808,6 +812,29 @@ export const WCT = {
   get pins() { return F.on("mapPins") ? Pins.api : undefined; },
   /** 1.28: coin log (GM): entries(), open(), undo(id); undefined when the feature is off. */
   /** Open shop for players (merchantShop, 1.31): GM only. open(merchant, { users, onlyOnScene }), close(merchant), openedFor(merchant). */
+  /**
+   * 2.2: Renown; undefined when the feature is off. Reading: factions(), faction(ref), get(actor) (players: visible factions only),
+   * open(actor) the Reputation window, track(actor, faction) (the owner). GM: award(actors, faction, amount | formula, reason),
+   * setScore, addSource, removeSource, setup(faction?), awardDialog({ actors, faction }), sync().
+   */
+  get renown() {
+    if (!F.on("renown")) return undefined;
+    return gmOnlyApi({
+      factions: () => Renown.factions().map(f => ({ ...f, merchants: [...f.merchants], tiers: f.tiers ? f.tiers.map(t => ({ ...t })) : null })),
+      faction: ref => { const f = Renown.faction(ref); return f ? { ...f } : null; },
+      tiers: () => Renown.config().tiers.map(t => ({ ...t })),
+      get: actor => Renown.get(actor),
+      open: actor => RenownUI.openWindow(actor),
+      track: (actor, faction) => Renown.track(actor, faction),
+      award: (actors, faction, amount, reason = "", opts = {}) => Renown.award(actors, faction, amount, { ...opts, reason }),
+      setScore: (actor, faction, score) => Renown.setScore(actor, faction, score),
+      addSource: (actor, faction, text, amount) => Renown.addSource(actor, faction, text, amount),
+      removeSource: (actor, faction, id) => Renown.removeSource(actor, faction, id),
+      setup: faction => RenownUI.openSetup(faction),
+      awardDialog: (opts = {}) => RenownUI.openAward({ ...opts, actors: (opts.actors ?? []).map(Renown.actorOf).filter(Boolean) }),
+      sync: () => Renown.syncMerchants()
+    }, { open: ["factions", "faction", "tiers", "get", "open", "track"] });
+  },
   get shop() { return F.on("merchantShop") ? gmOnlyApi({ open: (m, opts) => Shop.open(m, opts), close: m => Shop.close(m), openedFor: m => Shop.openedFor(m) }) : undefined; },
   get coinLog() { return F.on("coinLog") ? gmOnlyApi({ entries: () => CoinLog.entries(), open: () => CoinLog.open(), undo: id => CoinLog.undo(id) }) : undefined; },
   /** 1.28: GM: splits the party actor's coin evenly among its members, after a preview. */
@@ -918,6 +945,8 @@ Hooks.once("init", () => {
   if (F.on("travelPace") && F.on("hexTravel")) registerPaceHooks();
   if (F.on("vendorTrash")) { registerTrashHooks(); Merchant.init(); }
   if (F.on("merchantShop")) Shop.init();
+  // 2.2: Renown (Reputation header button on dnd5e's sheet, redraws; the renownChanged hook with Hooks for other modules on).
+  if (F.on("renown")) { Renown.init({ hooks: F.on("moduleHooks") }); RenownUI.init(); }
   // Merchant coin rounding: always one item-piles-ready check, so a turned-off feature still puts Item Piles' value back.
   Rounding.init();
   if (F.on("bossFrames")) Bosses.init();
@@ -956,6 +985,7 @@ Hooks.once("ready", () => {
   if (F.on("lootRolls")) Loot.ready();
   if (F.on("restedInn")) Inn.ready();
   if (F.on("mapPins")) Pins.ready();
+  if (F.on("renown")) Renown.ready();
   // The welcome wizard (fresh worlds only) decides first, so a world it marks as already configured counts as an upgrade; then the
   // update notes (an upgrade posts its card; a new world just stores the version).
   gmSettled().then(async () => {

@@ -1,0 +1,106 @@
+/* Wanderer's Toolkit: Renown (feature renown, 2.2). The Reputation page lives inside the character sheet's own palette (.wct-sheet .wct-cs,
+   sheet.css), so it is dark in both themes with no theme selectors; the standalone Reputation window carries .wct-sheet too. The award
+   and setup windows use core's tokens (--wc-*) like the control panel. Every selector is scoped. */
+
+/* ---------------------------------------------------------------- the page */
+.wct-sheet .wct-rn { display: flex; flex-direction: column; gap: 10px; container-type: inline-size; container-name: wct-rn; }
+.wct-sheet .wct-rn svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wct-sheet .wct-rn-list { flex: 1; min-height: 0; }
+.wct-sheet .wct-rn-gh { margin: 0; border: none; }
+.wct-sheet .wct-rn-cat { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: rgba(0, 0, 0, 0.35); border-top: 1px solid color-mix(in srgb, var(--trim) 35%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--trim) 20%, transparent); font-family: Cinzel, Georgia, serif; font-size: 12px; color: var(--gold); letter-spacing: 0.05em; }
+.wct-sheet .wct-rn-cat svg { width: 14px; height: 14px; stroke-width: 2; }
+.wct-sheet .wct-rn-cat .n { margin-left: auto; font-family: var(--font-body, Signika, sans-serif); font-size: 11px; letter-spacing: 0; color: var(--ink3); }
+.wct-sheet .wct-rn-cat:focus-visible { outline: 2px solid var(--trimhi); outline-offset: 1px; }
+.wct-sheet .wct-rn-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 84px minmax(120px, 200px) 86px auto; gap: 8px; align-items: center; min-height: 38px; padding: 3px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 13px; }
+.wct-sheet .wct-rn-crest { color: var(--tc); display: grid; place-items: center; }
+.wct-sheet .wct-rn-crest svg { width: 20px; height: 20px; }
+.wct-sheet .wct-rn-crest.big { width: 44px; height: 44px; grid-row: span 2; }
+.wct-sheet .wct-rn-crest.big svg { width: 30px; height: 30px; }
+.wct-sheet .wct-rn-nm { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.wct-sheet .wct-rn-nm b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wct-sheet .wct-rn-nm small { font-size: 11px; color: var(--ink3); }
+.wct-sheet .wct-rn-ribs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.wct-sheet .wct-rn-rib { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; line-height: 1.5; padding: 0 6px; border-radius: 3px; color: #f1d98a; border: 1px solid rgba(232, 195, 90, 0.5); background: rgba(232, 195, 90, 0.1); white-space: nowrap; }
+.wct-sheet .wct-rn-x { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 12px; height: 12px; color: var(--ink3); }
+.wct-sheet .wct-rn-x svg { width: 10px; height: 10px; stroke-width: 2.2; }
+.wct-sheet .wct-rn-x:hover { color: var(--neg); }
+.wct-sheet .wct-rn-tier { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: var(--tc); }
+.wct-sheet .wct-rn-bar { position: relative; height: 16px; border-radius: 3px; background: #0b0907; border: 1px solid #000; box-shadow: 0 0 0 1px color-mix(in srgb, var(--trim) 60%, transparent); overflow: hidden; }
+.wct-sheet .wct-rn-bar i { display: block; height: 100%; background: linear-gradient(var(--tc), color-mix(in srgb, var(--tc) 45%, #000)); }
+.wct-sheet .wct-rn-bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 1px 1px #000, 0 0 3px #000; white-space: nowrap; }
+.wct-sheet .wct-rn-disc { font-size: 11px; color: var(--ink3); text-align: right; white-space: nowrap; }
+.wct-sheet .wct-rn-disc.on { color: #3fd18a; font-weight: 600; }
+.wct-sheet .wct-rn-acts { display: flex; gap: 3px; align-items: center; justify-content: flex-end; }
+.wct-sheet .wct-rn-ic { all: unset; box-sizing: border-box; cursor: pointer; width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; color: var(--ink3); border: 1px solid transparent; }
+.wct-sheet .wct-rn-ic svg { width: 14px; height: 14px; }
+.wct-sheet .wct-rn-ic:hover { color: var(--ink); border-color: var(--edge); }
+.wct-sheet .wct-rn-ic.on { color: var(--gold); }
+.wct-sheet .wct-rn-ic.on svg { fill: color-mix(in srgb, var(--gold) 35%, transparent); }
+.wct-sheet .wct-rn-ic.static { cursor: default; }
+.wct-sheet .wct-rn-score input { all: unset; box-sizing: border-box; width: 42px; height: 22px; padding: 0 4px; text-align: center; border-radius: 3px; background: var(--well); border: 1px solid var(--edge); color: var(--ink); font-size: 12px; }
+.wct-sheet .wct-rn-hid { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 400; color: #cdb8ff; border: 1px solid #6d5aa8; border-radius: 3px; padding: 0 4px; margin-left: 6px; vertical-align: middle; }
+.wct-sheet .wct-rn-hid svg { width: 10px; height: 10px; stroke-width: 2; }
+.wct-sheet .wct-rn-tracked { border-color: var(--trim); }
+.wct-sheet .wct-rn-tbody { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; }
+.wct-sheet .wct-rn-thead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.wct-sheet .wct-rn-thead b { font-size: 15px; }
+.wct-sheet .wct-rn-thead .wct-cs-dim { font-size: 11px; }
+.wct-sheet .wct-rn-num { margin-left: auto; font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.wct-sheet .wct-rn-tracked .wct-rn-bar { height: 18px; }
+.wct-sheet .wct-rn-tracked .wct-rn-bar, .wct-sheet .wct-rn-line { grid-column: 2 / 3; }
+.wct-sheet .wct-rn-line { margin: 0; font-size: 12px; color: var(--ink2); display: flex; gap: 6px; align-items: center; }
+.wct-sheet .wct-rn-line svg { width: 13px; height: 13px; flex: none; color: var(--ink3); stroke-width: 2; }
+.wct-sheet .wct-rn-key { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid color-mix(in srgb, var(--trim) 30%, transparent); flex-wrap: wrap; }
+.wct-sheet .wct-rn-tkey { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.wct-sheet .wct-rn-tkey span { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--tc) 55%, transparent); color: var(--tc); background: color-mix(in srgb, var(--tc) 10%, transparent); }
+.wct-sheet .wct-rn-none { padding: 10px; margin: 0; }
+.wct-sheet .wct-rn-foot { margin: 0; font-size: 11px; }
+@container wct-rn (max-width: 620px) { .wct-sheet .wct-rn-row { grid-template-columns: 24px minmax(0, 1fr) 70px auto; } .wct-sheet .wct-rn-row .wct-rn-bar, .wct-sheet .wct-rn-row .wct-rn-disc { display: none; } }
+
+/* standalone Reputation window (dnd5e's sheet header button) */
+.application.wct-renown-window { min-width: 560px; }
+.application.wct-renown-window .wct-rn-solo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.application.wct-renown-window .wct-rn-solo > .wct-cs-page { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------------------------------------------------------------- the award chat card */
+.wct-chat-card.wct-renown .wct-rn-card header { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.wct-chat-card.wct-renown .wct-rn-amt { color: #3fd18a; }
+.wct-chat-card.wct-renown .wct-rn-amt.neg, .wct-chat-card.wct-renown .neg { color: #e0705f; }
+.wct-chat-card.wct-renown .pos { color: #3fd18a; }
+.wct-chat-card.wct-renown ul { margin: 0; padding-left: 16px; }
+.wct-chat-card.wct-renown .wct-rn-tierup { font-weight: 700; color: var(--tc, inherit); text-shadow: 0 0 1px rgba(0, 0, 0, 0.6); }
+.wct-chat-card.wct-renown .wct-rn-why { margin: 4px 0 0; font-style: italic; opacity: 0.85; }
+.wct-chat-card.wct-renown .wct-rn-roll { opacity: 0.8; font-size: 0.92em; }
+.wct-chat-card.wct-renown .wct-cs-dim { opacity: 0.75; }
+
+/* ---------------------------------------------------------------- award and setup windows (core tokens) */
+.wct-renown-award .wct-rn-award { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+.wct-renown-award .wct-rn-pcs, .wct-renown-setup .wct-rn-ms { display: flex; flex-wrap: wrap; gap: 6px; }
+.wct-renown-award .wct-rn-pc, .wct-renown-setup .wct-rn-pc { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--wc-border, rgba(127, 127, 127, 0.5)); }
+.wct-renown-award .wct-rn-seg, .wct-renown-setup .wct-rn-seg { display: flex; gap: 12px; flex-wrap: wrap; }
+.wct-renown-award .form-fields .wc-btn { flex: none; }
+.wct-renown-award .hint[data-hint] { min-height: 2.4em; color: var(--wc-text-2, inherit); }
+.wct-renown-setup .window-content { padding: 0; }
+.wct-renown-setup .wct-rn-shell { height: 100%; }
+.wct-renown-setup .wct-rn-side { overflow-y: auto; }
+.wct-renown-setup .wct-rn-find input { width: 100%; }
+.wct-renown-setup .wct-rn-shd { margin: 10px 4px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wc-text-3, inherit); }
+.wct-renown-setup .wct-rn-navl { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; text-align: left; }
+.wct-renown-setup .wct-rn-navl small { font-size: 10px; color: var(--wc-text-3, inherit); }
+.wct-renown-setup .wct-rn-main { overflow-y: auto; }
+.wct-renown-setup .wct-rn-form { display: flex; flex-direction: column; gap: 8px; }
+.wct-renown-setup .wct-rn-form h2 { margin: 0; border: none; }
+.wct-renown-setup .wct-rn-form h3 { margin: 10px 0 2px; }
+.wct-renown-setup .wct-rn-phead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wct-renown-setup .wct-rn-phead .wc-grow { flex: 1; }
+.wct-renown-setup .wct-rn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 16px; }
+.wct-renown-setup .wct-rn-sws { display: flex; flex-direction: column; gap: 4px; }
+.wct-renown-setup .wct-rn-sw { display: flex; align-items: baseline; gap: 6px; }
+.wct-renown-setup .wct-rn-ttbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.wct-renown-setup .wct-rn-ttbl th { text-align: left; font-size: 11px; font-weight: 600; padding: 2px 3px; }
+.wct-renown-setup .wct-rn-ttbl td { padding: 2px 3px; }
+.wct-renown-setup .wct-rn-ttbl input[type=text], .wct-renown-setup .wct-rn-ttbl input[type=number] { width: 100%; }
+.wct-renown-setup .wct-rn-ttbl input.n { width: 64px; }
+.wct-renown-setup .wct-rn-ttbl input[type=color] { width: 32px; height: 24px; padding: 0; border: none; background: none; }
+.wct-renown-setup .wct-rn-ttbl[data-disabled] { opacity: 0.7; }
+.wct-renown-setup .wct-rn-srcs { margin: 0; padding-left: 16px; }

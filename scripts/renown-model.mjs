@@ -192,7 +192,9 @@ export function normalizeRibbon(r, { makeId = () => newId(), now = 0 } = {}) {
   const text = str(o.text, NAME_MAX); if (!text) return null;
   return { id: isId(o.id) ? o.id : makeId(), text, amount: int(o.amount, -AMOUNT_MAX, AMOUNT_MAX, 0), at: Number.isFinite(Number(o.at)) && Number(o.at) > 0 ? Number(o.at) : now };
 }
-const ribbonList = list => (Array.isArray(list) ? list : []).map(r => normalizeRibbon(r)).filter(Boolean).slice(0, RIBBONS_MAX);
+/** @typedef {{ id: string, text: string, amount: number, at: number }} Ribbon */
+/** @param {any} list @returns {Ribbon[]} */
+const ribbonList = list => /** @type {Ribbon[]} */ ((Array.isArray(list) ? list : []).map(r => normalizeRibbon(r)).filter(Boolean)).slice(0, RIBBONS_MAX);
 /** One faction's entry for one character: { score, ribbons }. */
 export const normalizeEntry = e => ({ score: int(obj(e).score, 0, SCORE_MAX, 0), ribbons: ribbonList(obj(e).ribbons) });
 /**
@@ -361,6 +363,7 @@ const neutral = e => !!e && near(e.buyPriceModifier ?? 1, 1) && near(e.sellPrice
  * { actorUuid: discount % } for the characters to consider. An entry the GM made (or changed since) is left alone (`skipped` when a
  * discount was due). Ending a discount writes a neutral entry (buy 1, sell kept) rather than removing it (Item Piles' API can't).
  * Every write keeps or sets sell 1 so selling prices never change.
+ * @param {{ entries?: any[], applied?: Record<string, number>, wants?: Record<string, number> }} f
  * @returns {{ writes: Array<{ actorUuid: string, buyPriceModifier: number, sellPriceModifier: number, override: false }>, applied: Record<string, number>, skipped: string[] }}
  */
 export function merchantPlan({ entries = [], applied = {}, wants = {} }) {
@@ -381,4 +384,15 @@ export function merchantPlan({ entries = [], applied = {}, wants = {} }) {
     writes.push({ actorUuid: uuid, buyPriceModifier: want, sellPriceModifier: Number(entry?.sellPriceModifier ?? 1), override: false });
   }
   return { writes, applied: next, skipped };
+}
+
+// ---------------------------------------------------------------- actor flag writes
+/**
+ * Paths under `base` (the actor flag's path) that an update from `prev` to `next` must delete: faction keys gone from `scores` or
+ * `ribbons` (Foundry merges object updates, so a removed key would otherwise stay). The caller turns them into deletion keys.
+ */
+export function removedPaths(prev, next, base) {
+  const p = normalizeActor(prev); const n = normalizeActor(next); const out = [];
+  for (const part of ["scores", "ribbons"]) for (const k of Object.keys(p[part])) if (!(k in n[part])) out.push(`${base}.${part}.${k}`);
+  return out;
 }

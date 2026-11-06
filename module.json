@@ -53,7 +53,8 @@
     "styles/panel.css",
     "styles/places.css",
     "styles/pins.css",
-    "styles/sheet.css"
+    "styles/sheet.css",
+    "styles/renown.css"
   ],
   "socket": true,
   "languages": [

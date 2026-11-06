@@ -11,6 +11,8 @@
  *   pins           { [pinId]: { sceneId, x, y, level, size, pin } } hidden GM pins (no Note exists until revealed)
  *   rentals        { [actorId]: { innId, inn, sceneId, at } } rooms the GM rented (Rested is checked against these)
  *   coinLog        { v: 1, entries } coin movements the toolkit made, newest first (≤ 200; coinlog-model.mjs) (1.28.0)
+ *   renown         { v: 1, factions, scores, applied } hidden factions, characters' renown with them, and the Item Piles price
+ *                  entries the toolkit set (renown-model.mjs normalizeHidden; capped there) (2.2.0)
  *   migrations     { [id]: ISO date } one-time moves done
  */
 import { versioned, capList, storeDeletions, deletionKeys } from "../vendor/wanderers-core/index.mjs";
@@ -18,8 +20,8 @@ import { versioned, capList, storeDeletions, deletionKeys } from "../vendor/wand
 export const VAULT_VERSION = 1;
 export const VAULT_NAME = "Wanderer's Toolkit (GM only)";
 /** The store entry's About page (plain text; core escapes it). */
-export const VAULT_ABOUT = "Wanderer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history, the coin log). Don't share this entry with players. Deleting it loses those records.";
-export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "coinLog", "migrations"];
+export const VAULT_ABOUT = "Wanderer's Toolkit keeps GM-only records here (the full flight network, hidden map pins, quest GM notes, room rentals, gold snapshots, loot history, the coin log, hidden renown factions). Don't share this entry with players. Deleting it loses those records.";
+export const BUCKETS = ["flightNetwork", "goldSnapshots", "lootHistory", "quests", "pins", "rentals", "coinLog", "renown", "migrations"];
 /** Caps: records per keyed bucket. History and snapshot caps stay in their own models (history-model, gold-model). */
 export const CAPS = { quests: 2000, pins: 1000, rentals: 200, migrations: 50 };
 
