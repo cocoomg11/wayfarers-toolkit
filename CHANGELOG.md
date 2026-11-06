@@ -3,6 +3,14 @@
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
 
+
+## Unreleased
+
+**Changed**
+- **Character page portrait**: the whole picture now shows on a centred portrait-shaped plate (3:4, `object-fit: contain`) in a narrower frame (at most 360px between the slot columns), instead of filling a wide frame with `cover`. Measured live (Foundry 14.370, 820px sheet): the frame was 586 × 433 (1.35:1) and a 661 × 838 portrait (0.79:1) was cropped to its top 58%; now the plate is 311 × 415 and the whole portrait shows. Checked with a tall (0.56:1) and a square image too: whole picture, dark matting on the free sides. Drop-to-equip, the art popout, Attuned and the edit-mode portrait controls are unchanged.
+- Tests: `tests/v213-portrait.test.mjs`.
+- Live check: open a character on the Character page in both themes; the portrait is whole and not stretched; drop an item on it; Edit mode's Change portrait and Show token switch still sit on the frame; token art (Show token) still shows whole.
+
 ## 2.1.2
 
 2026-11-06. Live-tested on Foundry 14.370; one small sheet fix. No migration.

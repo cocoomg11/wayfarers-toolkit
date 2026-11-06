@@ -139,7 +139,8 @@
 
 /* Character page: paper doll */
 .wct-sheet .wct-cs-doll { --wct-slot: 48px; position: relative; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--trim); border-radius: 6px; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 6px), radial-gradient(ellipse at 50% 28%, var(--st1), var(--st2) 78%); box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px color-mix(in srgb, var(--trimhi) 22%, transparent), inset 0 0 34px rgba(0, 0, 0, 0.75), 0 0 0 1px #000; }
-.wct-sheet .wct-cs-dollgrid { display: grid; grid-template-columns: var(--wct-slot) minmax(0, 1fr) var(--wct-slot); gap: 12px; }
+/* 2.1.3: the portrait column is at most 360px wide and centred, so the frame hugs a portrait-shaped picture instead of spanning the page. */
+.wct-sheet .wct-cs-dollgrid { display: grid; grid-template-columns: var(--wct-slot) minmax(0, 360px) var(--wct-slot); justify-content: center; gap: 12px 16px; }
 .wct-sheet .wct-cs-col { display: flex; flex-direction: column; gap: 7px; }
 .wct-sheet .wct-cs-slot.wc-item-slot { --wc-slot-size: var(--wct-slot); width: var(--wct-slot); height: var(--wct-slot); border-radius: 4px; border: 2px solid var(--wc-q, var(--edge)); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--wc-q, #6d5a3d) 40%, #2a2219), #100c09 85%); box-shadow: inset 0 0 9px #000, 0 0 0 1px #000, 0 0 7px color-mix(in srgb, var(--wc-q, transparent) 45%, transparent); cursor: pointer; }
 .wct-sheet .wct-cs-slot.wc-item-slot.wc-empty { border-style: solid; border-color: var(--edge); color: rgba(232, 216, 178, 0.22); background: linear-gradient(#0c0a08, #1b1612); box-shadow: inset 0 0 9px #000, 0 0 0 1px #000; }
@@ -151,8 +152,9 @@
 .wct-sheet .wct-cs-slot.over, .wct-sheet .wct-cs-page [data-drop].over { outline: 2px solid var(--gold); outline-offset: 1px; }
 .wct-sheet .wct-cs-slot .wct-glyph-svg { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 1.5; pointer-events: none; }
 .wct-sheet .wct-cs-model { position: relative; min-height: 360px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--trim) 55%, #000); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8); background: radial-gradient(ellipse at 50% 38%, rgba(255, 226, 160, 0.16), transparent 62%), linear-gradient(#1d1813, #0d0b09); overflow: hidden; display: grid; place-items: center; min-width: 0; }
-.wct-sheet .wct-cs-art { all: unset; cursor: zoom-in; position: absolute; inset: 0; }
-.wct-sheet .wct-cs-art img, .wct-sheet .wct-cs-art video { width: 100%; height: 100%; object-fit: cover; object-position: top center; border: none; display: block; }
+/* The art sits on a 3:4 plate (most character portraits), centred, the whole picture shown (contain), never stretched. */
+.wct-sheet .wct-cs-art { all: unset; box-sizing: border-box; cursor: zoom-in; position: absolute; inset: 8px auto 8px 50%; transform: translateX(-50%); aspect-ratio: 3 / 4; max-width: calc(100% - 16px); border-radius: 3px; background: #0b0907; box-shadow: 0 0 0 1px #000, 0 0 0 2px color-mix(in srgb, var(--trim) 45%, transparent); }
+.wct-sheet .wct-cs-art img, .wct-sheet .wct-cs-art video { width: 100%; height: 100%; object-fit: contain; object-position: center; border: none; display: block; }
 .wct-sheet .wct-cs-model.token .wct-cs-art img, .wct-sheet .wct-cs-model.token .wct-cs-art video { object-fit: contain; object-position: center; }
 .wct-sheet .wct-cs-model::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 30px 6px rgba(0, 0, 0, 0.85); pointer-events: none; }
 .wct-sheet .wct-cs-attuned { position: absolute; z-index: 1; top: 8px; left: 10px; padding: 1px 8px; border-radius: 999px; font-size: 12px; color: var(--ink2); background: rgba(0, 0, 0, 0.7); border: 1px solid var(--edge); pointer-events: none; }
