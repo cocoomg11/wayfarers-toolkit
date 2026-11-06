@@ -123,7 +123,7 @@ test("control panel key Shift+K (Shift+T is core's add-target) and api.open()", 
 });
 
 test("1.32 version, changelog, update note", async () => {
-  assert.match(JSON.parse(src("module.json")).version, /^(1\.(32|33)|2\.[01])\.\d+$/);
+  assert.match(JSON.parse(src("module.json")).version, /^(1\.(32|33)|2\.[012])\.\d+$/);
   assert.match(src("CHANGELOG.md"), /## 1\.32\.0[\s\S]*Untested in Foundry/);
   const { NOTES } = await import("../scripts/update-notes.mjs"); assert.ok(NOTES.some(n => n.version === "1.32.0"));
 });

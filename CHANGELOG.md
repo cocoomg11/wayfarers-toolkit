@@ -2,10 +2,9 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.2.0
 
-## Unreleased (planned 2.2.0)
-
-Renown (reputation), one slice. New feature `renown` (on by default; until the GM adds a faction, the Reputation page only says there are none). Nothing to migrate: older quests read an empty renown reward list (quest record version unchanged), and no stored shape changed.
+2026-11-06. Renown (reputation), one slice, and a character page portrait fix. New feature `renown` (on by default; until the GM adds a faction, the Reputation page only says there are none). Nothing to migrate: older quests read an empty renown reward list (quest record version unchanged), and no stored shape changed.
 
 **Added**
 - **Renown per character, per faction** (no party score). The GM defines factions in **Factions and renown…** (control panel › Character, `api.renown.setup()`): name, short note, parent side (subfactions) or group, hidden from players, inactive, a starting-faction bonus switch (data only, not applied), the shared tier set or custom tiers for the faction, and the faction's Item Piles merchants. **Tiers** are world data: colour, name, threshold, merchant discount %, unlocked rarity text, perk text, title text; defaults are four generic tiers at 3 / 10 / 25 / 50 (Known, Trusted, Esteemed, Celebrated; rename freely) with 0 / 10 / 15 / 25 % off. Renown never goes below 0; no opposed pairs.
@@ -45,7 +44,13 @@ Renown (reputation), one slice. New feature `renown` (on by default; until the G
 
 **Tests**: `tests/v220-renown-store.test.mjs` (core's fakes: set → clear → read for hidden scores, sources and discount records, with `-=` keys and the deletion operator; map-shaped bucket read and converted; round trip and cap; faction hidden / shown / renamed / deleted re-saves the quests naming it), `tests/v220-renown.test.mjs` (feature-off reset rule and wiring, pay refused with Renown off and Pay button rule, pay guard, applied delta on the card, award guard, single bucket read; tier defaults and cleaning, standing and bar text, amounts and dice formulas, presets, factions and config caps, actor flag and ribbons, hidden move both ways, GM-only bucket caps, quest rewards and public view, glow stamp unchanged, hook payload, the Item Piles discount plan (create with sell 1, unchanged, tier up, ended → neutral, GM's own and changed entries left alone, override never ours, neutral entry reused), page model and HTML (groups, tracked, filters, inactive, sort, search, folded groups, escaping, no hidden factions or GM controls for players, observers read-only, empty states), chat card and award hint, sheet bookmark, wiring checks, CSS scope, no publisher wording).
 
-**Untested in Foundry** (live checklist)
+### Character page portrait
+
+**Changed**
+- **Character page portrait**: the whole picture now shows on a centred portrait-shaped plate (3:4, `object-fit: contain`) in a narrower frame (at most 360px between the slot columns), instead of filling a wide frame with `cover`. Measured live (Foundry 14.370, 820px sheet): the frame was 586 × 433 (1.35:1) and a 661 × 838 portrait (0.79:1) was cropped to its top 58%; now the plate is 311 × 415 and the whole portrait shows. Checked with a tall (0.56:1) and a square image too: whole picture, dark matting on the free sides. Drop-to-equip, the art popout, Attuned and the edit-mode portrait controls are unchanged.
+- Tests: `tests/v213-portrait.test.mjs`.
+
+**Untested in Foundry** (live checklist; Foundry 14.370, dnd5e 6.0.6)
 - Factions and renown window: create a visible and a hidden faction, custom tiers on one, shared tiers and presets saved; search; delete (confirm; characters lose that renown).
 - Award renown: whole party and picked; preset gain; dice loss (rolled per character, card shows the roll); custom formula; preview line; card whispered to GMs + owners (hidden faction: GMs only); tier-up line.
 - Reputation page (toolkit sheet on): as GM (Award, ±, + source, × source, score field in Edit mode), as owner (track star; pinned box), as observer (read-only), as limited (no page); filters, Show inactive, sort, fold a group, search keeps focus; Enter in search/score doesn't submit the sheet. Re-renders after an award.
@@ -56,6 +61,7 @@ Renown (reputation), one slice. New feature `renown` (on by default; until the G
 - Remove toolkit data with *Put back the Item Piles merchant prices* ticked: entries back to 1.
 - Review fixes: hidden score to 0 (and last source removed) survives a reload; hide → show → hide brings no old score back; hide a faction a visible quest rewards, then as a player its journal page and quest log don't name it; Renown off with discounts set → after reload a player's price is normal (notice to the GM); double-click Award / Enter twice awards once; quest with renown rewards and Renown off: Pay refused, quest not marked paid; Remove toolkit data with only the GM-only records ticked puts the prices back; a linked merchant placed as an unlinked token whose pile data was edited on the token (does the world actor's per-character price apply?); the Reputation header button on v13 and v14, not on the toolkit sheet.
 - Health check *Renown* lines; `api.renown.*` from the console as GM and as a player (GM-only calls warn); the `wayfarers-toolkit.renownChanged` hook fires once per character.
+- Character page portrait: open a character on the Character page in both themes; the portrait is whole and not stretched; drop an item on it; Edit mode's Change portrait and Show token switch still sit on the frame; token art (Show token) still shows whole.
 
 ## 2.1.2
 

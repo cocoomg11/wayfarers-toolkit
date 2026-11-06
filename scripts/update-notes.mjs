@@ -27,6 +27,7 @@ export const NOTES = [
   {
     version: "2.2.0",
     changes: [
+      { feature: "characterSheet", text: "Character page: the portrait now shows whole on a portrait-shaped plate instead of being cropped to a wide frame." },
       { feature: "renown", text: "New: Renown. Define your world's factions (control panel › Character › Factions and renown…) and track each character's renown with them: tiers you name, each with a merchant discount, the rarity it unlocks, a perk and a title. Award or take renown for the party or picked characters with a chat card, add renown to quest rewards, and see it all on a Reputation page (the toolkit sheet's new bookmark, or a new Reputation button in the header menu of dnd5e's character sheet; turn Renown off on the Features tab if you don't use it). Hidden factions stay in the GM-only records. Every number (tiers, discounts, presets, starting-faction steps) can be changed, with Reset to defaults." },
       { feature: "renown", text: "Optional, off by default: Renown merchant discounts (Features tab). With Item Piles, each tier's discount becomes the character's own price at the faction's merchants; off, discounts are shown as information only." }
     ],
