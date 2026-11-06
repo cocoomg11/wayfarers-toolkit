@@ -13,11 +13,11 @@
 import { esc } from "../vendor/wanderers-core/index.mjs";
 import * as PM from "./pane-model.mjs";
 
-const num = v => (v !== null && v !== "" && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
+export const num = v => (v !== null && v !== "" && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
 const sign = PM.sign;
-const tone = v => { const n = num(v); return n === null || n === 0 ? "" : n > 0 ? "pos" : "neg"; };
-const svg = (d, cls = "") => `<svg${cls ? ` class="${cls}"` : ""} viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
-const attr = (k, v) => (v === undefined || v === null || v === "" ? "" : ` ${k}="${esc(v)}"`);
+export const tone = v => { const n = num(v); return n === null || n === 0 ? "" : n > 0 ? "pos" : "neg"; };
+export const svg = (d, cls = "") => `<svg${cls ? ` class="${cls}"` : ""} viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
+export const attr = (k, v) => (v === undefined || v === null || v === "" ? "" : ` ${k}="${esc(v)}"`);
 
 export const PAGE_ICONS = Object.freeze({
   cog: "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2",
@@ -39,8 +39,8 @@ export const PAGE_ICONS = Object.freeze({
 
 // ---------------------------------------------------------------- shared bits
 /** A box with a gold title and an optional right-hand part. */
-const box = (title, body, { right = "", cls = "" } = {}) => `<section class="wct-cs-box${cls ? ` ${cls}` : ""}"><h4>${esc(title)}${right ? `<span class="r">${right}</span>` : ""}</h4>${body}</section>`;
-const cfgBtn = (label, data) => `<button type="button" class="wct-cs-cfg" data-action="wctConfig"${Object.entries(data).map(([k, v]) => attr(`data-${k}`, v)).join("")} aria-label="${esc(label)}" data-tooltip="${esc(label)}">${svg(PAGE_ICONS.cog)}</button>`;
+export const box = (title, body, { right = "", cls = "" } = {}) => `<section class="wct-cs-box${cls ? ` ${cls}` : ""}"><h4>${esc(title)}${right ? `<span class="r">${right}</span>` : ""}</h4>${body}</section>`;
+export const cfgBtn = (label, data) => `<button type="button" class="wct-cs-cfg" data-action="wctConfig"${Object.entries(data).map(([k, v]) => attr(`data-${k}`, v)).join("")} aria-label="${esc(label)}" data-tooltip="${esc(label)}">${svg(PAGE_ICONS.cog)}</button>`;
 
 /** dnd5e proficiency multipliers → the mark's class: 0 none, 0.5 half, 1 proficient, 2 expertise. @param {unknown} v */
 export function profClass(v) {

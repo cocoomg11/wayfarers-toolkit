@@ -234,7 +234,7 @@ export const APP_CONTRACT = Object.freeze(["_renderChild", "_confirmDialog", "ch
   "inventorySource", "expandedSections", "canExpand", "_openDocumentSheet", "_concentration"]);
 
 /** The pages built so far (slice 2: Character, Details, Inventory); the others are placeholders. */
-export const BUILT_PAGES = Object.freeze(["character", "details", "inventory"]);
+export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "features", "spells"]);
 
 /**
  * The page body. A built page shows `body` (sheet-pages-model.mjs, built by sheet.mjs from the actor) with a small "Open in system

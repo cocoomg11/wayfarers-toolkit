@@ -13,6 +13,7 @@
  */
 import * as SM from "./sheet-model.mjs";
 import * as SP from "./sheet-pages-model.mjs";
+import * as BM from "./sheet-book-model.mjs";
 import * as PM from "./pane-model.mjs";
 import * as Pane from "./pane.mjs";
 import * as WS from "./weapon-sets.mjs";
@@ -77,7 +78,14 @@ export class WctCharacterSheet extends ActorSheetV2 {
       wctPortrait: WctCharacterSheet.#portrait,
       wctSlotEquipped: WctCharacterSheet.#slotEquipped,
       wctCurrency: WctCharacterSheet.#currency,
-      wctCreateItem: WctCharacterSheet.#createItem
+      wctCreateItem: WctCharacterSheet.#createItem,
+      // slice 3: Features and Spells
+      wctFindItem: WctCharacterSheet.#findItem,
+      wctDeleteItem: WctCharacterSheet.#deleteItem,
+      wctSpellAbility: WctCharacterSheet.#spellAbility,
+      wctPip: WctCharacterSheet.#pip,
+      wctCreateFeature: WctCharacterSheet.#createFeature,
+      wctCreateSpell: WctCharacterSheet.#createSpell
     }
   };
 
@@ -92,6 +100,9 @@ export class WctCharacterSheet extends ActorSheetV2 {
   _ensuring = false;
   /** Inventory page: search text, filter chips and sort mode (per window, not saved). */
   _inv = { search: "", filters: /** @type {string[]} */ ([]), sort: "m" };
+  /** Features and Spells pages: the same per-window list state (dnd5e's defaults: manual / by origin, and A–Z for spells). */
+  _feat = { search: "", filters: /** @type {string[]} */ ([]), sort: "m", group: "origin" };
+  _spell = { search: "", filters: /** @type {string[]} */ ([]), sort: "a" };
 
   /** dnd5e's own expand state for inventory rows (dnd5e's inventory element reads app.expandedSections). */
   get expandedSections() { return (this._expanded ??= new Map()); }
@@ -434,11 +445,147 @@ export class WctCharacterSheet extends ActorSheetV2 {
     };
   }
 
+  // ---------------------------------------------------------------- slice 3: Features and Spells facts (dnd5e's own preparation)
+  /** dnd5e's expanded summary for a row (item-summary.hbs), or null when collapsed. */
+  async summaryOf(item) {
+    if (!this.expandedSections.get(`items.${item.id}`)) return null;
+    try {
+      const ctx = await item.getChatData({ secrets: item.isOwner });
+      return await foundry.applications.handlebars.renderTemplate("systems/dnd5e/templates/items/parts/item-summary.hbs", ctx);
+    } catch { return null; }
+  }
+
+  /** Whether dnd5e shows an item on the sheet (hidden items, inactive dependent origins). */
+  isShown(i) {
+    const a = this.actor; const o = i.dependentOrigin;
+    if (a.hiddenItems?.has?.(i.id)) return false;
+    return !(o?.active === false && o.parent !== i);
+  }
+
+  /** The common row facts for features and spells. */
+  async bookRow(i) {
+    const a = this.actor; const s = i.system ?? {};
+    const props = s.properties instanceof Set ? s.properties : new Set(s.properties ?? []);
+    const conc = a.concentration?.items;
+    return {
+      id: i.id, uuid: i.uuid, name: i.name, img: i.img, quality: Pane.qualityOf(i),
+      activations: [...(s.activities ?? [])].map(x => x?.activation?.type).concat(i.type === "spell" ? [s.activation?.type] : []).filter(Boolean),
+      recovery: [...(s.uses?.recovery ?? [])].map(r => r?.period).filter(Boolean),
+      concentration: props.has("concentration"), ritual: props.has("ritual"), magical: props.has("mgc"),
+      uses: i.hasLimitedUses ? { value: s.uses?.value, max: s.uses?.max } : null,
+      recharge: i.hasRecharge ? (i.isOnCooldown ? "cooldown" : "charged") : null,
+      recoveryLabel: i.labels?.recovery ?? "", canDelete: !!i.canDelete, canUse: a.isOwner && !a.pack,
+      canExpand: this.canExpand(i), expanded: await this.summaryOf(i), sort: i.sort,
+      concentrating: !!conc?.has?.(i)
+    };
+  }
+
+  /** The Features page's facts, as dnd5e's `_prepareFeaturesContext` / `_prepareItemFeature` prepare them. */
+  async featuresFacts() {
+    const a = this.actor;
+    const classes = Object.values(a.classes ?? {}).sort((x, y) => (y.system?.levels ?? 0) - (x.system?.levels ?? 0));
+    const classFacts = classes.map(c => {
+      const sub = c.subclass ?? null;
+      const adv = c.advancement?.byType?.Subclass?.[0];
+      return { id: c.id, name: c.name, img: c.img, levels: c.system?.levels, identifier: c.identifier ?? c.system?.identifier,
+        subclass: sub ? { id: sub.id, name: sub.name, img: sub.img } : null, needsSubclass: !sub && !!adv && adv.level <= (c.system?.levels ?? 0),
+        hitDie: c.system?.hd?.denomination ?? "" };
+    });
+    const skip = new Set(["class", "subclass", "race", "background", "facility", "spell"]);
+    const invTypes = new Set(Object.entries(CONFIG.Item?.dataModels ?? {}).filter(([, m]) => m && "inventorySection" in m).map(([t]) => t));
+    const rows = [];
+    for (const i of a.items) {
+      if (skip.has(i.type) || invTypes.has(i.type) || !this.isShown(i)) continue;
+      const s = i.system ?? {}; const props = s.properties instanceof Set ? s.properties : new Set(s.properties ?? []);
+      const [originId] = String(i.getFlag?.("dnd5e", "advancementRoot") ?? i.getFlag?.("dnd5e", "advancementOrigin") ?? "").split(".");
+      const root = originId ? a.items.get(originId) : null;
+      const group = BM.featureGroup({ active: !props.has("trait") && !!s.activities?.size, rootType: root?.type, rootClass: root?.type === "class" ? root.identifier : root?.class?.identifier });
+      rows.push({ ...(await this.bookRow(i)), group, subtitle: [s.type?.label, i.isActive ? i.labels?.activation : null].filter(Boolean).join(" • ") });
+    }
+    const sp = a.system?.details?.race; const bg = a.system?.details?.background;
+    const sections = BM.featureSections(rows, {
+      classes: classFacts.map(c => ({ identifier: c.identifier, name: c.name })), species: !!sp && typeof sp === "object", background: !!bg && typeof bg === "object", mode: this._feat.group
+    });
+    return { classes: classFacts, sections, summary: { level: a.system?.details?.level, prof: a.system?.attributes?.prof },
+      editable: this.isEditable, edit: this._mode === "edit", search: this._feat.search, filters: this._feat.filters, sort: this._feat.sort, group: this._feat.group };
+  }
+
+  /** The Spells page's facts, as dnd5e's `_prepareSpellbook`, `_prepareItemSpell` and `_prepareSpellsContext` prepare them. */
+  async spellsFacts() {
+    const a = this.actor; const loc = WctCharacterSheet.loc; const D = CONFIG.DND5E ?? {};
+    const methods = D.spellcasting ?? {};
+    /** @type {Record<string, any>} */
+    const book = {};
+    const register = (key, level, config) => {
+      if (key in book) return;
+      const lvl = config?.slots ? level : 1;
+      let label; try { label = config?.getLabel?.({ level: lvl }) ?? loc("DND5E.CAST.SECTIONS.Spellbook"); } catch { label = String(key); }
+      const order = lvl === 0 ? 0 : (config?.order ?? 1000);
+      const usesSlots = !!config?.slots && lvl !== 0;
+      const slots = usesSlots ? foundry.utils.getProperty(a.system?.spells ?? {}, key) ?? null : null;
+      book[key] = { id: key, label, method: config?.key ?? key, level: config?.slots ? lvl : null, order: order + (lvl ?? 0) / 100, slots: slots ? { value: slots.value, max: slots.max, override: slots.override } : null, rows: [] };
+    };
+    for (const sc of Object.values(methods)) {
+      let levels = []; try { levels = sc.getAvailableLevels?.(a) ?? []; } catch { levels = []; }
+      if (!levels.length) continue;
+      if (sc.cantrips) register("spell0", 0, methods.spell);
+      for (const l of levels) register(sc.getSpellSlotKey(l), l, sc);
+    }
+    const SingleLevel = /** @type {any} */ (globalThis).dnd5e?.dataModels?.spellcasting?.SingleLevelSpellcasting;
+    const spells = a.items.filter(i => i.type === "spell" && this.isShown(i)).sort((x, y) => (x.system.level ?? 0) - (y.system.level ?? 0));
+    const abbr = { action: "DND5E.ActionAbbr", bonus: "DND5E.BonusActionAbbr", reaction: "DND5E.ReactionAbbr", minute: "DND5E.TimeMinuteAbbr", hour: "DND5E.TimeHourAbbr", day: "DND5E.TimeDayAbbr" };
+    const states = D.spellPreparationStates ?? {};
+    for (const i of spells) {
+      const s = i.system; let method = s.method; if (!(method in methods)) method = "innate";
+      const sc = methods[method];
+      const level = SingleLevel && sc instanceof SingleLevel && s.level !== 0 ? null : (s.level || 0);
+      let key; try { key = sc?.getSpellSlotKey?.(level) ?? method; } catch { key = method; }
+      const linked = s.linkedActivity?.item;
+      if (i.getFlag?.("dnd5e", "cachedFor")) { key = "item"; if (!s.linkedActivity?.displayInSpellbook) continue; register(key); }
+      else register(key, level, sc);
+      // Columns, as dnd5e's _prepareItemSpell / columns.
+      const cost = s.activation?.value ?? ""; const ab = abbr[s.activation?.type];
+      const units = s.range?.units;
+      const range = units && units !== "none" ? (units in (D.movementUnits ?? {}) && Number.isFinite(Number(s.range.value)) ? `${s.range.value} ${loc(D.movementUnits[units].abbreviation)}` : (i.labels?.range ?? "")) : "";
+      const toHit = parseInt(i.labels?.modifier); const save = s.activities?.getByType?.("save")?.[0]?.save;
+      const saveAb = save?.ability?.size === 1 ? loc(D.abilities?.[save.ability.first()]?.abbreviation ?? "") : save?.ability?.size ? loc("DND5E.AbbreviationDC") : "";
+      const roll = i.hasAttack && Number.isFinite(toHit) ? (toHit >= 0 ? `+${toHit}` : `−${Math.abs(toHit)}`) : saveAb ? `${saveAb} ${save?.dc?.value ?? ""}`.trim() : "";
+      const prepares = methods[s.method]?.prepares && !linked;
+      const always = s.prepared === states.always?.value;
+      const prep = prepares ? { state: always ? "always" : s.prepared ? "prepared" : "unprepared", label: loc(states[always ? "always" : s.prepared ? "prepared" : "unprepared"]?.label ?? "") } : null;
+      let source = linked?.name;
+      if (!source && s.sourceItem) source = a.identifiedItems?.get?.(s.sourceItem)?.first?.()?.name;
+      if (!source) { const [id] = String(i.getFlag?.("dnd5e", "advancementOrigin") ?? "").split("."); source = id ? a.items.get(id)?.name : undefined; }
+      book[key].rows.push({
+        ...(await this.bookRow(i)), level: s.level, method: s.method, school: s.school, classId: s.classIdentifier, linkedName: linked?.name ?? "",
+        prepared: !!(s.canPrepare && s.prepared), prep,
+        subtitle: [source, i.labels?.components?.vsm].filter(Boolean).join(" • "),
+        cols: { activation: ab ? `${cost}${loc(ab)}` : (i.labels?.activation ?? ""), range, target: i.labels?.target ?? "", roll }
+      });
+    }
+    const casting = Object.values(a.spellcastingClasses ?? {}).sort((x, y) => (y.system?.levels ?? 0) - (x.system?.levels ?? 0)).map(c => {
+      const sc = c.spellcasting ?? {}; const own = c.system?.spellcasting?.progression === sc.progression;
+      const name = own ? c.name : c.subclass?.name ?? c.name;
+      return { label: (() => { try { return game.i18n.format("DND5E.SpellcastingClass", { class: name }); } catch { return `${name} spellcasting`; } })(),
+        ability: sc.ability, abilityLabel: loc(D.abilities?.[sc.ability]?.abbreviation ?? sc.ability ?? ""), mod: a.system?.abilities?.[sc.ability]?.mod ?? 0,
+        attack: sc.attack, save: sc.save, prepared: sc.preparation, primary: a.system?.attributes?.spellcasting === sc.ability,
+        filter: { key: own ? c.identifier : c.subclass?.identifier, label: name } };
+    });
+    return {
+      casting, sections: Object.values(book).sort((x, y) => x.order - y.order),
+      schools: Object.entries(D.spellSchools ?? {}).map(([k, v]) => ({ key: k, label: loc(v?.label ?? k) })),
+      classFilters: casting.map(c => c.filter).filter(x => x.key),
+      editable: this.isEditable, edit: this._mode === "edit", search: this._spell.search, filters: this._spell.filters, sort: this._spell.sort
+    };
+  }
+
   /** The built page's body HTML, or null (placeholder pages). */
   async pageBody(page) {
     if (page === "character") return SP.characterPageHTML(await this.characterFacts());
     if (page === "details") return SP.detailsPageHTML(/** @type {any} */ (this.detailsFacts()));
     if (page === "inventory") return SP.inventoryPageHTML(await this.inventoryFacts());
+    if (page === "features") return BM.featuresPageHTML(await this.featuresFacts());
+    if (page === "spells") return BM.spellsPageHTML(/** @type {any} */ (await this.spellsFacts()));
     return null;
   }
 
@@ -518,6 +665,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
         return open(C.AbilityConfig, { ...config, key: ability });
       }
       case "skills": return open(C.SkillsConfig);
+      case "spellSlots": return open(C.SpellSlotsConfig);
       case "skill": return open(C.SkillToolConfig, { ...config, trait: "skills", key });
       case "tool": return open(C.SkillToolConfig, { ...config, trait: "tool", key });
       case "senses": case "movement": return open(S.MovementSensesConfig, { ...config, type: target.dataset.config });
@@ -577,6 +725,114 @@ export class WctCharacterSheet extends ActorSheetV2 {
     return Item.implementation.createDialog({}, { types, parent: this.actor }, { sheet: this });
   }
 
+  // ---------------------------------------------------------------- slice 3 actions
+  /** Add class / subclass: dnd5e's compendium browser, filtered as its sheet's `findItem` filters it; the pick goes through dnd5e's drop. */
+  static async #findItem(event, target) {
+    if (!this.isEditable) return;
+    const CB = /** @type {any} */ (globalThis).dnd5e?.applications?.CompendiumBrowser; if (!CB?.selectOne) return ui.notifications.warn("dnd5e's compendium browser isn't available.");
+    const { classIdentifier, itemType: type } = target.dataset;
+    /** @type {any} */
+    const filters = { locked: { types: new Set([type]) } };
+    if (classIdentifier) filters.locked.additional = { class: { [classIdentifier]: 1 } };
+    if (type === "class") {
+      filters.initial = { additional: { properties: { sidekick: -1 } } };
+      filters.locked.arbitrary = [{ o: "NOT", v: { k: "system.identifier", o: "in", v: new Set(Object.keys(this.actor.classes ?? {})) } }];
+    }
+    const result = await CB.selectOne({ filters });
+    if (result) await this._onDropCreateItems(event, [game.items.fromCompendium(await fromUuid(result), { keepId: true })]);
+  }
+
+  /** Deletes a class or subclass with dnd5e's own dialog (its advancement question included). */
+  static async #deleteItem(event, target) {
+    if (!this.isEditable) return;
+    const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    return item?.deleteDialog({ sheet: this });
+  }
+
+  /** The spellcasting card's radio: dnd5e's `setSpellcastingAbility` (writes system.attributes.spellcasting). */
+  static async #spellAbility(event, target) {
+    if (!this.isEditable) return;
+    const ability = target.closest("[data-ability]")?.dataset.ability;
+    if (ability) await this.actor.update({ "system.attributes.spellcasting": ability });
+  }
+
+  /** A spell slot pip: dnd5e's `togglePip` rule on `system.spells.<key>.value`. */
+  static async #pip(event, target) {
+    if (!this.isEditable) return;
+    const prop = target.closest("[data-prop]")?.dataset.prop; if (!prop) return;
+    const v = BM.pipTarget(foundry.utils.getProperty(this.actor, prop), target.dataset.n);
+    await this.actor.update({ [prop]: v });
+  }
+
+  /** Edit mode, Features: dnd5e's create dialog with its Features tab types. */
+  static #createFeature() {
+    if (!this.isEditable) return;
+    const types = ["feat", "race", "background", "class", "subclass"].filter(t => !CONFIG.Item?.dataModels?.[t]?.metadata?.singleton || !this.actor.itemTypes?.[t]?.length);
+    return Item.implementation.createDialog({}, { types, parent: this.actor }, { sheet: this });
+  }
+
+  /** Edit mode, Spells: a new spell, as dnd5e's Spells tab create button. */
+  static #createSpell() {
+    if (!this.isEditable) return;
+    return Item.implementation.create({ type: "spell", name: game.i18n.format("DOCUMENT.New", { type: game.i18n.localize(CONFIG.Item.typeLabels.spell) }) }, { parent: this.actor, renderSheet: true });
+  }
+
+  /**
+   * Features and Spells lists: live search, chips, sort and grouping (per window), item tooltips, keyboard on names, class level
+   * selects (dnd5e's level change with its advancement manager).
+   * @param {HTMLElement} root @param {"_feat" | "_spell"} stateKey
+   */
+  _onRenderBook(root, stateKey) {
+    const a = this.actor; const st = this[stateKey];
+    const search = /** @type {HTMLInputElement | null} */ (root.querySelector("[data-wct-search]"));
+    search?.addEventListener("input", () => {
+      st.search = search.value; let any = false;
+      for (const sec of root.querySelectorAll(".wct-cs-sec")) {
+        let shown = 0;
+        for (const li of sec.querySelectorAll("li[data-item-id]")) {
+          const ok = li.getAttribute("data-wct-chips") !== "0" && SP.nameMatches(li.getAttribute("data-item-name"), search.value);
+          /** @type {HTMLElement} */ (li).hidden = !ok; if (ok) shown++;
+        }
+        if (!sec.querySelector(".wct-cs-slots, [data-config=spellSlots]")) /** @type {HTMLElement} */ (sec).hidden = !shown;
+        if (shown) any = true;
+      }
+      const none = /** @type {HTMLElement | null} */ (root.querySelector(".wct-cs-nomatch")); if (none) none.hidden = any || !root.querySelector(".wct-cs-sec");
+    });
+    search?.addEventListener("change", ev => ev.stopPropagation());
+    search?.addEventListener("keydown", ev => ev.stopPropagation());
+    root.querySelectorAll("[data-wct-filter]").forEach(b => b.addEventListener("click", () => {
+      const k = /** @type {HTMLElement} */ (b).dataset.wctFilter ?? ""; const f = new Set(st.filters);
+      if (f.has(k)) f.delete(k); else f.add(k);
+      st.filters = [...f]; this.render();
+    }));
+    root.querySelector("[data-wct-sort]")?.addEventListener("click", ev => { st.sort = /** @type {HTMLElement} */ (ev.currentTarget).dataset.wctSort ?? st.sort; this.render(); });
+    root.querySelector("[data-wct-group]")?.addEventListener("click", ev => { if ("group" in st) st.group = /** @type {HTMLElement} */ (ev.currentTarget).dataset.wctGroup ?? "origin"; this.render(); });
+    root.querySelectorAll(".wct-cs-inv li[data-item-id] .wct-cs-ico, .wct-cs-class .wct-cs-ico").forEach(el => {
+      const item = a.items.get(el.closest("[data-item-id]")?.getAttribute("data-item-id"));
+      el.addEventListener("pointerenter", () => Pane.itemTooltip(a, /** @type {HTMLElement} */ (el), item));
+      el.addEventListener("pointerleave", () => game.tooltip?.deactivate?.());
+    });
+    root.querySelectorAll(".wct-cs-inv .wct-cs-nm[data-action]").forEach(el => el.addEventListener("keydown", ev => {
+      const k = /** @type {KeyboardEvent} */ (ev).key; if (k !== "Enter" && k !== " ") return;
+      ev.preventDefault(); /** @type {HTMLElement} */ (el).click();
+    }));
+    // Class level: dnd5e's own level change (advancement manager when advancements apply, its level-down confirmation).
+    root.querySelectorAll("select[data-wct-level]").forEach(sel => sel.addEventListener("change", async ev => {
+      ev.stopPropagation(); if (!this.isEditable) return;
+      const el = /** @type {HTMLSelectElement} */ (ev.currentTarget); const delta = Number(el.value); const cls = a.items.get(el.dataset.wctLevel);
+      if (!delta || !cls) return;
+      const A = /** @type {any} */ (globalThis).dnd5e?.applications?.advancement ?? {};
+      if (!game.settings.get("dnd5e", "disableAdvancements") && A.AdvancementManager) {
+        const manager = A.AdvancementManager.forLevelChange(a, cls.id, delta);
+        if (manager.steps.length) {
+          if (delta > 0) return this._renderChild(manager);
+          try { if (await A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })) return this._renderChild(manager); } catch { return this.render(); }
+        }
+      }
+      return cls.update({ "system.levels": cls.system.levels + delta });
+    }));
+  }
+
   // ---------------------------------------------------------------- slice 2 listeners
   async _onRender(context, options) {
     await super._onRender?.(context, options);
@@ -604,6 +860,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
     root.querySelector("[data-wct-tokport]")?.addEventListener("change", ev => { ev.stopPropagation(); if (ed) a.update({ "flags.dnd5e.showTokenPortrait": !!(/** @type {HTMLInputElement} */ (ev.currentTarget).checked) }); });
     if (this._page === "character") this._onRenderCharacter(root);
     if (this._page === "inventory") this._onRenderInventory(root);
+    if (this._page === "features") this._onRenderBook(root, "_feat");
+    if (this._page === "spells") this._onRenderBook(root, "_spell");
   }
 
   /** Character page: the pane's slot and weapon-set handling (pane.mjs), on the same flags. */
@@ -739,7 +997,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
     const host = this.dnd5eHost();
     if (!host?._onDrop) return super._onDrop?.(event);
     // dnd5e's handlers read the tab (spells dropped on Inventory become scrolls) and the drop target (a container, a sibling row).
-    host.tabGroups = { ...(host.tabGroups ?? {}), primary: this._page === "inventory" ? "inventory" : "details" };
+    host.tabGroups = { ...(host.tabGroups ?? {}), primary: ["inventory", "features", "spells"].includes(this._page) ? this._page : "details" };
     return host._onDrop(event);
   }
 }
