@@ -37,7 +37,7 @@ export const FEATURES = [
   // 1.31.0
   { id: "merchantShop", label: "Open shop for players", hint: "GM: open an Item Piles merchant on players' screens, each with their own character as the buyer, from the merchant window's header or the merchant token's HUD, and close it for everyone again. Needs Item Piles." },
   // 1.33.0 (slice 1; off by default)
-  { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Pages are still being built: each links to the system sheet for now. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." }
+  { id: "characterSheet", default: false, label: "Character sheet replacement", hint: "Wanderer's Toolkit sheet for player characters (dnd5e character actors), made the default sheet while this is on: a classic dark sheet with the level, XP, rests, inspiration, AC, hit points, hit dice, initiative, speed, exhaustion and death saves, all read from and handled by dnd5e itself. Character (paper doll shared with the character pane), Details and Inventory pages are built; the other pages link to the system sheet for now. GMs get a System sheet button. With Keyboard shortcuts on, C opens it. Off: dnd5e's own sheet, nothing else changes." }
 ].map(f => ({ default: true, key: `feature-${f.id}`, ...f }));
 
 /**

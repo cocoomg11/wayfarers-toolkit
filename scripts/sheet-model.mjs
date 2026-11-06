@@ -221,11 +221,23 @@ export function tabsHTML(v) {
   return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}" data-action="wctPage" data-page="${p.id}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip="${esc(p.label)}" data-tooltip-direction="RIGHT">${svg(p.icon)}</button>`).join("")}</nav>`;
 }
 
-/** The page body. Slice 1: every page is a placeholder with a link to the system sheet. @param {ReturnType<typeof sheetView>} v */
-export function pageHTML(v) {
+/** The pages built so far (slice 2: Character, Details, Inventory); the others are placeholders. */
+export const BUILT_PAGES = Object.freeze(["character", "details", "inventory"]);
+
+/**
+ * The page body. A built page shows `body` (sheet-pages-model.mjs, built by sheet.mjs from the actor) with a small "Open in system
+ * sheet" link at the foot; the Character page has no title row (the doll is its heading). Other pages are placeholders with that link.
+ * @param {ReturnType<typeof sheetView>} v @param {string | null} [body]
+ */
+export function pageHTML(v, body = null) {
   const p = PAGES.find(x => x.id === v.page) ?? PAGES[0];
+  const head = `<div class="wct-cs-page-head"><h3 class="wct-cs-ttl">${esc(p.label)}</h3><span class="wct-cs-dim">${esc(p.hint)}</span></div>`;
+  if (body !== null && BUILT_PAGES.includes(p.id)) return `<main class="wct-cs-page" data-page="${p.id}" role="tabpanel" aria-label="${esc(p.label)}">
+    ${p.id === "character" ? "" : head}${body}
+    <p class="wct-cs-syslink"><button type="button" class="wct-cs-linkbtn" data-action="wctSystemSheet" data-page="${p.id}">Open in system sheet</button></p>
+  </main>`;
   return `<main class="wct-cs-page" data-page="${p.id}" role="tabpanel" aria-label="${esc(p.label)}">
-    <div class="wct-cs-page-head"><h3 class="wct-cs-ttl">${esc(p.label)}</h3><span class="wct-cs-dim">${esc(p.hint)}</span></div>
+    ${head}
     <div class="wct-cs-placeholder"><p>This page is coming in a later slice of the toolkit sheet.</p>
       <p><button type="button" class="wct-cs-gbtn" data-action="wctSystemSheet" data-page="${p.id}">Open in system sheet</button></p></div>
   </main>`;
@@ -239,14 +251,14 @@ export function footerHTML(v) {
   return `<footer class="wct-cs-foot"><span class="wct-cs-lab">Conditions</span><span class="wct-cs-conds">${list}</span></footer>`;
 }
 
-/** The whole sheet body. @param {ReturnType<typeof sheetView>} v */
-export function sheetHTML(v) {
+/** The whole sheet body. @param {ReturnType<typeof sheetView>} v @param {string | null} [body] the page body (built pages) */
+export function sheetHTML(v, body = null) {
   if (v.limited) return `<div class="wct-cs wct-cs-limited">${bandHTML({ ...v, xp: null, rested: null, warnings: null, editable: false, showRests: false, inspiration: false })}<main class="wct-cs-page"><p class="wct-cs-dim">You can only see this character's name and picture.</p></main></div>`;
   return `<div class="wct-cs${v.mode === "edit" ? " editing" : ""}">
     ${bandHTML(v)}
     ${vitalsHTML(v)}
-    ${v.mode === "edit" ? `<div class="wct-cs-editnote">${svg(ICONS.edit)}Edit mode: scores, proficiencies, items and traits can be changed here in later slices. Switch back to Play to roll and use.</div>` : ""}
-    <div class="wct-cs-body">${tabsHTML(v)}${pageHTML(v)}</div>
+    ${v.mode === "edit" ? `<div class="wct-cs-editnote">${svg(ICONS.edit)}Edit mode: change ability scores, proficiencies, traits, portrait and items here. Switch back to Play for the plain sheet.</div>` : ""}
+    <div class="wct-cs-body">${tabsHTML(v)}${pageHTML(v, body)}</div>
     ${footerHTML(v)}
   </div>`;
 }
