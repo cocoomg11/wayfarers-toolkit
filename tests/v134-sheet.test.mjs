@@ -17,7 +17,7 @@ test("pages: Character, Details and Inventory are built; the rest stay placehold
   assert.match(built, /class="wct-cs-linkbtn" data-action="wctSystemSheet" data-page="details">Open in system sheet/, "a small footer link on each page");
   assert.match(built, /<h3 class="wct-cs-ttl">Details/);
   assert.doesNotMatch(SM.sheetHTML(view({}, "character"), "<p>B</p>"), /<h3 class="wct-cs-ttl">Character/, "the doll is the Character page's heading");
-  const ph = SM.sheetHTML(view({}, "effects"), "<p>BODY</p>");
+  const ph = SM.sheetHTML(view({}, "effects"));
   assert.match(ph, /coming in a later slice/); assert.doesNotMatch(ph, /BODY/);
   assert.match(SM.sheetHTML(view({}, "details")), /coming in a later slice/, "no body (an error) → placeholder");
 });
@@ -167,7 +167,7 @@ test("drag and drop: dnd5e's own drop handling through an unrendered dnd5e sheet
   const s = src("scripts/sheet.mjs");
   assert.match(s, /dnd5eHost\(\) \{[\s\S]*?new Cls\(\{ document: this\.actor \}\)/);
   assert.match(s, /async _onDrop\(event\) \{[\s\S]*?return host\._onDrop\(event\);/);
-  assert.match(s, /host\.tabGroups = \{ \.\.\.\(host\.tabGroups \?\? \{\}\), primary: \["inventory", "features", "spells"\]\.includes\(this\._page\) \? this\._page : "details" \}/, "spells dropped on Inventory become scrolls, as in dnd5e");
+  assert.match(s, /host\.tabGroups = \{ \.\.\.\(host\.tabGroups \?\? \{\}\), primary: \["inventory", "features", "spells", "effects", "bastion"\]\.includes\(this\._page\) \? this\._page : "details" \}/, "spells dropped on Inventory become scrolls, as in dnd5e");
   assert.match(s, /_onDragOver\(event\) \{ try \{ this\.dnd5eHost\(\)\?\._onDragOver\?\.\(event\)/);
   assert.match(s, /\.wct-cs-doll \[data-slot\], \.wct-cs-doll \[data-set\], \.wct-cs-page \[data-drop\]/, "doll drops are the pane's");
   assert.match(src("scripts/pane.mjs"), /actor\.sheet\?\.dnd5eHost\?\.\(\)/, "adopt() uses dnd5e's creation while the toolkit sheet is the actor's sheet");

@@ -180,7 +180,7 @@ export function bandHTML(v) {
   const btn = (action, label, icon, on = false, extra = "") => `<button type="button" class="wct-cs-ibtn${on ? " on" : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip="${esc(label)}"${extra}>${svg(icon)}</button>`;
   const warnTip = v.warnings ? v.warnings.map(esc).join("<br>") : "";
   return `<div class="wct-cs-band">
-    ${v.level !== null ? `<span class="wct-cs-lvl" data-tooltip="Level ${v.level}" aria-label="Level ${v.level}">${v.level}</span>` : ""}
+    ${v.level !== null ? v.mode === "edit" && v.editable ? `<button type="button" class="wct-cs-lvl wct-cs-lvlup" data-action="wctLevelUp" data-tooltip="Level ${v.level}: level up" aria-label="Level ${v.level}: level up">${v.level}<i aria-hidden="true">+</i></button>` : `<span class="wct-cs-lvl" data-tooltip="Level ${v.level}" aria-label="Level ${v.level}">${v.level}</span>` : ""}
     <div class="wct-cs-name"><h2 class="wct-cs-ttl">${esc(v.name)}</h2>${v.sub ? `<p class="wct-cs-sub">${esc(v.sub)}</p>` : ""}</div>
     ${v.xp ? `<div class="wct-cs-xp"><div class="wct-cs-xp-row"><span>XP</span><span class="wct-cs-num">${esc(v.xp.text)}</span></div><div class="wct-cs-xpbar" role="meter" aria-label="Experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v.xp.pct}"><i style="width:${v.xp.pct}%"></i></div></div>` : ""}
     ${v.rested ? `<span class="wct-cs-rest" data-tooltip="${esc(v.rested)}">Rested<span class="wc-sr">: ${esc(v.rested)}</span></span>` : ""}
@@ -234,7 +234,7 @@ export const APP_CONTRACT = Object.freeze(["_renderChild", "_confirmDialog", "ch
   "inventorySource", "expandedSections", "canExpand", "_openDocumentSheet", "_concentration"]);
 
 /** The pages built so far (slice 2: Character, Details, Inventory); the others are placeholders. */
-export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "features", "spells"]);
+export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "features", "spells", "effects", "biography", "bastion", "special"]);
 
 /**
  * The page body. A built page shows `body` (sheet-pages-model.mjs, built by sheet.mjs from the actor) with a small "Open in system

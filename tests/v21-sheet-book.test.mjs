@@ -162,13 +162,13 @@ test("spells: filters (prepared, concentration, ritual, action types, schools, c
 
 // ---------------------------------------------------------------- wiring
 test("sheet: Features and Spells are built; facts follow dnd5e's preparation; actions are dnd5e's", () => {
-  assert.deepEqual(SM.BUILT_PAGES, ["character", "details", "inventory", "features", "spells"]);
+  assert.deepEqual(SM.BUILT_PAGES.slice(0, 5), ["character", "details", "inventory", "features", "spells"]);
   const s = src("scripts/sheet.mjs");
   for (const x of ['getFlag?.("dnd5e", "advancementRoot")', 'getFlag?.("dnd5e", "advancementOrigin")', "sc.getAvailableLevels?.(a)", "sc.getSpellSlotKey(l)", 'getFlag?.("dnd5e", "cachedFor")', "s.linkedActivity?.displayInSpellbook",
     "a.spellcastingClasses", "c.advancement?.byType?.Subclass?.[0]", "CB.selectOne({ filters })", "A.AdvancementManager.forLevelChange(a, cls.id, delta)", "A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })",
     'cls.update({ "system.levels": cls.system.levels + delta })', "item?.deleteDialog({ sheet: this })", "this._onDropCreateItems(event, [game.items.fromCompendium("])
     assert.ok(s.includes(x), x);
-  assert.match(s, /primary: \["inventory", "features", "spells"\]\.includes\(this\._page\) \? this\._page : "details"/, "dnd5e's spell drop (method from the section) and scrolls only on Inventory");
+  assert.match(s, /primary: \["inventory", "features", "spells", "effects", "bastion"\]\.includes\(this\._page\) \? this\._page : "details"/, "dnd5e's spell drop (method from the section) and scrolls only on Inventory");
   assert.doesNotMatch(src("scripts/sheet-book-model.mjs").replace(/\/\*[\s\S]*?\*\//g, ""), /\b(game|canvas|ui|CONFIG|foundry)\./, "pure");
   const all = BM.featuresPageHTML(feats()) + BM.spellsPageHTML(spells());
   assert.doesNotMatch(all, /favourite|favorite/i);

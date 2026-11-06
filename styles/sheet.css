@@ -339,3 +339,67 @@
 .wct-sheet .wct-cs-slot-pip.pact.on { background: #a45ae0; }
 .wct-sheet .wct-cs-slot-pip.tmp { border-style: dashed; }
 .wct-sheet .wct-cs-slotcount { font-family: var(--font-body, Signika, sans-serif); font-size: 11px; letter-spacing: 0; }
+
+/* ---------------------------------------------------------------- 2.2 slice 4: Effects, Biography, Bastion, Special traits, level up */
+.wct-sheet .wct-cs-lvlup { cursor: pointer; position: relative; padding: 0; font: inherit; font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 16px; }
+.wct-sheet .wct-cs-lvlup:hover { border-color: var(--trimhi); box-shadow: 0 0 0 1px #000, 0 0 8px color-mix(in srgb, var(--trimhi) 45%, transparent); }
+.wct-sheet .wct-cs-lvlup i { position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; border-radius: 50%; font-style: normal; font-size: 11px; line-height: 14px; text-align: center; color: #1a130a; background: var(--trimhi); }
+.wct-sheet .wct-cs-effects { display: flex; flex-direction: column; gap: 10px; }
+.wct-sheet .wct-cs-cnds { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 5px; padding: 8px 10px; }
+.wct-sheet .wct-cs-cnd { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 14px; font-size: 12px; color: var(--ink2); border: 1px solid var(--edge); background: rgba(0, 0, 0, 0.3); }
+.wct-sheet button.wct-cs-cnd { cursor: pointer; }
+.wct-sheet button.wct-cs-cnd:hover { border-color: var(--trim); color: var(--ink); }
+.wct-sheet .wct-cs-cnd img { width: 18px; height: 18px; border: none; filter: grayscale(0.6) brightness(0.9); }
+.wct-sheet .wct-cs-cnd span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wct-sheet .wct-cs-cnd.on { color: #1a130a; background: linear-gradient(var(--trimhi), var(--trim)); border-color: var(--trim); font-weight: 600; }
+.wct-sheet .wct-cs-cnd.on img { filter: none; }
+.wct-sheet .wct-cs-clvl { min-width: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.wct-sheet .wct-cs-dur { display: inline-flex; align-items: center; gap: 3px; }
+.wct-sheet .wct-cs-dur svg { width: 11px; height: 11px; }
+.wct-sheet .wct-cs-irow-wrap.off .wct-cs-nm b { color: var(--ink3); }
+.wct-sheet .wct-cs-irow > .c.w { width: 120px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wct-sheet .effect-source a { cursor: pointer; color: var(--ink2); text-decoration: underline; text-underline-offset: 2px; }
+.wct-sheet .wct-cs-empty { list-style: none; padding: 6px 10px; font-size: 12px; }
+.wct-sheet .wct-cs-changes { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.wct-sheet .wct-cs-changes li { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.wct-sheet .wct-cs-changes b { font-weight: 600; color: var(--ink); }
+.wct-sheet .wct-cs-chars { list-style: none; margin: 0; padding: 8px 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 16px; }
+.wct-sheet .wct-cs-chars li { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 26px; font-size: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.wct-sheet .wct-cs-chars b { font-weight: 600; color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wct-sheet .wct-cs-tin { box-sizing: border-box; height: 24px; min-width: 0; width: 9em; padding: 0 6px; border-radius: 3px; font: inherit; font-size: 13px; color: var(--ink); background: var(--well); border: 1px solid var(--edge); }
+.wct-sheet .wct-cs-tin:disabled, .wct-sheet .wct-cs-sel:disabled { opacity: 0.6; }
+.wct-sheet .wct-cs-tboxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wct-sheet .wct-cs-text { padding: 8px 10px; font-size: 13px; color: var(--ink2); }
+.wct-sheet .wct-cs-text p { margin: 0 0 6px; }
+.wct-sheet .wct-cs-ta { box-sizing: border-box; display: block; width: calc(100% - 16px); margin: 8px; min-height: 80px; resize: vertical; padding: 6px; font: inherit; font-size: 13px; color: var(--ink); background: var(--well); border: 1px solid var(--edge); border-radius: 3px; }
+.wct-sheet .wct-cs-bio { padding: 10px 12px; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.wct-sheet .wct-cs-bio * { color: var(--ink); }
+.wct-sheet .wct-cs-biobox prose-mirror { display: block; min-height: 220px; margin: 6px; color: var(--ink); background: var(--well); border: 1px solid var(--edge); border-radius: 3px; }
+.wct-sheet .wct-cs-biobox prose-mirror * { color: var(--ink); }
+.wct-sheet .wct-cs-bastion { display: flex; flex-direction: column; gap: 10px; }
+.wct-sheet .wct-cs-bname { font-size: 17px; width: 100%; }
+.wct-sheet .wct-cs-roster { list-style: none; margin: 0; padding: 8px 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.wct-sheet .wct-cs-roster li, .wct-sheet .wct-cs-oslot { position: relative; }
+.wct-sheet .wct-cs-oimg { all: unset; cursor: pointer; display: block; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--trim); }
+.wct-sheet .wct-cs-oimg img { width: 100%; height: 100%; object-fit: cover; border: none; }
+.wct-sheet .wct-cs-odel { all: unset; cursor: pointer; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; border-radius: 50%; font-size: 11px; line-height: 14px; text-align: center; color: #fff; background: #8a2a16; }
+.wct-sheet .wct-cs-facs { list-style: none; margin: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.wct-sheet .wct-cs-fac { display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--edge); background: rgba(0, 0, 0, 0.3); }
+.wct-sheet .wct-cs-fac.building { border-style: dashed; }
+.wct-sheet .wct-cs-fac.damaged { border-color: var(--neg); }
+.wct-sheet button.wct-cs-fac.empty { all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; padding: 8px; border-radius: 4px; border: 1px dashed var(--edge); font-size: 12px; color: var(--ink3); text-align: center; }
+.wct-sheet button.wct-cs-fac.empty:hover { color: var(--ink); border-color: var(--trim); }
+.wct-sheet .wct-cs-fachead { display: flex; align-items: center; gap: 8px; }
+.wct-sheet .wct-cs-facname { all: unset; flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.wct-sheet button.wct-cs-facname { cursor: pointer; }
+.wct-sheet .wct-cs-facname b { color: var(--ink); font-weight: 600; }
+.wct-sheet .wct-cs-facname small { font-size: 11px; color: var(--ink3); }
+.wct-sheet .wct-cs-occ { display: flex; gap: 5px; flex-wrap: wrap; }
+.wct-sheet .wct-cs-oslot { display: inline-block; width: 34px; height: 34px; border-radius: 50%; border: 1px dashed var(--edge); box-sizing: border-box; }
+.wct-sheet .wct-cs-oslot:not(.empty) { border: none; }
+.wct-sheet .wct-cs-oslot.pending { border: 1px dashed var(--gold); }
+.wct-sheet .wct-cs-fields { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+.wct-sheet .wct-cs-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; font-size: 13px; color: var(--ink); }
+.wct-sheet .wct-cs-field > label { color: var(--ink); }
+.wct-sheet .wct-cs-field .wct-cs-tin { width: 12em; }
+.wct-sheet .wct-cs-hint { grid-column: 1 / -1; margin: 0; font-size: 11px; }

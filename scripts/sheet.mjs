@@ -14,6 +14,7 @@
 import * as SM from "./sheet-model.mjs";
 import * as SP from "./sheet-pages-model.mjs";
 import * as BM from "./sheet-book-model.mjs";
+import * as SX from "./sheet-extra-model.mjs";
 import * as PM from "./pane-model.mjs";
 import * as Pane from "./pane.mjs";
 import * as WS from "./weapon-sets.mjs";
@@ -85,7 +86,13 @@ export class WctCharacterSheet extends ActorSheetV2 {
       wctSpellAbility: WctCharacterSheet.#spellAbility,
       wctPip: WctCharacterSheet.#pip,
       wctCreateFeature: WctCharacterSheet.#createFeature,
-      wctCreateSpell: WctCharacterSheet.#createSpell
+      wctCreateSpell: WctCharacterSheet.#createSpell,
+      // slice 4
+      wctLevelUp: WctCharacterSheet.#levelUp,
+      wctShowUuid: WctCharacterSheet.#showUuid,
+      wctUseFacility: WctCharacterSheet.#useFacility,
+      wctDeleteOccupant: WctCharacterSheet.#deleteOccupant,
+      wctCreateEffect: WctCharacterSheet.#createEffect
     }
   };
 
@@ -103,6 +110,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
   /** Features and Spells pages: the same per-window list state (dnd5e's defaults: manual / by origin, and A–Z for spells). */
   _feat = { search: "", filters: /** @type {string[]} */ ([]), sort: "m", group: "origin" };
   _spell = { search: "", filters: /** @type {string[]} */ ([]), sort: "a" };
+  /** Effects page: search text (per window). */
+  _fx = { search: "" };
 
   /** dnd5e's own expand state for inventory rows (dnd5e's inventory element reads app.expandedSections). */
   get expandedSections() { return (this._expanded ??= new Map()); }
@@ -579,6 +588,125 @@ export class WctCharacterSheet extends ActorSheetV2 {
     };
   }
 
+  // ---------------------------------------------------------------- slice 4: Effects, Biography, Bastion, Special traits facts
+  /** Enriched HTML the way dnd5e's sheet enriches its text (secrets for owners, relative to the actor, its roll data). */
+  async enrich(html) {
+    const TE = foundry.applications.ux?.TextEditor?.implementation ?? /** @type {any} */ (globalThis).TextEditor;
+    try { return await TE.enrichHTML(html ?? "", { secrets: this.actor.isOwner, relativeTo: this.actor, rollData: this.actor.getRollData?.() }); } catch { return ""; }
+  }
+
+  /** The Effects page's facts, as dnd5e's `_prepareEffectsContext` and `EffectsElement.prepareCategories` prepare them. */
+  async effectsFacts() {
+    const a = this.actor; const D = CONFIG.DND5E ?? {}; const loc = WctCharacterSheet.loc;
+    const staticID = id => (id.length >= 16 ? id.substring(0, 16) : id.padEnd(16, "0"));
+    const conditionIds = new Set();
+    const conditions = Object.entries(D.conditionTypes ?? {}).filter(([, c]) => !c?.pseudo).map(([k, c]) => {
+      const id = staticID(`dnd5e${k}`); conditionIds.add(id);
+      const existing = a.effects?.get?.(id);
+      const levels = Number.isFinite(c?.levels);
+      return { id: k, name: loc(c?.name ?? k), img: existing?.img ?? c?.img, active: existing ? !existing.disabled : false,
+        level: levels ? (a.system?.conditions?.[k] ?? 0) : null, reference: c?.reference };
+    });
+    const conc = a.concentration?.effects ?? new Set();
+    const concentrating = CONFIG.specialStatusEffects?.CONCENTRATING ?? "concentrating";
+    const rows = [];
+    for (const e of a.allApplicableEffects?.() ?? []) {
+      const cat = SX.effectCategory({ concealed: e.isConcealed, condition: e.type === "condition", concentrating: e.statuses?.has?.(concentrating),
+        appliedEnchantment: e.isAppliedEnchantment, enchantment: e.type === "enchantment", expired: e.duration?.expired, suppressed: e.isSuppressed, disabled: e.disabled, temporary: e.isTemporary });
+      if (!cat) continue;
+      if (conditionIds.has(e.id) && !e.duration?.remaining) continue;
+      /** @type {any} */
+      let ctx = {}; try { ctx = await e.getSheetContext(); } catch { ctx = {}; }
+      let src = ctx.source;
+      if (src instanceof ActiveEffect) { const t = src.target; src = (t instanceof Item && t.parent && t.parent !== a) ? t.parent : t; }
+      const expanded = this.expandedSections.get(`effects.${e.id}`) === true;
+      let summary = null;
+      if (expanded) { try { summary = await foundry.applications.handlebars.renderTemplate("systems/dnd5e/templates/effects/parts/effect-summary.hbs", await e.getPreviewContext({ secrets: e.isOwner })); } catch { summary = null; } }
+      rows.push({
+        id: e.id, uuid: e.uuid, parentId: e.target === e.parent ? null : e.parent?.id ?? null, name: e.name, img: e.img, cat, disabled: !!e.disabled, toggleable: !conc.has?.(e),
+        source: src ? { name: src.name, uuid: src.uuid, item: src instanceof Item } : null,
+        duration: ctx.durationParts ?? [], durationIcon: ctx.durationIcon, showDuration: !!ctx.showDuration, expanded: summary,
+        changes: (ctx.changes ?? []).map(c => ({ name: String(c.name ?? c.key ?? ""), value: String(c.value ?? "") }))
+      });
+    }
+    return { effects: rows, conditions, editable: this.isEditable, edit: this._mode === "edit", search: this._fx.search };
+  }
+
+  /** The Biography page's facts (dnd5e's `_prepareBiographyContext` and its text boxes). */
+  async biographyFacts() {
+    const a = this.actor; const loc = WctCharacterSheet.loc; const det = a.system?.details ?? {}; const src = a._source?.system?.details ?? {};
+    const fields = a.system?.schema?.fields?.details?.fields ?? {};
+    return {
+      characteristics: SX.CHARACTERISTICS.map(k => ({ key: k, label: loc(fields[k]?.label ?? k) || k, value: det[k] ?? "", source: src[k] ?? "" })),
+      text: Object.fromEntries(SX.TEXTBOXES.map(t => [t.key, det[t.key] ?? ""])),
+      biography: { enriched: await this.enrich(det.biography?.value), source: src.biography?.value ?? "" },
+      uuid: a.uuid, editable: this.isEditable, edit: this._mode === "edit"
+    };
+  }
+
+  /** The Bastion page's facts (dnd5e's `_prepareBastionContext` and `_prepareItemFacility`). */
+  async bastionFacts() {
+    const a = this.actor; const D = CONFIG.DND5E ?? {}; const loc = WctCharacterSheet.loc;
+    const occ = async occupants => Promise.all(Array.from({ length: Number(occupants?.max) || 0 }, async (_, index) => {
+      const uuid = occupants?.value?.[index]; if (!uuid) return { empty: true, index };
+      const act = await fromUuid(uuid).catch(() => null); return { index, uuid, name: act?.name ?? "", img: act?.img ?? "" };
+    }));
+    const defenders = []; const basic = []; const special = [];
+    for (const f of a.itemTypes?.facility ?? []) {
+      const s = f.system ?? {};
+      const sub = [s.building?.built ? loc(D.facilities?.sizes?.[s.size]?.label ?? s.size ?? "") : loc("DND5E.FACILITY.Build.Unbuilt")];
+      if (s.trade?.stock?.max) sub.push(`${s.trade.stock.value ?? 0} &sol; ${s.trade.stock.max}`);
+      const craft = s.craft?.item ? await fromUuid(s.craft.item).catch(() => null) : null;
+      const pending = await Promise.all((s.trade?.pending?.creatures ?? []).map(async (uuid, index) => { const act = await fromUuid(uuid).catch(() => null); return { index, uuid, name: act?.name, img: act?.img, pending: true }; }));
+      const fact = {
+        id: f.id, name: f.name, img: f.img, subtitle: sub.map(x => String(x).replace(/[<>]/g, "")).join(" &bull; "), built: !!s.building?.built, disabled: !!s.disabled,
+        special: s.type?.value === "special", free: !!s.free, progress: s.progress?.max ? { value: s.progress.value, max: s.progress.max, pct: s.progress.pct } : null,
+        order: s.progress?.order ? loc(D.facilities?.orders?.[s.progress.order]?.label ?? s.progress.order) : "",
+        craft: craft ? { uuid: craft.uuid, name: craft.name, img: craft.img } : null,
+        hirelings: await occ(s.hirelings), defenders: await occ(s.defenders), creatures: [...pending, ...(await occ(s.trade?.creatures))]
+      };
+      for (const d of fact.defenders) if (d.uuid) defenders.push({ uuid: d.uuid, name: d.name, img: d.img, facility: f.id, index: d.index });
+      (fact.special ? special : basic).push(fact);
+    }
+    const lvl = a.system?.details?.level ?? 0; const adv = D.facilities?.advancement ?? {};
+    return {
+      name: a.system?.bastion?.name ?? "", nameSource: a._source?.system?.bastion?.name ?? "", defenders,
+      basic: { chosen: basic, ...SX.facilitySlots("basic", basic, SX.facilitiesAt(adv.basic, lvl)) },
+      special: { chosen: special, ...SX.facilitySlots("special", special, SX.facilitiesAt(adv.special, lvl)) },
+      description: { enriched: await this.enrich(a.system?.bastion?.description), source: a._source?.system?.bastion?.description ?? "" },
+      uuid: a.uuid, editable: this.isEditable, edit: this._mode === "edit"
+    };
+  }
+
+  /** The Special traits page's facts (dnd5e's `_prepareSpecialTraitsContext`: original class, character flags, global bonuses). */
+  specialFacts() {
+    const a = this.actor; const D = CONFIG.DND5E ?? {}; const loc = WctCharacterSheet.loc;
+    const edit = this._mode === "edit" && this.isEditable; const source = edit ? a._source : a;
+    const flags = source?.flags?.dnd5e ?? {};
+    /** @type {Record<string, any[]>} */
+    const sections = {};
+    for (const [key, c] of Object.entries(D.characterFlags ?? {})) {
+      const value = foundry.utils.getProperty(flags, key);
+      if (c?.deprecated && !value) continue;
+      const type = c?.type === Boolean ? "boolean" : c?.type === Number ? "number" : "string";
+      (sections[loc(c?.section ?? "")] ??= []).push({ name: `flags.dnd5e.${key}`, label: loc(c?.name ?? key), hint: loc(c?.hint ?? ""), type, value });
+    }
+    const globals = [];
+    const add = (field, checkName = false) => {
+      if (!field) return;
+      if (field.fields && !(field instanceof foundry.data.fields.StringField)) return Object.values(field.fields).forEach(f => add(f, checkName));
+      if (checkName && field.name !== "bonus") return;
+      globals.push({ name: field.fieldPath, label: loc(field.label ?? field.name) || field.fieldPath, hint: loc(field.hint ?? ""), type: "string", value: foundry.utils.getProperty(source, field.fieldPath) ?? "" });
+    };
+    add(a.system?.schema?.fields?.bonuses); add(a.system?.schema?.fields?.rolls, true);
+    if (globals.length) sections[loc("DND5E.BONUSES.FIELDS.bonuses.label") || "Global bonuses"] = globals;
+    return {
+      classes: Object.values(a.classes ?? {}).map(c => ({ value: c.id, label: c.name })).sort((x, y) => x.label.localeCompare(y.label, game.i18n?.lang)),
+      originalClass: a.system?.details?.originalClass ?? "", classHint: loc("DND5E.ClassMakeOriginalHint"),
+      sections: Object.entries(sections).map(([label, fields]) => ({ label, fields })), editable: this.isEditable, edit: this._mode === "edit"
+    };
+  }
+
   /** The built page's body HTML, or null (placeholder pages). */
   async pageBody(page) {
     if (page === "character") return SP.characterPageHTML(await this.characterFacts());
@@ -586,6 +714,10 @@ export class WctCharacterSheet extends ActorSheetV2 {
     if (page === "inventory") return SP.inventoryPageHTML(await this.inventoryFacts());
     if (page === "features") return BM.featuresPageHTML(await this.featuresFacts());
     if (page === "spells") return BM.spellsPageHTML(/** @type {any} */ (await this.spellsFacts()));
+    if (page === "effects") return SX.effectsPageHTML(await this.effectsFacts());
+    if (page === "biography") return SX.biographyPageHTML(await this.biographyFacts());
+    if (page === "bastion") return SX.bastionPageHTML(/** @type {any} */ (await this.bastionFacts()));
+    if (page === "special") return SX.specialPageHTML(/** @type {any} */ (this.specialFacts()));
     return null;
   }
 
@@ -819,18 +951,89 @@ export class WctCharacterSheet extends ActorSheetV2 {
     // Class level: dnd5e's own level change (advancement manager when advancements apply, its level-down confirmation).
     root.querySelectorAll("select[data-wct-level]").forEach(sel => sel.addEventListener("change", async ev => {
       ev.stopPropagation(); if (!this.isEditable) return;
-      const el = /** @type {HTMLSelectElement} */ (ev.currentTarget); const delta = Number(el.value); const cls = a.items.get(el.dataset.wctLevel);
-      if (!delta || !cls) return;
-      const A = /** @type {any} */ (globalThis).dnd5e?.applications?.advancement ?? {};
-      if (!game.settings.get("dnd5e", "disableAdvancements") && A.AdvancementManager) {
-        const manager = A.AdvancementManager.forLevelChange(a, cls.id, delta);
-        if (manager.steps.length) {
-          if (delta > 0) return this._renderChild(manager);
-          try { if (await A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })) return this._renderChild(manager); } catch { return this.render(); }
-        }
-      }
-      return cls.update({ "system.levels": cls.system.levels + delta });
+      const el = /** @type {HTMLSelectElement} */ (ev.currentTarget);
+      return this.changeLevel(a.items.get(el.dataset.wctLevel), Number(el.value));
     }));
+  }
+
+  /**
+   * A class's level change, exactly as dnd5e's sheet does it (`#changeLevel`): its AdvancementManager (as a child of this sheet) when
+   * advancements apply, its level-down confirmation, else a plain `system.levels` update. Used by the Features page's level selects
+   * and the title band's Level up.
+   * @param {any} cls @param {number} delta
+   */
+  async changeLevel(cls, delta) {
+    const a = this.actor;
+    if (!this.isEditable || !delta || !cls) return;
+    const A = /** @type {any} */ (globalThis).dnd5e?.applications?.advancement ?? {};
+    if (!game.settings.get("dnd5e", "disableAdvancements") && A.AdvancementManager) {
+      const manager = A.AdvancementManager.forLevelChange(a, cls.id, delta);
+      if (manager.steps.length) {
+        if (delta > 0) return this._renderChild(manager);
+        try { if (await A.AdvancementConfirmationDialog?.forLevelDown(cls, { sheet: this })) return this._renderChild(manager); } catch { return this.render(); }
+        return;
+      }
+    }
+    return cls.update({ "system.levels": cls.system.levels + delta });
+  }
+
+  // ---------------------------------------------------------------- slice 4 actions
+  /**
+   * Title band level medallion (edit mode): level up. One class: dnd5e's level change for it (advancement manager). Several: a
+   * small chooser (each class one level up, or a new class through dnd5e's compendium browser). At dnd5e's maximum level: a notice.
+   */
+  static async #levelUp(event, target) {
+    if (!this.isEditable) return;
+    const a = this.actor;
+    const classes = Object.values(a.classes ?? {}).sort((x, y) => (y.system?.levels ?? 0) - (x.system?.levels ?? 0));
+    const pick = SX.levelUpChoices(classes.map(c => ({ id: c.id, name: c.name, levels: c.system?.levels })), a.system?.details?.level, CONFIG.DND5E?.maxLevel ?? 20);
+    if (pick.atMax) return ui.notifications.info(`${a.name} is at the highest level.`);
+    if (pick.classes.length === 1) return this.changeLevel(a.items.get(pick.classes[0].id), 1);
+    const buttons = [...pick.classes.map(c => ({ action: c.id, label: `${c.name} ${c.next}`, icon: "fa-solid fa-arrow-up" })), { action: "wctNewClass", label: "Add a class", icon: "fa-solid fa-plus" }];
+    const choice = await foundry.applications.api.DialogV2.wait({
+      window: { title: "Level up", icon: "fa-solid fa-arrow-up" }, classes: ["wct-dialog", ...UI_CLASSES],
+      content: `<p>Which class gains a level?</p>`, buttons, rejectClose: false
+    });
+    if (!choice) return;
+    if (choice === "wctNewClass") return WctCharacterSheet.#findItem.call(this, event, /** @type {any} */ ({ dataset: { itemType: "class" } }));
+    return this.changeLevel(a.items.get(choice), 1);
+  }
+
+  /** Opens a document by uuid (bastion occupants, crafted items), as dnd5e's showDocument. */
+  static async #showUuid(event, target) {
+    const uuid = target.closest("[data-uuid]")?.dataset.uuid; if (!uuid) return;
+    const doc = await fromUuid(uuid).catch(() => null);
+    if (!doc?.testUserPermission?.(game.user, "LIMITED")) return ui.notifications.warn("You can't view that.");
+    return this._renderChild(doc.sheet);
+  }
+
+  /** A facility's name: dnd5e's `useFacility` (its order activities). */
+  static #useFacility(event, target) {
+    if (!this.isEditable) return;
+    const f = this.actor.items.get(target.closest("[data-facility-id]")?.dataset.facilityId);
+    return f?.use({ legacy: false, chooseActivity: true, event });
+  }
+
+  /** Removes a bastion occupant, or cancels a pending trade with dnd5e's own question (its `deleteOccupant`). */
+  static async #deleteOccupant(event, target) {
+    if (!this.isEditable) return;
+    const f = this.actor.items.get(target.closest("[data-facility-id]")?.dataset.facilityId);
+    const prop = target.closest("[data-prop]")?.dataset.prop; const index = target.closest("[data-index]")?.dataset.index;
+    if (!f || !prop || index === undefined || index === "") return;
+    if (target.closest(".occupant-slot.pending")) {
+      const ok = await foundry.applications.api.DialogV2.confirm({ content: `<p><strong>${WctCharacterSheet.loc("COMMON.AreYouSure")}</strong> ${WctCharacterSheet.loc("DND5E.Bastion.Trade.Invalid")}</p>`,
+        window: { icon: "fa-solid fa-coins", title: "DND5E.Bastion.Trade.Cancel" }, position: { width: 400 }, classes: ["wct-dialog", ...UI_CLASSES] }, { rejectClose: false });
+      if (ok) await f.update({ system: { progress: { max: null, order: "", value: null }, trade: { pending: { creatures: [], operation: null } } } });
+      return;
+    }
+    const { value } = foundry.utils.getProperty(f, prop) ?? { value: [] };
+    return f.update({ [`${prop}.value`]: value.filter((_, i) => i !== Number(index)) });
+  }
+
+  /** Edit mode, Effects: a new effect on the actor, as dnd5e's sheet's create button on its Effects tab. */
+  static #createEffect() {
+    if (!this.isEditable) return;
+    return ActiveEffect.implementation.create({ name: WctCharacterSheet.loc("DND5E.EFFECT.New"), img: "icons/svg/aura.svg" }, { parent: this.actor, renderSheet: true });
   }
 
   // ---------------------------------------------------------------- slice 2 listeners
@@ -841,10 +1044,13 @@ export class WctCharacterSheet extends ActorSheetV2 {
     // Changed fields (ability scores, size, skill abilities, coins): one actor update each, dnd5e's delta input rule for numbers.
     root.querySelectorAll("input[data-name], select[data-name]").forEach(el => {
       if (el.closest("dnd5e-inventory")) return; // dnd5e's inventory element handles its own quantity / uses inputs
+      if (el.matches("[data-wct-check]")) return; // checkboxes: _onRenderText
       el.addEventListener("change", async ev => {
         ev.stopPropagation(); if (!ed) return;
         const t = /** @type {HTMLInputElement} */ (ev.currentTarget); const path = t.dataset.name; if (!path) return;
         if (t.tagName === "SELECT") return a.update({ [path]: t.value });
+        // Text fields (characteristics, bastion name, special-trait text and bonus formulas) are saved as typed; numbers take dnd5e's deltas.
+        if (t.classList.contains("wct-cs-tin") && t.inputMode !== "numeric") return a.update({ [path]: t.value });
         const v = SP.parseDelta(t.value, foundry.utils.getProperty(a._source ?? a, path) ?? foundry.utils.getProperty(a, path));
         if (v === null) return;
         t.value = String(v);
@@ -862,6 +1068,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
     if (this._page === "inventory") this._onRenderInventory(root);
     if (this._page === "features") this._onRenderBook(root, "_feat");
     if (this._page === "spells") this._onRenderBook(root, "_spell");
+    if (this._page === "effects") this._onRenderEffects(root);
+    if (["biography", "bastion", "special"].includes(this._page)) this._onRenderText(root);
   }
 
   /** Character page: the pane's slot and weapon-set handling (pane.mjs), on the same flags. */
@@ -974,6 +1182,40 @@ export class WctCharacterSheet extends ActorSheetV2 {
     });
   }
 
+  /** Effects page: live search. Everything else is dnd5e's effects element (toggle, edit, delete, expand, conditions, context menu). */
+  _onRenderEffects(root) {
+    const search = /** @type {HTMLInputElement | null} */ (root.querySelector("[data-wct-search]"));
+    search?.addEventListener("input", () => {
+      const q = search.value.trim().toLowerCase(); this._fx.search = search.value; let any = false;
+      for (const sec of root.querySelectorAll(".wct-cs-sec")) {
+        let shown = 0;
+        for (const li of sec.querySelectorAll("li[data-effect-id]")) { const ok = !q || String(li.getAttribute("data-item-name")).toLowerCase().includes(q); /** @type {HTMLElement} */ (li).hidden = !ok; if (ok) shown++; }
+        /** @type {HTMLElement} */ (sec).hidden = !!q && !shown; if (shown) any = true;
+      }
+      const none = /** @type {HTMLElement | null} */ (root.querySelector(".wct-cs-nomatch")); if (none) none.hidden = !q || any;
+    });
+    search?.addEventListener("change", ev => ev.stopPropagation());
+    search?.addEventListener("keydown", ev => ev.stopPropagation());
+  }
+
+  /**
+   * Biography, Bastion and Special traits: checkboxes and text areas write their `data-name` path; Foundry's prose-mirror editors
+   * save their `name` path on save (as on dnd5e's sheet, through a document update rather than the form).
+   */
+  _onRenderText(root) {
+    const a = this.actor;
+    root.querySelectorAll("textarea[data-name], input[data-wct-check]").forEach(el => el.addEventListener("change", ev => {
+      ev.stopPropagation(); if (!this.isEditable) return;
+      const t = /** @type {HTMLInputElement} */ (ev.currentTarget); const path = t.dataset.name; if (!path) return;
+      return a.update({ [path]: t.type === "checkbox" ? t.checked : t.value });
+    }));
+    root.querySelectorAll("prose-mirror[data-wct-prose]").forEach(el => el.addEventListener("save", ev => {
+      ev.stopPropagation(); if (!this.isEditable) return;
+      const t = /** @type {any} */ (ev.currentTarget);
+      return a.update({ [t.dataset.wctProse]: t.value });
+    }));
+  }
+
   // ---------------------------------------------------------------- drag and drop: dnd5e's own handling
   /** Drag start (core's DragDrop on `.draggable`): the item's drag data, plus the doll slot it came from (finger/trinket swaps). */
   async _onDragStart(event) {
@@ -997,7 +1239,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
     const host = this.dnd5eHost();
     if (!host?._onDrop) return super._onDrop?.(event);
     // dnd5e's handlers read the tab (spells dropped on Inventory become scrolls) and the drop target (a container, a sibling row).
-    host.tabGroups = { ...(host.tabGroups ?? {}), primary: ["inventory", "features", "spells"].includes(this._page) ? this._page : "details" };
+    host.tabGroups = { ...(host.tabGroups ?? {}), primary: ["inventory", "features", "spells", "effects", "bastion"].includes(this._page) ? this._page : "details" };
     return host._onDrop(event);
   }
 }

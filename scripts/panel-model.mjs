@@ -34,7 +34,7 @@ export const FEATURE_CARDS = [
   { id: "innRestOffer", icon: "fa-solid fa-moon", text: "After renting rooms, long-rest everyone who rented in one click and move time on. Needs Rested at the inn." },
   { id: "travelConfirm", icon: "fa-solid fa-signs-post", text: "Before Hex Travel or a flight: the cost, the time and who pays, with a confirm." },
   { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
-  { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (Character, Details, Inventory, Features and Spells pages built; the others link to the system sheet). Off by default; GMs can always open the system sheet. Key C opens it." },
+  { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (all pages: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion, Special traits). Off by default; GMs can always open the system sheet. Key C opens it." },
   { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
   { id: "coins", icon: "fa-solid fa-coins", label: "Three-coin economy", text: "Copper, silver and gold only, 100 to 1, in place of the five 5e coins. Item prices aren't changed." }
 ];
