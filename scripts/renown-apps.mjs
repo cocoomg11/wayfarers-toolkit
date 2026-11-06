@@ -36,8 +36,12 @@ export function wire(root, actor, host) {
     if (host._rnFocus) { search.focus(); search.setSelectionRange(search.value.length, search.value.length); host._rnFocus = false; }
     let t = /** @type {any} */ (null);
     search.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { st.search = search.value; host._rnFocus = true; redraw(); }, 250); });
-    search.addEventListener("keydown", ev => ev.stopPropagation());
+    // Keys stay in the field (Foundry's shortcuts), and Enter never submits the sheet's form.
+    search.addEventListener("keydown", ev => { ev.stopPropagation(); if (ev.key === "Enter") ev.preventDefault(); });
   }
+  root.querySelectorAll("[data-wct-rn-score]").forEach(el => el.addEventListener("keydown", ev => {
+    ev.stopPropagation(); if (/** @type {KeyboardEvent} */ (ev).key === "Enter") { ev.preventDefault(); /** @type {HTMLInputElement} */ (ev.currentTarget).blur(); }
+  }));
   root.querySelectorAll("[data-wct-rn-score]").forEach(el => el.addEventListener("change", async ev => {
     ev.stopPropagation(); const t = /** @type {HTMLInputElement} */ (ev.currentTarget);
     const n = Number(String(t.value).replace(/−/g, "-")); if (!Number.isFinite(n)) return redraw();

@@ -7,6 +7,7 @@ The story side of the table: the quest log and tracker, the character pane, and 
 - [Quest log](#quest-log): [setup](#setup), [making quests](#making-quests-gm), [what players see](#what-players-see) (tracker, map pins, Updated glow), [moments](#moments), [journals](#journals)
 - [Character pane](#character-pane): [slots](#slots), [equipping](#equipping), [what fits where](#what-fits-where), [weapon sets](#weapon-sets), [item comparison](#item-comparison), [MMO-style tooltips](#items-with-mmo-style-tooltips)
 - [Character sheet replacement](#character-sheet-replacement) (all pages; off by default)
+- [Renown](#renown): [factions and tiers](#factions-and-tiers-gm), [awarding renown](#awarding-renown-gm), [the Reputation page](#the-reputation-page), [merchant discounts](#merchant-discounts), [for scripters](#renown-for-scripters)
 - [Boss frames](#boss-frames) and [phase marks](#phase-marks)
 - [Keyboard shortcuts](#keyboard-shortcuts) and [windows](#windows-and-shortcuts)
 
@@ -38,7 +39,7 @@ Click **New quest** in the log. A quest has:
 - **Quest giver**: type a name or drop an actor on the field to link it.
 - **Summary** (a line or two, used in chat) and a rich-text **Description**.
 - **Objectives**: add, remove and reorder rows. Each can be **Hidden** (players don't see it until you reveal it) or **Optional**, and can have a count (blank for none).
-- **Rewards**: coin written like `1g 20s` or `50c` (a plain number is read in *Fares without a coin are in*, control panel › Travel; works with either coin system), **Items** dropped from the sidebar or a compendium (always given), **Choose one of** (items a party member picks from; the GM can change the pick), and free text such as renown. Item slots are bordered by rarity: mundane grey, common white, uncommon green, rare blue, very rare purple, legendary orange.
+- **Rewards**: coin written like `1g 20s` or `50c` (a plain number is read in *Fares without a coin are in*, control panel › Travel; works with either coin system), **Items** dropped from the sidebar or a compendium (always given), **Choose one of** (items a party member picks from; the GM can change the pick), **Renown** rows when [Renown](#renown) is on (a faction and an amount such as `+2` or `-1`; each character in the party gains or loses it when the rewards are paid), and free text. Item slots are bordered by rarity: mundane grey, common white, uncommon green, rare blue, very rare purple, legendary orange.
 - **Status**: *Not given*, *Active*, *Completed* or *Failed*, and **Hidden from players**.
 
 In the log the GM sees every quest, including ones not given yet (*Not given* tab) and hidden ones (marked with a crossed-out eye), and filters by party with the chips at the top (**All parties**, or one party with its level). The list groups quests by zone (click a zone to fold it; remembered on this computer), each row with its Track box, `[level]` and name coloured by difficulty, *(Ready)* when every required objective is done, and the party's name when several parties are shown. The page shows the party badge (a drop-down for the GM: changing it moves the quest to another party) and the difficulty, the title, zone and giver, the description, objectives (with n/m counters), and the rewards: *You will receive*, *Choose one of these rewards* and *You will also receive* (the coin, "to" the party). Buttons: **Track**, **Edit**, **Hide from players**, **Give quest**, **Fail**, **Reopen**, **Journal**, **Delete** and **Complete and pay to *party*** (completes, then pays; with a reward still to choose it completes and leaves **Pay rewards** for later). Click an objective's box to tick it; **Reveal** shows a hidden objective.
@@ -273,6 +274,47 @@ The character's **original class** and dnd5e's special traits and global bonuses
 ### Level up
 
 In Edit mode the **level badge** in the title band has a **+**: click it to level up. With one class this starts dnd5e's level-up (its advancement windows: hit points, features, choices). With several classes you pick which class levels up, or **Add a class** (dnd5e's compendium browser). The level selects on the Features page do the same.
+
+## Renown
+
+Turn on **Renown (reputation)** on the Features tab (on by default; it shows nothing until you add a faction). Renown is kept **per character, per faction**: there is no party score. You define the factions in your own world; the toolkit only keeps the numbers, tiers and labels.
+
+A character's **total** with a faction is their score plus any **other sources** (labels the GM adds by hand, such as *Bastion in their land +1*). It never goes below 0. **Tiers** are thresholds on the total; below the first tier a character has no tier. Nothing happens between factions on its own (no opposed pairs), and a parent side keeps no score of its own.
+
+### Factions and tiers (GM)
+
+Control panel › **Character** › **Factions and renown…** (or `api.renown.setup()`).
+
+- **Tiers and presets**: the shared tier set. Each tier has a colour, a name, where it starts (*From*), a merchant **discount %**, the rarity it unlocks, a perk and a title, all your own text. The defaults are four generic tiers at 3, 10, 25 and 50 (Known, Trusted, Esteemed, Celebrated) with 0, 10, 15 and 25 % off; rename them and write the perks your world uses. Up to 8 tiers. The **award presets** are the gain buttons (default +1, +2, +3) and the loss dice (default 1d8, 2d6, 2d12).
+- **A faction**: name, a short note, a **parent side** (subfactions are grouped under it on the sheet) or a **group** (for factions without one, e.g. *Neutral factions*), **Hidden from players**, **Inactive** (folded away on the sheet) and **Starting faction bonus** (recorded only: new tiers here raising the parent side's starting faction +1 / +2 / +3 / +5 is not applied automatically). Its tiers are the shared set or **custom for this faction**. **Merchants**: the Item Piles merchants that belong to it (see [merchant discounts](#merchant-discounts)). **Other sources** lists the labels characters have with it.
+- **Hidden factions** never reach players: the faction and every character's renown with it are kept in the GM-only records journal, not in the world setting or on the characters. Switching *Hidden from players* off moves them onto the characters (and back again when you switch it on). Players can't track a hidden faction.
+- **Delete** removes the faction and every character's renown with it.
+
+### Awarding renown (GM)
+
+Control panel › Character › **Award renown…**, the **Award** button on a Reputation page (or the ± on a row), or `api.renown.award(...)`. Pick the **whole party** (the party actor's members, or every player character) or **some characters**, the faction, then a **gain** (the preset buttons, or type any amount such as `+4` or `-2`) or a **loss** (a preset die, or a custom formula). Each character changes on their own score: a loss formula is rolled for each character. A line under the form previews the result (*Maren 8 → 10 (Trusted)*).
+
+The **chat card** (*+2 renown · Faction*, each character's new total, and *is now Trusted (10): perk · 10% off* when a tier is reached) is whispered to the GMs and the characters' owners; for a hidden faction to the GMs only.
+
+**Quest rewards**: in the quest editor, **Add renown** adds a row (faction and amount). When the quest's rewards are paid, each member character of its party gets it, with the same card. Rewards with a hidden faction aren't shown to players in the quest log, its journal page or its card.
+
+### The Reputation page
+
+On the [toolkit character sheet](#character-sheet-replacement) the **Reputation** bookmark (after Biography). With the toolkit sheet off, dnd5e's character sheet gets a **Reputation** button in its header menu that opens the same page in a window.
+
+- The **tracked** faction (the star on a row; the character's owner or the GM chooses) is pinned at the top: tier, the bar to the next tier (*12 / 25 to Esteemed*), what the current tier gives and what the next one unlocks.
+- Factions are grouped by parent side and group (click a group to fold it), with **search**, **All / Subfactions / Neutral**, **Show inactive** and **Sort: renown / name**. Each row has the tier, the bar, the discount and the other sources.
+- The character's owner sees their own; players who can only view the character see it read-only; the GM also gets **Award**, a **±** and **+** (add another source) on each row, a × to remove a source, and in Edit mode a field for the score itself.
+
+### Merchant discounts
+
+Each tier's discount applies at the faction's merchants. With **Item Piles** active, the toolkit sets each character's own buy price at the merchants you linked to the faction (Item Piles' per-character price modifier, through its API): 10 % off is a buy price of 0.9 for that character, selling prices don't change. It updates after each change (award, score, source, faction saved) and when the world loads. The toolkit only ever changes the per-character prices it set itself: if a merchant already has your own price for a character, that one is kept and the health check says so. Without Item Piles the discount is shown on the sheet only. The discount covers every item at that merchant (the rarity text is for you and your players to read).
+
+**Remove toolkit data** › *Put back the Item Piles merchant prices Renown set* sets those prices back to no change.
+
+### Renown for scripters
+
+`api.renown` (experimental; undefined while Renown is off): `factions()`, `faction(ref)`, `tiers()`, `get(actor)` (this user's view: players get visible factions only), `open(actor)` (the Reputation window), `track(actor, faction)` (owner); GM only: `award(actors, faction, amount, reason)` (amount a number, `"+2"`, `"-3"` or a dice formula such as `"-2d6"`), `setScore(actor, faction, score)`, `addSource(actor, faction, text, amount)`, `removeSource(actor, faction, id)`, `setup(faction?)`, `awardDialog({ actors, faction })`, `sync()`. The hook `wayfarers-toolkit.renownChanged` is described in [Scripting › Hooks](scripting.md#hooks).
 
 ## Boss frames
 

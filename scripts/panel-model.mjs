@@ -33,7 +33,7 @@ export const FEATURE_CARDS = [
   { id: "splitCoin", icon: "fa-solid fa-divide", text: "Share the party's coin evenly among its members, with a preview. The odd coins stay with the party." },
   { id: "innRestOffer", icon: "fa-solid fa-moon", text: "After renting rooms, long-rest everyone who rented in one click and move time on. Needs Rested at the inn." },
   { id: "travelConfirm", icon: "fa-solid fa-signs-post", text: "Before Hex Travel or a flight: the cost, the time and who pays, with a confirm." },
-  { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change and when the party travels." },
+  { id: "moduleHooks", icon: "fa-solid fa-plug", text: "Lets other modules know when quests change, when the party travels and when renown changes." },
   { id: "characterSheet", icon: "fa-solid fa-book-open", text: "Replace the dnd5e character sheet with the toolkit's classic dark sheet (all pages: Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion, Special traits). Off by default; GMs can always open the system sheet. Key C opens it." },
   { id: "merchantShop", icon: "fa-solid fa-store", text: "Open a merchant on your players' screens, each shopping with their own character, and close it again for everyone. Needs Item Piles." },
   { id: "renown", icon: "fa-solid fa-flag", text: "Factions you define, and each character's renown with them: tiers with discounts and perks, GM awards with a chat card, quest renown rewards and a Reputation page." },

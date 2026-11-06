@@ -66,13 +66,14 @@ Every tool has its own switch on the control panel's **Features** tab. All are o
 | [Updated quests glow](docs/quests-and-characters.md#what-players-see) | A changed quest glows for players until they open it. | *Updated quests glow* |
 | [Character pane](docs/quests-and-characters.md#character-pane) | A classic-MMO-style character sheet with gear slots, weapon sets and comparison tooltips. | *Character pane* |
 | [Character sheet replacement](docs/quests-and-characters.md#character-sheet-replacement) | Off by default, in progress: the toolkit's own dark sheet for player characters (key **C**), run by dnd5e's rules; GMs can always open the system sheet. | *Character sheet replacement* |
+| [Renown](docs/quests-and-characters.md#renown) | Factions you define and each character's renown with them: tiers with discounts and perks, GM awards with a chat card, quest renown rewards, a Reputation page; discounts at Item Piles merchants. | *Renown (reputation)* |
 | [Boss frames](docs/quests-and-characters.md#boss-frames) | Health frames at the top of the screen for marked bosses in combat, with phase marks. | *Boss frames* |
 | [Keyboard shortcuts](docs/quests-and-characters.md#keyboard-shortcuts) | Configure Controls entries for the character sheet (C), the character pane and the control panel. | *Keyboard shortcuts* |
 | [Zone title cards](docs/places.md#zone-title-cards) | A scene's title fades in over the map when it's activated. | *Zone title cards* |
 | [Rested at the inn](docs/places.md#rested-at-the-inn) | Inns with room prices; renting makes the party Rested for a bonus on the next long rest. | *Rested at the inn* |
 | [Rest after renting rooms](docs/places.md#rested-at-the-inn) | Long-rest everyone who rented in one click. | *Rest after renting rooms* |
 | [Map pins](docs/places.md#map-pins) | The party's own inked marks on any scene, with notes and quest links. | *Map pins* |
-| [Hooks for other modules](docs/scripting.md#hooks) | Foundry hooks when quests change and when the party travels. | *Hooks for other modules* |
+| [Hooks for other modules](docs/scripting.md#hooks) | Foundry hooks when quests change, when the party travels and when a character's renown changes. | *Hooks for other modules* |
 
 ## The Wanderer's family
 Five free modules that work on their own and fit together. Each one switches on only what you use.
@@ -144,7 +145,7 @@ With the route map and travel pace on, the tab also has **Flight route map…** 
 
 | | Settings |
 | --- | --- |
-| **Basics** | **Weapon sets** (on by default), **Weapon swap cost** (Free, Part of an attack, Object interaction, Bonus action, Action; default Part of an attack), **Classes with a relic slot** (a checklist of the classes in your world; Paladin, Druid and Cleric to start with), **Item comparison tooltips** (on; see [Item comparison](docs/quests-and-characters.md#item-comparison)) |
+| **Basics** | **Weapon sets** (on by default), **Weapon swap cost** (Free, Part of an attack, Object interaction, Bonus action, Action; default Part of an attack), **Classes with a relic slot** (a checklist of the classes in your world; Paladin, Druid and Cleric to start with), **Item comparison tooltips** (on; see [Item comparison](docs/quests-and-characters.md#item-comparison)); and the **Factions and renown…** and **Award renown…** buttons (see [Renown](docs/quests-and-characters.md#renown)) |
 
 Greyed out while the character pane is switched off. See [Weapon sets](docs/quests-and-characters.md#weapon-sets).
 
@@ -187,7 +188,8 @@ After an update, the GMs get one whispered chat card with what's new and a **To 
 
 **Remove toolkit data** (a button on the control panel's Overview tab, GM only) cleans the toolkit out of a world, for example before uninstalling it. The window first counts what it would remove, with a checkbox per kind:
 
-- the toolkit's own data on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (only the toolkit's data: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the hidden GM journal *Wanderer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history and the coin log), and the shared *Module data* folder if nothing else is left in it;
+- the toolkit's own data on actors (with the *Rested* status icon, if Rent rooms added one), on tokens on every scene, on scenes (Dungeon, Title card, inns, and the old Hub and Inn marks), on items (world items and items on actors), and on journals, journal pages and roll tables (only the toolkit's data: the documents stay; quest journals stop being quests), plus Hex Travel's trip counter on the tracker journal; with *Delete the GM-only records journal* ticked (off by default), the hidden GM journal *Wanderer's Toolkit (GM only)* (the full flight network, hidden map pins, quest GM text, room rentals, gold snapshots, loot history, the coin log and hidden renown factions), and the shared *Module data* folder if nothing else is left in it;
+- the **Item Piles merchant prices Renown set** (each character's own buy price at a faction's merchants), put back to no change;
 - optionally, the toolkit's data on **chat messages** (loot, loot roll, quest, health and update cards; the cards stay but their buttons stop working);
 - optionally, **map pins** (the map notes placed with the Map pin tool, on every scene, party and GM pins alike: they're deleted);
 - optionally, **items created by the toolkit** (vendor trash and boss loot items, wherever they are: on bodies, the party actor or characters);
@@ -202,13 +204,13 @@ Map pins are ordinary Foundry map notes, so removing the toolkit's flags alone w
 
 ### Where the toolkit keeps GM-only records
 
-Things players mustn't read (the full flight network with locked points, hidden map pins, quests' hidden objectives and secret text, room rentals, gold snapshots, the loot history and the coin log) are kept in one hidden GM journal, *Wanderer's Toolkit (GM only)* (older worlds: *Wayfarer's Toolkit (GM only)*), in the shared **Module data** journal folder. Players can't open it. Don't share it with them, and don't delete it unless you mean to lose those records. The folder is hidden from the Journal sidebar unless **Show module data folder** is on (control panel › Loot › Advanced, just for you).
+Things players mustn't read (the full flight network with locked points, hidden map pins, quests' hidden objectives and secret text, room rentals, gold snapshots, the loot history, the coin log, and hidden renown factions with every character's renown with them) are kept in one hidden GM journal, *Wanderer's Toolkit (GM only)* (older worlds: *Wayfarer's Toolkit (GM only)*), in the shared **Module data** journal folder. Players can't open it. Don't share it with them, and don't delete it unless you mean to lose those records. The folder is hidden from the Journal sidebar unless **Show module data folder** is on (control panel › Loot › Advanced, just for you).
 
 This keeps honest players from seeing secrets; it is not real secrecy. Foundry still sends the journal's data to every browser, so a player using the browser's developer tools could read it. [Details](docs/scripting.md#gm-only-data-and-players-clients).
 
 ## For developers
 
-The toolkit has a public API (`game.modules.get("wayfarers-toolkit").api`), Foundry hooks for other modules (`wayfarersToolkit.questUpdated` and `wayfarersToolkit.journey`), documented data formats and a health report other modules can read. All of it, with what's stable and what's experimental, is in the [scripting guide](docs/scripting.md), along with how to build and test from source.
+The toolkit has a public API (`game.modules.get("wayfarers-toolkit").api`), Foundry hooks for other modules (`wayfarersToolkit.questUpdated`, `wayfarersToolkit.journey` and `wayfarers-toolkit.renownChanged`), documented data formats and a health report other modules can read. All of it, with what's stable and what's experimental, is in the [scripting guide](docs/scripting.md), along with how to build and test from source.
 
 ## License
 

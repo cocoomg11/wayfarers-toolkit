@@ -3,6 +3,44 @@
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
 
+## Unreleased (planned 2.2.0)
+
+Renown (reputation), one slice. New feature `renown` (on by default; until the GM adds a faction, the Reputation page only says there are none). Nothing to migrate: older quests read an empty renown reward list (quest record version unchanged), and no stored shape changed.
+
+**Added**
+- **Renown per character, per faction** (no party score). The GM defines factions in **Factions and renown…** (control panel › Character, `api.renown.setup()`): name, short note, parent side (subfactions) or group, hidden from players, inactive, a starting-faction bonus switch (data only, not applied), the shared tier set or custom tiers for the faction, and the faction's Item Piles merchants. **Tiers** are world data: colour, name, threshold, merchant discount %, unlocked rarity text, perk text, title text; defaults are four generic tiers at 3 / 10 / 25 / 50 (Known, Trusted, Esteemed, Celebrated; rename freely) with 0 / 10 / 15 / 25 % off. Renown never goes below 0; no opposed pairs.
+- **Awards**: the Award renown window (whole party or picked characters; gain presets +1 / +2 / +3 and dice-loss presets 1d8 / 2d6 / 2d12, both editable under *Tiers and presets*; any amount or a custom formula, rolled per character), with a preview line and a chat card (*+2 renown · Faction … is now Trusted (10): perk · 10% off*) whispered to the GMs and the characters' owners (GMs only for a hidden faction).
+- **Other sources**: GM-added labels per character per faction (*Bastion in their land +1*), shown on the row and counted into the total. No automation.
+- **Quest renown rewards**: *Add renown* rows in the quest editor (faction ± amount), shown in the quest log, its journal page and the completion card, and given to each member character of the quest's party when the rewards are paid (through the same award: card and hook). Rewards with a hidden faction are left out of the quest's public view.
+- **Reputation page** on the toolkit character sheet (bookmark after Biography; only while Renown is on): the tracked faction pinned with its next-tier perk, factions grouped by parent side / group (fold a group), search, All / Subfactions / Neutral, Show inactive, Sort by renown or name, tier bar *12 / 25 to Esteemed*, discount, other sources, tier key. Owner: track a faction; observers: read only; GM: Award, ± and + per row, × on a source, the score in Edit mode. With the toolkit sheet off, dnd5e's character sheet gets a **Reputation** header button opening the same page in a window (`api.renown.open(actor)`).
+- **Merchant discounts through Item Piles**: Item Piles' public `API.updateMerchantPriceModifiers(merchant, [{ actorUuid, buyPriceModifier, sellPriceModifier, override }])` (checked in Item Piles' source, `src/API/api.js`; prices read by `getMerchantModifiersForActor` per buying actor). Each character's discount at a linked merchant becomes their own buy modifier (10 % → 0.9; sell kept at 1, so selling prices don't change). Only entries the toolkit set are ever changed (recorded in the GM-only store; an entry the GM made or changed is left alone and reported by the health check); an ended discount writes a neutral entry (Item Piles' API can't delete one). Updated after each change on that GM's client and by the leader at load. Without Item Piles: shown on the sheet and in the health check only.
+- **Hook** `wayfarers-toolkit.renownChanged` `{ actorId, factionId, before, after, delta, tierBefore, tierAfter }` (ids and numbers; GM client; with *Hooks for other modules* on), experimental. **API** `api.renown` (experimental): `factions`, `faction`, `tiers`, `get`, `open`, `track`; GM: `award`, `setScore`, `addSource`, `removeSource`, `setup`, `awardDialog`, `sync`.
+- **Health check** section *Renown*: factions (hidden count), characters with renown, shared tiers, where players see it, merchant links (missing actor, not a merchant, Item Piles off, the GM's own price kept, prices to update), quest rewards naming a deleted faction, the hook.
+- **Remove toolkit data**: new category *Put back the Item Piles merchant prices Renown set* (runs before the GM-only records are deleted); renown actor flags go with *actors*, hidden factions with the GM-only records, `renownConfig` with the settings reset.
+
+**Where data lives**
+- World setting `renownConfig` (record setting; `RECORD_SETTINGS` + `WIZARD_IGNORE`): shared tiers, award presets, factions players may see. Every client reads it, so hidden factions are never in it.
+- GM-only store bucket `renown`: hidden factions, every character's renown with them, and the Item Piles entries the toolkit set (`{ merchantId: { actorUuid: buyModifier } }`). Switching *Hidden from players* moves the faction and its renown between here and the characters.
+- Actor flag `flags.wayfarers-toolkit.renown` `{ v: 1, scores, ribbons, tracked }`: the character's renown with visible factions (readable by whoever can see the character, which is the point).
+- Caps (renown-model.mjs): 100 factions, 8 tiers, 12 other sources per faction per character, 200 factions per character, 50 merchants per faction, 6 presets each, 500 recorded Item Piles entries.
+
+**Changed**
+- *Hooks for other modules* hint mentions renown. The quest editor's *Other* reward placeholder no longer suggests renown.
+- Tests updated: the sheet's page list includes `reputation`; the quest journal write tests accept `publicQuest(q, PUB)`.
+
+**Tests**: `tests/v220-renown.test.mjs` (tier defaults and cleaning, standing and bar text, amounts and dice formulas, presets, factions and config caps, actor flag and ribbons, hidden move both ways, GM-only bucket caps, quest rewards and public view, glow stamp unchanged, hook payload, the Item Piles discount plan (create with sell 1, unchanged, tier up, ended → neutral, GM's own and changed entries left alone, override never ours, neutral entry reused), page model and HTML (groups, tracked, filters, inactive, sort, search, folded groups, escaping, no hidden factions or GM controls for players, observers read-only, empty states), chat card and award hint, sheet bookmark, wiring checks, CSS scope, no publisher wording).
+
+**Untested in Foundry** (live checklist)
+- Factions and renown window: create a visible and a hidden faction, custom tiers on one, shared tiers and presets saved; search; delete (confirm; characters lose that renown).
+- Award renown: whole party and picked; preset gain; dice loss (rolled per character, card shows the roll); custom formula; preview line; card whispered to GMs + owners (hidden faction: GMs only); tier-up line.
+- Reputation page (toolkit sheet on): as GM (Award, ±, + source, × source, score field in Edit mode), as owner (track star; pinned box), as observer (read-only), as limited (no page); filters, Show inactive, sort, fold a group, search keeps focus; Enter in search/score doesn't submit the sheet. Re-renders after an award.
+- dnd5e's own sheet (toolkit sheet off): header menu *Reputation* opens the window; re-renders on change.
+- Hide a faction with renown on characters: actor flags lose it, players' page no longer lists it, GM still sees it marked hidden; show it again: renown back on the characters.
+- Quest editor: Add renown rows, save, reopen; quest log shows "Renown: Faction +2 · each character of Party"; player's quest log / journal page doesn't show a hidden faction's reward; Complete and pay gives each party character the renown with a card; with Renown off, a notice and no renown.
+- Item Piles 3.3.4: link a merchant; a character at the 10 % tier sees 0.9× buy prices in that merchant (and normal sell prices), another character without a tier sees normal prices; tier up → 0.85; delete the faction → back to normal; a GM-made per-character price is kept and the health check warns; the merchant's own Item Piles settings show the per-actor entries. Unlinked merchant tokens and buyers acting through an unlinked token are not covered (Item Piles matches the buyer's actor UUID).
+- Remove toolkit data with *Put back the Item Piles merchant prices* ticked: entries back to 1.
+- Health check *Renown* lines; `api.renown.*` from the console as GM and as a player (GM-only calls warn); the `wayfarers-toolkit.renownChanged` hook fires once per character.
+
 ## 2.1.2
 
 2026-11-06. Live-tested on Foundry 14.370; one small sheet fix. No migration.

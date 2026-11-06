@@ -21,7 +21,7 @@ export const ICONS = Object.freeze({
   closed: "M9 6l6 6l-6 6",
   hidden: "M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.8M6.6 6.6A17 17 0 0 0 2 12s4 6 10 6a9.6 9.6 0 0 0 4.4-1.1",
   plus: "M12 5v14M5 12h14",
-  award: "M12 5v14M5 12h14",
+  award: "M12 3v10M7 8h10M7 19h10",
   x: "M6 6l12 12M18 6L6 18"
 });
 export const FILTERS = Object.freeze([{ key: "all", label: "All" }, { key: "sub", label: "Subfactions" }, { key: "neutral", label: "Neutral" }]);

@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.2.0",
+    changes: [
+      { feature: "renown", text: "New: Renown. Define your world's factions (control panel › Character › Factions and renown…) and track each character's renown with them: tiers you name, each with a merchant discount, the rarity it unlocks, a perk and a title. Award or take renown for the party or picked characters with a chat card, add renown to quest rewards, and see it all on a Reputation page (the toolkit sheet's new bookmark, or a Reputation button on dnd5e's sheet). Hidden factions stay in the GM-only records. With Item Piles, the discount becomes each character's own price at the faction's merchants." }
+    ],
+    actions: []
+  },
+  {
     version: "2.1.2",
     changes: [
       { feature: "characterSheet", text: "Character sheet, Special traits page: players who can only view a character no longer see the \"Switch to Edit\" hint." }
