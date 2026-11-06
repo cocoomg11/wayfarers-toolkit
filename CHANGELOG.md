@@ -4,7 +4,9 @@ All notable changes to Wanderer's Toolkit. Versions follow the `version` in `mod
 
 ## Unreleased
 
-Character sheet replacement, slice 3: the **Features** and **Spells** pages. Nothing new stored, no migration.
+Character sheet replacement, slices 3 and 4: every page is now built. Nothing new stored, no migration.
+
+### Slice 3: Features and Spells
 
 **Added**
 - **Features page**: a **Classes** box (level, subclass, hit die; *+ Add subclass* when dnd5e's subclass advancement is due, through dnd5e's compendium browser; edit mode: dnd5e's level change with its advancement manager and level-down confirmation, delete via dnd5e's dialog, *+ Add class*), then the features in dnd5e's sections (by origin: each class with its subclass, species, background, other; or Active / Passive with the Group button), each row with uses, recovery, recharge, use, description toggle and dnd5e's item menu inside dnd5e's `<dnd5e-inventory>` element. Search, the Action / Bonus / Reaction / Short rest / Long rest / Concentration / Magical chips (dnd5e's filter rules), sort manual / A–Z, *+ Create feature* (dnd5e's create dialog with its Features types).
@@ -25,6 +27,33 @@ Character sheet replacement, slice 3: the **Features** and **Spells** pages. Not
 - **Spells**: cards for each spellcasting class (and a subclass caster); prepared count matches dnd5e; radio changes the spellcasting ability. Sections match dnd5e's (cantrips, levels with slots, pact, at-will / innate / ritual, item-granted spells only when shown in the spellbook). Pips: click the last lit pip spends one, an empty pip restores; a long rest refills; temporary slots show dashed; edit mode shows the gear → dnd5e's spell slot config. Prepare toggle; always-prepared star can't be toggled; prepared filter. Columns (time, range, target, roll) match dnd5e's. Cast a spell (upcast dialog, slot spent). Filters (each school, a class, ritual, concentration) and sorts (priority). Drop a spell onto 1st level / pact section: it gets that method. Create spell.
 - Drag a spell row onto the hotbar (dnd5e's macro); drag a feature onto a container on the Inventory page is refused like dnd5e.
 - Nothing from slice 2 changed: Character, Details, Inventory still behave as in 2.0.1.
+
+### Slice 4: Effects, Biography, Bastion, Special traits, level up
+
+**Added**
+- **Effects page**: dnd5e's own `<dnd5e-effects>` element with the sheet's markup, so dnd5e does the work: conditions as buttons (click to add / remove; exhaustion and other levelled conditions up on click, down on right-click), effects in dnd5e's categories (temporary, passive, inactive, unavailable, enchantments) with duration, source link, on/off switch (not for concentration), description with its changes, and dnd5e's effect menu (edit, duplicate, delete, disable, break concentration). Effects on items show with their item. Search; *+ Create effect* in Edit mode.
+- **Biography page**: dnd5e's nine characteristics, the ideals / bonds / flaws / personality traits / appearance boxes and the biography; Edit mode uses fields, text areas and Foundry's ProseMirror editor (as dnd5e's sheet).
+- **Bastion page** (only when dnd5e offers a bastion): name, defenders, basic and special facilities (dnd5e's counts for the character's level), each with size or build state, order progress, crafted item and occupant slots; give orders (dnd5e's `facility.use`), remove occupants or cancel a pending trade (dnd5e's question), add facilities through dnd5e's compendium browser, drop actors on occupant slots (dnd5e's drop); description in ProseMirror.
+- **Special traits page**: original class and dnd5e's character flags and global bonuses, editable in Edit mode, shown disabled in Play mode (as dnd5e's sheet).
+- **Level up**: in Edit mode the title band's level badge gets a **+**; it runs dnd5e's level change and advancement windows (one class), or asks which class (several), with *Add a class*. The Features page's level selects share the same path.
+
+**Not 1:1 with dnd5e 6.0.6**
+- Effects can't be favourited (by design); no effect sort control (dnd5e lists effects A–Z with a search only, as here).
+- Biography text boxes save on change (leaving the field); the biography editor saves with its own save button. dnd5e saves both through its sheet form.
+- Bastion: no drag-to-reorder of facilities; facility order icons show as a label.
+- Special traits fields are plain inputs (dnd5e renders its own form fields); bonus formulas are saved as typed and validated by dnd5e on update.
+
+**Tests**: `tests/v22-sheet-extra.test.mjs` (effect categories by dnd5e's rules, effects markup for dnd5e's element incl. item effects and conditions, edit / observer differences, biography fields and editor, bastion slot counts, facilities, occupants and dnd5e's actions, bastion only when offered, special traits disabled in Play, level-up medallion and choices, the one changeLevel path, APP_CONTRACT intact, every bookmark has a page).
+
+**Untested in Foundry** (slice 4 live checklist)
+- **Both themes**, GM, player owner, observer, Edit mode on every new page.
+- **Effects**: conditions match dnd5e's (blinded on / off; exhaustion click up, right-click down, matches the vitals pips); concentrate on a spell → the effect shows, its switch is missing and ⋮ → Break concentration ends it; a temporary effect shows its duration; an item effect lists the item as source (click opens it) and moves to *Unavailable* when the item is unequipped / unattuned; disable / enable; edit (dnd5e's effect sheet); duplicate; delete (confirmation); expand shows changes and description; Create effect; search. Drop an effect from an item or compendium onto the page.
+- **Biography**: characteristics and text boxes match dnd5e's tab; edit each (saved on leaving the field); biography editor opens, saves, and the play view shows the enriched text (links, secrets for owners only).
+- **Bastion** (enable bastions in dnd5e settings, level 5+ character): the bookmark appears; counts match dnd5e's; give an order (order window), progress bar; remove a defender / hireling; cancel a pending trade; add a basic and a special facility through the browser; drop an actor on an empty occupant slot; rename the bastion; edit the description.
+- **Special traits**: values match dnd5e's tab; disabled in Play; tick a feat flag, change a crit threshold, add a global bonus (`+1d4`), change the original class: dnd5e's sheet shows the same.
+- **Level up**: single-class character: Edit → click the level badge → dnd5e's advancement windows (HP, features); finish → level and features updated on the Features page. Multiclass: chooser lists each class's next level; *Add a class* opens the browser; at level 20 a notice. Level down from the Features select asks dnd5e's confirmation.
+- Shift+E toggles Edit on every page; the level badge's **+** only shows in Edit for owners.
+
 
 ## 2.0.1
 

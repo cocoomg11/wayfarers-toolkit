@@ -862,13 +862,17 @@ export class WctCharacterSheet extends ActorSheetV2 {
   static async #findItem(event, target) {
     if (!this.isEditable) return;
     const CB = /** @type {any} */ (globalThis).dnd5e?.applications?.CompendiumBrowser; if (!CB?.selectOne) return ui.notifications.warn("dnd5e's compendium browser isn't available.");
-    const { classIdentifier, itemType: type } = target.dataset;
+    const { classIdentifier, facilityType, itemType: type } = target.dataset;
     /** @type {any} */
     const filters = { locked: { types: new Set([type]) } };
     if (classIdentifier) filters.locked.additional = { class: { [classIdentifier]: 1 } };
     if (type === "class") {
       filters.initial = { additional: { properties: { sidekick: -1 } } };
       filters.locked.arbitrary = [{ o: "NOT", v: { k: "system.identifier", o: "in", v: new Set(Object.keys(this.actor.classes ?? {})) } }];
+    }
+    if (type === "facility") {
+      const other = facilityType === "basic" ? "special" : "basic";
+      filters.locked.additional = { type: { [facilityType]: 1, [other]: -1 }, level: { max: this.actor.system.details.level } };
     }
     const result = await CB.selectOne({ filters });
     if (result) await this._onDropCreateItems(event, [game.items.fromCompendium(await fromUuid(result), { keepId: true })]);

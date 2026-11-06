@@ -123,6 +123,7 @@ test("bastion: defenders, basic and special facilities with occupants, order pro
   const s = src("scripts/sheet.mjs");
   assert.match(s, /f\?\.use\(\{ legacy: false, chooseActivity: true, event \}\)/, "dnd5e's useFacility");
   assert.match(s, /trade: \{ pending: \{ creatures: \[\], operation: null \} \}/, "dnd5e's cancel-trade update");
+  assert.match(s, /filters\.locked\.additional = \{ type: \{ \[facilityType\]: 1, \[other\]: -1 \}, level: \{ max: this\.actor\.system\.details\.level \} \}/, "dnd5e's facility browser filter");
   assert.match(s, /\[`\$\{prop\}\.value`\]: value\.filter\(\(_, i\) => i !== Number\(index\)\)/);
 });
 

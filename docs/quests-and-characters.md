@@ -6,7 +6,7 @@ The story side of the table: the quest log and tracker, the character pane, and 
 
 - [Quest log](#quest-log): [setup](#setup), [making quests](#making-quests-gm), [what players see](#what-players-see) (tracker, map pins, Updated glow), [moments](#moments), [journals](#journals)
 - [Character pane](#character-pane): [slots](#slots), [equipping](#equipping), [what fits where](#what-fits-where), [weapon sets](#weapon-sets), [item comparison](#item-comparison), [MMO-style tooltips](#items-with-mmo-style-tooltips)
-- [Character sheet replacement](#character-sheet-replacement) (Character, Details, Inventory, Features and Spells pages; off by default)
+- [Character sheet replacement](#character-sheet-replacement) (all pages; off by default)
 - [Boss frames](#boss-frames) and [phase marks](#phase-marks)
 - [Keyboard shortcuts](#keyboard-shortcuts) and [windows](#windows-and-shortcuts)
 
@@ -206,7 +206,7 @@ The rules stay dnd5e's: every value is dnd5e's own prepared value (armour, items
 
 - **Title band**: level, name, class · species · background, XP bar (hidden when dnd5e's levelling mode is *no XP*), **Rested** (with *Rested at the inn*), Heroic inspiration, Short rest and Long rest (dnd5e's rest dialogs; hidden from players when dnd5e's *Allow rests* is off), and **Play / Edit**. In Edit mode an orange badge counts dnd5e's sheet warnings (hover for the list).
 - **Vitals**: Armor Class, hit points with temporary hit points, hit dice, **Initiative** (click: dnd5e's initiative roll), speed, proficiency bonus, exhaustion (click a pip to set the level, the lit top pip to lower it) and death saves (click: dnd5e's death saving throw).
-- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. **Character**, **Details**, **Inventory**, **Features** and **Spells** are built (below); the other pages come in later updates and show an **Open in system sheet** button for now. Every page has a small *Open in system sheet* link at the bottom.
+- **Bookmarks** on the right edge (since 1.33.1): Character, Details, Inventory, Features, Spells, Effects, Biography, Bastion (only when dnd5e's bastions are on and the character qualifies) and Special traits. Every page is described below. Every page has a small *Open in system sheet* link at the bottom.
 - **Play / Edit**: Play is for rolling and using; Edit shows the inputs and the gear buttons that open dnd5e's own settings windows.
 - **Conditions** along the bottom.
 - **GMs** get a **System sheet** button in the window header that opens the dnd5e sheet for the same actor.
@@ -251,6 +251,28 @@ The **paper doll** is the [character pane](#character-pane)'s, on the same data:
 - Each spell shows its source and components, casting time, range, target, attack bonus or save, **C** (concentration) and **R** (ritual) tags, and dnd5e's **prepare** button (the star means always prepared). Click a name to cast it.
 - **Search** and the **Action / Bonus / Reaction / Concentration / Ritual / Prepared** filters, plus one per spellcasting class and per school; **Sort** A–Z / priority / manual. Edit mode: edit and delete buttons and **+ Create spell**.
 - Drop spells from a compendium onto a section to learn them with that section's casting method (dnd5e's rule).
+
+### Effects page
+
+- **Conditions**: every dnd5e condition as a button; click to add or remove it. Exhaustion shows its level: click to raise it, right-click to lower it.
+- **Effects** in dnd5e's groups: temporary, passive, inactive, and (when there are any) unavailable effects (from items that aren't equipped or attuned) and enchantments. Each row shows the duration, where the effect comes from (click to open it), a switch to turn it on or off, the description toggle (it also lists the effect's changes) and **⋮** for dnd5e's effect menu (edit, duplicate, delete, break concentration). Concentration is ended from the menu, not the switch.
+- **Search**; in Edit mode rows get edit and delete buttons and there is **+ Create effect**.
+
+### Biography page
+
+- **Characteristics** (alignment, eyes, height, faith, hair, weight, gender, skin, age), **Ideals**, **Bonds**, **Flaws**, **Personality traits** and **Appearance**, then the **Biography**. In Edit mode they become fields, and the biography opens Foundry's text editor (save it with the editor's save button).
+
+### Bastion page
+
+Only shown when dnd5e's bastions are on and the character qualifies. The bastion's name, its **defenders**, the **basic** and **special facilities** (with dnd5e's count of how many you may have at this level) and the description. Each facility shows its size or build state, the order in progress with a bar, a crafted item and its hirelings, defenders and creatures. Click a facility's name to give it an order (dnd5e's order window); the small × removes an occupant or cancels a pending trade. Empty slots let you add a facility from dnd5e's compendium browser. Drop an actor onto a facility's occupants to add them, as on dnd5e's sheet.
+
+### Special traits page
+
+The character's **original class** and dnd5e's special traits and global bonuses (feats such as Diamond Soul, species traits, critical hit ranges, bonuses to attacks, checks and saves). They can be read in Play mode and changed in Edit mode.
+
+### Level up
+
+In Edit mode the **level badge** in the title band has a **+**: click it to level up. With one class this starts dnd5e's level-up (its advancement windows: hit points, features, choices). With several classes you pick which class levels up, or **Add a class** (dnd5e's compendium browser). The level selects on the Features page do the same.
 
 ## Boss frames
 
