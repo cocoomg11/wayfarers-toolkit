@@ -25,6 +25,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "1.33.2",
+    changes: [
+      { feature: "characterSheet", text: "Key C: a player without an assigned character now opens the character they own (with several, the one whose token is selected)." }
+    ],
+    actions: []
+  },
+  {
     version: "1.33.1",
     changes: [
       { feature: "characterSheet", text: "Foundry's own Toggle Character Sheet key now moves to Alt+C while the toolkit sheet uses C (Shift+C was already Foundry's Focus Chat, so it never moved there). As before, only if you haven't changed that key yourself, and it goes back to C when you turn the sheet off." },

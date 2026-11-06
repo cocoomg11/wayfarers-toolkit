@@ -67,6 +67,20 @@ test("key: never while typing", () => {
   assert.match(s, /cfg\.onDown = ctx => \(SM\.isTyping\(ctx\?\.event\?\.target\) \|\| SM\.isTyping\(document\.activeElement\) \? false : run\(ctx\)\)/, "the press passes through to the field");
 });
 
+test("key: players without an assigned character (1.33.2)", () => {
+  const a = { type: "character", name: "A" }, b = { type: "character", name: "B" }, other = { type: "character", name: "Not mine" };
+  assert.equal(SM.pickSheetActor({ isGM: false, character: a, owned: [a, b] }).actor, a, "assigned wins");
+  assert.equal(SM.pickSheetActor({ isGM: false, character: null, owned: [b] }).actor, b, "the only owned character");
+  assert.equal(SM.pickSheetActor({ isGM: false, owned: [a, b], controlled: [b] }).actor, b, "several: the selected token's, if theirs");
+  assert.equal(SM.pickSheetActor({ isGM: false, owned: [a, b], controlled: [null, a] }).actor, a);
+  assert.match(SM.pickSheetActor({ isGM: false, owned: [a, b], controlled: [other] }).warn ?? "", /own several characters: select one's token or assign one/);
+  assert.match(SM.pickSheetActor({ isGM: false, owned: [a, b] }).warn ?? "", /own several characters/);
+  assert.match(SM.pickSheetActor({ isGM: false, owned: [] }).warn ?? "", /no character assigned/);
+  assert.match(SM.pickSheetActor({ isGM: false }).warn ?? "", /no character assigned/);
+  assert.equal(SM.pickSheetActor({ isGM: true, owned: [a], controlled: [] }).warn, "Select a character's token to open its sheet.", "GM unchanged");
+  assert.match(src("scripts/sheet.mjs"), /owned: game\.user\.isGM \|\| game\.user\.character \? \[\] : \(game\.actors\?\.filter\(a => a\.type === "character" && a\.isOwner\)/);
+});
+
 test("key: which actor", () => {
   const pc = { type: "character", name: "A" }; const npc = { type: "npc", name: "Wolf" };
   assert.equal(SM.pickSheetActor({ isGM: false, character: pc }).actor, pc);

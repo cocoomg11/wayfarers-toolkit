@@ -44,10 +44,11 @@ export function pickPage(page, f = {}) {
 
 // ---------------------------------------------------------------- key
 /**
- * Which actor the C key opens: a player's assigned character; for a GM the first selected token's actor, which must be a
- * player character. `{ actor }` or `{ warn }` (a short notification).
+ * Which actor the C key opens. A player: the assigned character; else the only character they own (`owned`, OWNER of type
+ * character); else, owning several, the selected token's character when it is one of theirs. A GM: the first selected token's
+ * actor, which must be a player character. `{ actor }` or `{ warn }` (a short notification).
  * @template {{ type?: string, name?: string }} A
- * @param {{ isGM?: boolean, controlled?: Array<A | null | undefined>, character?: A | null }} f
+ * @param {{ isGM?: boolean, controlled?: Array<A | null | undefined>, character?: A | null, owned?: A[] }} f
  * @returns {{ actor: A, warn?: undefined } | { actor?: undefined, warn: string }}
  */
 export function pickSheetActor(f = {}) {
@@ -57,8 +58,17 @@ export function pickSheetActor(f = {}) {
     if (a.type !== "character") return { warn: `${a.name ?? "That token"} isn't a player character.` };
     return { actor: a };
   }
-  if (!f.character) return { warn: "You have no character assigned (User Configuration)." };
-  return { actor: f.character };
+  // Players (1.33.2): the assigned character; else the only character they own; else, owning several, the selected token's
+  // character if it is one of theirs; else a notice.
+  if (f.character) return { actor: f.character };
+  const owned = (f.owned ?? []).filter(Boolean);
+  if (owned.length === 1) return { actor: owned[0] };
+  if (owned.length > 1) {
+    const sel = (f.controlled ?? []).find(a => a && owned.includes(a));
+    if (sel) return { actor: sel };
+    return { warn: "You own several characters: select one's token or assign one in User Configuration." };
+  }
+  return { warn: "You have no character assigned (User Configuration)." };
 }
 
 /**

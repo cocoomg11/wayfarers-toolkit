@@ -175,7 +175,9 @@ export function register() {
  * actor's own sheet when that is already the toolkit sheet, so there is never a second window with the same id).
  */
 export async function openFromKey() {
-  const pick = SM.pickSheetActor({ isGM: game.user.isGM, controlled: (canvas?.ready ? canvas.tokens?.controlled ?? [] : []).map(t => t.actor), character: game.user.character });
+  const pick = SM.pickSheetActor({ isGM: game.user.isGM, controlled: (canvas?.ready ? canvas.tokens?.controlled ?? [] : []).map(t => t.actor), character: game.user.character,
+    // Players only: the characters they own (for the no-assigned-character fallbacks). GMs pick by token as before.
+    owned: game.user.isGM || game.user.character ? [] : (game.actors?.filter(a => a.type === "character" && a.isOwner) ?? []) });
   if (pick.warn !== undefined) return ui.notifications.info(pick.warn);
   // Like core's Toggle Character Sheet: a second press closes the sheet when it is open and in front.
   const open = existing(/** @type {any} */ (WctCharacterSheet), pick.actor);

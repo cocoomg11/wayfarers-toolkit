@@ -2,6 +2,21 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 1.33.2
+
+2026-11-05. Key C for players without an assigned character. No data migration, nothing stored.
+
+**Changed**
+- **C opens a player's only character.** A player's C key (`pickSheetActor`, sheet-model.mjs) now picks, in order: the assigned character (as before); with none assigned, the only `character` actor they own; owning several, the selected token's character when it is one of theirs, else the notice "You own several characters: select one's token or assign one in User Configuration."; owning none, the old "no character assigned" notice. The owned list (`game.actors.filter(a => a.type === "character" && a.isOwner)`) is built only for players without an assigned character. GMs are unchanged (the selected token's character).
+
+**Tests**: `tests/v133-sheet.test.mjs` (assigned wins, one owned, several with a selected own token / a token not theirs / none selected, none owned, GM unchanged).
+
+**Untested in Foundry** (live checklist)
+- A player with one owned, unassigned character presses C: that character's sheet opens.
+- A player with two owned characters and none assigned: C with one's token selected opens it; with no token (or another player's) selected, the "own several characters" notice.
+- A player with an assigned character: C opens it, whatever is selected. A player owning none: the "no character assigned" notice.
+- GM: unchanged (selected token's character, or the notice).
+
 ## 1.33.1
 
 2026-11-05. Follow-up to the 1.33.0 live test. No data migration; the `coreSheetKeyMoved` client setting keeps its key and meaning (the moved action's id).
