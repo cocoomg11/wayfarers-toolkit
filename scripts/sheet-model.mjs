@@ -113,6 +113,30 @@ export function isTyping(el) {
   return false;
 }
 
+// ---------------------------------------------------------------- 2.3.1: no favourites on the toolkit sheet
+/** dnd5e 6.0.6's favourite entries in item, effect and activity context menus (inventory.mjs, effects.mjs, activity mixin.mjs). */
+export const FAVOURITE_LABELS = Object.freeze(["DND5E.Favorite", "DND5E.FavoriteRemove"]);
+/**
+ * Removes dnd5e's Favorite / Remove Favorite entries from a context menu list, in place (dnd5e passes the same array it shows).
+ * The toolkit sheet has no favourites bar, so those entries would do nothing visible there. `also` adds the localized labels.
+ * Returns how many entries were removed. Anything that isn't an array is left alone.
+ * @param {unknown} menuItems @param {readonly string[]} [also]
+ */
+export function dropFavourites(menuItems, also = []) {
+  if (!Array.isArray(menuItems)) return 0;
+  const drop = new Set([...FAVOURITE_LABELS, ...also.filter(x => typeof x === "string" && x)]);
+  let n = 0;
+  for (let i = menuItems.length - 1; i >= 0; i--) {
+    const e = menuItems[i];
+    if (e && typeof e === "object" && typeof e.label === "string" && drop.has(e.label)) { menuItems.splice(i, 1); n++; }
+  }
+  return n;
+}
+/** True when a context menu was opened from inside the toolkit character sheet (duck-typed element, so it runs in Node). @param {any} el */
+export function onToolkitSheet(el) {
+  return !!(el && typeof el.closest === "function" && el.closest(".wct-sheet .wct-cs"));
+}
+
 // ---------------------------------------------------------------- exhaustion
 /** The level after clicking pip `n` (1-based): the clicked level, or one less when it is the current level (click again to lower). */
 export function exhaustionTarget(current, n, max = 6) {

@@ -1357,6 +1357,25 @@ export async function equipToSlot(actor, item) {
   return r;
 }
 
+/**
+ * 2.3.1: the toolkit sheet has no favourites bar, so dnd5e's Favorite / Remove Favorite context menu entries are dropped there
+ * (items, effects, activities). dnd5e's own sheet keeps them. The item and effect hooks don't say which sheet the menu is on, so
+ * one capture listener on the document notes whether the latest contextmenu event (a right-click, or dnd5e's ⋮ button, which
+ * dispatches one) started inside a toolkit sheet; the hooks run while dnd5e opens that same menu. Called from init while
+ * `characterSheet` is on (once).
+ */
+let favouriteHooks = false;
+let menuOnSheet = false;
+export function registerFavouriteFilter() {
+  if (favouriteHooks) return; favouriteHooks = true;
+  document.addEventListener("contextmenu", ev => { menuOnSheet = SM.onToolkitSheet(ev.target); }, { capture: true });
+  const labels = () => SM.FAVOURITE_LABELS.map(k => { try { return game.i18n.localize(k); } catch { return k; } });
+  const drop = (/** @type {unknown} */ items, /** @type {boolean} */ here) => { if (here) SM.dropFavourites(items, labels()); };
+  Hooks.on("dnd5e.getItemContextOptions", (_item, items) => drop(items, menuOnSheet));
+  Hooks.on("dnd5e.getActiveEffectContextOptions", (_effect, items) => drop(items, menuOnSheet));
+  Hooks.on("dnd5e.getItemActivityContext", (_activity, target, items) => drop(items, SM.onToolkitSheet(target) || menuOnSheet));
+}
+
 /** Registers the sheet for dnd5e character actors (feature on; called from init). */
 export function register() {
   const DSC = foundry.applications.apps?.DocumentSheetConfig;

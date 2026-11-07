@@ -209,6 +209,10 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Hook** `wayfarers-toolkit.sheetReady` (`SHEET_READY_HOOK` in main.mjs): `Hooks.callAll(..., WCT.sheet)` right after `mod.api = WCT` in `ready`, every client, only with the sheet on, not gated by `moduleHooks` (it's for registration, not change notices).
 - Tests: `tests/v23-pages.test.mjs`.
 
+## 2.3.1 notes: No favourites on the toolkit sheet
+- The sheet has no favourites bar by design. `sheet.mjs` `registerFavouriteFilter()` (init, once, `characterSheet` on) drops dnd5e's `DND5E.Favorite` / `DND5E.FavoriteRemove` entries (`SM.FAVOURITE_LABELS`, plus their localized text) via `dnd5e.getItemContextOptions`, `dnd5e.getActiveEffectContextOptions` (dnd5e calls these two without the element, so a capture `contextmenu` listener on `document` records `SM.onToolkitSheet(ev.target)` = inside `.wct-sheet .wct-cs`) and `dnd5e.getItemActivityContext` (has the target). Pure `SM.dropFavourites(list, also)` splices in place. Never touch dnd5e's sheet or the actor's `system.favorites`.
+- Tests: `tests/v231.test.mjs`.
+
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.6.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.

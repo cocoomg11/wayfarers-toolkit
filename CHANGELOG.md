@@ -2,6 +2,20 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.3.1
+
+2026-11-07. The toolkit character sheet leaves out dnd5e's favourite menu entries. No setting, nothing stored, no migration, no update note.
+
+**Changed**
+- **No Favorite / Remove Favorite on the toolkit sheet**: the sheet has no favourites bar, so those entries are removed from dnd5e's item, effect and activity context menus (right-click or the ⋮ button) while the menu is opened from the toolkit sheet. dnd5e's own sheet is unchanged, and favourites already set stay on the actor. Part of *Character sheet replacement* (off → nothing is filtered). Through dnd5e's hooks `dnd5e.getItemContextOptions`, `dnd5e.getActiveEffectContextOptions` and `dnd5e.getItemActivityContext` (`sheet.mjs` `registerFavouriteFilter`, pure `SM.dropFavourites` / `SM.onToolkitSheet`).
+
+**Tests**: `tests/v231.test.mjs` (entries dropped by key and by localized label, others kept, non-arrays ignored, toolkit-sheet detection, wiring behind the feature, version).
+
+**Untested in Foundry** (live checklist)
+- Sheet on: Inventory, Features, Spells and Effects rows: right-click and ⋮ → no *Favorite* / *Remove Favorite*; the other entries work. The same on a container in the Inventory strip and on an activity in an expanded row.
+- dnd5e's own sheet (System sheet button) for the same actor: *Favorite* is still in the menus and the favourites bar still works.
+- Sheet off (reload): dnd5e's sheet unchanged.
+
 ## 2.3.0
 
 2026-11-06. **Sheet pages for other modules** (experimental scripting API) and the move to wanderers-core 0.6.0. Nothing changes at the table until another module adds a page: no new setting, nothing stored, no migration, no update note.
