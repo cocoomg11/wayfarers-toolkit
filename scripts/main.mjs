@@ -47,6 +47,8 @@ import * as Renown from "./renown.mjs";
 import * as RenownUI from "./renown-apps.mjs";
 
 const ID = "wayfarers-toolkit";
+/** 2.3: fired on every client after `api` is set, with `api.sheet` (character sheet on only), so earlier-loading modules can add sheet pages. */
+export const SHEET_READY_HOOK = `${ID}.sheetReady`;
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const setting = key => game.settings.get(ID, key);
 
@@ -835,6 +837,11 @@ export const WCT = {
       sync: () => Renown.syncMerchants()
     }, { open: ["factions", "faction", "tiers", "get", "open", "track"] });
   },
+  /**
+   * 2.3 (experimental): other modules' pages on the toolkit character sheet; undefined while the sheet is off. registerPage(def) →
+   * off(), unregisterPage(id), pages(). Every client registers its own (not GM only). docs/scripting.md › Sheet pages.
+   */
+  get sheet() { return F.on("characterSheet") ? Sheet.PAGE_API : undefined; },
   get shop() { return F.on("merchantShop") ? gmOnlyApi({ open: (m, opts) => Shop.open(m, opts), close: m => Shop.close(m), openedFor: m => Shop.openedFor(m) }) : undefined; },
   get coinLog() { return F.on("coinLog") ? gmOnlyApi({ entries: () => CoinLog.entries(), open: () => CoinLog.open(), undo: id => CoinLog.undo(id) }) : undefined; },
   /** 1.28: GM: splits the party actor's coin evenly among its members, after a preview. */
@@ -965,6 +972,8 @@ Hooks.once("init", () => {
 });
 Hooks.once("ready", () => {
   const mod = game.modules.get(ID); mod.api = WCT;
+  // 2.3: modules that loaded before us register their sheet pages here (later ones read api.sheet in their own ready). Every client.
+  if (F.on("characterSheet")) { try { Hooks.callAll(SHEET_READY_HOOK, WCT.sheet); } catch (e) { console.warn(`${ID} | ${SHEET_READY_HOOK} listener`, e); } }
   // Core's own C (Toggle Character Sheet) moves to Alt+C while our sheet owns C; put back when the sheet or its key is off.
   Sheet.syncCoreSheetKey(F.on("characterSheet") && F.on("keybindings"));
   globalThis.WCT = WCT; // lets world macros written for the library version keep working

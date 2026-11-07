@@ -16,7 +16,7 @@ test("2.1.2: Special traits hint only for users who can edit", () => {
 
 test("2.1.2: version, download, note", () => {
   const m = JSON.parse(src("module.json"));
-  assert.match(m.version, /^2\.(1\.2|2\.\d+)$/);
+  assert.match(m.version, /^2\.(1\.2|[2-9]\.\d+)$/);
   assert.equal(m.download, `https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v${m.version}/module.zip`);
   assert.equal(m.compatibility.verified, "14.370");
   assert.ok(N.NOTES.find(x => x.version === "2.1.2"));

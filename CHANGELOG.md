@@ -2,6 +2,34 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.3.0
+
+2026-11-06. **Sheet pages for other modules** (experimental scripting API) and the move to wanderers-core 0.6.0. Nothing changes at the table until another module adds a page: no new setting, nothing stored, no migration, no update note.
+
+**Added**
+- **`api.sheet`** (while *Character sheet replacement* is on; `undefined` otherwise): `registerPage(def)` → `off()`, `unregisterPage(id)`, `pages()`. Another module adds a bookmark and a page to the toolkit sheet: id `<module-id>.<name>`, label, hint, icon (one SVG path or Font Awesome classes), order among our pages (Character 10 … Special traits 90), `visible(actor)`, `render({ actor, mode, editable, root })` (HTML text, inserted as is, or an element) and `activate(ctx)` (also gets `element` and `refresh`). Built on core's guest pages (`createPageHost`, `renderGuest`, `activateGuest`): bad definitions are refused with a warning and never throw, at most 20 pages, a second register of an id replaces the first, a render that throws or takes over 5 s shows one error line on that page only, and open sheets redraw on every change. Guest pages show in Play and Edit mode with our page title and hint, no *Open in system sheet* link; a page that goes away falls back to Character. The sheet stores nothing for them and passes no way to write toolkit data. Details: docs/scripting.md › *Sheet pages for other modules*.
+- **Hook `wayfarers-toolkit.sheetReady`** (experimental): fired once on every client right after `api` is set, with `api.sheet`, while the sheet is on (not behind *Hooks for other modules*), so modules that load before the toolkit can register.
+- The sheet leaves a guest page's own fields alone (our `data-name` / proficiency listeners skip `.wct-cs-guest`), and Enter in a guest's text field doesn't submit the sheet's form.
+
+**Changed**
+- **wanderers-core 0.5.1 → 0.6.0** (via 0.5.2): guest pages (above); the **heirloom** item quality and stylesheet revision 4 (`wc-r4`). Every toolkit window and card picks up revision 4 through `UI_CLASSES` (it differs from 3 only by the heirloom colour). Chat cards posted before the update still carry `wc-r3`, a revision no longer loaded by the toolkit; they keep their text but may lose core's styling (buttons, status icons) unless another module still on core 0.5.0 / 0.5.1 loads revision 3.
+- MMO-style item tooltips coloured `#00ccff` now read as the **heirloom** quality (`pane-model.mjs` `qualityKey`), so the pane, sheet and comparison show core's heirloom colour.
+- Older version-pin tests (1.29, 1.30, 1.32, 2.1.2, 2.2.1) accept later versions.
+
+**Tests**: `tests/v23-pages.test.mjs` (page orders, merging guests by order, guest ids in `pickPage`, bookmark icons and escaping, the guest page body and head, the error line, `api.sheet`'s object and refusals, `guestBody` context and results, main.mjs / sheet.mjs wiring, core pin, heirloom colour, docs).
+
+**Before releasing**: the vendored core is pinned to a **local** copy of wanderers-core 0.6.0 (`wanderers-core.lock.json` `source: "local"`). Publish core v0.6.0 first, then re-pin with `node vendor/wanderers-core/vendor.mjs update 0.6.0` (the content hash should not change) and commit the lock; CI's pin check only warns on a local pin.
+
+**Untested in Foundry** (live checklist)
+- With the sheet on, from the console on a player's client: `game.modules.get("wayfarers-toolkit").api.sheet.registerPage({ id: "test.page", label: "Test", order: 85, render: ({ actor }) => `<p>${actor.name}</p>` })` → a bookmark between Bastion and Special traits (or after Biography when Bastion is hidden) with the default page icon; clicking it shows "Test" with the name; Play and Edit both show it.
+- An open sheet redraws when a page is registered and when `off()` runs; a sheet sitting on the removed page goes back to Character.
+- A page whose render throws shows the one error line; the other bookmarks still work. A render returning an element shows it.
+- `activate` gets `element`; a button it wires works; `refresh()` redraws. Typing Enter in an input on the guest page doesn't submit or reset anything.
+- A Font Awesome icon (`icon: "fa-solid fa-hammer"`) sits centred in its bookmark like ours.
+- `Hooks.once("wayfarers-toolkit.sheetReady", s => …)` in a module that loads before the toolkit receives `api.sheet`; with the sheet off, `api.sheet` is undefined and the hook doesn't fire.
+- After the core move: every toolkit window (control panel, quest log, pane, sheet, coin log, health) looks as before in both themes; an item with an MMO heirloom tooltip shows light blue on the pane and sheet.
+- Old toolkit chat cards (health, update notes) posted before 2.3.0: still readable.
+
 ## 2.2.1
 
 2026-11-06. Fixes from the 2.2.0 live test. No migration, nothing stored changes.

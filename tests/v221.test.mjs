@@ -58,10 +58,11 @@ test("award: merchant prices follow at once; 2.2.1 version and note", async () =
   assert.match(award, /await syncNow\(\); onChanged\(\);/);
   assert.match(rn, /export async function syncNow\(\) \{\n {2}if \(!game\.user\?\.isGM \|\| !discountsOn\(\)\) return null;\n {2}clearTimeout\(syncTimer\);/);
   const m = JSON.parse(src("module.json"));
-  assert.equal(m.version, "2.2.1");
-  assert.equal(m.download, "https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v2.2.1/module.zip");
+  assert.match(m.version, /^2\.(2\.[1-9]|[3-9]\.\d+)$/, "2.2.1 or later");
+  assert.equal(m.download, `https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v${m.version}/module.zip`);
   const { NOTES } = await import("../scripts/update-notes.mjs");
-  assert.equal(NOTES[0].version, "2.2.1");
-  assert.match(JSON.stringify(NOTES[0].changes), /Create faction and Save faction work again/);
+  const n221 = NOTES.find(n => n.version === "2.2.1");
+  assert.ok(n221);
+  assert.match(JSON.stringify(n221.changes), /Create faction and Save faction work again/);
   assert.match(src("CHANGELOG.md"), /## 2\.2\.1\n\n2026-11-06\./);
 });

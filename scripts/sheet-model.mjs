@@ -5,7 +5,7 @@
  * Nothing here computes a stat: every number comes from dnd5e's prepared data; buttons carry data-action names that sheet.mjs
  * maps to dnd5e's own methods.
  */
-import { esc } from "../vendor/wanderers-core/index.mjs";
+import { esc, orderPages } from "../vendor/wanderers-core/index.mjs";
 
 /** The sheet's registration label (Sheet configuration) and Foundry sheet class name (never rename: worlds store it). */
 export const SHEET_LABEL = "Wanderer's Toolkit sheet";
@@ -22,29 +22,53 @@ export const SHEET_KEY = /** @type {Array<{ key: string, modifiers: Array<"Alt" 
 // ---------------------------------------------------------------- pages
 /**
  * Bookmarks in order. Icons are small original stroke drawings on a 24 × 24 grid. `bastion` shows only when dnd5e offers one,
- * `reputation` (2.2) only while the Renown feature is on.
+ * `reputation` (2.2) only while the Renown feature is on. `order` (2.3) places other modules' pages among them (docs/scripting.md,
+ * Sheet pages): never renumber an existing page.
  */
 export const PAGES = Object.freeze([
-  { id: "character", label: "Character", hint: "slots, weapon sets, quick stats", icon: "M8 3l4 2l4-2l5 4l-3 3l-2-1v12H8V9l-2 1l-3-3z" },
-  { id: "details", label: "Details", hint: "abilities, saves, skills, tools, traits", icon: "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" },
-  { id: "inventory", label: "Inventory", hint: "every item, coin and weight", icon: "M6 8h12l1 12H5zM9 8V6a3 3 0 0 1 6 0v2" },
-  { id: "features", label: "Features", hint: "class, species, background and other features", icon: "M4 6h16M4 12h16M4 18h10" },
-  { id: "spells", label: "Spells", hint: "slots, preparation, casting", icon: "M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM9 8h6M9 12h6" },
-  { id: "effects", label: "Effects", hint: "conditions and active effects", icon: "M13 2L4 14h7l-1 8l9-12h-7z" },
-  { id: "biography", label: "Biography", hint: "characteristics and story", icon: "M20 4C10 4 6 10 5 20M5 20l4-1M9 12h6" },
-  { id: "reputation", label: "Reputation", hint: "renown per faction · this character only", icon: "M5 21V4M5 4h12l-2.5 4L17 12H5" },
-  { id: "bastion", label: "Bastion", hint: "facilities and orders", icon: "M4 21V8l3-2v3l3-2v3l2-2l2 2V7l3 2V6l3 2v13zM10 21v-5h4v5" },
-  { id: "special", label: "Special traits", hint: "flags and original class", icon: "M12 3l2.6 5.6l6 .7l-4.5 4.1l1.2 6L12 16.4L6.7 19.4l1.2-6L3.4 9.3l6-.7z" }
+  { id: "character", order: 10, label: "Character", hint: "slots, weapon sets, quick stats", icon: "M8 3l4 2l4-2l5 4l-3 3l-2-1v12H8V9l-2 1l-3-3z" },
+  { id: "details", order: 20, label: "Details", hint: "abilities, saves, skills, tools, traits", icon: "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" },
+  { id: "inventory", order: 30, label: "Inventory", hint: "every item, coin and weight", icon: "M6 8h12l1 12H5zM9 8V6a3 3 0 0 1 6 0v2" },
+  { id: "features", order: 40, label: "Features", hint: "class, species, background and other features", icon: "M4 6h16M4 12h16M4 18h10" },
+  { id: "spells", order: 50, label: "Spells", hint: "slots, preparation, casting", icon: "M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM9 8h6M9 12h6" },
+  { id: "effects", order: 60, label: "Effects", hint: "conditions and active effects", icon: "M13 2L4 14h7l-1 8l9-12h-7z" },
+  { id: "biography", order: 70, label: "Biography", hint: "characteristics and story", icon: "M20 4C10 4 6 10 5 20M5 20l4-1M9 12h6" },
+  { id: "reputation", order: 75, label: "Reputation", hint: "renown per faction · this character only", icon: "M5 21V4M5 4h12l-2.5 4L17 12H5" },
+  { id: "bastion", order: 80, label: "Bastion", hint: "facilities and orders", icon: "M4 21V8l3-2v3l3-2v3l2-2l2 2V7l3 2V6l3 2v13zM10 21v-5h4v5" },
+  { id: "special", order: 90, label: "Special traits", hint: "flags and original class", icon: "M12 3l2.6 5.6l6 .7l-4.5 4.1l1.2 6L12 16.4L6.7 19.4l1.2-6L3.4 9.3l6-.7z" }
 ]);
 export const PAGE_IDS = PAGES.map(p => p.id);
 
-/** The pages shown: all but Bastion unless the actor has one, and Reputation only with Renown on. @param {{ bastion?: boolean, renown?: boolean }} f */
-export const visiblePages = (f = {}) => PAGES.filter(p => (p.id !== "bastion" || f.bastion) && (p.id !== "reputation" || f.renown));
+/**
+ * Another module's page (2.3, core guest pages), as the sheet draws it: no functions, only what the bookmark and the head need.
+ * @typedef {{ id: string, label: string, hint: string, icon: string | null, fa: string | null, order: number | null, guest: true }} GuestSummary
+ * @typedef {{ bastion?: boolean, renown?: boolean, guests?: ReadonlyArray<GuestSummary> }} PageFacts
+ */
+/** The bookmark of a guest page without an icon of its own: a plain page with a folded corner (original drawing). */
+export const GUEST_ICON = "M6 3h9l4 4v14H6zM15 3v4h4M9 12h7M9 16h5";
 
-/** The page to show: the asked one when it's visible, else Character. @param {string | null | undefined} page @param {{ bastion?: boolean, renown?: boolean }} f */
+/** A guest page's summary from core's page record (drops its functions). @param {{ id: string, label: string, hint?: string, icon?: string | null, fa?: string | null, order?: number | null }} g @returns {GuestSummary} */
+export const guestSummary = g => ({ id: g.id, label: g.label, hint: g.hint ?? "", icon: g.icon ?? null, fa: g.fa ?? null, order: g.order ?? null, guest: true });
+
+/**
+ * The built-in pages shown (all but Bastion unless the actor has one, Reputation only with Renown on), plus the guest pages
+ * (already filtered by their own `visible(actor)`), in bookmark order (core `orderPages`: order, built-ins first on a tie, then id).
+ * @param {PageFacts} f
+ * @returns {Array<(typeof PAGES)[number] & { guest?: false } | GuestSummary>}
+ */
+export function visiblePages(f = {}) {
+  const own = PAGES.filter(p => (p.id !== "bastion" || f.bastion) && (p.id !== "reputation" || f.renown));
+  const guests = (f.guests ?? []).filter(g => g && typeof g.id === "string" && g.guest === true && !PAGE_IDS.includes(g.id));
+  return guests.length ? orderPages([...own, ...guests]) : own;
+}
+
+/** The page to show: the asked one when it's visible (a guest page too), else Character. @param {string | null | undefined} page @param {PageFacts} f */
 export function pickPage(page, f = {}) {
   return visiblePages(f).some(p => p.id === page) ? /** @type {string} */ (page) : "character";
 }
+
+/** Whether a page id is another module's (a guest page's ids always hold a dot; ours never do). @param {unknown} id */
+export const isGuestPage = id => typeof id === "string" && id.includes(".");
 
 // ---------------------------------------------------------------- key
 /**
@@ -223,8 +247,25 @@ export function vitalsHTML(v) {
 
 /** @param {ReturnType<typeof sheetView>} v */
 export function tabsHTML(v) {
-  return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}" data-action="wctPage" data-page="${p.id}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip="${esc(p.label)}" data-tooltip-direction="RIGHT">${svg(p.icon)}</button>`).join("")}</nav>`;
+  return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}${"guest" in p && p.guest ? " guest" : ""}" data-action="wctPage" data-page="${esc(p.id)}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip="${esc(p.label)}" data-tooltip-direction="RIGHT">${tabIcon(p)}</button>`).join("")}</nav>`;
 }
+
+/**
+ * A bookmark's icon: our pages' path; a guest's own path (core's reader allows drawing commands and numbers only), else its Font
+ * Awesome classes (checked by core too), else GUEST_ICON.
+ * @param {{ icon?: string | null, fa?: string | null, guest?: boolean }} p
+ */
+export function tabIcon(p) {
+  if (p.icon) return svg(p.guest ? esc(p.icon) : p.icon);
+  if (p.fa) return `<i class="${esc(p.fa)} wct-cs-fa" aria-hidden="true"></i>`;
+  return svg(GUEST_ICON);
+}
+
+/**
+ * The one line a guest page shows instead of its body when its render failed (threw, timed out, returned something else).
+ * @param {string} label @param {string} message
+ */
+export const guestErrorHTML = (label, message) => `<p class="wct-cs-dim wct-cs-guest-error" role="alert">The ${esc(label)} page couldn't be drawn (${esc(message)}). The other pages still work.</p>`;
 
 /**
  * dnd5e 6.0.6's app contract: the members its documents, dialogs and elements use on a sheet passed as `sheet` / found as the app
@@ -247,6 +288,13 @@ export const BUILT_PAGES = Object.freeze(["character", "details", "inventory", "
  * @param {ReturnType<typeof sheetView>} v @param {string | null} [body]
  */
 export function pageHTML(v, body = null) {
+  const g = isGuestPage(v.page) ? /** @type {GuestSummary | undefined} */ (v.pages.find(x => x.id === v.page && "guest" in x && x.guest)) : undefined;
+  // 2.3: another module's page: our head, its body (inserted as is: the guest escapes its own data) in its own container, no
+  // "Open in system sheet" link (the system sheet has no such page).
+  if (g) return `<main class="wct-cs-page wct-cs-guestpage" data-page="${esc(g.id)}" role="tabpanel" aria-label="${esc(g.label)}">
+    <div class="wct-cs-page-head"><h3 class="wct-cs-ttl">${esc(g.label)}</h3>${g.hint ? `<span class="wct-cs-dim">${esc(g.hint)}</span>` : ""}</div>
+    <div class="wct-cs-guest" data-guest-page="${esc(g.id)}">${body ?? ""}</div>
+  </main>`;
   const p = PAGES.find(x => x.id === v.page) ?? PAGES[0];
   const head = `<div class="wct-cs-page-head"><h3 class="wct-cs-ttl">${esc(p.label)}</h3><span class="wct-cs-dim">${esc(p.hint)}</span></div>`;
   if (body !== null && BUILT_PAGES.includes(p.id)) return `<main class="wct-cs-page" data-page="${p.id}" role="tabpanel" aria-label="${esc(p.label)}">

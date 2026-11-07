@@ -26,7 +26,7 @@ More calls are listed with each tool, under *For scripters* in the guides: [trav
 | API | Status |
 |---|---|
 | `hexTravel`, `flight` (+ `network`, `setNetwork`, `unlock`, `fly`, `editor`, `importLegacy`, `map`), `vendorTrash`, `sellTrash`, `characterPane`, `questLog`, `quests`, `bosses` (`toggle`, `isBoss`, `refresh`), `lootRoll` (`start`, `close`, `assign`), `bossLoot` (`get`, `set`, `preview`, `drop`, `reset`, `dialog`, `autoLink`), `trash` (`reroll`, `reset`, `preview`, `showPreview`), `pane` (`slotItem`, `unslotItem`), `setup`, `setupPlan`, `health`, `panel`, `open` (1.32: GM, opens the control panel, same as `panel(tab)`; used by the Wanderer's Satchel launcher), `cleanup` (`plan`, `remove`, `open`), `features.on`, `partySize`, `parseMoney`, `fmtMoney`, `totalMoney`, `pay` | stable |
-| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty`, `moneyHTML`, `coinRatio` (1.30), `shop` (`open`, `close`, `openedFor`; 1.31), health lines' `fix` in `healthReport()` (1.30), `renown` (2.2: `factions`, `faction`, `tiers`, `get`, `open`, `track`; GM only: `award`, `setScore`, `addSource`, `removeSource`, `setup`, `awardDialog`, `sync`; see [Renown for scripters](quests-and-characters.md#renown-for-scripters)) | experimental |
+| `healthReport`, `coinLog` (`entries`, `open`, `undo`), `splitCoin`, `flightMap`, `travelPace`, `setTravelPace`, `partyGold`, `gold`, `zoneTitles`, `rentRooms`, `inn` (`inn`, `inns`, `all`, `rested`, `rental`, `clear`, `candidates`, `rent`, `save`, `remove`, `makeInnkeeper`), `pins` (`place`, `create`, `update`, `move`, `remove`, `reveal`, `open`, `list`, `read`), `lootHistory`, `updateNotes`, `wizard`, `trash.applyWeights`, `settingsRecords`, `migrations` (`status`, `run`), `quests.showTracker`, `quests.resetTrackerPosition`, `quests.progressObjective`, `quests.assign`, `quests.pickReward`, `quests.parties`, `quests.difficulty`, `moneyHTML`, `coinRatio` (1.30), `shop` (`open`, `close`, `openedFor`; 1.31), health lines' `fix` in `healthReport()` (1.30), `renown` (2.2: `factions`, `faction`, `tiers`, `get`, `open`, `track`; GM only: `award`, `setScore`, `addSource`, `removeSource`, `setup`, `awardDialog`, `sync`; see [Renown for scripters](quests-and-characters.md#renown-for-scripters)), `sheet` (2.3: `registerPage`, `unregisterPage`, `pages`; character sheet on only; every client; see [Sheet pages for other modules](#sheet-pages-for-other-modules)), hook `wayfarers-toolkit.sheetReady` (2.3) | experimental |
 | `internals`, `log`, anything not listed here | internal: don't rely on it |
 
 Removed in 1.27: `sessionStart`, `whosOnline`, `online` (both tools moved to the **Red Book** module) and `settingsIO` (settings files are the hub module's job; `api.settingsRecords()` lists the record settings a settings file must leave out). Under `api.trash`, only the functions listed in the code comment remain (the internal module is no longer spread into the API).
@@ -58,9 +58,43 @@ Hooks.on("wayfarers-toolkit.renownChanged", ({ actorId, factionId, before, after
 
 - **`wayfarers-toolkit.renownChanged`** (2.2, feature *Renown* on too) after a character's renown with a faction changed and was saved (an award, a quest's renown reward, the GM setting the score, or adding or removing another source): `actorId` the character, `factionId` the faction's id (read it with `api.renown.faction(factionId)`; for a hidden faction only on a GM's client, which is the only place the hook fires), `before` / `after` the totals (score plus other sources, never below 0), `delta` the change to the score itself (0 when only a source changed; a loss stopped at 0 counts what was actually taken), `tierBefore` / `tierAfter` tier indexes (0 = the first tier, −1 = no tier). Ids and numbers only. Fired once per character: an award to the party fires it for each.
 
+- **`wayfarers-toolkit.sheetReady`** (2.3, experimental) is different from the hooks above: it fires on **every** client, once, right after `api` is set (in the toolkit's `ready`), only while the character sheet replacement is on, and whether or not *Hooks for other modules* is on. Its argument is `api.sheet`. It is how modules that load before the toolkit add [sheet pages](#sheet-pages-for-other-modules).
+
 Earlier hooks: none from 1.27 to 1.27.2 (`wayfarers-toolkit.playerCountChanged` and `wayfarers-toolkit.allPlayersOnline` moved with Who's online to the Red Book module, which fires `red-book.playerCountChanged` / `red-book.allPlayersOnline`, and the old names too while the toolkit doesn't provide `api.online`). Internally the toolkit broadcasts one notice hook, `wayfarers-toolkit.notice` (`{ to: userId | null, level, text }`: flight results, refused pins, quest objective lines); clients accept it only from the GM client that acts for the world, and it isn't meant for other modules.
 
 Other modules should read and change toolkit data through this API rather than writing `flags.wayfarers-toolkit.*` directly; flag shapes are documented for reading, and may gain fields.
+
+### Sheet pages for other modules
+
+**Experimental (2.3).** While the *Character sheet replacement* is on, `api.sheet` lets another module add its own page (a bookmark and a page) to the toolkit sheet. It is `undefined` while the sheet is off. The rules come from the shared core's guest pages (`wanderers-core` 0.6.0, docs/pages.md there); the toolkit keeps the registry, and other modules reach it only through `api.sheet`.
+
+```js
+function addPage(sheet) {
+  return sheet?.registerPage({
+    id: "my-module.professions",        // your module id, a dot, then a name (letters, digits, _ or -); one page per id
+    label: "Professions",               // bookmark tooltip and page title, at most 40 characters
+    hint: "from your tool proficiencies", // optional, the small line next to the title, at most 80 characters
+    icon: "M14 6l4 4M3 21l9-9M11 5l2-2l8 8l-2 2z", // optional: one SVG path on a 24 × 24 grid (stroke, like ours) or "fa-solid fa-hammer"
+    order: 85,                          // optional: where the bookmark goes (below); none = after every page
+    visible: actor => true,             // optional: false hides the page for that character
+    render: async ({ actor, mode, editable, root }) => "<section class=\"my-prof\">…</section>", // HTML text or an element
+    activate: ({ actor, mode, editable, root, element, refresh }) => {} // optional: wire listeners after each render
+  });
+}
+// Modules whose ready runs after the toolkit's:
+Hooks.once("ready", () => { const off = addPage(game.modules.get("wayfarers-toolkit")?.api?.sheet); });
+// Modules that load earlier: wait for the toolkit (fired once on every client, with api.sheet, right after the API is set).
+Hooks.once("wayfarers-toolkit.sheetReady", sheet => { const off = addPage(sheet); });
+```
+
+- **`registerPage(def)`** returns `off()`. It never throws: a bad definition is refused with a console warning, `off.ok` is `false` and `off.reason` says why. A second `registerPage` with the same id replaces the first (an old `off()` then leaves the new one alone). At most 20 pages from other modules. `off()` (or **`unregisterPage(id)`**) removes the page; open sheets redraw on every change (on a page that went away they show Character).
+- **`pages()`**: every page in bookmark order, as `{ id, label, hint, order, guest }` (other modules' pages also carry `icon` / `fa`); no functions. Our own pages keep these orders: Character 10, Details 20, Inventory 30, Features 40, Spells 50, Effects 60, Biography 70, Reputation 75, Bastion 80, Special traits 90 (Bastion and Reputation only show when they apply). On a tie ours come first, then by id.
+- Registration is **per client**: each player's client registers its own (the hook fires on every client). Pages show in Play and Edit mode, for every character the viewer can see; `visible(actor)` decides beyond that (a `visible` that throws hides the page).
+- **`render(ctx)`** gets `{ actor, mode, editable, root }`: the character, `"play"` or `"edit"` (edit only when the viewer may edit), whether the viewer may edit the character, and the sheet's window element (`null` on the first draw). It returns HTML text, which is **inserted as is: escape your own data**, or an element. The toolkit draws the page title and hint above it. A render that throws, takes longer than 5 seconds or returns something else shows one line ("The … page couldn't be drawn (…)") instead; the rest of the sheet keeps working.
+- **`activate(ctx)`** runs after each render with the same fields plus `element` (your page's container, `.wct-cs-guest`) and `refresh()` (redraws the sheet). Errors are logged.
+- The toolkit stores nothing for your page and gives it no way to write toolkit data: read and update the actor yourself. Never write `flags.wayfarers-toolkit.*`.
+- Inside the page: use your own listeners (from `activate`), not `data-action` (those are the sheet's buttons) nor `data-name` / `[data-drop]` (the sheet's own field and drop rules). Enter in a text field doesn't submit the sheet. Drops on your page reach the sheet's drop rules (dnd5e's) unless your listener stops them.
+- Style: the page sits inside the sheet's dark palette (`.wct-sheet .wct-cs`, core's `--wc-*` tokens and `wc-*` classes work); scope your CSS under your own class and use no theme selectors (the sheet is dark in both themes).
 
 ### GM-only data and players' clients
 

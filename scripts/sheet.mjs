@@ -22,8 +22,45 @@ import { restedTip } from "./pane-model.mjs";
 import { BENEFITS } from "./inn-model.mjs";
 import { on as featureOn } from "./features.mjs";
 import * as RenownUI from "./renown-apps.mjs";
-import { UI_CLASSES, defineOpenKeybinding, keybindingConfig, esc } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, defineOpenKeybinding, keybindingConfig, esc, createPageHost, renderGuest, activateGuest } from "../vendor/wanderers-core/index.mjs";
 const ID = "wayfarers-toolkit";
+
+// ---------------------------------------------------------------- 2.3: other modules' pages (core guest pages)
+/**
+ * The sheet's page registry (core `createPageHost`; one per load, owned here: other modules reach it only through `api.sheet`).
+ * Built-ins are SM.PAGES with their orders (their own visibility stays in sheet-model.mjs `visiblePages`). A change re-renders
+ * the open sheets (once per tick, so several registrations at ready redraw once).
+ */
+export const PAGE_HOST = createPageHost({
+  hostId: ID,
+  builtIn: SM.PAGES.map(p => ({ id: p.id, order: p.order, label: p.label, hint: p.hint })),
+  onChange: () => rerenderOpenSheets(),
+  warn: (...a) => console.warn(`${ID} | character sheet:`, ...a)
+});
+let rerenderQueued = false;
+/** Re-renders every open toolkit sheet (next tick; one redraw for a burst of changes). */
+function rerenderOpenSheets() {
+  if (rerenderQueued) return;
+  rerenderQueued = true;
+  setTimeout(() => {
+    rerenderQueued = false;
+    for (const app of /** @type {any} */ (globalThis).foundry?.applications?.instances?.values?.() ?? []) {
+      if (app instanceof WctCharacterSheet && /** @type {any} */ (app).rendered) /** @type {any} */ (app).render();
+    }
+  }, 0);
+}
+/** Page summaries for `api.sheet.pages()`: every page (ours and guests), in bookmark order, without functions. */
+const pageList = () => PAGE_HOST.pages().map(p => (p.guest ? SM.guestSummary(/** @type {any} */ (p)) : { id: p.id, label: String(p.label ?? ""), hint: String(p.hint ?? ""), order: p.order, guest: false }));
+/** `api.sheet` (feature on): register / unregister another module's page, list the pages. One frozen object. */
+export const PAGE_API = Object.freeze({
+  /** @param {unknown} def */
+  registerPage: def => PAGE_HOST.register(def),
+  /** @param {string} id */
+  unregisterPage: id => PAGE_HOST.unregister(id),
+  pages: pageList
+});
+/** How long a guest page's render may take before the sheet shows the error line. */
+export const GUEST_RENDER_MS = 5000;
 
 /** dnd5e's character sheet class, as registered by the system (the GM's fallback). */
 function systemSheetClass() {
@@ -254,6 +291,8 @@ export class WctCharacterSheet extends ActorSheetV2 {
       death: at.death, warnings,
       conditions: [...(a.statuses ?? [])].map(id => ({ id, name: statusName(id) })),
       bastion, renown: featureOn("renown"), editable: this.isEditable, isGM: game.user.isGM,
+      // 2.3: other modules' pages whose visible(actor) allows this actor (core hides one whose visible throws).
+      guests: PAGE_HOST.guests(a).map(g => SM.guestSummary(g)),
       showRests: game.user.isGM || tryGet("dnd5e", "allowRests", true) !== false,
       limited: !game.user.isGM && a.limited
     };
@@ -740,12 +779,30 @@ export class WctCharacterSheet extends ActorSheetV2 {
     return null;
   }
 
+  /** The context a guest page's render / activate gets (2.3; docs/scripting.md › Sheet pages). No way to write toolkit data. */
+  guestContext() {
+    return { actor: this.actor, mode: this._mode === "edit" && this.isEditable ? "edit" : "play", editable: !!this.isEditable, root: this.element ?? null };
+  }
+
+  /** A guest page's body through core's renderGuest (try/catch, time limit): `{ html, element }`, the error line on failure. */
+  async guestBody(page) {
+    const def = PAGE_HOST.get(page);
+    if (!def?.guest) return { html: SM.guestErrorHTML(page, "the page is no longer registered"), element: null };
+    const r = await renderGuest(/** @type {any} */ (def), this.guestContext(), { timeoutMs: GUEST_RENDER_MS });
+    if ("error" in r) { console.warn(`${ID} | character sheet: page ${def.id}`, r.error); return { html: SM.guestErrorHTML(String(def.label), r.error), element: null }; }
+    if ("element" in r) return { html: "", element: r.element };
+    return { html: r.html, element: null };
+  }
+
   async _renderHTML() {
     const view = SM.sheetView(this.facts(), { mode: /** @type {any} */ (this._mode), page: this._page });
     this._page = view.page;
     /** @type {string | null} */
     let body = null;
-    if (!view.limited && SM.BUILT_PAGES.includes(view.page)) {
+    /** @type {any} */
+    let guestEl = null;
+    if (!view.limited && SM.isGuestPage(view.page)) ({ html: body, element: guestEl } = await this.guestBody(view.page));
+    else if (!view.limited && SM.BUILT_PAGES.includes(view.page)) {
       try { body = await this.pageBody(view.page); } catch (e) {
         console.error(`${ID} | character sheet: ${view.page} page`, e);
         body = `<p class="wct-cs-dim">This page couldn't be drawn (${esc(e?.message ?? e)}). The system sheet below still works.</p>`;
@@ -753,6 +810,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
     }
     const div = document.createElement("div");
     div.innerHTML = SM.sheetHTML(view, body);
+    if (guestEl) div.querySelector(".wct-cs-guest")?.append(guestEl);
     return div.firstElementChild;
   }
 
@@ -1071,6 +1129,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
     // Changed fields (ability scores, size, skill abilities, coins): one actor update each, dnd5e's delta input rule for numbers.
     root.querySelectorAll("input[data-name], select[data-name]").forEach(el => {
       if (el.closest("dnd5e-inventory")) return; // dnd5e's inventory element handles its own quantity / uses inputs
+      if (el.closest(".wct-cs-guest")) return; // 2.3: another module's page wires its own fields
       if (el.matches("[data-wct-check]")) return; // checkboxes: _onRenderText
       el.addEventListener("change", async ev => {
         ev.stopPropagation(); if (!ed) return;
@@ -1088,7 +1147,7 @@ export class WctCharacterSheet extends ActorSheetV2 {
       el.addEventListener("focus", () => /** @type {HTMLInputElement} */ (el).select?.());
     });
     // Proficiency marks in edit mode: dnd5e's own <proficiency-cycle> element (cycles 0 → 1 → ½ → 2, or 0 → 1 for saves).
-    root.querySelectorAll("proficiency-cycle[data-wct-prof]").forEach(el => el.addEventListener("change", ev => {
+    root.querySelectorAll("proficiency-cycle[data-wct-prof]").forEach(el => !el.closest(".wct-cs-guest") && el.addEventListener("change", ev => {
       ev.stopPropagation(); if (!ed) return;
       const t = /** @type {any} */ (ev.currentTarget); return a.update({ [t.dataset.wctProf]: Number(t.value) });
     }));
@@ -1100,6 +1159,18 @@ export class WctCharacterSheet extends ActorSheetV2 {
     if (this._page === "effects") this._onRenderEffects(root);
     if (["biography", "bastion", "special"].includes(this._page)) this._onRenderText(root);
     if (this._page === "reputation") RenownUI.wire(root, a, this);
+    if (SM.isGuestPage(this._page)) this._onRenderGuest(root);
+  }
+
+  /** 2.3: a guest page's activate(ctx) after its body is in the sheet (`element` = its container; errors are logged only). */
+  async _onRenderGuest(root) {
+    const def = PAGE_HOST.get(this._page); if (!def?.guest) return;
+    const element = root.querySelector(".wct-cs-guest"); if (!element) return;
+    if (element.querySelector(".wct-cs-guest-error")) return; // its render failed: nothing to wire
+    // The sheet is a form that never submits: Enter in a guest's text field must not submit it (the guest's own key listeners still run).
+    element.addEventListener("keydown", ev => { const t = /** @type {any} */ (ev.target); if (ev.key === "Enter" && t?.tagName === "INPUT") ev.preventDefault(); });
+    const r = await activateGuest(/** @type {any} */ (def), { ...this.guestContext(), element, refresh: () => this.render() });
+    if ("error" in r) console.warn(`${ID} | character sheet: page ${def.id} activate`, r.error);
   }
 
   /** Character page: the pane's slot and weapon-set handling (pane.mjs), on the same flags. */

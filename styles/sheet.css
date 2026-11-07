@@ -91,6 +91,10 @@
 .wct-sheet .wct-cs-btab svg { width: 20px; height: 20px; stroke-width: 1.7; }
 .wct-sheet .wct-cs-btab:hover { color: var(--ink2); }
 .wct-sheet .wct-cs-btab.on { width: 46px; color: var(--gold); border-color: var(--trim); background: linear-gradient(270deg, #3a2e1e, #241b10); box-shadow: 0 0 0 1px #000, 0 0 8px color-mix(in srgb, var(--trimhi) 30%, transparent); }
+/* 2.3: other modules' pages: a Font Awesome bookmark icon, the page container and its one-line error */
+.wct-sheet .wct-cs-btab .wct-cs-fa { font-size: 17px; line-height: 1; }
+.wct-sheet .wct-cs-guest { min-width: 0; }
+.wct-sheet .wct-cs-guest-error { margin: 8px 0; }
 .wct-sheet .wct-cs-page { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 10px 12px 14px; }
 .wct-sheet .wct-cs-page-head { display: flex; align-items: baseline; gap: 10px; }
 .wct-sheet .wct-cs-page-head .wct-cs-ttl { font-size: 17px; }
