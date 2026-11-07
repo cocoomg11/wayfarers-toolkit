@@ -13,12 +13,11 @@ import { isActiveGM } from "./gm.mjs";
 import { MACRO_HINT, isToolkitFolderName } from "./macros.mjs";
 import * as M from "./panel-model.mjs";
 import * as FlightEditor from "./flight-editor.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { remembered, resetWindows } from "./windows.mjs";
 import * as Cards from "./chat-cards.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** @type {any} */
 let API = null;
 
@@ -286,7 +285,7 @@ export class ControlPanel extends remembered(foundry.applications.api.Applicatio
     // 1.32: the Save button and each tab with edits carry a marker. Edits stay when you switch tabs (every tab is in the page and Save
     // writes them all); only closing the window drops them.
     const save = root.querySelector('.wct-footer [data-act="save"]');
-    if (save) { save.classList.toggle("wct-unsaved", n > 0); save.dataset.tooltip = n ? `${n} unsaved change${n === 1 ? "" : "s"}` : ""; }
+    if (save) { save.classList.toggle("wct-unsaved", n > 0); save.dataset.tooltipText = n ? `${n} unsaved change${n === 1 ? "" : "s"}` : ""; }
     root.querySelectorAll(".wct-tabs [data-tab]").forEach(b => b.classList.toggle("wct-unsaved", !!root.querySelector(`.wct-tab[data-tab="${b.dataset.tab}"] .wct-row[data-dirty]`)));
   }
 

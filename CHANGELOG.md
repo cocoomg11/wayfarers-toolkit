@@ -2,6 +2,40 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.3.2
+
+2026-11-07. Security and speed fixes from a code audit. No new setting, nothing stored, no migration; a short update note (pace and room request cooldown, flight bookings, inn rest).
+
+**Fixed (security)**
+- **Tooltips never render names as HTML.** Foundry renders a `data-tooltip` that isn't a localization key as HTML (cleaned with `cleanHTML`), after the browser has decoded the attribute, so an escaped item or actor name such as a player-made `<img onerror>` came back as markup in whoever hovered it (the GM included). Every tooltip built from text (item, container, class and subclass names, bastion occupants and defenders, quest reward items, slot and set labels, the HUD buttons, …) now uses `data-tooltip-text` / `dataset.tooltipText`, which Foundry puts in as plain text. The two tooltips that need line breaks (the renown tier hint and the sheet's warnings) use `data-tooltip-html` with every world-supplied piece escaped twice (once for the HTML, once for the attribute). Constant tooltips keep `data-tooltip`.
+- **Flight bookings are handled one at a time** on the GM's client, and the purse is checked after the previous flight has paid: two bookings sent together can no longer both pass the purse check. **`api.pay(actor, amount)` never pays part of a sum**: with too little coin it takes nothing, warns and resolves to `false` (`true` when paid). Flights, the coin log's undo and Split coin stop when it refuses.
+- **Pace and room requests**: one GM card per player per kind every 30 seconds (core `rateLimiter`, burst 1); extra requests are dropped and the player is told to wait. GMs are not held back.
+- **Map pins**: players' pin requests are decided one at a time per scene, so requests arriving together can't go past the 1000-pin cap.
+- **Inn rest**: with *Rested lasts until the next long rest anywhere* off, the scene of the character's token decides whether they rested at the inn, not the scene the resting client reported.
+- **`api.setupPlan()`** is GM only like the other GM tools (players get the warning and `undefined`).
+- Every file uses core's `esc` (escapes `"` and `'` too); the local copies are gone (main.mjs's didn't escape `"`).
+
+**Changed (speed)**
+- **Vendor Trash and boss loot load their items in batches**: one `getDocuments({ _id__in })` per compendium for a whole drop instead of one `fromUuid` per item (the server answers single loads one after another, about a quarter of a second each). Vendor Trash keeps the loaded items for the session (cleared with the trash pool, e.g. when *Vendor Trash: Compendiums* changes); boss loot loads fresh each time so an edited compendium item shows at once.
+- Bastion page: world occupants, defenders and crafted items are looked up synchronously; only compendium references are loaded.
+- Loot roll cards: the list of open cards forgets cards no longer on the page when a card renders (not only when a user connects), capped at 200.
+
+**Other**
+- Health check: the *GM-only records* OK line says a determined player can still read them from the browser console (the honor system note in docs/scripting.md).
+- docs/scripting.md: `pay` return value, `setupPlan` GM only.
+
+**Tests**: `tests/v232.test.mjs` (no `data-tooltip` with interpolated text anywhere in scripts/, only the two module-built HTML tooltips, hostile names stay text in the Features and Bastion pages, request cooldown, flight queue and pay wiring, `groupItemUuids`, batched loads, the small fixes). Two 1.33 / 1.30 tests follow the new attribute and card map.
+
+**Untested in Foundry** (live checklist)
+- Tooltips still show on hover everywhere: pane and sheet slots and sets, ability / skill / save rows, Features classes box, Bastion occupants, quest log difficulty and reward items, quest tracker, renown page (tier hint shows two lines), sheet warnings (one per line), token HUD buttons (No loot, Reroll trash, Boss loot, boss frame, Rent rooms), Item Piles header buttons, the control panel's unsaved-changes hint.
+- Name an item `<img src=x onerror="alert(1)">` (and a class, a container, a bastion defender, a quest reward item): hovering shows the text literally, no alert, on a GM and a player client.
+- Two players book a flight at the same moment with coin for one fare: one flies, the other is told the party can't pay; the purse never goes negative.
+- A player asks for a pace (and for rooms) twice within 30 s: one GM card; the second gets the "wait 30 seconds" notice. After 30 s a new request works.
+- Vendor Trash on several bodies and Give to Party; boss loot drop and Give to Party: same items as before, noticeably faster on a cold compendium.
+- Inn with *Rested lasts anywhere* off: a character whose token is on the inn scene keeps the benefit when the player is viewing another scene; one whose token is elsewhere loses it.
+- Coin log undo of a credit the actor has spent, and Split coin, still work (and stop cleanly when the purse is short).
+- `api.setupPlan()` from a player console: GM-only warning.
+
 ## 2.3.1
 
 2026-11-07. The toolkit character sheet leaves out dnd5e's favourite menu entries. No setting, nothing stored, no migration, no update note.

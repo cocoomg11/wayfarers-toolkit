@@ -154,7 +154,7 @@ function attach(app, tries = 0) {
   if (header.querySelector(".wct-shop-open")) return;
   const button = (cls, icon, text, tip, fn) => {
     const a = document.createElement("a");
-    a.className = `header-button control ${cls}`; a.dataset.tooltip = tip; a.innerHTML = `<i class="${icon}"></i> ${text}`;
+    a.className = `header-button control ${cls}`; a.dataset.tooltipText = tip; a.innerHTML = `<i class="${icon}"></i> ${text}`;
     a.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); fn().catch(e => ui.notifications.error(`${text}: ${e.message}`)); });
     return a;
   };

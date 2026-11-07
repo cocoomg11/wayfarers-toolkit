@@ -10,11 +10,10 @@ import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log, byWhom } from "./log.mjs";
 import * as Summary from "./summary.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
 /** The flavour rules and CR bands (trash-rules.mjs), for macros and tuning. */
 export const rules = R;
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // What may drop from what, the CR bands and the world rules format live in trash-rules.mjs.
 
@@ -60,7 +59,38 @@ async function buildPool() {
   console.log(`${ID} | Vendor Trash pool: ${items.length} items from ${packIds().join(", ") || "no compendium"}`);
   return items;
 }
-export function resetPool() { POOL = null; }
+export function resetPool() { POOL = null; SOURCES.clear(); }
+
+/** 2.3.2: compendium item uuid → its `toObject()`, kept for the session like the pool (cleared with it). @type {Map<string, any>} */
+const SOURCES = new Map();
+/**
+ * Loads items by UUID in as few server requests as possible: one `getDocuments({ _id__in })` per compendium (single-document loads
+ * are answered one after another, ~250 ms each), world items from `game.items`, anything else with `fromUuid`. Returns
+ * Map uuid → a fresh copy of the item's `toObject()`; missing or non-Item UUIDs are absent. `cache`: keep compendium items for the
+ * session (Vendor Trash; cleared by `resetPool`). Boss loot passes false so a GM's edit to a compendium item shows at once.
+ * @param {unknown[]} uuids @param {{ cache?: boolean }} [opts]
+ * @returns {Promise<Map<string, any>>}
+ */
+export async function itemSources(uuids, { cache = true } = {}) {
+  /** @type {Map<string, any>} */ const out = new Map();
+  const g = R.groupItemUuids(uuids);
+  await Promise.all([...g.packs].map(async ([pid, ids]) => {
+    const todo = [];
+    for (const [id, u] of ids) { if (cache && SOURCES.has(u)) out.set(u, foundry.utils.deepClone(SOURCES.get(u))); else todo.push(id); }
+    if (!todo.length) return;
+    const pack = game.packs.get(pid); if (!pack || pack.documentName !== "Item") return;
+    let docs = [];
+    try { docs = await pack.getDocuments({ _id__in: todo }); } catch (e) { console.warn(`${ID} | loading items from ${pid}`, e); return; }
+    for (const d of docs) {
+      const u = ids.get(d.id); if (!u || !(d instanceof Item)) continue;
+      const o = d.toObject(); if (cache) SOURCES.set(u, o);
+      out.set(u, cache ? foundry.utils.deepClone(o) : o);
+    }
+  }));
+  for (const [id, u] of g.world) { const d = game.items.get(id); if (d) out.set(u, d.toObject()); }
+  for (const u of g.other) { const d = await fromUuid(u).catch(() => null); if (d instanceof Item) out.set(u, d.toObject()); }
+  return out;
+}
 
 // ---------------------------------------------------------------- world rules and family words
 export const RULES_PAGE = "Vendor Trash Rules";
@@ -237,10 +267,14 @@ export function usePiles() {
   try { return !!game.settings.get(ID, "trashItemPiles") && !!itemPiles(); } catch { return !!itemPiles(); }
 }
 
-/** Item data for one trash drop: copied from the compendium, priced at its vendor value in copper, flagged for Sell Vendor Trash. */
-async function trashItemData(uuid, value, cpVal) {
-  const src = await fromUuid(uuid); if (!src) return null;
-  const o = src.toObject(); delete o._id;
+/**
+ * Item data for one trash drop: copied from the compendium, priced at its vendor value in copper, flagged for Sell Vendor Trash.
+ * `srcs`: the batch from `itemSources` (2.3.2; never one `fromUuid` per drop).
+ * @param {Map<string, any>} srcs @param {string} uuid @param {number} value @param {number} cpVal
+ */
+function trashItemData(srcs, uuid, value, cpVal) {
+  const src = srcs.get(uuid); if (!src) return null;
+  const o = foundry.utils.deepClone(src); delete o._id;
   o.system.quantity = 1;
   o.system.price = { value: Math.max(0, Math.round(value / cpVal)), denomination: "cp" };
   o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { trash: true, source: uuid } });
@@ -363,7 +397,7 @@ export function addNoLootButton(hud, html, api) {
   const now = st.on ? (st.source === "actor" ? `on for every token of ${actor?.name ?? "this actor"}` : "on for this token") : (st.source === "token" ? "off for this token (its actor is marked)" : "off");
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = `control-icon wct-noloot${st.on ? " active" : ""}`;
-  btn.dataset.tooltip = `No loot: ${now}. Click: this token. Shift-click: every token of ${actor?.name ?? "this actor"}.`;
+  btn.dataset.tooltipText = `No loot: ${now}. Click: this token. Shift-click: every token of ${actor?.name ?? "this actor"}.`;
   btn.setAttribute("aria-label", "Toggle no loot");
   btn.innerHTML = '<i class="fa-solid fa-sack-xmark"></i>';
   btn.addEventListener("click", async ev => {
@@ -550,11 +584,11 @@ async function storeDrop(doc, api) {
   const actor = doc.actor; const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   const old = trashItems(actor).map(i => i.id); if (old.length) await actor.deleteEmbeddedDocuments("Item", old);
   const d = await rollDrop(actor, { dungeon: isDungeon(doc) });
-  const create = [];
+  const create = []; const srcs = await itemSources(d.items.map(i => i.uuid));
   for (const i of d.items) {
     const v = valueOf(i, api); const same = create.find(o => o.flags[ID].source === i.uuid);
     if (same) { same.system.quantity += 1; continue; }
-    const o = await trashItemData(i.uuid, v, cpVal); if (!o) continue; o.flags[ID].value = v; create.push(o);
+    const o = trashItemData(srcs, i.uuid, v, cpVal); if (!o) continue; o.flags[ID].value = v; create.push(o);
   }
   if (create.length) await actor.createEmbeddedDocuments("Item", create);
   const flag = { id: doc.id, copper: d.copper, band: d.band, dungeon: d.dungeon };
@@ -810,8 +844,8 @@ async function lootPiles(docs, api, { auto = false, report = {}, tries = 1 } = {
     const actor = doc.actor;
     // Unlinked tokens use (or store) their pre-rolled drop; a linked token's drop is rolled now and added to its actor, as before.
     const d = await dropOf(doc, api, { store: !doc.actorLink, tries }); if (d.dungeon) dungeon = true;
-    const fresh = [];
-    for (const i of d.items.filter(i => !i.id)) { const o = await trashItemData(i.uuid, i.value, cpVal); if (o) { o.system.quantity = i.qty; fresh.push(o); } }
+    const fresh = []; const want = d.items.filter(i => !i.id); const srcs = await itemSources(want.map(i => i.uuid));
+    for (const i of want) { const o = trashItemData(srcs, i.uuid, i.value, cpVal); if (o) { o.system.quantity = i.qty; fresh.push(o); } }
     if (fresh.length) await actor.createEmbeddedDocuments("Item", fresh);
     const parts = d.items.map(i => { total += i.value * i.qty; return itemRow(i, api); });
     const extra = handLoot(actor); for (const i of extra) parts.push(`${esc(i.name)}${(i.system?.quantity ?? 1) > 1 ? ` ×${i.system.quantity}` : ""}`);
@@ -853,7 +887,7 @@ export function addHudButton(hud, html, api, { allowReroll = true } = {}) {
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "control-icon wct-trash-reroll";
   const f = rolled(doc);
-  btn.dataset.tooltip = f ? `Reroll trash (now: ${trashItems(doc.actor).map(i => i.name).join(", ") || "no items"}${f.copper ? `, ${api.fmtMoney(f.copper * (Object.fromEntries(api.coins()).cp ?? 1))}` : ""})` : "Roll trash";
+  btn.dataset.tooltipText = f ? `Reroll trash (now: ${trashItems(doc.actor).map(i => i.name).join(", ") || "no items"}${f.copper ? `, ${api.fmtMoney(f.copper * (Object.fromEntries(api.coins()).cp ?? 1))}` : ""})` : "Roll trash";
   btn.setAttribute("aria-label", "Reroll vendor trash");
   btn.innerHTML = '<i class="fa-solid fa-dice"></i>';
   btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await reroll(api, [doc]); hud.render?.(); });
@@ -867,11 +901,11 @@ export async function giveTrash(message, api) {
   const cpVal = Object.fromEntries(api.coins()).cp ?? 1;
   // Repeats of one item stack: existing stacks go up in one update, new items are created in one go.
   const counts = new Map(); for (const d of data.drops) { const e = counts.get(d.uuid); if (e) e.n++; else counts.set(d.uuid, { d, n: 1 }); }
-  const updates = []; const docs = [];
+  const updates = []; const docs = []; const srcs = await itemSources([...counts.keys()]);
   for (const { d, n } of counts.values()) {
     const existing = party.items.find(i => i.getFlag(ID, "trash") && i.getFlag(ID, "source") === d.uuid);
     if (existing) { updates.push({ _id: existing.id, "system.quantity": (existing.system.quantity || 1) + n }); continue; }
-    const o = await trashItemData(d.uuid, d.value, cpVal); if (o) { o.system.quantity = n; docs.push(o); }
+    const o = trashItemData(srcs, d.uuid, d.value, cpVal); if (o) { o.system.quantity = n; docs.push(o); }
   }
   if (updates.length) await party.updateEmbeddedDocuments("Item", updates);
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);

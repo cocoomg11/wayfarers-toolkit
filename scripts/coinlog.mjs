@@ -63,7 +63,7 @@ export async function undo(id) {
   const plan = M.undoPlan(e, { exists: !!actor?.system?.currency, have: actor?.system?.currency ? API.totalMoney(actor) : 0 });
   if (!plan.ok) { ui.notifications.warn(`Coin log: can't undo: ${plan.reason}. Nothing was changed.`); return { ok: false, reason: plan.reason }; }
   const reason = `Undo: ${e.reason}`;
-  if (plan.op === "take") await API.pay(actor, plan.amount, { reason, undoOf: e.id });
+  if (plan.op === "take") { if (!(await API.pay(actor, plan.amount, { reason, undoOf: e.id }))) return { ok: false, reason: "the purse is short" }; }
   else await API.addMoney(actor, plan.amount, { reason, undoOf: e.id });
   await Vault.update(v => ({ ...v, buckets: { ...v.buckets, coinLog: M.markUndone(v.buckets.coinLog, e.id) } }));
   refresh();
@@ -146,7 +146,7 @@ export async function split(party = API?.partyActor?.()) {
   // Check again: the purse may have changed while the preview was open.
   const now = M.splitPlan({ total: API.totalMoney(party), members: list.map(a => ({ id: a.id, name: a.name })) });
   if (!now.ok || now.per !== plan.per) { ui.notifications.warn("Split coin: the party's coin changed while you were deciding. Nothing was moved; try again."); return null; }
-  await API.pay(party, now.take, { reason: "Split coin" });
+  if (!(await API.pay(party, now.take, { reason: "Split coin" }))) return null;
   for (const g of now.give) await API.addMoney(game.actors.get(g.id), g.amount, { reason: "Split coin" });
   await API.say(`<p><i class="fa-solid fa-coins"></i> <strong>${esc(party.name)}</strong> shares out its coin: ${esc(API.fmtMoney(now.per))} each to ${now.give.map(g => esc(g.name)).join(", ")}.${now.remainder ? ` ${esc(API.fmtMoney(now.remainder))} stays with the party.` : ""}</p>`, "Party");
   return now;

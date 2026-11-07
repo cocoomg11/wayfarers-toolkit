@@ -12,10 +12,9 @@ import { activeGM, handle, request, notify } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as Vault from "./vault.mjs";
 import * as UX from "./quest-ux-model.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 const opts = () => ({ players: get("pinsPlayers", true), editAll: get("pinsEditAll", true) });
 const me = () => ({ id: game.user.id, isGM: game.user.isGM });
@@ -175,8 +174,21 @@ export async function reveal(ref, hidden = false, scene) {
   return r;
 }
 
+/** 2.3.2: per scene, one player request at a time (count, decide, write), so requests arriving together can't pass the pin cap. */
+const sceneQueues = new Map();
+/** @param {string} key @param {() => Promise<any>} fn */
+function perScene(key, fn) {
+  const next = (sceneQueues.get(key) ?? Promise.resolve()).then(fn, fn);
+  const tail = next.catch(() => undefined); sceneQueues.set(key, tail);
+  tail.then(() => { if (sceneQueues.get(key) === tail) sceneQueues.delete(key); });
+  return next;
+}
+/** Leader: a player's request, queued per scene. @param {any} data @param {any} sender */
+function onRequest(data, sender) {
+  return perScene(String(data?.sceneId ?? ""), () => decideRequest(data, sender));
+}
 /** Leader: a player's request, schema-checked by core. The user is Foundry's sender, never a field of the message. */
-async function onRequest(data, sender) {
+async function decideRequest(data, sender) {
   if (!sender) return;
   const req = M.readRequest({ action: "mapPin", ...data });
   const scene = req ? game.scenes.get(req.sceneId) : null;
@@ -212,8 +224,8 @@ async function pinForm({ pin = null, title = "New map pin" } = {}) {
   const quests = F.on("questLog") ? M.questChoices(Quests.all(), { canSee: j => { try { return Quests.canSee(j); } catch { return false; } } }) : [];
   // A link to a quest this user can't see is kept as it is and not shown at all (not even that one exists): no quest field then.
   const keepHidden = p.quest && !quests.some(q => q.id === p.quest);
-  const icons = Object.entries(M.ICONS).map(([id, label]) => `<label class="wct-pin-choice" data-tooltip="${esc(label)}"><input type="radio" name="icon" value="${id}" ${id === p.icon ? "checked" : ""}>${iconSwatch(id, p.ink)}<span class="sr-only">${esc(label)}</span></label>`).join("");
-  const inks = Object.entries(M.INKS).map(([id, i]) => `<label class="wct-pin-ink" data-tooltip="${esc(i.label)}"><input type="radio" name="ink" value="${id}" ${id === p.ink ? "checked" : ""}><span style="background:${esc(i.hex)}"></span><span class="sr-only">${esc(i.label)}</span></label>`).join("");
+  const icons = Object.entries(M.ICONS).map(([id, label]) => `<label class="wct-pin-choice" data-tooltip-text="${esc(label)}"><input type="radio" name="icon" value="${id}" ${id === p.icon ? "checked" : ""}>${iconSwatch(id, p.ink)}<span class="sr-only">${esc(label)}</span></label>`).join("");
+  const inks = Object.entries(M.INKS).map(([id, i]) => `<label class="wct-pin-ink" data-tooltip-text="${esc(i.label)}"><input type="radio" name="ink" value="${id}" ${id === p.ink ? "checked" : ""}><span style="background:${esc(i.hex)}"></span><span class="sr-only">${esc(i.label)}</span></label>`).join("");
   const content = `<div class="wct-pin-form">
     <div class="form-group"><label>Label</label><div class="form-fields"><input type="text" name="label" maxlength="${M.LABEL_MAX}" value="${esc(p.label)}" placeholder="Old mill" required autofocus></div></div>
     <div class="form-group stacked"><label>Note</label><textarea name="text" rows="4" maxlength="${M.TEXT_MAX}" placeholder="What the party knows about this place">${esc(p.text)}</textarea></div>

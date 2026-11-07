@@ -18,10 +18,9 @@ import { on as featureOn } from "./features.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log, byWhom } from "./log.mjs";
 import * as Summary from "./summary.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { card as lookCard } from "./look-model.mjs";
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tokenDoc = t => t?.document ?? t;
 const gmIds = () => game.users.filter(u => u.isGM).map(u => u.id);
 const S = (k, d) => { try { return game.settings.get(ID, k) ?? d; } catch { return d; } };
@@ -172,10 +171,12 @@ export async function draw(target) {
   const picks = drawWeighted([...table.results], draws);
   log(`Boss loot: ${tokenDoc(target)?.name ?? "?"} draws ${draws} (set ${flag.draws}, party ${pr.size}) from ${table.name}:`, picks.map(resultLabel));
   const items = []; const nothing = []; const missing = [];
+  // 2.3.2: one load per compendium for all picks (not fromUuid per pick); not cached, so a GM's edit shows at once.
+  const srcs = await Trash.itemSources(picks.map(resultUuid), { cache: false });
   for (const r of picks) {
-    const uuid = resultUuid(r); const src = uuid ? await fromUuid(uuid).catch(() => null) : null;
-    if (!(src instanceof Item)) { if (uuid || r.documentId) missing.push(resultLabel(r)); nothing.push(resultLabel(r)); continue; }
-    const o = src.toObject(); delete o._id; delete o.folder; delete o.sort; delete o.ownership;
+    const uuid = resultUuid(r); const got = uuid ? srcs.get(uuid) : null; const src = got ? { name: got.name, img: got.img } : null;
+    if (!src) { if (uuid || r.documentId) missing.push(resultLabel(r)); nothing.push(resultLabel(r)); continue; }
+    const o = foundry.utils.deepClone(got); delete o._id; delete o.folder; delete o.sort; delete o.ownership;
     o.flags = foundry.utils.mergeObject(o.flags ?? {}, { [ID]: { bossLoot: { table: table.uuid, source: uuid } } });
     items.push({ uuid, name: src.name, img: src.img, data: o });
   }
@@ -489,7 +490,7 @@ function addHudButton(hud, html, api) {
   col.querySelector(".wct-bossloot")?.remove();
   const btn = document.createElement("button"); const f = get(doc);
   btn.type = "button"; btn.className = `control-icon wct-bossloot${f ? " active" : ""}`;
-  btn.dataset.tooltip = f ? `Boss loot… (${f.draws} draw${f.draws === 1 ? "" : "s"}${drawnFlag(doc) ? ", dropped" : ""})` : "Boss loot…";
+  btn.dataset.tooltipText = f ? `Boss loot… (${f.draws} draw${f.draws === 1 ? "" : "s"}${drawnFlag(doc) ? ", dropped" : ""})` : "Boss loot…";
   btn.setAttribute("aria-label", "Boss loot");
   btn.innerHTML = '<i class="fa-solid fa-gem"></i>';
   btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await openDialog(api, doc); hud.render?.(); });
@@ -500,10 +501,10 @@ function addHudButton(hud, html, api) {
 async function give(message, api) {
   const data = message.getFlag(ID, "bossLootCard"); if (!data || data.given || data.piles) return ui.notifications.info("Already given.");
   const party = api.partyActor(); if (!party) return ui.notifications.warn(`No group actor named ${api.PARTY}.`);
-  const docs = [];
+  const docs = []; const srcs = await Trash.itemSources(data.drops ?? [], { cache: false });
   for (const uuid of data.drops ?? []) {
-    const src = await fromUuid(uuid).catch(() => null); if (!(src instanceof Item)) continue;
-    const o = src.toObject(); delete o._id; delete o.folder; delete o.sort; delete o.ownership; docs.push(o);
+    const got = srcs.get(uuid); if (!got) continue;
+    const o = foundry.utils.deepClone(got); delete o._id; delete o.folder; delete o.sort; delete o.ownership; docs.push(o);
   }
   if (docs.length) await party.createEmbeddedDocuments("Item", docs);
   if (data.coin) await api.addMoney(party, data.coin, { consolidate: true, reason: "Boss loot coin (Give to Party)" });

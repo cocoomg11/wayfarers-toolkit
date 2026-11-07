@@ -4,11 +4,10 @@
  * than two points are open, or api.flight.editor(). Saves the flightNetwork world setting; nothing is written until Save.
  */
 import * as Flight from "./flight.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** @type {any} */
 let API = null;
 
@@ -40,7 +39,7 @@ export async function importFlow(api) {
   } catch (e) { ui.notifications.error(`Flight Master: ${e.message}`); return false; }
 }
 
-const sw = (attr, on, label) => `<label class="wct-switch" data-tooltip="${esc(label)}"><input type="checkbox" ${attr} ${on ? "checked" : ""} aria-label="${esc(label)}"><span class="wct-track" aria-hidden="true"></span></label>`;
+const sw = (attr, on, label) => `<label class="wct-switch" data-tooltip-text="${esc(label)}"><input type="checkbox" ${attr} ${on ? "checked" : ""} aria-label="${esc(label)}"><span class="wct-track" aria-hidden="true"></span></label>`;
 
 export class FlightEditor extends remembered(foundry.applications.api.ApplicationV2, "flightEditor") {
   static DEFAULT_OPTIONS = {

@@ -40,7 +40,7 @@ export const PAGE_ICONS = Object.freeze({
 // ---------------------------------------------------------------- shared bits
 /** A box with a gold title and an optional right-hand part. */
 export const box = (title, body, { right = "", cls = "" } = {}) => `<section class="wct-cs-box${cls ? ` ${cls}` : ""}"><h4>${esc(title)}${right ? `<span class="r">${right}</span>` : ""}</h4>${body}</section>`;
-export const cfgBtn = (label, data) => `<button type="button" class="wct-cs-cfg" data-action="wctConfig"${Object.entries(data).map(([k, v]) => attr(`data-${k}`, v)).join("")} aria-label="${esc(label)}" data-tooltip="${esc(label)}">${svg(PAGE_ICONS.cog)}</button>`;
+export const cfgBtn = (label, data) => `<button type="button" class="wct-cs-cfg" data-action="wctConfig"${Object.entries(data).map(([k, v]) => attr(`data-${k}`, v)).join("")} aria-label="${esc(label)}" data-tooltip-text="${esc(label)}">${svg(PAGE_ICONS.cog)}</button>`;
 
 /** dnd5e proficiency multipliers → the mark's class: 0 none, 0.5 half, 1 proficient, 2 expertise. @param {unknown} v */
 export function profClass(v) {
@@ -91,13 +91,13 @@ export function parseDelta(raw, current) {
 const slotCell = (/** @type {SlotFact} */ s, extra = "") => {
   if (s.item) return `<div class="wct-cs-slot wct-slot wc-item-slot filled draggable" data-quality="${esc(s.item.quality || "common")}" data-slot="${esc(s.slot)}" data-item-id="${esc(s.item.id)}" aria-label="${esc(s.label)}: ${esc(s.item.name)}"${extra}><img src="${esc(s.item.img)}" alt=""></div>`;
   if (s.ghost) return `<div class="wct-cs-slot wct-slot wc-item-slot ghost" data-quality="${esc(s.ghost.quality || "common")}" data-slot="${esc(s.slot)}" data-item-id="${esc(s.ghost.id)}" aria-label="${esc(s.label)}: blocked by ${esc(s.ghost.name)}"${extra}><img src="${esc(s.ghost.img)}" alt=""></div>`;
-  return `<div class="wct-cs-slot wct-slot wc-item-slot wc-empty empty" data-slot="${esc(s.slot)}" aria-label="${esc(s.label)} (empty)" data-tooltip="${esc(s.label)}"${extra}>${PM.glyph(s.slot)}</div>`;
+  return `<div class="wct-cs-slot wct-slot wc-item-slot wc-empty empty" data-slot="${esc(s.slot)}" aria-label="${esc(s.label)} (empty)" data-tooltip-text="${esc(s.label)}"${extra}>${PM.glyph(s.slot)}</div>`;
 };
 const handCell = (/** @type {HandFact} */ h, setLabel) => {
   const data = ` data-set="${esc(h.set)}" data-hand="${esc(h.hand)}"`;
   if (h.item) return `<div class="wct-cs-slot wct-slot wct-hand wc-item-slot filled draggable${h.worn ? " worn" : ""}" data-quality="${esc(h.item.quality || "common")}"${data} data-item-id="${esc(h.item.id)}" aria-label="${esc(setLabel)} ${esc(h.label)}: ${esc(h.item.name)}"><img src="${esc(h.item.img)}" alt=""></div>`;
   if (h.ghost) return `<div class="wct-cs-slot wct-slot wct-hand wc-item-slot ghost" data-quality="${esc(h.ghost.quality || "common")}"${data} data-item-id="${esc(h.ghost.id)}" aria-label="${esc(h.label)}: blocked by ${esc(h.ghost.name)}"><img src="${esc(h.ghost.img)}" alt=""></div>`;
-  return `<div class="wct-cs-slot wct-slot wct-hand wc-item-slot wc-empty empty"${data} aria-label="${esc(setLabel)} ${esc(h.label)} (empty)" data-tooltip="${esc(setLabel)}: ${esc(h.label)}">${PM.glyph(h.glyph)}</div>`;
+  return `<div class="wct-cs-slot wct-slot wct-hand wc-item-slot wc-empty empty"${data} aria-label="${esc(setLabel)} ${esc(h.label)} (empty)" data-tooltip-text="${esc(setLabel)}: ${esc(h.label)}">${PM.glyph(h.glyph)}</div>`;
 };
 
 /** "Attuned 2 / 3" with the over-limit tone. @param {{ value?: unknown, max?: unknown } | null | undefined} a */
@@ -126,7 +126,7 @@ export function characterPageHTML(f) {
   let weapons = "";
   if (f.sets) {
     weapons = f.sets.map(s => `<div class="wct-cs-wset wct-set ${s.active ? "on active" : "off stowed"}" data-set="${esc(s.id)}">
-      ${ed ? `<button type="button" class="wct-cs-wtab" data-wct-activate="${esc(s.id)}" aria-pressed="${s.active}" data-tooltip="${s.active ? `${esc(s.label)} set (in hand)` : `Swap to the ${esc(s.label)} set`}">${esc(s.label)}${s.lock ? ` <span class="wct-cs-lock" data-tooltip="${esc(s.lock)}" aria-label="Locked: ${esc(s.lock)}">${svg(PAGE_ICONS.lock)}</span>` : ""}</button>` : `<span class="wct-cs-wtab static">${esc(s.label)}</span>`}
+      ${ed ? `<button type="button" class="wct-cs-wtab" data-wct-activate="${esc(s.id)}" aria-pressed="${s.active}" data-tooltip-text="${s.active ? `${esc(s.label)} set (in hand)` : `Swap to the ${esc(s.label)} set`}">${esc(s.label)}${s.lock ? ` <span class="wct-cs-lock" data-tooltip-text="${esc(s.lock)}" aria-label="Locked: ${esc(s.lock)}">${svg(PAGE_ICONS.lock)}</span>` : ""}</button>` : `<span class="wct-cs-wtab static">${esc(s.label)}</span>`}
       <div class="wct-cs-hands">${s.hands.map(h => handCell(h, s.label)).join("")}</div><span class="wct-cs-wstate">${s.active ? "In hand" : "Stowed"}</span></div>`).join("");
     if (f.relic) weapons += `<div class="wct-cs-wset wct-set wct-relic"><span class="wct-cs-wtab static">Relic</span><div class="wct-cs-hands">${slotCell(f.relic)}</div><span class="wct-cs-wstate">Worn</span></div>`;
   } else if (f.bottom) weapons = f.bottom.map(s => slotCell(s)).join("");
@@ -137,7 +137,7 @@ export function characterPageHTML(f) {
     const score = edit
       ? `<input type="text" class="wct-cs-ein" data-name="system.abilities.${esc(a.key)}.value" value="${esc(a.source ?? a.value ?? "")}" placeholder="10" inputmode="numeric" aria-label="${esc(a.label)} score">`
       : `<b>${a.value ?? "–"}</b>`;
-    const name = ed ? `<button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip="Roll a ${esc(a.label)} check">${esc(a.label)}</button>` : `<span>${esc(a.label)}</span>`;
+    const name = ed ? `<button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip-text="Roll a ${esc(a.label)} check">${esc(a.label)}</button>` : `<span>${esc(a.label)}</span>`;
     return `<li class="wct-cs-attr" data-ability="${esc(a.key)}">${name}${score}<span class="wct-cs-num ${tone(a.mod)}">(${sign(a.mod)})</span></li>`;
   }).join("");
   const d = f.defence;
@@ -188,12 +188,12 @@ export function detailsPageHTML(f) {
   const meds = (f.abilities ?? []).map(a => {
     const sp = profClass(a.saveProf);
     const save = `<span class="wct-cs-sv${sp ? " p" : ""}">save ${esc(sign(PM.saveValue(a.save)))}</span>`;
-    const saveBtn = ed ? `<button type="button" class="wct-cs-svbtn" data-action="wctRoll" data-type="save" data-ability="${esc(a.key)}" data-tooltip="Roll a ${esc(a.label)} saving throw" aria-label="Roll a ${esc(a.label)} saving throw">${save}</button>` : save;
+    const saveBtn = ed ? `<button type="button" class="wct-cs-svbtn" data-action="wctRoll" data-type="save" data-ability="${esc(a.key)}" data-tooltip-text="Roll a ${esc(a.label)} saving throw" aria-label="Roll a ${esc(a.label)} saving throw">${save}</button>` : save;
     const head = `<span class="wct-cs-lab">${esc(a.abbr)}</span><span class="v ${tone(a.mod)}">${esc(sign(a.mod))}</span>`;
     const main = ed && !edit
-      ? `<button type="button" class="wct-cs-abtn" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip="Roll a ${esc(a.label)} check" aria-label="Roll a ${esc(a.label)} check">${head}<span class="m">${a.value ?? "–"}</span></button>`
+      ? `<button type="button" class="wct-cs-abtn" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip-text="Roll a ${esc(a.label)} check" aria-label="Roll a ${esc(a.label)} check">${head}<span class="m">${a.value ?? "–"}</span></button>`
       : `<div class="wct-cs-abtn static">${head}${edit ? `<input type="text" class="wct-cs-ein" data-name="system.abilities.${esc(a.key)}.value" value="${esc(a.source ?? a.value ?? "")}" placeholder="10" inputmode="numeric" aria-label="${esc(a.label)} score">` : `<span class="m">${a.value ?? "–"}</span>`}</div>`;
-    const tools = edit ? `<div class="wct-cs-medtools"><proficiency-cycle type="ability" data-wct-prof="system.abilities.${esc(a.key)}.proficient" value="${esc(num(a.saveSource) ?? 0)}" aria-label="${esc(a.label)} saving throw proficiency" data-tooltip="${esc(a.label)} saving throw proficiency"></proficiency-cycle>${cfgBtn(`Configure ${a.label}`, { config: "ability", ability: a.key })}</div>` : "";
+    const tools = edit ? `<div class="wct-cs-medtools"><proficiency-cycle type="ability" data-wct-prof="system.abilities.${esc(a.key)}.proficient" value="${esc(num(a.saveSource) ?? 0)}" aria-label="${esc(a.label)} saving throw proficiency" data-tooltip-text="${esc(a.label)} saving throw proficiency"></proficiency-cycle>${cfgBtn(`Configure ${a.label}`, { config: "ability", ability: a.key })}</div>` : "";
     return `<div class="wct-cs-med ab" data-ability="${esc(a.key)}">${saveBtn}${main}${tools}</div>`;
   }).join("");
   const conc = f.concentration ? `<div class="wct-cs-conc" data-ability="concentration">${ed ? `<button type="button" class="wct-cs-chip" data-action="wctRoll" data-type="concentration" data-tooltip="Roll a concentration saving throw">${svg(PAGE_ICONS.conc)} Concentration ${esc(sign(f.concentration.save))}</button>` : `<span class="wct-cs-chip static">${svg(PAGE_ICONS.conc)} Concentration ${esc(sign(f.concentration.save))}</span>`}${edit ? cfgBtn("Configure concentration", { config: "ability", ability: "concentration" }) : ""}</div>` : "";
@@ -202,12 +202,12 @@ export function detailsPageHTML(f) {
   const row = (/** @type {SkillFact} */ s, type) => {
     const pc = profClass(edit ? s.source : s.prof);
     const mark = edit
-      ? `<proficiency-cycle type="${type}" data-wct-prof="system.${type === "skill" ? "skills" : "tools"}.${esc(s.key)}.value" value="${esc(num(s.source) ?? 0)}" aria-label="${esc(PROF_LABELS[pc])}" data-tooltip="${esc(PROF_LABELS[pc])}"></proficiency-cycle>`
-      : `<i class="wct-cs-pm ${pc}" data-tooltip="${esc(PROF_LABELS[pc])}" aria-label="${esc(PROF_LABELS[pc])}"></i>`;
+      ? `<proficiency-cycle type="${type}" data-wct-prof="system.${type === "skill" ? "skills" : "tools"}.${esc(s.key)}.value" value="${esc(num(s.source) ?? 0)}" aria-label="${esc(PROF_LABELS[pc])}" data-tooltip-text="${esc(PROF_LABELS[pc])}"></proficiency-cycle>`
+      : `<i class="wct-cs-pm ${pc}" data-tooltip-text="${esc(PROF_LABELS[pc])}" aria-label="${esc(PROF_LABELS[pc])}"></i>`;
     const abil = edit && abilityOpts.length
       ? `<select class="wct-cs-sel sm" data-name="system.${type === "skill" ? "skills" : "tools"}.${esc(s.key)}.ability" aria-label="${esc(s.label)} ability">${abilityOpts.map(([k, l]) => `<option value="${esc(k)}"${k === (s.baseAbility ?? s.ability) ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`
       : `<span class="wct-cs-dim wct-cs-ab">${esc(s.abbr)}</span>`;
-    const name = ed ? `<button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="${type}" data-tooltip="Roll ${esc(s.label)}">${esc(s.label)}</button>` : `<span class="wct-cs-nm">${esc(s.label)}</span>`;
+    const name = ed ? `<button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="${type}" data-tooltip-text="Roll ${esc(s.label)}">${esc(s.label)}</button>` : `<span class="wct-cs-nm">${esc(s.label)}</span>`;
     const end = edit ? cfgBtn(`Configure ${s.label}`, { config: type }) : type === "skill" ? `<span class="wct-cs-dim wct-cs-num wct-cs-pass" data-tooltip="Passive">${esc(num(s.passive) ?? "")}</span>` : "";
     return `<li class="wct-cs-skill" data-key="${esc(s.key)}">${mark}${abil}${name}<b class="wct-cs-num ${tone(s.total)}">${esc(sign(s.total))}</b>${end}</li>`;
   };
@@ -216,11 +216,11 @@ export function detailsPageHTML(f) {
 
   const c = f.creature; const sz = f.size;
   const pills = [
-    ...(f.origin ?? []).map(o => `<button type="button" class="wct-cs-pill" data-action="wctShowItem" data-item-id="${esc(o.id)}" data-tooltip="${esc(o.kind)}">${o.img ? `<img src="${esc(o.img)}" alt="">` : ""}${esc(o.name)}</button>`),
+    ...(f.origin ?? []).map(o => `<button type="button" class="wct-cs-pill" data-action="wctShowItem" data-item-id="${esc(o.id)}" data-tooltip-text="${esc(o.kind)}">${o.img ? `<img src="${esc(o.img)}" alt="">` : ""}${esc(o.name)}</button>`),
     c ? `<span class="wct-cs-pill">${esc(c.title)}${c.subtitle ? ` <small>(${esc(c.subtitle)})</small>` : ""}${edit && c.config ? cfgBtn("Configure creature type", { config: "creatureType" }) : ""}</span>` : "",
     sz ? edit && sz.options?.length ? `<label class="wct-cs-pill"><span class="wc-sr">Size</span><select class="wct-cs-sel sm" data-name="system.traits.size">${sz.options.map(([k, l]) => `<option value="${esc(k)}"${k === sz.key ? " selected" : ""}>${esc(l)}</option>`).join("")}</select></label>` : `<span class="wct-cs-pill">${esc(sz.label)}</span>` : ""
   ].filter(Boolean).join("");
-  const traitRows = (f.traits ?? []).filter(t => t.values.length || edit).map(t => `<li class="wct-cs-trait" data-trait-key="${esc(t.key)}"><span>${esc(t.label)}${edit && (t.trait || t.config) ? cfgBtn(`Configure ${t.label}`, t.trait ? { trait: t.trait } : { config: t.config }) : ""}</span><b>${t.values.length ? t.values.map(v => `<span class="wct-cs-tv"${attr("data-tooltip", v.tip)}>${esc(v.label)}${v.value !== undefined && v.value !== null && v.value !== "" ? ` ${esc(v.value)}` : ""}</span>`).join(", ") : `<span class="wct-cs-dim">None</span>`}</b></li>`).join("");
+  const traitRows = (f.traits ?? []).filter(t => t.values.length || edit).map(t => `<li class="wct-cs-trait" data-trait-key="${esc(t.key)}"><span>${esc(t.label)}${edit && (t.trait || t.config) ? cfgBtn(`Configure ${t.label}`, t.trait ? { trait: t.trait } : { config: t.config }) : ""}</span><b>${t.values.length ? t.values.map(v => `<span class="wct-cs-tv"${attr("data-tooltip-text", v.tip)}>${esc(v.label)}${v.value !== undefined && v.value !== null && v.value !== "" ? ` ${esc(v.value)}` : ""}</span>`).join(", ") : `<span class="wct-cs-dim">None</span>`}</b></li>`).join("");
   return `<div class="wct-cs-meds">${meds}</div>${conc}
     <div class="wct-cs-cols">
       <div class="wct-cs-stack2">${skills}${tools}</div>
@@ -333,7 +333,7 @@ export function priceText(r) {
 
 /** One inventory row, in dnd5e's inventory markup (so its inventory element handles the controls). @param {InvRow} r @param {{ editable: boolean, edit: boolean, shown: boolean, chips?: boolean }} o */
 export function invRowHTML(r, o) {
-  const ic = (action, label, d, cls = "", extra = "") => `<button type="button" class="wct-cs-ic2 item-action${cls ? ` ${cls}` : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip="${esc(label)}"${extra}>${svg(d)}</button>`;
+  const ic = (action, label, d, cls = "", extra = "") => `<button type="button" class="wct-cs-ic2 item-action${cls ? ` ${cls}` : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip-text="${esc(label)}"${extra}>${svg(d)}</button>`;
   const qty = num(r.qty);
   const qtyCell = o.editable
     ? `<span class="wct-cs-qty"><a class="adjustment-button" data-action="decrease" data-property="system.quantity" aria-label="Fewer">${svg(PAGE_ICONS.minus)}</a><input type="text" value="${esc(qty ?? 0)}" placeholder="0" data-dtype="Number" data-name="system.quantity" inputmode="numeric" pattern="^[+=\\-]?\\d*" min="0" aria-label="Quantity"><a class="adjustment-button" data-action="increase" data-property="system.quantity" aria-label="More">${svg(PAGE_ICONS.plus)}</a></span>`
@@ -376,7 +376,7 @@ export function inventoryPageHTML(f) {
   const coin = box("Coin", `<div class="wct-cs-coins">${coins}</div>${f.money ? `<div class="wct-cs-money">${f.money}</div>` : ""}`,
     { right: ed ? `<button type="button" class="wct-cs-chip" data-action="wctCurrency">${svg(PAGE_ICONS.coins)} Manage coin</button>` : "", cls: "wct-cs-coinbox" });
   const att = attunedText(f.attuned);
-  const conts = (f.containers ?? []).length ? box("Containers", `<ul class="wct-cs-conts">${(f.containers ?? []).map(c => `<li class="container wct-cs-cont draggable" data-item-id="${esc(c.id)}"><button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="${esc(c.quality || "common")}" data-action="wctShowItem" aria-label="${esc(c.name)}" data-tooltip="${esc(c.tip || c.name)}"><img src="${esc(c.img)}" alt="">${num(c.pct) !== null ? `<i class="cap" style="width:${Math.max(0, Math.min(100, num(c.pct) ?? 0))}%"></i>` : ""}${c.equipped ? `<i class="eq" aria-label="Equipped"></i>` : ""}</button></li>`).join("")}</ul>`, { right: ed ? "drop items on one" : "", cls: "wct-cs-contbox" }) : "";
+  const conts = (f.containers ?? []).length ? box("Containers", `<ul class="wct-cs-conts">${(f.containers ?? []).map(c => `<li class="container wct-cs-cont draggable" data-item-id="${esc(c.id)}"><button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="${esc(c.quality || "common")}" data-action="wctShowItem" aria-label="${esc(c.name)}" data-tooltip-text="${esc(c.tip || c.name)}"><img src="${esc(c.img)}" alt="">${num(c.pct) !== null ? `<i class="cap" style="width:${Math.max(0, Math.min(100, num(c.pct) ?? 0))}%"></i>` : ""}${c.equipped ? `<i class="eq" aria-label="Equipped"></i>` : ""}</button></li>`).join("")}</ul>`, { right: ed ? "drop items on one" : "", cls: "wct-cs-contbox" }) : "";
   const rows = sortRows(f.rows ?? [], sort);
   const sections = groupRows(rows, f.sections ?? []);
   const shown = r => rowMatches(r, { search: f.search, filters });

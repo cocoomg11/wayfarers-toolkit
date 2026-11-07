@@ -13,17 +13,27 @@
 
 /** Offered after any update while it's still needed. */
 import * as C from "../vendor/wanderers-core/index.mjs";
+const esc = C.esc;
 
 export const ALWAYS_ACTIONS = [
   {
     id: "setup", label: "Run setup", icon: "fa-solid fa-hammer",
     hint: "Adds what the tools turned on still need (tracker journal, party actor, macros in the Wanderer's Toolkit macro folder). Never overwrites anything and never touches a hotbar.",
-    check: ({ api }) => api.setupPlan().some(p => !p.ok),
+    check: ({ api }) => (api.setupPlan() ?? []).some(p => !p.ok),
     run: ({ api }) => api.setup()
   }
 ];
 
 export const NOTES = [
+  {
+    version: "2.3.2",
+    changes: [
+      { feature: "travelPace", text: "Travel pace: a player can ask for a pace once every 30 seconds; extra requests in that time are dropped and the player is told to wait." },
+      { feature: "restedInn", text: "Inns: a player can ask for rooms once every 30 seconds; extra requests in that time are dropped and the player is told to wait. With Rested lasts until the next long rest anywhere off, where the character's token stands decides whether they rested at the inn." },
+      { feature: "flightMaster", text: "Flight Master: two bookings made at the same moment are handled one after the other, so the party can no longer fly twice on a purse that covers one fare." }
+    ],
+    actions: []
+  },
   {
     version: "2.2.1",
     changes: [
@@ -397,7 +407,6 @@ export function previousVersion(notes = NOTES, to) {
   return notes.map(n => n.version).filter(v => compareVersions(v, to) < 0).sort((a, b) => compareVersions(b, a))[0] ?? null;
 }
 
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** The chat card's HTML. The newest version is open; older ones are collapsed. Buttons carry data-wct-update="<action id>". */
 export function cardHTML(notice) {

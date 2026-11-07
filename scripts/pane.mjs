@@ -8,14 +8,13 @@ import * as C from "./compare.mjs";
 import { on as featureOn } from "./features.mjs";
 import * as PM from "./pane-model.mjs";
 import { BENEFITS } from "./inn-model.mjs";
-import { UI_CLASSES, coins as coinHTML } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, coins as coinHTML, esc } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
 import { remembered, WINDOW_KEYS } from "./windows.mjs";
 import { savedPlacement } from "../vendor/wanderers-core/foundry/index.mjs";
 export { WS as weaponSetRules };
 const ID = "wayfarers-toolkit";
 const WOW = "wow-classic-items";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // ---------------------------------------------------------------- slots
 /** Classic-MMO paper-doll slots (no Ammo slot). Two finger and two trinket slots share a group. */
@@ -768,7 +767,7 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
     const s = SLOTS[slot];
     if (item) return `<div class="wct-slot wc-item-slot filled" ${qAttr(item)} data-slot="${slot}" data-item-id="${item.id}" draggable="true" aria-label="${esc(s.label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
     if (ghost) return `<div class="wct-slot wc-item-slot ghost" ${qAttr(ghost)} data-slot="${slot}" data-item-id="${ghost.id}" aria-label="${esc(s.label)}: blocked by ${esc(ghost.name)}"><img src="${esc(ghost.img)}" alt=""></div>`;
-    return `<div class="wct-slot wc-item-slot wc-empty empty" data-slot="${slot}" aria-label="${esc(s.label)} (empty)" data-tooltip="${esc(s.label)}">${PM.glyph(slot)}</div>`;
+    return `<div class="wct-slot wc-item-slot wc-empty empty" data-slot="${slot}" aria-label="${esc(s.label)} (empty)" data-tooltip-text="${esc(s.label)}">${PM.glyph(slot)}</div>`;
   }
 
   /** One hand of a weapon set. */
@@ -780,7 +779,7 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
     const worn = item && set !== state.active && isShield(item) && item.system.equipped;
     if (item) return `<div class="wct-slot wct-hand wc-item-slot filled${worn ? " worn" : ""}" ${qAttr(item)} ${data} data-item-id="${item.id}" draggable="true" aria-label="${esc(WS.SETS[set].label)} ${esc(label)}: ${esc(item.name)}"><img src="${esc(item.img)}" alt=""></div>`;
     if (main && isTwo(main)) return `<div class="wct-slot wct-hand wc-item-slot ghost" ${qAttr(main)} ${data} data-item-id="${main.id}" aria-label="${esc(label)}: blocked by ${esc(main.name)}"><img src="${esc(main.img)}" alt=""></div>`;
-    return `<div class="wct-slot wct-hand wc-item-slot wc-empty empty" ${data} aria-label="${esc(WS.SETS[set].label)} ${esc(label)} (empty)" data-tooltip="${esc(WS.SETS[set].label)}: ${esc(label)}">${PM.glyph(hand === "off" ? "offhand" : set === "ranged" ? "ranged" : "mainhand")}</div>`;
+    return `<div class="wct-slot wct-hand wc-item-slot wc-empty empty" ${data} aria-label="${esc(WS.SETS[set].label)} ${esc(label)} (empty)" data-tooltip-text="${esc(WS.SETS[set].label)}: ${esc(label)}">${PM.glyph(hand === "off" ? "offhand" : set === "ranged" ? "ranged" : "mainhand")}</div>`;
   }
 
   /** The weapon sets row: three sets (the active one lit, the others dimmed and marked Stowed), the relic slot, and a note line. */
@@ -790,9 +789,9 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
     const groups = WS.SET_IDS.map(set => {
       const on = set === state.active;
       const plan = WS.planSwap(state, set, { items, equippedShields: shields, hasAmmo: ammo });
-      const lock = !plan.ok ? ` <i class="fa-solid fa-lock" data-tooltip="${esc(plan.block.message)}"></i>` : "";
+      const lock = !plan.ok ? ` <i class="fa-solid fa-lock" data-tooltip-text="${esc(plan.block.message)}"></i>` : "";
       return `<div class="wct-set ${on ? "active" : "stowed"}" data-set="${set}">
-        <button type="button" class="wct-set-tab" data-activate="${set}" aria-pressed="${on}" data-tooltip="${on ? `${esc(WS.SETS[set].label)} set (in hand)` : `Swap to the ${esc(WS.SETS[set].label)} set`}"><i class="fa-solid ${WS.SETS[set].icon}"></i> ${esc(WS.SETS[set].label)}${lock}</button>
+        <button type="button" class="wct-set-tab" data-activate="${set}" aria-pressed="${on}" data-tooltip-text="${on ? `${esc(WS.SETS[set].label)} set (in hand)` : `Swap to the ${esc(WS.SETS[set].label)} set`}"><i class="fa-solid ${WS.SETS[set].icon}"></i> ${esc(WS.SETS[set].label)}${lock}</button>
         <div class="wct-set-hands">${this.handHTML(state, set, "main")}${this.handHTML(state, set, "off")}</div><span class="wct-stowed">${on ? "In hand" : "Stowed"}</span></div>`;
     }).join("");
     const relic = relicShown(a) ? `<div class="wct-set wct-relic"><span class="wct-set-tab static"><i class="fa-solid fa-sun"></i> Relic</span><div class="wct-set-hands">${this.slotHTML("relic", cur)}</div><span class="wct-stowed">Worn</span></div>` : "";
@@ -854,7 +853,7 @@ export class CharacterPane extends remembered(foundry.applications.api.Applicati
     div.innerHTML = `
       <header class="wct-head">
         <div class="wct-head-text"><h2>${esc(a.name)}</h2>${sub ? `<p>${esc(sub)}</p>` : ""}</div>
-        ${rested ? `<span class="wct-rested wc-badge wc-info" data-tooltip="${esc(PM.restedTip({ inn: rested.inn, benefit }))}"><i class="fa-solid fa-bed" aria-hidden="true"></i> Rested<span class="wc-sr">: ${esc(PM.restedTip({ inn: rested.inn, benefit }))}</span></span>` : ""}
+        ${rested ? `<span class="wct-rested wc-badge wc-info" data-tooltip-text="${esc(PM.restedTip({ inn: rested.inn, benefit }))}"><i class="fa-solid fa-bed" aria-hidden="true"></i> Rested<span class="wc-sr">: ${esc(PM.restedTip({ inn: rested.inn, benefit }))}</span></span>` : ""}
       </header>
       <div class="wct-doll">
         <div class="wct-col left">${LEFT.map(s => this.slotHTML(s, cur)).join("")}</div>
@@ -1076,7 +1075,7 @@ function addItemFlagBoxes(app, element) {
   for (const [key, on, tip] of boxes) {
     const wrap = document.createElement("label");
     wrap.className = `wct-itemflag wct-${key}`; wrap.style.cssText = "display:flex;align-items:center;gap:0.3em;font-size:var(--font-size-12,12px);flex:0 0 auto;";
-    wrap.dataset.tooltip = tip;
+    wrap.dataset.tooltipText = tip;
     wrap.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}> ${key === "buckler" ? "Buckler" : "Relic"}`;
     const box = /** @type {HTMLInputElement} */ (wrap.querySelector("input"));
     box.addEventListener("change", async ev => { ev.stopPropagation(); await item.setFlag(ID, key, box.checked); });

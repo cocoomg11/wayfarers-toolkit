@@ -9,6 +9,6 @@ test("loot card no-GM note does not rely on a hidden attribute", () => {
   assert.match(css, /\.wct-loot-nogm\.wct-show \{ display: block;/);
 });
 test("GM state runs on every render and shows the note only for viewers who still need to act", () => {
-  assert.match(loot, /cards\.set\(root, !!mine\); gmState\(root, !!mine\);/);
+  assert.match(loot, /cards\.set\(root, \{ needs: !!mine, at: Date\.now\(\) \}\); gmState\(root, !!mine\);/);
   assert.match(loot, /classList\.toggle\("wct-show", none && needs\)/);
 });

@@ -13,11 +13,10 @@
  */
 import * as Flight from "./flight.mjs";
 import { on } from "./features.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const W = 1000, H = 640, PAD = 60;
 /** @type {any} */
 let API = null;

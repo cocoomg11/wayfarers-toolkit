@@ -7,7 +7,7 @@
  * (`handle(kind, fn)`) gets the checked data and Foundry's sender user. Notices back go out with `notify()` as a broadcast hook.
  */
 import { pickActiveGM as pick } from "../vendor/wanderers-core/index.mjs";
-import { cardExists } from "./gm-model.mjs";
+import { cardExists, cardCooldown } from "./gm-model.mjs";
 import { leader } from "./core.mjs";
 import { NOTICE_HOOK, readNotice } from "./requests.mjs";
 
@@ -65,4 +65,17 @@ export function onlineGMs() {
 export function cardPosted(key, rid) {
   if (!rid) return false;
   try { return cardExists(game.messages?.contents ?? [...(game.messages ?? [])], ID, key, rid); } catch { return false; }
+}
+
+const COOLDOWN = cardCooldown();
+/**
+ * Leader, before posting a GM card for a player's request (2.3.2): true when `user` may have one now; otherwise tells them to wait
+ * and returns false (the request is dropped). GMs are never held back.
+ * @param {string} kind @param {any} user @param {string} what the notice's subject ("Travel pace")
+ */
+export function cardAllowed(kind, user, what) {
+  if (!user || user.isGM) return true;
+  if (COOLDOWN.take(kind, user.id)) return true;
+  notify(user.id, `${what}: your last request is still with the GM. Wait ${COOLDOWN.seconds} seconds before asking again.`, "warn");
+  return false;
 }

@@ -8,10 +8,9 @@
 import * as J from "./junk-rules.mjs";
 import * as WS from "./weapon-sets.mjs";
 import { wowInfo } from "./pane.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 export const enabled = () => !!get("junkSellButton", true);
 

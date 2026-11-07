@@ -9,7 +9,7 @@ import { qualityColor, qualityOf, comparisonHTML, compareOn } from "./pane.mjs";
 import { showOnLootCard } from "./compare.mjs";
 import * as F from "./features.mjs";
 import * as PM from "./pane-model.mjs";
-import { itemSlot } from "../vendor/wanderers-core/index.mjs";
+import { itemSlot, esc } from "../vendor/wanderers-core/index.mjs";
 import { isActiveGM, activeGM, settled, onLeader, handle, request } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as History from "./history.mjs";
@@ -17,7 +17,6 @@ import { makeEntry } from "./history-model.mjs";
 import { card } from "./look-model.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
 const CHOICES = { need: { label: "Need", icon: "fa-dice-d20" }, greed: { label: "Greed", icon: "fa-coins" }, pass: { label: "Pass", icon: "fa-xmark" } };
 const isGMClient = () => isActiveGM();
@@ -268,7 +267,7 @@ function onRender(message, html) {
     });
   });
   if (!root.querySelector(".wct-loot-buttons button")) root.querySelector(".wct-loot-buttons")?.remove();
-  cards.set(root, !!mine); gmState(root, !!mine);
+  pruneCards(); cards.delete(root); cards.set(root, { needs: !!mine, at: Date.now() }); gmState(root, !!mine);
   addCompare(root, st).catch(e => console.warn(`${ID} | loot card comparison`, e));
   const span = root.querySelector("[data-wct-loot-ends]"); if (!span) return;
   const tick = () => {
@@ -310,8 +309,18 @@ async function addCompare(root, st) {
 }
 
 /** Open cards on this client with choice buttons, so they can be enabled and disabled as GMs connect and leave. */
-/** @type {Map<HTMLElement, boolean>} card root → this viewer still has to roll. */
+/** @type {Map<HTMLElement, { needs: boolean, at: number }>} card root → this viewer still has to roll, and when it was drawn. */
 const cards = new Map();
+/** 2.3.2: at most this many card roots remembered (the oldest go first). */
+const CARDS_MAX = 200;
+/**
+ * Forgets card roots no longer in the page (re-rendered, scrolled out, chat cleared). On v14 a root is still detached during its
+ * render hook and attached just after, so only roots drawn more than a few seconds ago count as gone.
+ */
+function pruneCards(now = Date.now()) {
+  for (const [r, c] of cards) if (!r.isConnected && now - c.at > 5000) cards.delete(r);
+  while (cards.size > CARDS_MAX) cards.delete(/** @type {HTMLElement} */ (cards.keys().next().value));
+}
 /** Disables a card's choice buttons (with a note) while no GM is connected. */
 function gmState(root, needs) {
   const none = !activeGM();
@@ -319,7 +328,7 @@ function gmState(root, needs) {
   // The note is hidden by CSS (a saved `hidden` attribute is stripped from chat content); shown only to a viewer who still has to act.
   const note = root.querySelector(".wct-loot-nogm"); if (note) note.classList.toggle("wct-show", none && needs);
 }
-function refreshCards() { for (const [r, needs] of cards) { if (!r.isConnected) cards.delete(r); else gmState(r, needs); } }
+function refreshCards() { pruneCards(); for (const [r, c] of cards) if (r.isConnected) gmState(r, c.needs); }
 
 /** Dice button on each item row of an Item Piles pile window, for the GM. */
 function addPileButton(element, item) {

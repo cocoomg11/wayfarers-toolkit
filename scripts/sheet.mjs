@@ -703,17 +703,22 @@ export class WctCharacterSheet extends ActorSheetV2 {
   /** The Bastion page's facts (dnd5e's `_prepareBastionContext` and `_prepareItemFacility`). */
   async bastionFacts() {
     const a = this.actor; const D = CONFIG.DND5E ?? {}; const loc = WctCharacterSheet.loc;
+    // 2.3.2: world documents synchronously (no server trip); only compendium references are loaded.
+    const load = async (/** @type {string} */ uuid) => {
+      if (String(uuid).startsWith("Compendium.")) return fromUuid(uuid).catch(() => null);
+      try { return fromUuidSync(uuid, { strict: false }); } catch { return null; }
+    };
     const occ = async occupants => Promise.all(Array.from({ length: Number(occupants?.max) || 0 }, async (_, index) => {
       const uuid = occupants?.value?.[index]; if (!uuid) return { empty: true, index };
-      const act = await fromUuid(uuid).catch(() => null); return { index, uuid, name: act?.name ?? "", img: act?.img ?? "" };
+      const act = await load(uuid); return { index, uuid, name: act?.name ?? "", img: act?.img ?? "" };
     }));
     const defenders = []; const basic = []; const special = [];
     for (const f of a.itemTypes?.facility ?? []) {
       const s = f.system ?? {};
       const sub = [s.building?.built ? loc(D.facilities?.sizes?.[s.size]?.label ?? s.size ?? "") : loc("DND5E.FACILITY.Build.Unbuilt")];
       if (s.trade?.stock?.max) sub.push(`${s.trade.stock.value ?? 0} / ${s.trade.stock.max}`);
-      const craft = s.craft?.item ? await fromUuid(s.craft.item).catch(() => null) : null;
-      const pending = await Promise.all((s.trade?.pending?.creatures ?? []).map(async (uuid, index) => { const act = await fromUuid(uuid).catch(() => null); return { index, uuid, name: act?.name, img: act?.img, pending: true }; }));
+      const craft = s.craft?.item ? await load(s.craft.item) : null;
+      const pending = await Promise.all((s.trade?.pending?.creatures ?? []).map(async (uuid, index) => { const act = await load(uuid); return { index, uuid, name: act?.name, img: act?.img, pending: true }; }));
       const fact = {
         id: f.id, name: f.name, img: f.img, subtitle: sub.map(String).join(" • "), built: !!s.building?.built, disabled: !!s.disabled,
         special: s.type?.value === "special", free: !!s.free, progress: s.progress?.max ? { value: s.progress.value, max: s.progress.max, pct: s.progress.pct } : null,

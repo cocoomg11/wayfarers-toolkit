@@ -9,11 +9,10 @@
  */
 import { isToolkitFolderName } from "./macros.mjs";
 import { pinsByScene } from "./pins-model.mjs";
-import { hasFlags, confirmed, CONFIRM_WORD, UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { hasFlags, confirmed, CONFIRM_WORD, UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
 import { normalizeHidden } from "./renown-model.mjs";
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ours = doc => hasFlags(doc, ID);
 /** Items the toolkit created on a body or the party: vendor trash and boss loot. */
 export const toolkitItem = i => !!(i?.flags?.[ID]?.trash || i?.flags?.[ID]?.bossLoot);

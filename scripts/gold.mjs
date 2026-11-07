@@ -7,11 +7,10 @@
  */
 import * as G from "./gold-model.mjs";
 import * as Vault from "./vault.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 const KEY = "goldSnapshots";
 /** @type {any} */

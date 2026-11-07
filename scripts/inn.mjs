@@ -10,7 +10,7 @@
  * GM's client only (renting is a GM action; rest results go to the leader). Pure rules: inn-model.mjs.
  */
 import * as M from "./inn-model.mjs";
-import { isActiveGM, activeGM, settled, cardPosted, handle, request } from "./gm.mjs";
+import { isActiveGM, activeGM, settled, cardPosted, cardAllowed, handle, request } from "./gm.mjs";
 import { log } from "./log.mjs";
 import * as Vault from "./vault.mjs";
 import * as CoinLog from "./coinlog.mjs";
@@ -248,6 +248,7 @@ async function onRoomRequest(data, u, { rid } = {}) {
   if (!u || u.isGM) return;
   const scene = game.scenes.get(r.sceneId); if (!scene) return;
   const inn = innFor(scene, typeof data.innId === "string" ? data.innId : null); if (!inn.on) return;
+  if (!cardAllowed("roomRequest", u, "Rent rooms")) return;
   return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: inn.name }, flags: { [ID]: { roomRequest: { sceneId: scene.id, innId: inn.id, user: u.name, rid } } },
     content: card(`<p><strong>${esc(u.name)}</strong> asks for rooms at <strong>${esc(inn.name)}</strong> (${esc(API.fmtMoney(inn.price))} per person).</p><p><button type="button" class="wc-btn wc-btn-sm" data-wct-action="rent-rooms"><i class="fa-solid fa-bed"></i> Rent rooms…</button></p>`) });
 }
@@ -280,8 +281,12 @@ async function applyRest(actor, sceneId, rid) {
   const flag = rested(actor); const rent = rental(actor);
   // The GM-side rental decides. A Rested flag without one (written by a player, or left from before 1.27 and not moved) is cleared.
   if (!rent) { if (flag) { await actor.unsetFlag(ID, "rested"); await setStatus(actor, false); log(`Inn: ${actor.name} had a Rested flag without a rental; cleared`); } return null; }
-  const sc = game.scenes.get(sceneId ?? "") ?? actor.getActiveTokens?.()[0]?.scene ?? null;
-  const outcome = M.restOutcomeChecked({ rental: rent, onInn: restsAtInn(actor, sc), lastsAnywhere: get("innLastsAnywhere", true) });
+  const anywhere = get("innLastsAnywhere", true);
+  // 2.3.2: with "Lasts anywhere" off, where the character's token stands decides, not the scene the resting client reported
+  // (a player could otherwise send an inn scene they aren't on). No token anywhere → the reported scene, as before.
+  const tokenScene = actor.getActiveTokens?.()[0]?.scene ?? game.scenes.find(s => s.tokens.some(t => t.actorId === actor.id)) ?? null;
+  const sc = anywhere ? (game.scenes.get(sceneId ?? "") ?? tokenScene) : (tokenScene ?? game.scenes.get(sceneId ?? "") ?? null);
+  const outcome = M.restOutcomeChecked({ rental: rent, onInn: restsAtInn(actor, sc), lastsAnywhere: anywhere });
   if (outcome === "none") return null;
   let text;
   if (outcome === "grant") {
@@ -344,7 +349,7 @@ function addHudButtons(hud, html) {
   const keeps = M.innOfToken(doc.parent.getFlag(ID, "inns"), doc.id);
   if (keeps) {
     const rb = document.createElement("button"); rb.type = "button"; rb.className = "control-icon wct-rent";
-    rb.dataset.tooltip = `Rent rooms at ${innFor(doc.parent, keeps.id).name}`; rb.setAttribute("aria-label", "Rent rooms");
+    rb.dataset.tooltipText = `Rent rooms at ${innFor(doc.parent, keeps.id).name}`; rb.setAttribute("aria-label", "Rent rooms");
     rb.innerHTML = '<i class="fa-solid fa-bed"></i>';
     rb.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); rentRooms({ scene: doc.parent, inn: keeps.id }).catch(e => ui.notifications.error(`Rent rooms: ${e.message}`)); });
     col.append(rb);

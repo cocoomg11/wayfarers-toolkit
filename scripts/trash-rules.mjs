@@ -402,3 +402,24 @@ export function weightData(item, { multiplier = 1, defaultUnits = "lb", conversi
   const lb = weightFor({ name: item?.name, type: item?.type, subtype: item?.system?.type?.value }) * m;
   return { value: Math.max(0.001, Math.round((lb / per) * 1000) / 1000), units };
 }
+
+// ---------------------------------------------------------------- 2.3.2: batched item loads
+/**
+ * Splits item UUIDs for one batched load: compendium items by pack (`Compendium.<pack>.Item.<id>`), world items (`Item.<id>`) and
+ * everything else (loaded one by one). Duplicates and blanks are dropped. Pure.
+ * @param {unknown[]} uuids
+ * @returns {{ packs: Map<string, Map<string, string>>, world: Map<string, string>, other: string[] }} packs: pack id → (id → uuid); world: id → uuid
+ */
+export function groupItemUuids(uuids) {
+  /** @type {Map<string, Map<string, string>>} */ const packs = new Map();
+  /** @type {Map<string, string>} */ const world = new Map();
+  /** @type {string[]} */ const other = [];
+  for (const u of new Set((uuids ?? []).filter(Boolean).map(String))) {
+    let m = /^Compendium\.([^.]+\.[^.]+)\.Item\.([^.]+)$/.exec(u);
+    if (m) { if (!packs.has(m[1])) packs.set(m[1], new Map()); /** @type {Map<string, string>} */ (packs.get(m[1])).set(m[2], u); continue; }
+    m = /^Item\.([^.]+)$/.exec(u);
+    if (m) { world.set(m[1], u); continue; }
+    other.push(u);
+  }
+  return { packs, world, other };
+}

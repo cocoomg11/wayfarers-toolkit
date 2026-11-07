@@ -6,9 +6,9 @@
  */
 import * as M from "./zone-titles-model.mjs";
 import { log } from "./log.mjs";
+import { esc } from "../vendor/wanderers-core/index.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 
 let firstDraw = true; let pendingActivate = null;

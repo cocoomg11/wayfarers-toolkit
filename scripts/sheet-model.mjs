@@ -230,14 +230,14 @@ export const ICONS = Object.freeze({
 
 /** @param {ReturnType<typeof sheetView>} v */
 export function bandHTML(v) {
-  const btn = (action, label, icon, on = false, extra = "") => `<button type="button" class="wct-cs-ibtn${on ? " on" : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip="${esc(label)}"${extra}>${svg(icon)}</button>`;
+  const btn = (action, label, icon, on = false, extra = "") => `<button type="button" class="wct-cs-ibtn${on ? " on" : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip-text="${esc(label)}"${extra}>${svg(icon)}</button>`;
   const warnTip = v.warnings ? v.warnings.map(esc).join("<br>") : "";
   return `<div class="wct-cs-band">
-    ${v.level !== null ? v.mode === "edit" && v.editable ? `<button type="button" class="wct-cs-lvl wct-cs-lvlup" data-action="wctLevelUp" data-tooltip="Level ${v.level}: level up" aria-label="Level ${v.level}: level up">${v.level}<i aria-hidden="true">+</i></button>` : `<span class="wct-cs-lvl" data-tooltip="Level ${v.level}" aria-label="Level ${v.level}">${v.level}</span>` : ""}
+    ${v.level !== null ? v.mode === "edit" && v.editable ? `<button type="button" class="wct-cs-lvl wct-cs-lvlup" data-action="wctLevelUp" data-tooltip-text="Level ${v.level}: level up" aria-label="Level ${v.level}: level up">${v.level}<i aria-hidden="true">+</i></button>` : `<span class="wct-cs-lvl" data-tooltip-text="Level ${v.level}" aria-label="Level ${v.level}">${v.level}</span>` : ""}
     <div class="wct-cs-name"><h2 class="wct-cs-ttl">${esc(v.name)}</h2>${v.sub ? `<p class="wct-cs-sub">${esc(v.sub)}</p>` : ""}</div>
     ${v.xp ? `<div class="wct-cs-xp"><div class="wct-cs-xp-row"><span>XP</span><span class="wct-cs-num">${esc(v.xp.text)}</span></div><div class="wct-cs-xpbar" role="meter" aria-label="Experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v.xp.pct}"><i style="width:${v.xp.pct}%"></i></div></div>` : ""}
-    ${v.rested ? `<span class="wct-cs-rest" data-tooltip="${esc(v.rested)}">Rested<span class="wc-sr">: ${esc(v.rested)}</span></span>` : ""}
-    ${v.warnings ? `<span class="wct-cs-warn" role="status" data-tooltip="${esc(warnTip)}">${svg(ICONS.warn)}${v.warnings.length} warning${v.warnings.length === 1 ? "" : "s"}</span>` : ""}
+    ${v.rested ? `<span class="wct-cs-rest" data-tooltip-text="${esc(v.rested)}">Rested<span class="wc-sr">: ${esc(v.rested)}</span></span>` : ""}
+    ${v.warnings ? `<span class="wct-cs-warn" role="status" data-tooltip-html="${esc(warnTip)}">${svg(ICONS.warn)}${v.warnings.length} warning${v.warnings.length === 1 ? "" : "s"}</span>` : ""}
     ${v.editable ? btn("wctInspiration", "Heroic inspiration", ICONS.star, v.inspiration, ` aria-pressed="${v.inspiration}"`) : v.inspiration ? `<span class="wct-cs-ibtn on static" data-tooltip="Heroic inspiration" aria-label="Heroic inspiration">${svg(ICONS.star)}</span>` : ""}
     ${v.showRests ? btn("wctShortRest", "Short rest", ICONS.short) + btn("wctLongRest", "Long rest", ICONS.long) : ""}
     ${v.editable ? `<div class="wct-cs-modesw" role="group" aria-label="Sheet mode"><button type="button" class="${v.mode === "play" ? "on" : ""}" data-action="wctMode" data-mode="play" aria-pressed="${v.mode === "play"}">Play</button><button type="button" class="${v.mode === "edit" ? "on" : ""}" data-action="wctMode" data-mode="edit" aria-pressed="${v.mode === "edit"}">Edit</button></div>` : ""}
@@ -262,7 +262,7 @@ export function vitalsHTML(v) {
       ${v.hd ? `<div class="wct-cs-rbar sm"><i class="hd" style="width:${v.hd.pct}%"></i><span>${esc(v.hd.text)}</span></div>` : ""}
     </div>
     ${v.editable ? `<button type="button" class="wct-cs-med" data-action="wctInitiative" data-tooltip="Roll initiative">${med("Init", v.init, v.initTone)}</button>` : `<div class="wct-cs-med">${med("Init", v.init, v.initTone)}</div>`}
-    <div class="wct-cs-med" data-tooltip="Speed (${esc(v.speedUnits)})">${med("Speed", v.speed)}</div>
+    <div class="wct-cs-med" data-tooltip-text="Speed (${esc(v.speedUnits)})">${med("Speed", v.speed)}</div>
     <div class="wct-cs-med" data-tooltip="Proficiency bonus">${med("Prof", v.prof)}</div>
     <div class="wct-cs-stack"><span class="wct-cs-lab sm">Exhaustion</span><span class="wct-cs-pips" role="group" aria-label="Exhaustion ${v.exhaustion.value} of ${v.exhaustion.max}">${ex}</span></div>
     <div class="wct-cs-stack"><span class="wct-cs-lab sm">Death saves</span>${death}</div>
@@ -271,7 +271,7 @@ export function vitalsHTML(v) {
 
 /** @param {ReturnType<typeof sheetView>} v */
 export function tabsHTML(v) {
-  return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}${"guest" in p && p.guest ? " guest" : ""}" data-action="wctPage" data-page="${esc(p.id)}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip="${esc(p.label)}" data-tooltip-direction="RIGHT">${tabIcon(p)}</button>`).join("")}</nav>`;
+  return `<nav class="wct-cs-btabs" aria-label="Sheet pages" role="tablist">${v.pages.map(p => `<button type="button" role="tab" class="wct-cs-btab${p.id === v.page ? " on" : ""}${"guest" in p && p.guest ? " guest" : ""}" data-action="wctPage" data-page="${esc(p.id)}" aria-selected="${p.id === v.page}" aria-label="${esc(p.label)}" data-tooltip-text="${esc(p.label)}" data-tooltip-direction="RIGHT">${tabIcon(p)}</button>`).join("")}</nav>`;
 }
 
 /**

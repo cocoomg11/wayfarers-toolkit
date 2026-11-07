@@ -115,7 +115,7 @@ function toolbar(o) {
 
 /** The controls every row ends with (dnd5e's inventory element handles them). */
 function rowControls(r, o, extra = "") {
-  const ic = (action, label, d, cls = "") => `<button type="button" class="wct-cs-ic2 item-action${cls ? ` ${cls}` : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip="${esc(label)}">${svg(d)}</button>`;
+  const ic = (action, label, d, cls = "") => `<button type="button" class="wct-cs-ic2 item-action${cls ? ` ${cls}` : ""}" data-action="${action}" aria-label="${esc(label)}" data-tooltip-text="${esc(label)}">${svg(d)}</button>`;
   return [
     extra,
     o.edit ? ic("edit", "Edit", PAGE_ICONS.edit) : "",
@@ -223,12 +223,12 @@ export function featureSections(rows, o) {
 export function featuresPageHTML(f) {
   const ed = !!f.editable; const edit = !!f.edit && ed;
   const classes = (f.classes ?? []).map(c => `<div class="wct-cs-class" data-item-id="${esc(c.id)}">
-      <button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="common" data-action="wctShowItem" aria-label="${esc(c.name)}" data-tooltip="${esc(c.name)}"><img src="${esc(c.img)}" alt=""></button>
-      ${c.subclass ? `<button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="common" data-action="wctShowItem" data-item-id="${esc(c.subclass.id)}" aria-label="${esc(c.subclass.name)}" data-tooltip="${esc(c.subclass.name)}"><img src="${esc(c.subclass.img)}" alt=""></button>` : ""}
+      <button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="common" data-action="wctShowItem" aria-label="${esc(c.name)}" data-tooltip-text="${esc(c.name)}"><img src="${esc(c.img)}" alt=""></button>
+      ${c.subclass ? `<button type="button" class="wct-cs-ico wct-item wc-item-slot" data-quality="common" data-action="wctShowItem" data-item-id="${esc(c.subclass.id)}" aria-label="${esc(c.subclass.name)}" data-tooltip-text="${esc(c.subclass.name)}"><img src="${esc(c.subclass.img)}" alt=""></button>` : ""}
       <span class="wct-cs-nm"><b>${esc(c.name)}</b><small>${esc([c.subclass?.name, c.hitDie ? `hit die ${c.hitDie}` : ""].filter(Boolean).join(" · ")) || "&nbsp;"}${c.needsSubclass && ed ? ` <button type="button" class="wct-cs-chip" data-action="wctFindItem" data-item-type="subclass" data-class-identifier="${esc(c.identifier ?? "")}">+ Add subclass</button>` : ""}</small></span>
       ${edit ? `<label class="wct-cs-lvlsel"><span class="wc-sr">${esc(c.name)} level</span><select class="wct-cs-sel" data-wct-level="${esc(c.id)}">${Array.from({ length: 20 }, (_, i) => i + 1).map(l => `<option value="${l - (num(c.levels) ?? 0)}"${l === num(c.levels) ? " selected" : ""}>${l}</option>`).join("")}</select></label>` : `<span class="c">Level ${esc(num(c.levels) ?? "–")}</span>`}
-      ${edit ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" aria-label="Delete ${esc(c.name)}" data-tooltip="Delete ${esc(c.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
-      ${edit && c.subclass ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" data-item-id="${esc(c.subclass.id)}" aria-label="Delete ${esc(c.subclass.name)}" data-tooltip="Delete ${esc(c.subclass.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
+      ${edit ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" aria-label="Delete ${esc(c.name)}" data-tooltip-text="Delete ${esc(c.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
+      ${edit && c.subclass ? `<button type="button" class="wct-cs-ic2 del" data-action="wctDeleteItem" data-item-id="${esc(c.subclass.id)}" aria-label="Delete ${esc(c.subclass.name)}" data-tooltip-text="Delete ${esc(c.subclass.name)}">${svg(PAGE_ICONS.trash)}</button>` : ""}
     </div>`).join("");
   const addClass = ed && (!(f.classes ?? []).length || edit) ? `<button type="button" class="wct-cs-chip" data-action="wctFindItem" data-item-type="class">+ Add class</button>` : "";
   const s = f.summary ?? {};
@@ -308,13 +308,13 @@ export function spellsPageHTML(f) {
     const p = slotPips(s.slots);
     const v = Math.max(0, num(s.slots.value) ?? 0); const m = num(s.slots.override) ?? num(s.slots.max) ?? 0;
     return `<span class="wct-cs-pips wct-cs-slots" data-prop="system.spells.${esc(s.id)}.value" role="group" aria-label="${esc(s.label)}: ${v} of ${m} slots left">${p.map(x => ed
-      ? `<button type="button" class="wct-cs-slot-pip${x.filled ? " on" : ""}${x.temp ? " tmp" : ""}${s.method === "pact" ? " pact" : ""}" data-action="wctPip" data-n="${x.n}" aria-pressed="${x.filled}" aria-label="Slot ${x.n}${x.temp ? " (temporary)" : ""}" data-tooltip="${x.filled ? "Spend this slot" : "Restore this slot"}"></button>`
+      ? `<button type="button" class="wct-cs-slot-pip${x.filled ? " on" : ""}${x.temp ? " tmp" : ""}${s.method === "pact" ? " pact" : ""}" data-action="wctPip" data-n="${x.n}" aria-pressed="${x.filled}" aria-label="Slot ${x.n}${x.temp ? " (temporary)" : ""}" data-tooltip-text="${x.filled ? "Spend this slot" : "Restore this slot"}"></button>`
       : `<i class="wct-cs-slot-pip${x.filled ? " on" : ""}${x.temp ? " tmp" : ""}${s.method === "pact" ? " pact" : ""}"></i>`).join("")}</span><span class="wct-cs-dim wct-cs-slotcount">${v} / ${m}</span>`;
   };
   const prepBtn = r => {
-    if (!r.prep || !ed) return r.prep && r.prep.state !== "unprepared" ? `<span class="wct-cs-ic2 on static" data-tooltip="${esc(r.prep.label)}">${svg(r.prep.state === "always" ? BOOK_ICONS.always : BOOK_ICONS.prepared)}</span>` : "";
+    if (!r.prep || !ed) return r.prep && r.prep.state !== "unprepared" ? `<span class="wct-cs-ic2 on static" data-tooltip-text="${esc(r.prep.label)}">${svg(r.prep.state === "always" ? BOOK_ICONS.always : BOOK_ICONS.prepared)}</span>` : "";
     const always = r.prep.state === "always";
-    return `<button type="button" class="wct-cs-ic2 item-action${r.prep.state !== "unprepared" ? " on active" : ""}" data-action="prepare" aria-label="${esc(r.prep.label)}" data-tooltip="${esc(r.prep.label)}" aria-pressed="${r.prep.state !== "unprepared"}"${always ? ' aria-disabled="true"' : ""}>${svg(always ? BOOK_ICONS.always : BOOK_ICONS.prepared)}</button>`;
+    return `<button type="button" class="wct-cs-ic2 item-action${r.prep.state !== "unprepared" ? " on active" : ""}" data-action="prepare" aria-label="${esc(r.prep.label)}" data-tooltip-text="${esc(r.prep.label)}" aria-pressed="${r.prep.state !== "unprepared"}"${always ? ' aria-disabled="true"' : ""}>${svg(always ? BOOK_ICONS.always : BOOK_ICONS.prepared)}</button>`;
   };
   const list = view.sections.map(sec => `<div class="items-section wct-cs-sec" data-section="${esc(sec.id)}" data-level="${esc(sec.level ?? "")}" data-method="${esc(sec.method)}"${sec.hidden ? " hidden" : ""}>
       <div class="wct-cs-sect items-header">${esc(sec.label)}${pips(sec)}${head}</div>

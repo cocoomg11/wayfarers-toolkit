@@ -13,7 +13,7 @@ import * as Loot from "./loot.mjs";
 import * as BossLoot from "./bossloot.mjs";
 import * as Flight from "./flight.mjs";
 import * as Health from "./health.mjs";
-import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, cardPosted, handle, request, notify } from "./gm.mjs";
+import { isActiveGM, activeGM, start as startGMSessions, settled as gmSettled, cardPosted, cardAllowed, handle, request, notify } from "./gm.mjs";
 import * as Updates from "./updates.mjs";
 import { MACROS, macroData, macroOn, FOLDER_NAME, isToolkitFolderName } from "./macros.mjs";
 import * as Panel from "./panel.mjs";
@@ -38,7 +38,7 @@ import * as Migrate from "./migrate.mjs";
 import * as CoinLog from "./coinlog.mjs";
 import * as CL from "./coinlog-model.mjs";
 import * as UX from "./quest-ux-model.mjs";
-import { UI_CLASSES, coins as coinsMarkup } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, coins as coinsMarkup, esc } from "../vendor/wanderers-core/index.mjs";
 import { registerOpenKeybinding, hideDataFolder, registerWindowPlacement } from "../vendor/wanderers-core/foundry/index.mjs";
 import { card } from "./look-model.mjs";
 import * as Cards from "./chat-cards.mjs";
@@ -49,7 +49,6 @@ import * as RenownUI from "./renown-apps.mjs";
 const ID = "wayfarers-toolkit";
 /** 2.3: fired on every client after `api` is set, with `api.sheet` (character sheet on only), so earlier-loading modules can add sheet pages. */
 export const SHEET_READY_HOOK = `${ID}.sheetReady`;
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const setting = key => game.settings.get(ID, key);
 
 const DEFAULTS = {
@@ -348,6 +347,9 @@ function gmOnlyApi(obj, { open = [] } = {}) {
   return Object.freeze(out);
 }
 
+/** 2.3.2: doFlight's queue (one flight at a time on this client). @type {Promise<unknown>} */
+let FLIGHT_QUEUE = Promise.resolve();
+
 export const WCT = {
   ID,
   get version() { return game.modules.get(ID)?.version; },
@@ -381,6 +383,8 @@ export const WCT = {
   // ------------------------------------------------------------ setup
   /** What Run setup would create for the features turned on, without creating it: [{ key, label, ok, detail }]. */
   setupPlan() {
+    // 2.3.2: GM only, like the other GM tools (it reads GM-side names and world contents). Players get a warning and undefined.
+    if (!this.gmOnly()) return undefined;
     const out = [];
     const needJournal = ["hexTravel", "flightMaster", "vendorTrash"].some(F.on);
     const needParty = ["flightMaster", "vendorTrash", "riderFeat", "questLog"].some(F.on);
@@ -546,6 +550,7 @@ export const WCT = {
   async paceRequest(data, u, { rid } = {}) {
     const r = Pace.readRequest({ action: "paceRequest", ...data }); if (!r || !u || u.isGM || !setting("paceRequests")) return;
     if (cardPosted("paceRequest", rid)) return;
+    if (!cardAllowed("paceRequest", u, "Travel pace")) return;
     return ChatMessage.create({ whisper: game.users.filter(x => x.isGM).map(x => x.id), speaker: { alias: "Travel" }, flags: { [ID]: { paceRequest: { pace: r.pace, user: u.name, rid } } },
       content: card(`<p><strong>${esc(u.name)}</strong> asks to travel at <strong>${esc(Pace.PACES[r.pace].label.toLowerCase())}</strong> pace (now ${esc(Pace.PACES[this.travelPaceNow()].label.toLowerCase())}).</p><p><button type="button" data-wct-action="accept-pace"><i class="fa-solid fa-check"></i> Set ${esc(Pace.PACES[r.pace].label.toLowerCase())} pace</button></p>`) });
   },
@@ -676,7 +681,15 @@ export const WCT = {
    * flight), charges the fare, opens the destination scene when the point has one (refunding the fare if that fails), then sound,
    * time, log and chat. A point with no scene (or a deleted one) is still flown to; the scene just stays put and the GM is told.
    */
-  async doFlight({ from, to, pax, scene = true, userId = null, free = false }) {
+  doFlight(opts) {
+    // 2.3.2: one flight at a time on this client, so two bookings arriving together can't both pass the purse check before either
+    // pays (the check runs again inside, after the wait). Same pattern as loot.mjs queue().
+    const run = FLIGHT_QUEUE.then(() => this.runFlight(opts));
+    FLIGHT_QUEUE = run.catch(() => undefined);
+    return run;
+  },
+  /** doFlight's body; call doFlight, never this. @param {{ from: any, to: any, pax?: number, scene?: boolean, userId?: string | null, free?: boolean }} opts */
+  async runFlight({ from, to, pax, scene = true, userId = null, free = false }) {
     const by = userId ? game.users.get(userId) : null;
     const fail = async error => {
       if (by) { await this.gmWhisper(`<p>${esc(by.name)}'s flight didn't go: ${esc(error)}</p>`); this.tellFlight(userId, false, error); }
@@ -692,7 +705,7 @@ export const WCT = {
     const { r, q, dest, land, charge } = c; free = c.free;
     const sc = c.changeScene ? fromUuidSync(land.sceneUuid, { strict: false }) : null;
     const before = party ? foundry.utils.deepClone(party.system.currency ?? {}) : null;
-    if (charge) await this.pay(party, charge, { reason: `Flight: ${c.from.name} → ${dest.name}` });
+    if (charge && !(await this.pay(party, charge, { reason: `Flight: ${c.from.name} → ${dest.name}` }))) return fail(`the party can't pay the ${fmtMoney(charge)} fare.`);
     if (sc) {
       try { await sc.activate(); }
       catch (e) {
@@ -879,12 +892,15 @@ export const WCT = {
   purse(a) { const c = a.system.currency ?? {}; const C = CONFIG.DND5E.currencies; const tight = setting("coinSystem") === "threeCoin"; return coins().filter(([k]) => c[k]).map(([k]) => `${c[k]}${tight ? "" : " "}${C[k].abbreviation}`).join(" ") || "empty"; },
   /**
    * Spends the smallest coins first, then breaks one larger coin and gives change, so the purse keeps its mix. `reason` (1.28):
-   * the coin log's line for it (GM client, feature coinLog on); without one nothing is logged.
+   * the coin log's line for it (GM client, feature coinLog on); without one nothing is logged. Returns true when paid; false (nothing
+   * taken) when the caller may not pay from it or the purse is short (2.3.2).
    * @param {any} a @param {number} amount @param {{ reason?: string, undoOf?: string | null }} [opts]
    */
   async pay(a, amount, { reason = "", undoOf = null } = {}) {
-    if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wanderer's Toolkit: you can only pay from coin you own."); return; }
+    if (!game.user.isGM && !a?.isOwner) { ui.notifications.warn("Wanderer's Toolkit: you can only pay from coin you own."); return false; }
     const before = this.totalMoney(a);
+    // 2.3.2: never a partial payment. Short purse → nothing is taken, false.
+    if (!(Math.round(amount) >= 0) || before < Math.round(amount)) { ui.notifications.warn(`Wanderer's Toolkit: ${a?.name ?? "the actor"} can't pay ${fmtMoney(Math.round(amount) || 0)} (has ${fmtMoney(before)}).`); return false; }
     const c = { ...a.system.currency }; let need = Math.round(amount); const asc = coins().reverse();
     for (const [k, v] of asc) { const take = Math.min(c[k] || 0, Math.floor(need / v)); c[k] = (c[k] || 0) - take; need -= take * v; }
     if (need > 0) {
@@ -898,6 +914,7 @@ export const WCT = {
     }
     await a.update({ "system.currency": c });
     if (reason) await CoinLog.record(a, this.totalMoney(a) - before, reason, { undoOf });
+    return true;
   },
   /** Changes an actor's coins up into the largest coins (no electrum), keeping the total. */
   consolidate(a) { return this.addMoney(a, 0, { consolidate: true }); },

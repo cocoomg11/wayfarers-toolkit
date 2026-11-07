@@ -4,7 +4,6 @@
  * Frames are redrawn from document hooks only (no polling). Turned off with the "Boss frames" feature, nothing here is registered.
  */
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
 
 export const HP_MODES = { bar: "Bar only", percent: "Bar and percentage", exact: "Exact HP" };
@@ -12,7 +11,7 @@ export const HP_MODES = { bar: "Bar only", percent: "Bar and percentage", exact:
 import { on as featureOn } from "./features.mjs";
 import * as P from "./phases.mjs";
 import { isActiveGM } from "./gm.mjs";
-import { UI_CLASSES } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, esc } from "../vendor/wanderers-core/index.mjs";
 import { card } from "./look-model.mjs";
 const tokenDoc = t => t?.document ?? t;
 
@@ -174,7 +173,7 @@ function frame(cb) {
       <div class="bar ${tone}" role="meter" aria-label="${esc(cb.token.name)} health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${dead ? 0 : Math.round(pct * 100)}">
         <div class="fill" style="width:${dead ? 0 : (pct * 100).toFixed(1)}%"></div>
         ${tempW ? `<div class="temp" style="width:${(tempW * 100).toFixed(1)}%"></div>` : ""}
-        ${showPhases() ? phasesOf(cb.token).map(t => `<span class="tick" style="left:${t}%" data-tooltip="Phase mark: ${t}%"></span>`).join("") : ""}
+        ${showPhases() ? phasesOf(cb.token).map(t => `<span class="tick" style="left:${t}%" data-tooltip-text="Phase mark: ${t}%"></span>`).join("") : ""}
         ${text ? `<span class="txt">${text}</span>` : ""}
       </div></div>`;
   return { html, dead };
@@ -459,7 +458,7 @@ function addHudButton(hud, html) {
   const crown = doc.getFlag(ID, "boss");
   const tipBase = crown === false ? "Boss frame (off for this token; it has boss loot)" : crown ? "Boss frame" : isBoss(doc) ? "Boss frame (automatic: it has boss loot)" : "Boss frame";
   const ph = phasesOf(doc);
-  btn.dataset.tooltip = `${tipBase}. Right-click: phase marks${ph.length ? ` (${ph.map(n => `${n}%`).join(", ")})` : ""}`; btn.setAttribute("aria-label", "Toggle boss frame");
+  btn.dataset.tooltipText = `${tipBase}. Right-click: phase marks${ph.length ? ` (${ph.map(n => `${n}%`).join(", ")})` : ""}`; btn.setAttribute("aria-label", "Toggle boss frame");
   btn.innerHTML = '<i class="fa-solid fa-crown"></i>';
   btn.addEventListener("click", async ev => { ev.preventDefault(); ev.stopPropagation(); await toggle([doc]); btn.classList.toggle("active", isBoss(doc)); });
   btn.addEventListener("contextmenu", async ev => { ev.preventDefault(); ev.stopPropagation(); await phaseDialog(doc); hud.render?.(); });

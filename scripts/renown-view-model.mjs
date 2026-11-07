@@ -82,18 +82,19 @@ const hiddenTag = `<span class="wct-rn-hid" data-tooltip="Players don't see this
 /** One faction row. @param {any} r @param {any} m */
 function rowHTML(r, m) {
   const ribbons = r.ribbons.length ? `<span class="wct-rn-ribs">${r.ribbons.map(b => `<span class="wct-rn-rib" data-tooltip="Other source, added by the GM">${esc(b.text)} ${esc(R.signed(b.amount))}${m.isGM ? `<button type="button" class="wct-rn-x" data-wct-rn="unribbon" data-faction="${esc(r.id)}" data-ribbon="${esc(b.id)}" aria-label="Remove ${esc(b.text)}">${svg(ICONS.x)}</button>` : ""}</span>`).join("")}</span>` : "";
-  const tip = [r.now && `Now: ${r.now}`, r.s.next && `At ${r.s.next.name} (${r.s.next.from}): ${r.next || "—"}`].filter(Boolean).join("<br>");
+  // Module-built HTML tooltip: every world-supplied piece is escaped, then the whole is escaped again for the attribute (2.3.2).
+  const tip = [r.now && esc(`Now: ${r.now}`), r.s.next && esc(`At ${r.s.next.name} (${r.s.next.from}): ${r.next || "—"}`)].filter(Boolean).join("<br>");
   const score = m.edit ? `<label class="wct-rn-score" data-tooltip="Score without other sources"><span class="wc-sr">${esc(r.name)} score</span><input type="text" inputmode="numeric" data-wct-rn-score="${esc(r.id)}" value="${r.score}"></label>` : "";
   const gm = m.isGM ? `<button type="button" class="wct-rn-ic" data-wct-rn="award" data-faction="${esc(r.id)}" aria-label="Award renown with ${esc(r.name)}" data-tooltip="Award or take renown">${svg(ICONS.award)}</button><button type="button" class="wct-rn-ic" data-wct-rn="ribbon" data-faction="${esc(r.id)}" aria-label="Add another source for ${esc(r.name)}" data-tooltip="Add another source (a label with an amount)">${svg(ICONS.plus)}</button>` : "";
   const track = m.canTrack
-    ? `<button type="button" class="wct-rn-ic${r.tracked ? " on" : ""}" data-wct-rn="track" data-faction="${esc(r.id)}" aria-pressed="${r.tracked}" aria-label="Track ${esc(r.name)}" data-tooltip="${r.tracked ? "Tracked: shown at the top" : "Track: pin at the top"}">${svg(ICONS.star)}</button>`
+    ? `<button type="button" class="wct-rn-ic${r.tracked ? " on" : ""}" data-wct-rn="track" data-faction="${esc(r.id)}" aria-pressed="${r.tracked}" aria-label="Track ${esc(r.name)}" data-tooltip-text="${r.tracked ? "Tracked: shown at the top" : "Track: pin at the top"}">${svg(ICONS.star)}</button>`
     : r.tracked ? `<span class="wct-rn-ic on static" aria-label="Tracked">${svg(ICONS.star)}</span>` : "<span></span>";
   return `<div class="wct-rn-row" data-faction-id="${esc(r.id)}" style="--tc:${esc(r.s.color)}">
     <span class="wct-rn-crest">${svg(ICONS.crest)}</span>
     <span class="wct-rn-nm"><b>${esc(r.name)}${r.hidden ? hiddenTag : ""}</b>${r.note ? `<small>${esc(r.note)}</small>` : ""}${ribbons}</span>
-    <span class="wct-rn-tier"${tip ? ` data-tooltip="${esc(tip)}"` : ""}>${esc(r.s.name)}</span>
+    <span class="wct-rn-tier"${tip ? ` data-tooltip-html="${esc(tip)}"` : ""}>${esc(r.s.name)}</span>
     ${bar(r.s, `${r.name} renown`)}
-    <span class="wct-rn-disc${r.s.discount ? (m.discounts ? " on" : " off") : ""}" data-tooltip="${esc(!m.discounts ? "Merchant discounts are off in this world: shown for information" : r.merchants ? `At ${r.name} merchants` : "Discount at this faction's merchants (none linked yet)")}">${esc(r.discount)}</span>
+    <span class="wct-rn-disc${r.s.discount ? (m.discounts ? " on" : " off") : ""}" data-tooltip-text="${esc(!m.discounts ? "Merchant discounts are off in this world: shown for information" : r.merchants ? `At ${r.name} merchants` : "Discount at this faction's merchants (none linked yet)")}">${esc(r.discount)}</span>
     <span class="wct-rn-acts">${score}${gm}${track}</span>
   </div>`;
 }
@@ -127,7 +128,7 @@ export function pageHTML(m) {
       <h4 class="wct-rn-gh"><button type="button" class="wct-rn-cat" data-wct-rn="group" data-group="${esc(g.label)}" aria-expanded="${g.open}">${svg(g.open ? ICONS.open : ICONS.closed)}${esc(g.label)}<span class="n">${g.rows.length} ${g.rows.length === 1 ? "faction" : "factions"}</span></button></h4>
       ${g.open ? g.rows.map(r => rowHTML(r, m)).join("") : ""}
     </div>`).join("");
-  const tiers = `<div class="wct-rn-key"><span class="wct-cs-lab">Renown tiers</span><span class="wct-rn-tkey"><span style="--tc:${R.NO_TIER.color}">${R.NO_TIER.name} 0–${Math.max(0, (m.tiers[0]?.from ?? 1) - 1)}</span>${m.tiers.map(t => `<span style="--tc:${esc(t.color)}" data-tooltip="${esc(R.tierText(t, { on: m.discounts }) || "No perk written yet")}">${esc(t.name)} ${t.from}</span>`).join("")}</span></div>`;
+  const tiers = `<div class="wct-rn-key"><span class="wct-cs-lab">Renown tiers</span><span class="wct-rn-tkey"><span style="--tc:${R.NO_TIER.color}">${R.NO_TIER.name} 0–${Math.max(0, (m.tiers[0]?.from ?? 1) - 1)}</span>${m.tiers.map(t => `<span style="--tc:${esc(t.color)}" data-tooltip-text="${esc(R.tierText(t, { on: m.discounts }) || "No perk written yet")}">${esc(t.name)} ${t.from}</span>`).join("")}</span></div>`;
   return `<div class="wct-rn">
     ${m.tracked ? trackedHTML(m.tracked) : ""}
     <section class="wct-cs-box wct-rn-list">${tbar}

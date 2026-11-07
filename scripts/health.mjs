@@ -18,7 +18,7 @@ import * as Pins from "./pins.mjs";
 import * as Vault from "./vault.mjs";
 import * as Migrate from "./migrate.mjs";
 import * as Card from "./health-card-model.mjs";
-import { CORE_VERSION, UI_CLASSES, healthCollector, plain } from "../vendor/wanderers-core/index.mjs";
+import { CORE_VERSION, UI_CLASSES, healthCollector, plain, esc } from "../vendor/wanderers-core/index.mjs";
 import { sceneTab, fileInDataFolder } from "../vendor/wanderers-core/foundry/index.mjs";
 import { remembered } from "./windows.mjs";
 import * as Cards from "./chat-cards.mjs";
@@ -30,7 +30,6 @@ import * as Renown from "./renown.mjs";
 import * as RN from "./renown-model.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /**
  * One line. `fix` (1.30, core 0.5.0's contract, read by the Wanderer's Satchel): `{ label, run, confirm? }`, a safe one-click repair
  * offered as a Fix button in the Satchel and in the control panel's Overview. Anything that changes data has a `confirm` text.
@@ -439,7 +438,7 @@ function shared() {
   const v = Vault.status();
   if (!v.exists) out.push(off("GM-only records: none yet (made the first time something GM-only is saved)."));
   else if (v.playersCanSee.length) out.push(bad(`GM-only records: the journal entry "${v.name || "Wanderer's Toolkit (GM only)"}" is shared with ${listNames(v.playersCanSee)}. Set its ownership back to None for players: it holds hidden pins, quest GM text and the full flight network.`, FIXES.vaultPrivate()));
-  else out.push(ok(`GM-only records: kept in "${v.name || "Wanderer's Toolkit (GM only)"}", players can't open it (${plural(v.buckets.length, "kind")} of record).`));
+  else out.push(ok(`GM-only records: kept in "${v.name || "Wanderer's Toolkit (GM only)"}", players can't open it (${plural(v.buckets.length, "kind")} of record). This keeps them out of the sidebar and windows; a determined player can still read them from the browser console (honor system: docs/scripting.md › GM-only data).`));
   if (v.exists && !v.filed && !v.inFolder) out.push(line("info", `GM-only records: the journal sits at the top of the Journal sidebar; the acting GM files it into the shared "Module data" folder once on their next load.`, FIXES.fileVault()));
   if (v.count > 1) out.push(warn(`GM-only records: ${v.count} journals are marked as the toolkit's store (two GMs created one at once); only the first is used. Delete the empty one by hand after checking it.`));
   const pending = Migrate.status().filter(m => !m.done).map(m => m.id);

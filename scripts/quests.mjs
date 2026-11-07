@@ -12,7 +12,7 @@ import * as TM from "./tracker-model.mjs";
 import * as UX from "./quest-ux-model.mjs";
 import * as QL from "./quest-log-model.mjs";
 import { breakdown } from "./coinlog-model.mjs";
-import { UI_CLASSES, quality as coreQuality } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, quality as coreQuality, esc } from "../vendor/wanderers-core/index.mjs";
 import { notify, request, isActiveGM, handle } from "./gm.mjs";
 import { card as lookCard } from "./look-model.mjs";
 import { remembered } from "./windows.mjs";
@@ -21,7 +21,6 @@ import * as Renown from "./renown.mjs";
 import { renownRewardLines } from "./renown-model.mjs";
 
 const ID = "wayfarers-toolkit";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const S = key => game.settings.get(ID, key);
 const TextEditorImpl = () => foundry.applications.ux?.TextEditor?.implementation ?? /** @type {any} */ (globalThis).TextEditor;
 const MAX_TRACKED = 5;
@@ -644,14 +643,14 @@ function renderTracker() {
     const lines = left.map(o => { const c = QL.counterText(o); return `<li class="${o.optional ? "opt" : ""}${GO_TO_PIN ? " pin" : ""}"${pinAttr}>${c ? `<span class="cnt">${c}</span> ` : ""}${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</li>`; });
     if (allDone(q) && !left.some(o => !o.optional)) lines.unshift(`<li class="ready">All objectives complete</li>`);
     const upd = isUpdated(j); const d = diffOf(q); const lv = QL.levelLabel(q);
-    return `<li data-quest-id="${j.id}" class="${upd ? "wct-updated" : ""}"><a data-action="open" class="ttl wctq-d-${d?.id ?? "none"}"${d ? ` data-tooltip="${d.label}"` : ""}>${lv ? `<span class="lv">${esc(lv)}</span> ` : ""}${esc(j.name)}${upd ? ' <span class="wct-upd-tag">Updated</span>' : ""}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
+    return `<li data-quest-id="${j.id}" class="${upd ? "wct-updated" : ""}"><a data-action="open" class="ttl wctq-d-${d?.id ?? "none"}"${d ? ` data-tooltip-text="${d.label}"` : ""}>${lv ? `<span class="lv">${esc(lv)}</span> ` : ""}${esc(j.name)}${upd ? ' <span class="wct-upd-tag">Updated</span>' : ""}</a>${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</li>`;
   };
   hud.classList.toggle("collapsed", collapsed);
   // Only touch the DOM when the list actually changed (most journal updates don't change what the tracker shows).
   const html = `<header data-tooltip="Drag to move. Double-click to put it back." data-tooltip-direction="UP">`
     + `<span class="grip" tabindex="0" role="button" aria-label="Move the quest tracker: arrow keys move it, Shift for bigger steps, Home puts it back"><i class="fa-solid fa-grip-vertical"></i></span>`
     + `<span class="label">Quests</span><span class="n">${list.length}</span>`
-    + `<button type="button" data-action="collapse" aria-expanded="${!collapsed}" aria-controls="wct-quest-tracker-list" aria-label="${collapsed ? "Show" : "Hide"} tracked quests" data-tooltip="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button>`
+    + `<button type="button" data-action="collapse" aria-expanded="${!collapsed}" aria-controls="wct-quest-tracker-list" aria-label="${collapsed ? "Show" : "Hide"} tracked quests" data-tooltip-text="${collapsed ? "Show" : "Hide"} tracked quests"><i class="fa-solid fa-chevron-${collapsed ? "down" : "up"}"></i></button>`
     + `<button type="button" data-action="close" aria-label="Close the quest tracker" data-tooltip="Close (bring it back from the quest log)"><i class="fa-solid fa-xmark"></i></button>`
     + `</header>${collapsed ? "" : `<ol id="wct-quest-tracker-list">${list.map(item).join("")}</ol>`}`;
   if (hudDrag) { hudHTML = ""; return; } // redraw after the drag (a new header would drop the pointer capture); hudUp calls back
@@ -724,7 +723,7 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
       const box = TRACKER && q.status === "active" ? `<input type="checkbox" class="trk" data-track="${j.id}" ${on ? "checked" : ""} aria-label="Track ${esc(j.name)}" data-tooltip="Track">` : `<span class="trk-gap"></span>`;
       const st = q.status === "failed" ? `<span class="wctq-tag bad">Failed</span>` : q.status === "completed" ? `<span class="wctq-tag good">Done</span>` : "";
       return `<li class="wctq-row ${j.id === this.selected ? "sel" : ""} ${q.status} ${isUpdated(j) ? "wct-updated" : ""}" data-quest-id="${j.id}" tabindex="0" aria-selected="${j.id === this.selected}">${box}`
-        + `<span class="name wctq-d-${d?.id ?? "none"}"${d ? ` data-tooltip="${d.label}"` : ""}>${lv ? `<span class="lv">${esc(lv)}</span> ` : ""}${esc(j.name)}</span>`
+        + `<span class="name wctq-d-${d?.id ?? "none"}"${d ? ` data-tooltip-text="${d.label}"` : ""}>${lv ? `<span class="lv">${esc(lv)}</span> ` : ""}${esc(j.name)}</span>`
         + `${QL.isReady(q) ? `<span class="wctq-tag ready">(Ready)</span>` : ""}${st}${isUpdated(j) ? '<span class="wct-upd-tag">Updated</span>' : ""}`
         + `${tagParty && q.party ? `<span class="wctq-ptag">${esc(partyName(q.party))}</span>` : ""}${gm && !q.party ? `<span class="wctq-ptag none" data-tooltip="No party: only you see it">No party</span>` : ""}`
         + `${q.hidden ? `<i class="fa-solid fa-eye-slash" data-tooltip="Hidden from players"></i>` : ""}</li>`;
@@ -759,7 +758,7 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
   trackerSwitch() {
     const on = !!S("questTracker");
     return `<span class="wctq-trk">
-      <button type="button" class="wc-btn wc-btn-sm wctq-tool ${on ? "on" : ""}" data-tracker="toggle" aria-pressed="${on}" data-tooltip="${on ? "The tracker is on your screen. Click to close it." : "The tracker is closed. Click to show it."}"><i class="fa-solid fa-location-crosshairs"></i> ${on ? "Tracker shown" : "Show tracker"}</button>
+      <button type="button" class="wc-btn wc-btn-sm wctq-tool ${on ? "on" : ""}" data-tracker="toggle" aria-pressed="${on}" data-tooltip-text="${on ? "The tracker is on your screen. Click to close it." : "The tracker is closed. Click to show it."}"><i class="fa-solid fa-location-crosshairs"></i> ${on ? "Tracker shown" : "Show tracker"}</button>
       <button type="button" class="wc-btn wc-btn-sm wc-btn-icon wctq-tool" data-tracker="reset" aria-label="Reset tracker position" data-tooltip="Put the tracker back in its starting spot"><i class="fa-solid fa-arrows-to-dot"></i></button>
     </span>`;
   }
@@ -768,8 +767,8 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
   slot(i, { pick = false, chosen = false, canPick = false } = {}) {
     const body = `<img src="${esc(i.img)}" alt=""><span class="nm">${esc(i.name)}</span>${chosen ? `<i class="fa-solid fa-check chosen" aria-hidden="true"></i>` : ""}`;
     const cls = `wctq-slot q-${QL.quality(i.rarity)} ${chosen ? "chosen" : ""}`;
-    if (pick && canPick) return `<button type="button" class="${cls}" data-pick="${esc(i.uuid)}" aria-pressed="${chosen}" data-tooltip="${chosen ? "Chosen" : "Choose this reward"}">${body}</button>`;
-    return `<a class="${cls}" data-uuid="${esc(i.uuid)}" data-tooltip="${esc(i.name)}">${body}</a>`;
+    if (pick && canPick) return `<button type="button" class="${cls}" data-pick="${esc(i.uuid)}" aria-pressed="${chosen}" data-tooltip-text="${chosen ? "Chosen" : "Choose this reward"}">${body}</button>`;
+    return `<a class="${cls}" data-uuid="${esc(i.uuid)}" data-tooltip-text="${esc(i.name)}">${body}</a>`;
   }
 
   async detailHTML(j, q) {
@@ -785,7 +784,7 @@ export class QuestLog extends remembered(foundry.applications.api.ApplicationV2,
     const where = [q.zone && esc(q.zone), q.giver.name && `Quest giver: ${q.giver.uuid ? `<a data-uuid="${esc(q.giver.uuid)}">${esc(q.giver.name)}</a>` : esc(q.giver.name)}`].filter(Boolean).join(" · ");
     const obj = (o) => {
       const i = q.objectives.indexOf(o); const c = QL.counterText(o);
-      const box = gm ? `<button type="button" class="box" data-action="tick" aria-pressed="${o.done}" aria-label="${o.done ? "Untick" : "Tick off"}" data-tooltip="${o.done ? "Untick" : "Tick off"}">${o.done ? "✔" : ""}</button>` : `<span class="box" role="img" aria-label="${o.done ? "Done" : "Not done"}">${o.done ? "✔" : ""}</span>`;
+      const box = gm ? `<button type="button" class="box" data-action="tick" aria-pressed="${o.done}" aria-label="${o.done ? "Untick" : "Tick off"}" data-tooltip-text="${o.done ? "Untick" : "Tick off"}">${o.done ? "✔" : ""}</button>` : `<span class="box" role="img" aria-label="${o.done ? "Done" : "Not done"}">${o.done ? "✔" : ""}</span>`;
       const count = c ? `<span class="cnt">${gm ? `<button type="button" class="step" data-action="minus" aria-label="One less" ${o.progress <= 0 ? "disabled" : ""}>−</button>` : ""}<span>${c}</span>${gm ? `<button type="button" class="step" data-action="plus" aria-label="One more" ${o.progress >= o.target ? "disabled" : ""}>+</button>` : ""}</span>` : "";
       return `<li class="${o.done ? "done" : ""} ${o.hidden ? "secret" : ""} ${o.optional ? "opt" : ""}" data-obj="${i}">${box}<span class="txt ${GO_TO_PIN ? "pin" : ""}" ${GO_TO_PIN ? `data-pin="1" data-tooltip="Show on the map"` : ""}>${esc(o.text)}${o.optional ? " <em>(optional)</em>" : ""}</span>${count}${gm && o.hidden ? `<button type="button" class="mini" data-action="reveal"><i class="fa-solid fa-eye"></i> Reveal</button>` : ""}${gm && !o.hidden && !o.done ? `<button type="button" class="mini ghost" data-action="conceal" data-tooltip="Hide from players" aria-label="Hide from players"><i class="fa-solid fa-eye-slash"></i></button>` : ""}</li>`;
     };

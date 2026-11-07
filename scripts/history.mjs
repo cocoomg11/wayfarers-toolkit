@@ -8,13 +8,12 @@ import * as H from "./history-model.mjs";
 import * as Vault from "./vault.mjs";
 import { isActiveGM } from "./gm.mjs";
 import { log } from "./log.mjs";
-import { UI_CLASSES, itemSlot } from "../vendor/wanderers-core/index.mjs";
+import { UI_CLASSES, itemSlot, esc } from "../vendor/wanderers-core/index.mjs";
 import * as PM from "./pane-model.mjs";
 import { remembered } from "./windows.mjs";
 
 const ID = "wayfarers-toolkit";
 const KEY = "lootHistoryData";
-const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const get = (k, d) => { try { return game.settings.get(ID, k); } catch { return d; } };
 
 export const enabled = () => !!get("lootHistory", true);

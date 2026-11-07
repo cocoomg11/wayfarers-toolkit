@@ -44,7 +44,7 @@ const charFacts = (o = {}) => ({
 test("character: paper doll from the pane's slot facts; quality on data-quality; glyphs for empty slots", () => {
   const h = SP.characterPageHTML(charFacts());
   assert.match(h, /class="wct-cs-col wct-col left"><div class="wct-cs-slot wct-slot wc-item-slot filled draggable" data-quality="epic" data-slot="head" data-item-id="h1"/);
-  assert.match(h, /data-slot="neck" aria-label="Neck \(empty\)" data-tooltip="Neck"><svg class="wct-glyph-svg"/);
+  assert.match(h, /data-slot="neck" aria-label="Neck \(empty\)" data-tooltip-text="Neck"><svg class="wct-glyph-svg"/);
   assert.match(h, /data-quality="uncommon" data-slot="finger1"/);
   assert.match(h, /data-drop="auto"/, "drop on the portrait = best place");
   assert.match(h, /Attuned <b>2 \/ 3<\/b>/);
@@ -196,7 +196,7 @@ test("details: six medallions (mod big, score small, save corner), click: check;
 test("details: skills with proficiency marks (half, proficient, expertise), ability, total, passive; click rolls", () => {
   assert.equal(SP.profClass(0), ""); assert.equal(SP.profClass(0.5), "h"); assert.equal(SP.profClass(1), "f"); assert.equal(SP.profClass(2), "e"); assert.equal(SP.profClass(undefined), "");
   const h = SP.detailsPageHTML(detFacts());
-  assert.match(h, /<li class="wct-cs-skill" data-key="prc"><i class="wct-cs-pm e" data-tooltip="Expertise"[^>]*><\/i><span class="wct-cs-dim wct-cs-ab">Wis<\/span><button[^>]*data-action="wctRoll" data-type="skill"[^>]*>Perception<\/button><b class="wct-cs-num pos">\+8<\/b><span[^>]*wct-cs-pass[^>]*>18<\/span>/);
+  assert.match(h, /<li class="wct-cs-skill" data-key="prc"><i class="wct-cs-pm e" data-tooltip-text="Expertise"[^>]*><\/i><span class="wct-cs-dim wct-cs-ab">Wis<\/span><button[^>]*data-action="wctRoll" data-type="skill"[^>]*>Perception<\/button><b class="wct-cs-num pos">\+8<\/b><span[^>]*wct-cs-pass[^>]*>18<\/span>/);
   assert.match(h, /data-key="sur"><i class="wct-cs-pm h"/);
   assert.match(h, /data-key="arc">[\s\S]*?<b class="wct-cs-num neg">−1<\/b>/);
   assert.match(h, /data-key="herb">[\s\S]*?data-type="tool"/);
