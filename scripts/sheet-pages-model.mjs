@@ -132,34 +132,44 @@ export function characterPageHTML(f) {
   } else if (f.bottom) weapons = f.bottom.map(s => slotCell(s)).join("");
   const notes = (f.notes ?? []).length ? `<ul class="wct-cs-setnotes">${(f.notes ?? []).map(n => `<li class="${esc(n.tone)}">${esc(n.text)}${n.stowShield && ed ? ` <button type="button" class="wct-cs-chip" data-wct-stow="${esc(n.stowShield)}">Stow shield</button>` : ""}</li>`).join("")}</ul>` : "";
 
-  // Attributes: name | score | (mod) in three aligned columns; click rolls dnd5e's ability check; edit mode: score inputs.
+  // 2.4: Attributes as six score badges (abbreviation, modifier, score) in a 3 × 2 grid, like the Details page's medallions; a click
+  // rolls dnd5e's ability check; edit mode: the score input instead of the roll; observers: static badges.
   const attrs = (f.attributes ?? []).map(a => {
-    const score = edit
-      ? `<input type="text" class="wct-cs-ein" data-name="system.abilities.${esc(a.key)}.value" value="${esc(a.source ?? a.value ?? "")}" placeholder="10" inputmode="numeric" aria-label="${esc(a.label)} score">`
-      : `<b>${a.value ?? "–"}</b>`;
-    const name = ed ? `<button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip-text="Roll a ${esc(a.label)} check">${esc(a.label)}</button>` : `<span>${esc(a.label)}</span>`;
-    return `<li class="wct-cs-attr" data-ability="${esc(a.key)}">${name}${score}<span class="wct-cs-num ${tone(a.mod)}">(${sign(a.mod)})</span></li>`;
+    const head = `<span class="wct-cs-lab sm">${esc(a.abbr)}</span><span class="v ${tone(a.mod)}">${esc(sign(a.mod))}</span>`;
+    const body = edit
+      ? `<div class="wct-cs-abadge static">${head}<input type="text" class="wct-cs-ein" data-name="system.abilities.${esc(a.key)}.value" value="${esc(a.source ?? a.value ?? "")}" placeholder="10" inputmode="numeric" aria-label="${esc(a.label)} score"></div>`
+      : ed
+        ? `<button type="button" class="wct-cs-abadge" data-action="wctRoll" data-type="check" data-ability="${esc(a.key)}" data-tooltip-text="Roll a ${esc(a.label)} check" aria-label="Roll a ${esc(a.label)} check">${head}<span class="m">${a.value ?? "–"}</span></button>`
+        : `<div class="wct-cs-abadge static" aria-label="${esc(a.label)}">${head}<span class="m">${a.value ?? "–"}</span></div>`;
+    return `<li class="wct-cs-attr" data-ability="${esc(a.key)}">${body}</li>`;
   }).join("");
   const d = f.defence;
   const def = d ? `<ul class="wct-cs-kv"><li><span>Armor Class</span><b>${esc(d.ac)}</b></li><li><span>Hit points</span><b>${esc(d.hp)}</b></li><li><span>Hit dice</span><b>${esc(d.hd)}</b></li><li><span>Initiative</span><b>${esc(d.init)}</b></li><li><span>Speed</span><b>${esc(d.speed)}</b></li>
     <li class="wct-cs-saves"><span>Saves</span><b>${d.saves.map(s => `<span class="${s.prof ? "prof" : ""}"${s.prof ? ' data-tooltip="Proficient"' : ""}>${esc(s.abbr)} ${esc(s.value)}</span>`).join(" ")}</b></li></ul>` : "";
   const a = f.attack;
-  const atk = a ? box(a.title || "Attack", `${a.name ? `<p class="wct-cs-atkname wc-q-text" data-quality="${esc(a.quality || "common")}">${esc(a.name)}</p>` : ""}${a.empty ? `<p class="wct-cs-dim wct-cs-boxnote">${esc(a.empty)}</p>` : ""}<ul class="wct-cs-kv">${(a.rows ?? []).map(r => `<li><span>${esc(r.label)}</span><b>${esc(r.value)}</b></li>`).join("")}${a.use && ed ? `<li><span>Attack</span><b><button type="button" class="wct-cs-gbtn sm" data-action="wctUse" data-item-id="${esc(a.use)}">Use</button></b></li>` : ""}</ul>`,
+  // 2.4: the weapon name (or the empty note) is the list's first row, so it shares the rows' height and gap (no paragraph margins).
+  const atk = a ? box(a.title || "Attack", `<ul class="wct-cs-kv">${a.name ? `<li class="wct-cs-atkname wc-q-text" data-quality="${esc(a.quality || "common")}"><b>${esc(a.name)}</b></li>` : ""}${a.empty ? `<li class="wct-cs-atkempty wct-cs-dim">${esc(a.empty)}</li>` : ""}${(a.rows ?? []).map(r => `<li><span>${esc(r.label)}</span><b>${esc(r.value)}</b></li>`).join("")}${a.use && ed ? `<li><span>Attack</span><b><button type="button" class="wct-cs-gbtn sm" data-action="wctUse" data-item-id="${esc(a.use)}">Use</button></b></li>` : ""}</ul>`,
     { right: a.options ? `<label class="wc-sr" for="wct-cs-atk">Attack shown</label><select id="wct-cs-atk" class="wct-cs-sel" data-wct-attack>${a.options}</select>` : "", cls: "wct-cs-attack" }) : "";
   const bag = f.bag ?? [];
   const loose = Math.max(0, Math.trunc(num(f.loose) ?? 0));
   const bagBox = box("Equippable items", `<div class="wct-cs-bag" data-drop="bag">${bag.length ? bag.map(i => `<div class="wct-cs-slot wct-item wc-item-slot draggable${i.equipped ? " equipped" : ""}" data-quality="${esc(i.quality || "common")}" data-item-id="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}${i.equipped ? " (equipped, not in a slot)" : ""}"><img src="${esc(i.img)}" alt=""></div>`).join("") : `<p class="wct-cs-dim">Nothing else to equip.${ed ? " Drop items here from a compendium or the sidebar to add them." : ""}</p>`}</div>`,
     { right: loose ? `${loose} equipped but not in a slot${ed ? ` <button type="button" class="wct-cs-chip" data-action="wctSlotEquipped">Slot equipped items</button>` : ""}` : ed ? "drag onto a slot, click to equip, right-click a slot to remove" : "", cls: "wct-cs-bagbox" });
-  return `<div class="wct-cs-doll">
-      <div class="wct-cs-dollgrid">${left}${portrait}${right}</div>
-      <div class="wct-cs-weapons${f.sets ? " sets" : ""}">${weapons}</div>${notes}
-    </div>
-    <div class="wct-cs-boxes">
-      ${box("Attributes", `<ul class="wct-cs-kv wct-cs-attrs">${attrs}</ul>`, { right: ed ? "click to roll" : "" })}
-      ${box("Defence", def)}
-      ${atk}
+  // 2.4 layout "doll and ledger": the compact doll (frame) on the left, the stat ledger on the right; Equippable items below both.
+  // The page stacks the two columns when it is narrow (container query in sheet.css).
+  return `<div class="wct-cs-charpage">
+    <div class="wct-cs-chargrid">
+      <div class="wct-cs-doll">
+        <div class="wct-cs-dollgrid">${left}${portrait}${right}</div>
+        <div class="wct-cs-weapons${f.sets ? " sets" : ""}">${weapons}</div>${notes}
+      </div>
+      <div class="wct-cs-ledger">
+        ${box("Attributes", `<ul class="wct-cs-attrs">${attrs}</ul>`, { right: ed && !edit ? "click to roll" : "", cls: "wct-cs-attrbox" })}
+        ${box("Defence", def, { cls: "wct-cs-defbox" })}
+        ${atk}
+      </div>
     </div>
     ${bagBox}
+    </div>
     <div class="wct-cs-pop" hidden></div>`;
 }
 

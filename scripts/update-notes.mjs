@@ -26,6 +26,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.4.0",
+    changes: [
+      { feature: "characterSheet", text: "Character sheet: the Character page is laid out in two columns. The paper doll is on the left and Attributes, Defence and the Attack box are on the right, so everything except Equippable items fits without scrolling at the default size. Attributes are six score badges (click one to roll the check). In a narrow window the columns stack." }
+    ],
+    actions: []
+  },
+  {
     version: "2.3.2",
     changes: [
       { feature: "travelPace", text: "Travel pace: a player can ask for a pace once every 30 seconds; extra requests in that time are dropped and the player is told to wait." },

@@ -2,6 +2,30 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.4.0
+
+2026-11-07. Character sheet: a new Character page layout ("doll and ledger"). Layout only: no new setting, nothing stored, no migration; one update note (Character sheet).
+
+**Changed**
+- **Character page in two columns.** Left: a compact paper doll (the 8 + 8 slot columns around a 240 px wide 3:4 portrait, the weapon sets and the "not in a slot" notes under it, all in the gold frame). Right: a ledger of Attributes, Defence and the Attack box, stacked. Equippable items runs under both columns. At the default 820 × 760 window everything except Equippable items is visible without scrolling (before, the doll alone filled the view).
+- **Attributes are six score badges** in a 3 × 2 grid (abbreviation, modifier, score), like the Details page. A click rolls dnd5e's ability check; in Edit mode the badge holds the score input; observers see static badges.
+- **Narrow windows**: below a 700 px wide page (the sheet's minimum window is 640 px) the columns stack: the doll on top with the 360 px portrait column of 2.1.3, then the ledger boxes side by side where they fit.
+- **Spacing**: one gap between every block on the page; the Attack box's weapon name (or "No weapon in hand.") is now the first row of its list, aligned and spaced like the To hit / Damage rows, instead of a paragraph with its own top margin; the Defence list starts on the same padding as the other boxes, with no extra space above Armor Class; the three ledger titles are the same height (the Attack title holds the mode select).
+- Weapon sets in the doll use 40 px hands so three sets (and a relic) fit on one line.
+
+**Unchanged**: slot storage and behaviour (pane.mjs), drops, slot menus, weapon sets and Stow shield, the Attack mode select, Use, tooltips (text-only, as in 2.3.2), the separate character pane window.
+
+**Tests**: `tests/v240.test.mjs` (block order and nesting, badges for owners / observers / edit mode, the weapon name and empty note as list rows, Defence starts on Armor Class, one gap token, column sizes and the container query, behaviour hooks and constant-only `data-tooltip`, scoped CSS). The sheet CSS scoping tests now look inside `@container` blocks; the Attributes and portrait tests follow the new markup.
+
+**Untested in Foundry** (live checklist)
+- Default 820 × 760 window: doll, Attributes, Defence and Attack all visible without scrolling; only Equippable items below. Larger windows: the ledger takes the extra width.
+- Narrow the window toward 640 px: the columns stack (doll on top, ledger under it), no horizontal scroll.
+- Doll: drag an item onto a slot and onto the portrait, from the bag and from the sidebar; right-click a slot (slot menu); left-click an empty slot (picker opens next to it); finger / trinket swaps; ghosts of two-handed weapons.
+- Weapon sets: swap sets, locked set icon tooltip, Stow shield note, relic; the "not in a slot" note and Slot equipped items.
+- Attack box: the mode select (Auto / Melee / Ranged / Spell) changes the box; Use rolls the weapon; "No weapon in hand." row when empty.
+- Attributes: clicking a badge rolls the check; Edit mode score inputs save (+2 / =14 deltas); observers see static badges.
+- Both Foundry themes (the sheet stays dark), a player's client (own character) and an observer.
+
 ## 2.3.2
 
 2026-11-07. Security and speed fixes from a code audit. No new setting, nothing stored, no migration; a short update note (pace and room request cooldown, flight bookings, inn rest).

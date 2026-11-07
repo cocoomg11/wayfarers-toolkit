@@ -14,9 +14,10 @@ test("portrait: whole picture on a centred 3:4 plate, never cropped wide or stre
   assert.match(img, /object-fit: contain/); assert.doesNotMatch(img, /object-fit: cover/);
 });
 
-test("portrait: the frame column is narrow (at most 360px) and centred between the slot columns", () => {
+test("portrait: the frame column is narrow (240px beside the ledger since 2.4, 360px when stacked) and centred between the slot columns", () => {
   const g = rule(".wct-sheet .wct-cs-dollgrid");
-  assert.match(g, /grid-template-columns: var\(--wct-slot\) minmax\(0, 360px\) var\(--wct-slot\)/); assert.match(g, /justify-content: center/);
+  assert.match(g, /grid-template-columns: var\(--wct-slot\) minmax\(0, 240px\) var\(--wct-slot\)/); assert.match(g, /justify-content: center/);
+  assert.match(css, /@container wct-charpage \(max-width: 700px\) \{[^@]*\.wct-cs-dollgrid \{ grid-template-columns: var\(--wct-slot\) minmax\(0, 360px\) var\(--wct-slot\)/);
 });
 
 test("portrait: drop target, art button and edit controls unchanged", () => {

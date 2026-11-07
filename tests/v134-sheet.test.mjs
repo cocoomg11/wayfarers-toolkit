@@ -67,17 +67,17 @@ test("character: weapon sets (active lit, others stowed, locked note), relic slo
   assert.match(off, /data-slot="mainhand"/); assert.doesNotMatch(off, /data-wct-activate/);
 });
 
-test("character: Attributes in three aligned columns, click rolls a check; edit mode: score inputs on system.abilities.*.value", () => {
+test("character: Attributes as score badges (2.4), click rolls a check; edit mode: score inputs on system.abilities.*.value", () => {
   const h = SP.characterPageHTML(charFacts());
-  assert.match(h, /<li class="wct-cs-attr" data-ability="dex"><button type="button" class="wct-cs-roll" data-action="wctRoll" data-type="check" data-ability="dex"[^>]*>Dexterity<\/button><b>18<\/b><span class="wct-cs-num pos">\(\+4\)<\/span><\/li>/);
-  assert.match(h, /data-ability="cha">[\s\S]*?<span class="wct-cs-num neg">\(−1\)<\/span>/);
-  assert.match(h, /data-ability="str">[\s\S]*?<span class="wct-cs-num ">\(\+0\)<\/span>/);
+  assert.match(h, /<li class="wct-cs-attr" data-ability="dex"><button type="button" class="wct-cs-abadge" data-action="wctRoll" data-type="check" data-ability="dex" data-tooltip-text="Roll a Dexterity check" aria-label="Roll a Dexterity check"><span class="wct-cs-lab sm">DEX<\/span><span class="v pos">\+4<\/span><span class="m">18<\/span><\/button><\/li>/);
+  assert.match(h, /data-ability="cha">[\s\S]*?<span class="v neg">−1<\/span>/);
+  assert.match(h, /data-ability="str">[\s\S]*?<span class="v ">\+0<\/span>/);
   const e = SP.characterPageHTML(charFacts({ edit: true }));
   assert.match(e, /<input type="text" class="wct-cs-ein" data-name="system\.abilities\.dex\.value" value="16"/, "the source score, not the prepared one");
   const ro = SP.characterPageHTML(charFacts({ editable: false, edit: true }));
   assert.doesNotMatch(ro, /data-action="wctRoll"|<input|data-wct-activate|wctSlotEquipped/, "observers: no rolls, inputs or slot actions");
   assert.match(SM.sheetHTML(view({ editable: false }), "")?.toString() ?? "", /wct-cs/);
-  assert.match(src("styles/sheet.css"), /\.wct-cs-attrs li\.wct-cs-attr \{ display: grid; grid-template-columns: minmax\(0, 1fr\) 40px 44px/);
+  assert.match(src("styles/sheet.css"), /\.wct-cs-attrs \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 });
 
 test("character: Defence and Attack boxes (the pane's models), Attack follows the set and has Use", () => {
@@ -85,7 +85,7 @@ test("character: Defence and Attack boxes (the pane's models), Attack follows th
   assert.match(h, /<span>Armor Class<\/span><b>16<\/b>/);
   assert.match(h, /<span class="prof" data-tooltip="Proficient">STR \+3<\/span>/);
   assert.match(h, /<h4>Ranged<span class="r">/); assert.match(h, /data-wct-attack/); assert.match(h, /<option value="auto" selected>Auto \(Ranged\)/);
-  assert.match(h, /wc-q-text" data-quality="epic">Bow/);
+  assert.match(h, /wc-q-text" data-quality="epic"><b>Bow<\/b>/);
   assert.match(h, /data-action="wctUse" data-item-id="b1">Use/);
 });
 
@@ -296,7 +296,7 @@ test("delta inputs follow dnd5e (+n, -n, =n, plain)", () => {
 test("css: page styles scoped, no theme selectors, no favourites; text escaped", () => {
   const css = src("styles/sheet.css");
   assert.doesNotMatch(css, /theme-(dark|light)/);
-  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
+  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@container[^{]*\{/g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
     for (const sel of rule.split(",")) assert.match(sel.trim(), /^\.(application\.)?wct-sheet\b/, sel);
   const all = SP.characterPageHTML(charFacts()) + SP.detailsPageHTML(detFacts()) + SP.inventoryPageHTML(invFacts());
   assert.doesNotMatch(all, /favourite|favorite/i);

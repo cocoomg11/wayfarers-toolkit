@@ -141,10 +141,21 @@
 .wct-sheet .wct-cs-sel.sm { height: 20px; font-size: 11px; width: auto; }
 .wct-sheet .wct-cs input::placeholder { color: var(--ink3); }
 
-/* Character page: paper doll */
-.wct-sheet .wct-cs-doll { --wct-slot: 48px; position: relative; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--trim); border-radius: 6px; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 6px), radial-gradient(ellipse at 50% 28%, var(--st1), var(--st2) 78%); box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px color-mix(in srgb, var(--trimhi) 22%, transparent), inset 0 0 34px rgba(0, 0, 0, 0.75), 0 0 0 1px #000; }
-/* 2.1.3: the portrait column is at most 360px wide and centred, so the frame hugs a portrait-shaped picture instead of spanning the page. */
-.wct-sheet .wct-cs-dollgrid { display: grid; grid-template-columns: var(--wct-slot) minmax(0, 360px) var(--wct-slot); justify-content: center; gap: 12px 16px; }
+/* Character page (2.4 "doll and ledger"): the compact doll on the left, the stat ledger on the right, Equippable items below both.
+   One spacing token (--wct-gap) between every block; the page container stacks the columns when it is narrower than 700px. */
+.wct-sheet .wct-cs-charpage { --wct-gap: 10px; container: wct-charpage / inline-size; display: flex; flex-direction: column; gap: var(--wct-gap); min-width: 0; }
+.wct-sheet .wct-cs-chargrid { display: grid; grid-template-columns: 384px minmax(0, 1fr); gap: var(--wct-gap); align-items: start; }
+.wct-sheet .wct-cs-ledger { display: flex; flex-direction: column; gap: var(--wct-gap); min-width: 0; }
+/* weapon sets in the 384px doll: 40px hands and tighter set boxes so three sets and the relic fit on one line */
+.wct-sheet .wct-cs-chargrid .wct-cs-weapons { gap: 6px; }
+.wct-sheet .wct-cs-chargrid .wct-cs-weapons .wct-cs-slot { --wct-slot: 40px; }
+.wct-sheet .wct-cs-chargrid .wct-cs-wset { padding: 3px 5px 5px; }
+/* the 240px portrait column is width-bound: the 3:4 plate is centred vertically in it (stacked, the 2.1.3 placement returns) */
+.wct-sheet .wct-cs-chargrid .wct-cs-art { inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: calc(100% - 16px); max-height: calc(100% - 16px); }
+/* paper doll */
+.wct-sheet .wct-cs-doll { --wct-slot: 48px; position: relative; padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--trim); border-radius: 6px; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 6px), radial-gradient(ellipse at 50% 28%, var(--st1), var(--st2) 78%); box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px color-mix(in srgb, var(--trimhi) 22%, transparent), inset 0 0 34px rgba(0, 0, 0, 0.75), 0 0 0 1px #000; }
+/* 2.4: the portrait column is 240px in the two-column layout (360px when stacked, as in 2.1.3), centred between the slot columns. */
+.wct-sheet .wct-cs-dollgrid { display: grid; grid-template-columns: var(--wct-slot) minmax(0, 240px) var(--wct-slot); justify-content: center; gap: 12px 10px; }
 .wct-sheet .wct-cs-col { display: flex; flex-direction: column; gap: 7px; }
 .wct-sheet .wct-cs-slot.wc-item-slot { --wc-slot-size: var(--wct-slot); width: var(--wct-slot); height: var(--wct-slot); border-radius: 4px; border: 2px solid var(--wc-q, var(--edge)); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--wc-q, #6d5a3d) 40%, #2a2219), #100c09 85%); box-shadow: inset 0 0 9px #000, 0 0 0 1px #000, 0 0 7px color-mix(in srgb, var(--wc-q, transparent) 45%, transparent); cursor: pointer; }
 .wct-sheet .wct-cs-slot.wc-item-slot.wc-empty { border-style: solid; border-color: var(--edge); color: rgba(232, 216, 178, 0.22); background: linear-gradient(#0c0a08, #1b1612); box-shadow: inset 0 0 9px #000, 0 0 0 1px #000; }
@@ -180,15 +191,39 @@
 .wct-sheet .wct-cs-wstate { font-size: 10px; color: var(--ink3); }
 .wct-sheet .wct-cs-setnotes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink2); }
 .wct-sheet .wct-cs-setnotes li.bad { color: var(--neg); } .wct-sheet .wct-cs-setnotes li.warn { color: #ffcf9a; }
-.wct-sheet .wct-cs-boxes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.wct-sheet .wct-cs-attrs li.wct-cs-attr { display: grid; grid-template-columns: minmax(0, 1fr) 40px 44px; gap: 6px; }
-.wct-sheet .wct-cs-attrs li.wct-cs-attr > :first-child { justify-self: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.wct-sheet .wct-cs-attrs li.wct-cs-attr > b, .wct-sheet .wct-cs-attrs li.wct-cs-attr > .wct-cs-ein { justify-self: end; text-align: right; }
-.wct-sheet .wct-cs-attrs li.wct-cs-attr > .wct-cs-num { text-align: right; font-size: 13px; color: var(--ink3); }
-.wct-sheet .wct-cs-attrs li.wct-cs-attr > .wct-cs-num.pos { color: var(--pos); } .wct-sheet .wct-cs-attrs li.wct-cs-attr > .wct-cs-num.neg { color: var(--neg); }
+/* ledger boxes: every title the same height (the Attack title holds the mode select), every list the same padding and row gap */
+.wct-sheet .wct-cs-ledger .wct-cs-box > h4 { box-sizing: border-box; min-height: 30px; padding-block: 4px; }
+.wct-sheet .wct-cs-ledger .wct-cs-box > h4 .wct-cs-sel { height: 20px; font-size: 11px; }
+.wct-sheet .wct-cs-ledger .wct-cs-kv { padding: 6px 10px; gap: 2px; }
+/* Attributes: six score badges, 3 × 2 (abbreviation, modifier, score); a button rolls the check, edit mode holds the score input */
+.wct-sheet .wct-cs-attrs { list-style: none; margin: 0; padding: 8px 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wct-sheet .wct-cs-attrs li.wct-cs-attr { display: flex; min-width: 0; }
+.wct-sheet .wct-cs-abadge { all: unset; box-sizing: border-box; flex: 1; min-width: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 4px 5px; border-radius: 5px; background: linear-gradient(#1b1713, #0f0c0a); border: 1px solid var(--edge); box-shadow: inset 0 0 0 1px #000; }
+.wct-sheet .wct-cs-abadge.static { cursor: default; }
+.wct-sheet button.wct-cs-abadge:hover { border-color: var(--trim); }
+.wct-sheet button.wct-cs-abadge:hover .v { color: var(--gold); }
+.wct-sheet .wct-cs-abadge .v { font-size: 17px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.wct-sheet .wct-cs-abadge .v.pos { color: var(--pos); } .wct-sheet .wct-cs-abadge .v.neg { color: var(--neg); }
+.wct-sheet .wct-cs-abadge .m { font-size: 11px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.wct-sheet .wct-cs-abadge .wct-cs-ein { height: 22px; margin-top: 2px; }
+/* Defence: Saves may wrap; its label stays on the first line */
+.wct-sheet .wct-cs-kv li.wct-cs-saves { align-items: baseline; }
 .wct-sheet .wct-cs-saves b { font-weight: 400; font-size: 12px; display: flex; flex-wrap: wrap; gap: 2px 6px; justify-content: flex-end; }
 .wct-sheet .wct-cs-saves b .prof { color: var(--gold); }
-.wct-sheet .wct-cs-atkname { margin: 6px 10px 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wc-q, var(--ink)); }
+/* Attack: the weapon name / empty note is the list's first row (same height and gap as the rows, no margins of its own) */
+.wct-sheet .wct-cs-kv li.wct-cs-atkname { justify-content: flex-start; min-width: 0; }
+.wct-sheet .wct-cs-kv li.wct-cs-atkname b { font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wc-q, var(--ink)); }
+.wct-sheet .wct-cs-kv li.wct-cs-atkempty { justify-content: flex-start; font-size: 12px; color: var(--ink3); }
+/* narrow page: doll on top (portrait column back to 360px), the ledger boxes under it side by side where they fit */
+@container wct-charpage (max-width: 700px) {
+  .wct-sheet .wct-cs-chargrid { grid-template-columns: minmax(0, 1fr); }
+  .wct-sheet .wct-cs-dollgrid { grid-template-columns: var(--wct-slot) minmax(0, 360px) var(--wct-slot); gap: 12px 16px; }
+  .wct-sheet .wct-cs-chargrid .wct-cs-weapons { gap: 8px; }
+  .wct-sheet .wct-cs-chargrid .wct-cs-weapons .wct-cs-slot { --wct-slot: 44px; }
+  .wct-sheet .wct-cs-chargrid .wct-cs-wset { padding: 4px 7px 6px; }
+  .wct-sheet .wct-cs-chargrid .wct-cs-art { inset: 8px auto 8px 50%; transform: translateX(-50%); width: auto; max-height: none; }
+  .wct-sheet .wct-cs-ledger { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: start; }
+}
 .wct-sheet .wct-cs-bag { display: flex; gap: 6px; padding: 8px 10px 10px; flex-wrap: wrap; min-height: 48px; }
 .wct-sheet .wct-cs-bag .wct-cs-slot { --wct-slot: 40px; }
 .wct-sheet .wct-cs-bag .wct-item.equipped::after { content: "E"; position: absolute; right: 2px; bottom: 0; font-size: 9px; font-weight: 700; color: var(--gold); text-shadow: 0 0 2px #000, 0 0 2px #000; }

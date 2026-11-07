@@ -178,7 +178,7 @@ test("sheet: Features and Spells are built; facts follow dnd5e's preparation; ac
 test("css and public repo", () => {
   const css = src("styles/sheet.css");
   assert.doesNotMatch(css, /theme-(dark|light)/);
-  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
+  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@container[^{]*\{/g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
     for (const sel of rule.split(",")) assert.match(sel.trim(), /^\.(application\.)?wct-sheet\b/, sel);
   assert.doesNotMatch(src("scripts/sheet-book-model.mjs") + src("scripts/sheet.mjs"), /warcraft|blizzard|azeroth|defias|onyx/i);
 });

@@ -183,7 +183,7 @@ test("all pages built; pure model; css scoped; public repo", () => {
   assert.doesNotMatch(src("scripts/sheet-extra-model.mjs").replace(/\/\*[\s\S]*?\*\//g, ""), /\b(game|canvas|ui|CONFIG|foundry)\./);
   const css = src("styles/sheet.css");
   assert.doesNotMatch(css, /theme-(dark|light)/);
-  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
+  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@container[^{]*\{/g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
     for (const sel of rule.split(",")) assert.match(sel.trim(), /^\.(application\.)?wct-sheet\b/, sel);
   assert.doesNotMatch(src("scripts/sheet-extra-model.mjs") + src("scripts/sheet.mjs") + css, /warcraft|blizzard|azeroth|defias|onyx/i);
   const all = SX.effectsPageHTML(fx()) + SX.biographyPageHTML(bio()) + SX.bastionPageHTML(bastion()) + SX.specialPageHTML(special());

@@ -177,7 +177,7 @@ test("css: scoped to the sheet, dark in both themes (no theme selectors), regist
   const css = src("styles/sheet.css");
   assert.doesNotMatch(css, /theme-(dark|light)/);
   assert.doesNotMatch(css, /wc-r\d/);
-  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
+  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@container[^{]*\{/g, "").split("}").map(r => r.split("{")[0].trim()).filter(Boolean))
     for (const sel of rule.split(",")) assert.match(sel.trim(), /^\.(application\.)?wct-sheet\b/, sel);
   assert.ok(JSON.parse(src("module.json")).styles.includes("styles/sheet.css"));
 });

@@ -223,6 +223,13 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - No local `esc` copies (test): import core's.
 - Tests: `tests/v232.test.mjs`.
 
+## 2.4.0 notes: Character page "doll and ledger"
+- `characterPageHTML` returns `.wct-cs-charpage` (container `wct-charpage`, one `--wct-gap`) › `.wct-cs-chargrid` (grid `384px minmax(0, 1fr)`) with `.wct-cs-doll` (unchanged inside: dollgrid, weapons, setnotes) and `.wct-cs-ledger` (Attributes `wct-cs-attrbox`, Defence `wct-cs-defbox`, Attack `wct-cs-attack`), then the Equippable items box (outside the grid), then `.wct-cs-pop`. `.wct-cs-boxes` is gone. Keep `.wct-cs-doll` / `.wct-cs-bag` as the wrappers sheet.mjs queries.
+- Attributes: `li.wct-cs-attr` › `.wct-cs-abadge` (button `wctRoll` check for owners; `.static` div for observers and in edit mode with the score input), 3 × 2 grid.
+- Attack: the weapon name (`li.wct-cs-atkname`, name in `<b>`) and the empty note (`li.wct-cs-atkempty`) are rows of the box's `wct-cs-kv` list, never paragraphs with margins (user feedback on the mockup's spacing). Ledger titles `min-height: 30px`; ledger lists `padding: 6px 10px; gap: 2px`.
+- Portrait column 240px beside the ledger (plate centred vertically); `@container wct-charpage (max-width: 700px)` stacks the columns and restores the 2.1.3 360px column and 44px set hands. CSS scoping tests strip `@container` wrappers.
+- Tests: `tests/v240.test.mjs`.
+
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.6.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.
