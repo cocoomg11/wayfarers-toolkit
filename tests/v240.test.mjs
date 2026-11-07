@@ -57,8 +57,8 @@ test("2.4 spacing fix: the weapon name / empty note is the Attack list's first r
 test("2.4 spacing fix: Defence starts on its list's padding (no empty row or margin above Armor Class); one gap token between blocks", () => {
   const h = SP.characterPageHTML(facts());
   assert.match(h, /<section class="wct-cs-box wct-cs-defbox"><h4>Defence<\/h4><ul class="wct-cs-kv"><li><span>Armor Class<\/span>/);
-  assert.match(rule(".wct-sheet .wct-cs-ledger .wct-cs-kv"), /padding: 6px 10px; gap: 2px/);
-  assert.match(rule(".wct-sheet .wct-cs-ledger .wct-cs-box > h4"), /min-height: 30px/, "every ledger title the same height (Attack's holds the select)");
+  assert.match(rule(".wct-sheet .wct-cs-ledger .wct-cs-kv"), /padding: 4px 10px 5px; gap: 1px/, "2.4.1 values");
+  assert.match(rule(".wct-sheet .wct-cs-ledger .wct-cs-box > h4"), /min-height: 26px/, "every ledger title the same height (Attack's holds the select)");
   for (const sel of [".wct-sheet .wct-cs-charpage", ".wct-sheet .wct-cs-chargrid", ".wct-sheet .wct-cs-ledger"]) assert.match(rule(sel), /gap: var\(--wct-gap\)/, sel);
 });
 

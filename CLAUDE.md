@@ -230,6 +230,12 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - Portrait column 240px beside the ledger (plate centred vertically); `@container wct-charpage (max-width: 700px)` stacks the columns and restores the 2.1.3 360px column and 44px set hands. CSS scoping tests strip `@container` wrappers.
 - Tests: `tests/v240.test.mjs`.
 
+## 2.4.1 notes: Character page fit
+- **Real page height**: in Foundry 14.370 the default 820 × 760 sheet's `.wct-cs-page` is **576 px tall** (clientHeight, measured live; header + band + vitals + footer take the rest). The doll and the ledger must both end under it; only Equippable items may sit below. Headless renders must use that page height (Foundry's window header is ~18 px of extra chrome over the sheet body in a plain HTML mock; Signika at line-height 1.5 approximates the live row heights).
+- Two-column sizes (scoped `.wct-cs-chargrid ...`): doll `--wct-slot` 42 px, column gap 6 px, padding 10 px, `.wct-cs-model` min-height 0; weapon sets `nowrap`, hands 38 px, set padding `2px 4px 3px`; page `--wct-gap` 8 px; ledger titles min 26 px, kv rows min 20 px, gap 1 px, Use 20 px. The `@container (max-width: 700px)` block restores the 2.4.0 sizes (48 / 360 / 44 px, wrapping sets). Keep text ≥ 11 px (10 px only for the existing uppercase labels / captions).
+- **Lock reason** lives in the set button's `data-tooltip-text` (`SP.setTip(s)`): `.wct-cs-lock` gets no pointer events (inherited), so it carries no tooltip of its own, only its aria label.
+- Tests: `tests/v241.test.mjs`.
+
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.6.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.

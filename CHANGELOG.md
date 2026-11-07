@@ -2,6 +2,25 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.4.1
+
+2026-11-07. Character sheet fixes from the 2.4.0 live test. Layout and one tooltip only: no new setting, nothing stored, no migration; one update note (Character sheet).
+
+**Fixed**
+- **The Character page now fits the default window.** In Foundry 14 the page area of the default 820 × 760 sheet is 576 px tall (measured live; 2.4.0's estimate was too generous), and 2.4.0 needed a scroll: the Attack box's Use row was cut off by about 20 px and the weapon sets and relic sat about 83 px below the view. Now, beside the ledger, the doll uses 42 px slots 6 px apart (the 3:4 portrait is centred in that height, no 360 px floor), 38 px weapon-set hands with tighter set boxes on one line (three sets and the relic), and 10 px frame padding; the ledger uses 26 px titles, 20 px rows, a 20 px Use button and a tighter Attributes grid; the page gap is 8 px. Headless render at the real 576 px page height: doll ends at about 506 px (556 px with a set note and its Stow shield chip), ledger at about 510 px (525 px in Edit mode). Only Equippable items sits below. Text stays 11 px or larger (the set labels and "In hand / Stowed" captions keep their 10 px). The default window size is unchanged.
+- **Locked weapon set tooltip.** The lock icon takes no pointer events, so its own tooltip never showed (hovering it showed "Swap to the … set"). The set button's text tooltip now carries the reason: "Swap to the Utility set. Locked: …" (`setTip` in sheet-pages-model.mjs; still `data-tooltip-text`, as in 2.3.2). The icon keeps its aria label.
+
+**Unchanged**: the stacked layout under 700 px (it restores the 2.4.0 doll sizes: 48 px slots, 360 px portrait column, 44 px hands, wrapping sets), drops, slot menus, weapon sets and Stow shield, the Attack mode select, Use, attribute badges, edit inputs, observers.
+
+**Tests**: `tests/v241.test.mjs` (compact doll and ledger sizes, the stacked layout's sizes, font floor, the lock reason in the set button's text tooltip, constant-only `data-tooltip`); `tests/v240.test.mjs` follows the new ledger padding and title height.
+
+**Untested in Foundry** (live checklist)
+- Default 820 × 760, Character page: `.wct-cs-page` scrollHeight minus clientHeight should only be Equippable items; the Attack box's Attack / Use row and the doll's weapon sets and relic are fully visible. Try a character with a set note (e.g. a locked set with Stow shield) and Edit mode too.
+- Slots at 42 px and hands at 38 px still read well; item icons and quality borders look right; the portrait plate is centred between the slot columns.
+- Hover the lock on a locked set's tab (and the tab itself): the tooltip reads "Swap to the … set. Locked: <reason>".
+- Narrow to 700 / 640 px: the stacked layout looks as in 2.4.0 (48 px slots, 360 px portrait column).
+- Larger window (e.g. 1060 × 900): the ledger takes the extra width; nothing else changes.
+
 ## 2.4.0
 
 2026-11-07. Character sheet: a new Character page layout ("doll and ledger"). Layout only: no new setting, nothing stored, no migration; one update note (Character sheet).

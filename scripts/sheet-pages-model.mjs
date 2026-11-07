@@ -100,6 +100,16 @@ const handCell = (/** @type {HandFact} */ h, setLabel) => {
   return `<div class="wct-cs-slot wct-slot wct-hand wc-item-slot wc-empty empty"${data} aria-label="${esc(setLabel)} ${esc(h.label)} (empty)" data-tooltip-text="${esc(setLabel)}: ${esc(h.label)}">${PM.glyph(h.glyph)}</div>`;
 };
 
+/**
+ * The set button's tooltip (plain text). 2.4.1: a locked set's reason is part of it, since the lock icon inside the button takes
+ * no pointer events (the button's tooltip is the one Foundry shows).
+ * @param {{ label: string, active?: boolean, lock?: string | null }} s
+ */
+export function setTip(s) {
+  const base = s.active ? `${s.label} set (in hand)` : `Swap to the ${s.label} set`;
+  return s.lock ? `${base}. Locked: ${s.lock}` : base;
+}
+
 /** "Attuned 2 / 3" with the over-limit tone. @param {{ value?: unknown, max?: unknown } | null | undefined} a */
 export function attunedText(a) {
   const v = num(a?.value); const m = num(a?.max);
@@ -126,7 +136,7 @@ export function characterPageHTML(f) {
   let weapons = "";
   if (f.sets) {
     weapons = f.sets.map(s => `<div class="wct-cs-wset wct-set ${s.active ? "on active" : "off stowed"}" data-set="${esc(s.id)}">
-      ${ed ? `<button type="button" class="wct-cs-wtab" data-wct-activate="${esc(s.id)}" aria-pressed="${s.active}" data-tooltip-text="${s.active ? `${esc(s.label)} set (in hand)` : `Swap to the ${esc(s.label)} set`}">${esc(s.label)}${s.lock ? ` <span class="wct-cs-lock" data-tooltip-text="${esc(s.lock)}" aria-label="Locked: ${esc(s.lock)}">${svg(PAGE_ICONS.lock)}</span>` : ""}</button>` : `<span class="wct-cs-wtab static">${esc(s.label)}</span>`}
+      ${ed ? `<button type="button" class="wct-cs-wtab" data-wct-activate="${esc(s.id)}" aria-pressed="${s.active}" data-tooltip-text="${esc(setTip(s))}">${esc(s.label)}${s.lock ? ` <span class="wct-cs-lock" aria-label="Locked: ${esc(s.lock)}">${svg(PAGE_ICONS.lock)}</span>` : ""}</button>` : `<span class="wct-cs-wtab static">${esc(s.label)}</span>`}
       <div class="wct-cs-hands">${s.hands.map(h => handCell(h, s.label)).join("")}</div><span class="wct-cs-wstate">${s.active ? "In hand" : "Stowed"}</span></div>`).join("");
     if (f.relic) weapons += `<div class="wct-cs-wset wct-set wct-relic"><span class="wct-cs-wtab static">Relic</span><div class="wct-cs-hands">${slotCell(f.relic)}</div><span class="wct-cs-wstate">Worn</span></div>`;
   } else if (f.bottom) weapons = f.bottom.map(s => slotCell(s)).join("");

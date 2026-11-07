@@ -26,6 +26,13 @@ export const ALWAYS_ACTIONS = [
 
 export const NOTES = [
   {
+    version: "2.4.1",
+    changes: [
+      { feature: "characterSheet", text: "Character sheet: the Character page is a little more compact, so at the default window size the paper doll (with the weapon sets and relic) and the Attributes, Defence and Attack boxes now really fit without scrolling. Hovering a locked weapon set's tab now shows why it is locked." }
+    ],
+    actions: []
+  },
+  {
     version: "2.4.0",
     changes: [
       { feature: "characterSheet", text: "Character sheet: the Character page is laid out in two columns. The paper doll is on the left and Attributes, Defence and the Attack box are on the right, so everything except Equippable items fits without scrolling at the default size. Attributes are six score badges (click one to roll the check). In a narrow window the columns stack." }
