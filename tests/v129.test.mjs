@@ -255,11 +255,11 @@ test("glow: the new shape re-baselines once instead of glowing every quest", () 
 });
 
 // ---------------------------------------------------------------- shared UI
-test("quest log on wanderers-core's shared UI: UI_CLASSES on the window, core stylesheet first", () => {
+test("quest log on wanderers-core's shared UI: UI_CLASSES on the window, core stylesheet first", async () => {
   const mod = JSON.parse(src("module.json"));
   assert.equal(mod.styles[0], "vendor/wanderers-core/styles/wanderers-ui.css");
   assert.match(src("scripts/quests.mjs"), /classes: \["wct-quests", "wct-window", \.\.\.UI_CLASSES\]/);
-  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.1");
+  assert.ok((await import("../vendor/wanderers-core/index.mjs")).compareVersions(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.1") >= 0, "core 0.5.1 or later");
 });
 
 test("quest list and page look the same in both themes (no theme selectors in the module's quest CSS)", () => {

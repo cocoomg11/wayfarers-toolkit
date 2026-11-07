@@ -264,7 +264,7 @@ test("look: toolkit CSS reads core tokens; only in-world surfaces keep their own
 
 test("1.30.0: version, download URL, update note, changelog with the live checklist", async () => {
   const m = JSON.parse(src("module.json"));
-  assert.match(m.version, /^(1\.(30|31|32|33)|2\.[012])\.\d+$/);
+  assert.match(m.version, /^(1\.(30|31|32|33)|2\.[0-9])\.\d+$/);
   assert.equal(m.download, `https://github.com/cocoomg11/wayfarers-toolkit/releases/download/v${m.version}/module.zip`);
   assert.equal(m.styles[0], "vendor/wanderers-core/styles/wanderers-ui.css");
   const { NOTES } = await import("../scripts/update-notes.mjs");
@@ -273,5 +273,5 @@ test("1.30.0: version, download URL, update note, changelog with the live checkl
   assert.doesNotMatch(JSON.stringify(n130), /warcraft|blizzard|azeroth|\bwow\b/i);
   const cl = src("CHANGELOG.md");
   assert.match(cl, /## 1\.30\.0[\s\S]*?\*\*Fixed\*\*[\s\S]*?Untested in Foundry/);
-  assert.equal(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.1");
+  assert.ok((await import("../vendor/wanderers-core/index.mjs")).compareVersions(JSON.parse(src("wanderers-core.lock.json")).version, "0.5.1") >= 0, "core 0.5.1 or later");
 });

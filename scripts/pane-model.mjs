@@ -44,7 +44,7 @@ export function glyph(slot) {
 
 // ---------------------------------------------------------------- item quality
 /** Classic tooltip name colours → core's quality keys (items carrying an MMO-style tooltip). */
-const TIP_QUALITY = Object.freeze({ "#9d9d9d": "poor", "#ffffff": "common", "#fff": "common", "#1eff00": "uncommon", "#0070dd": "rare", "#a335ee": "epic", "#ff8000": "legendary", "#e6cc80": "artifact" });
+const TIP_QUALITY = Object.freeze({ "#9d9d9d": "poor", "#ffffff": "common", "#fff": "common", "#1eff00": "uncommon", "#0070dd": "rare", "#a335ee": "epic", "#ff8000": "legendary", "#e6cc80": "artifact", "#00ccff": "heirloom", "#0cf": "heirloom" });
 
 /** The quality key of an item: its tooltip colour when it has one, else core's quality() of its dnd5e rarity. @param {{ color?: string | null, rarity?: unknown }} f */
 export function qualityKey(f = {}) {
