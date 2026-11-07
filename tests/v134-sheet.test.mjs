@@ -85,7 +85,7 @@ test("character: Defence and Attack boxes (the pane's models), Attack follows th
   assert.match(h, /<span>Armor Class<\/span><b>16<\/b>/);
   assert.match(h, /<span class="prof" data-tooltip="Proficient">STR \+3<\/span>/);
   assert.match(h, /<h4>Ranged<span class="r">/); assert.match(h, /data-wct-attack/); assert.match(h, /<option value="auto" selected>Auto \(Ranged\)/);
-  assert.match(h, /wc-q-text" data-quality="epic"><b>Bow<\/b>/);
+  assert.match(h, /wc-q-text" data-quality="epic"><b data-tooltip-text="Bow">Bow<\/b>/);
   assert.match(h, /data-action="wctUse" data-item-id="b1">Use/);
 });
 

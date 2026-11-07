@@ -80,7 +80,7 @@
 .wct-sheet .wct-cs-pip.bad { background: var(--neg); border-color: var(--neg); }
 .wct-sheet .wct-cs-pip.ex { background: #d9a548; border-color: #d9a548; }
 
-.wct-sheet .wct-cs-editnote { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #1a130a; background: linear-gradient(var(--trimhi), var(--trim)); }
+.wct-sheet .wct-cs-editnote { display: flex; align-items: center; gap: 8px; padding: 3px 12px; font-size: 12px; font-weight: 600; color: #1a130a; background: linear-gradient(var(--trimhi), var(--trim)); }
 .wct-sheet .wct-cs-editnote svg { width: 14px; height: 14px; flex: none; }
 
 /* bookmarks + page. 1.33.1: the bookmarks sit on the right edge (row-reverse; the markup, so keyboard order and aria, is unchanged:
@@ -215,13 +215,17 @@
 .wct-sheet .wct-cs-abadge .v.pos { color: var(--pos); } .wct-sheet .wct-cs-abadge .v.neg { color: var(--neg); }
 .wct-sheet .wct-cs-abadge .m { font-size: 11px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .wct-sheet .wct-cs-abadge .wct-cs-ein { height: 22px; margin-top: 2px; }
+/* 2.4.2 Edit mode headroom: the edit note takes height from the 576px page (549px left, measured live) and the score inputs make the
+   badges taller, so the ledger ended flush with the page. A slimmer note and score badge give back about 22px; Play is unchanged. */
+.wct-sheet .wct-cs.editing .wct-cs-attrs .wct-cs-abadge { padding: 2px 4px; }
+.wct-sheet .wct-cs.editing .wct-cs-abadge .wct-cs-ein { height: 18px; margin-top: 1px; font-size: 12px; }
 /* Defence: Saves may wrap; its label stays on the first line */
 .wct-sheet .wct-cs-kv li.wct-cs-saves { align-items: baseline; }
 .wct-sheet .wct-cs-saves b { font-weight: 400; font-size: 12px; line-height: 1.35; display: flex; flex-wrap: wrap; gap: 0 6px; justify-content: flex-end; }
 .wct-sheet .wct-cs-saves b .prof { color: var(--gold); }
 /* Attack: the weapon name / empty note is the list's first row (same height and gap as the rows, no margins of its own) */
 .wct-sheet .wct-cs-kv li.wct-cs-atkname { justify-content: flex-start; min-width: 0; }
-.wct-sheet .wct-cs-kv li.wct-cs-atkname b { font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wc-q, var(--ink)); }
+.wct-sheet .wct-cs-kv li.wct-cs-atkname b { flex: 0 1 auto; min-width: 0; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wc-q, var(--ink)); }
 .wct-sheet .wct-cs-kv li.wct-cs-atkempty { justify-content: flex-start; font-size: 12px; color: var(--ink3); }
 /* narrow page: doll on top (portrait column back to 360px), the ledger boxes under it side by side where they fit */
 @container wct-charpage (max-width: 700px) {

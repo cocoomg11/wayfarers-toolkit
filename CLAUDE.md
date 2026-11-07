@@ -236,6 +236,10 @@ Foundry VTT module (v13/v14, dnd5e) of GM tools: hex travel, flight routes, vend
 - **Lock reason** lives in the set button's `data-tooltip-text` (`SP.setTip(s)`): `.wct-cs-lock` gets no pointer events (inherited), so it carries no tooltip of its own, only its aria label.
 - Tests: `tests/v241.test.mjs`.
 
+## 2.4.2 notes: Edit mode headroom
+- Edit mode page area at 820 × 760 is **549 px** (the edit note takes 27 px of the 576; measured live). Edit-only sizes are scoped `.wct-cs.editing` (score badge padding 2px 4px, input 18 px); `.wct-cs-editnote` padding 3px 12px. The Attack weapon name never wraps (ellipsis) and carries its full name in `data-tooltip-text`.
+- Tests: `tests/v242.test.mjs`.
+
 ## House practices
 - **CI**: `test.yml` calls core's `module-checks.yml@v0.6.0` (types step on: keep `npm run types` at zero errors; new code gets JSDoc types, `types/globals.d.ts` holds extra Foundry globals) plus a pack-sources job; `release.yml` = read-only build job + upload job (only writer), actions pinned by SHA, `npm ci` from the committed `package-lock.json` (lockfileVersion 3; regenerate with `npm install --package-lock-only --ignore-scripts` when dev dependencies change).
 - **Release tags** are `vMAJOR.MINOR.PATCH` only (`v1.24.0`; never `1.24` or `v1.24`). The Release workflow fails early on anything else and still sets version/URLs from the tag.

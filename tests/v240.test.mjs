@@ -45,7 +45,7 @@ test("2.4 attributes: six badges in a 3 × 2 grid; rolls for owners, static for 
 
 test("2.4 spacing fix: the weapon name / empty note is the Attack list's first row (no paragraph with its own margins)", () => {
   const h = SP.characterPageHTML(facts());
-  assert.match(h, /<ul class="wct-cs-kv"><li class="wct-cs-atkname wc-q-text" data-quality="uncommon"><b>Fine &lt;b&gt;sword&lt;\/b&gt;<\/b><\/li><li><span>To hit<\/span><b>\+6<\/b><\/li>/, "escaped name, then the rows");
+  assert.match(h, /<ul class="wct-cs-kv"><li class="wct-cs-atkname wc-q-text" data-quality="uncommon"><b data-tooltip-text="Fine &lt;b&gt;sword&lt;\/b&gt;">Fine &lt;b&gt;sword&lt;\/b&gt;<\/b><\/li><li><span>To hit<\/span><b>\+6<\/b><\/li>/, "escaped name, then the rows");
   assert.doesNotMatch(h, /<p class="wct-cs-atkname|wct-cs-boxnote/);
   const none = SP.characterPageHTML(facts({ attack: { title: "Melee", name: "", empty: "No weapon in hand.", rows: [], options: PM.attackOptions("auto", "melee"), use: null } }));
   assert.match(none, /<ul class="wct-cs-kv"><li class="wct-cs-atkempty wct-cs-dim">No weapon in hand\.<\/li><\/ul>/);

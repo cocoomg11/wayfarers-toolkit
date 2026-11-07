@@ -2,6 +2,22 @@
 
 All notable changes to Wanderer's Toolkit. Versions follow the `version` in `module.json`.
 
+## 2.4.2
+
+2026-11-07. Character page spacing from the 2.4.1 live test. Layout only: no new setting, nothing stored, no migration, no update note.
+
+**Fixed**
+- **Edit mode headroom.** In Edit mode the edit note takes height from the 576 px page (549 px left at 820 × 760, measured live), and the ledger ended exactly at the bottom with 0 px to spare. In Edit mode only, the score badges and their inputs are slimmer (18 px input, 2 px padding), and the edit note is 6 px shorter on every page: about 22 px of headroom. Play mode is unchanged.
+- **Long weapon names stay on one line.** The Attack box's weapon name is cut with an ellipsis instead of wrapping, and the full name shows as a plain-text tooltip (`data-tooltip-text`).
+
+**Tests**: `tests/v242.test.mjs` (one-line name and its escaped tooltip, Edit-only badge sizes, edit note, 11 px text floor, Play rules unchanged); `tests/v240.test.mjs` follows the name's tooltip.
+
+**Untested in Foundry** (live checklist)
+- Default 820 × 760, Character page, Edit mode: the ledger's last row (Attack / Use) ends about 20 px above the page bottom; score inputs are still easy to read and type in.
+- Equip a weapon with a long name: the Attack box shows it on one line with "…", hovering shows the full name; no scroll in Play or Edit mode.
+- The edit note on other pages still reads well at its slimmer height.
+- Play mode looks exactly as in 2.4.1.
+
 ## 2.4.1
 
 2026-11-07. Character sheet fixes from the 2.4.0 live test. Layout and one tooltip only: no new setting, nothing stored, no migration; one update note (Character sheet).

@@ -158,7 +158,8 @@ export function characterPageHTML(f) {
     <li class="wct-cs-saves"><span>Saves</span><b>${d.saves.map(s => `<span class="${s.prof ? "prof" : ""}"${s.prof ? ' data-tooltip="Proficient"' : ""}>${esc(s.abbr)} ${esc(s.value)}</span>`).join(" ")}</b></li></ul>` : "";
   const a = f.attack;
   // 2.4: the weapon name (or the empty note) is the list's first row, so it shares the rows' height and gap (no paragraph margins).
-  const atk = a ? box(a.title || "Attack", `<ul class="wct-cs-kv">${a.name ? `<li class="wct-cs-atkname wc-q-text" data-quality="${esc(a.quality || "common")}"><b>${esc(a.name)}</b></li>` : ""}${a.empty ? `<li class="wct-cs-atkempty wct-cs-dim">${esc(a.empty)}</li>` : ""}${(a.rows ?? []).map(r => `<li><span>${esc(r.label)}</span><b>${esc(r.value)}</b></li>`).join("")}${a.use && ed ? `<li><span>Attack</span><b><button type="button" class="wct-cs-gbtn sm" data-action="wctUse" data-item-id="${esc(a.use)}">Use</button></b></li>` : ""}</ul>`,
+  // 2.4.2: the name stays on one line (ellipsis in sheet.css); the full name is its text tooltip.
+  const atk = a ? box(a.title || "Attack", `<ul class="wct-cs-kv">${a.name ? `<li class="wct-cs-atkname wc-q-text" data-quality="${esc(a.quality || "common")}"><b data-tooltip-text="${esc(a.name)}">${esc(a.name)}</b></li>` : ""}${a.empty ? `<li class="wct-cs-atkempty wct-cs-dim">${esc(a.empty)}</li>` : ""}${(a.rows ?? []).map(r => `<li><span>${esc(r.label)}</span><b>${esc(r.value)}</b></li>`).join("")}${a.use && ed ? `<li><span>Attack</span><b><button type="button" class="wct-cs-gbtn sm" data-action="wctUse" data-item-id="${esc(a.use)}">Use</button></b></li>` : ""}</ul>`,
     { right: a.options ? `<label class="wc-sr" for="wct-cs-atk">Attack shown</label><select id="wct-cs-atk" class="wct-cs-sel" data-wct-attack>${a.options}</select>` : "", cls: "wct-cs-attack" }) : "";
   const bag = f.bag ?? [];
   const loose = Math.max(0, Math.trunc(num(f.loose) ?? 0));
