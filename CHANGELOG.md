@@ -18,7 +18,7 @@ All notable changes to Wanderer's Toolkit. Versions follow the `version` in `mod
 
 **Tests**: `tests/v23-pages.test.mjs` (page orders, merging guests by order, guest ids in `pickPage`, bookmark icons and escaping, the guest page body and head, the error line, `api.sheet`'s object and refusals, `guestBody` context and results, main.mjs / sheet.mjs wiring, core pin, heirloom colour, docs).
 
-**Before releasing**: the vendored core is pinned to a **local** copy of wanderers-core 0.6.0 (`wanderers-core.lock.json` `source: "local"`). Publish core v0.6.0 first, then re-pin with `node vendor/wanderers-core/vendor.mjs update 0.6.0` (the content hash should not change) and commit the lock; CI's pin check only warns on a local pin.
+Core is pinned to the published wanderers-core v0.6.0 release, and CI calls core's `module-checks.yml@v0.6.0`.
 
 **Untested in Foundry** (live checklist)
 - With the sheet on, from the console on a player's client: `game.modules.get("wayfarers-toolkit").api.sheet.registerPage({ id: "test.page", label: "Test", order: 85, render: ({ actor }) => `<p>${actor.name}</p>` })` → a bookmark between Bastion and Special traits (or after Biography when Bastion is hidden) with the default page icon; clicking it shows "Test" with the name; Play and Edit both show it.

@@ -3,8 +3,8 @@
   "lockVersion": 1,
   "version": "0.6.0",
   "hash": "sha256-21228b7e2dfad8e53b9e66b85d66521351f74a7e0dc6404eaf7bb423a56e6d13",
-  "source": "local",
+  "source": "release",
   "dir": "vendor/wanderers-core",
   "files": 38,
-  "commit": "57d3c1440d8e6f5228e9556de25843a3975d43e0"
+  "asset": "https://github.com/cocoomg11/wanderers-core/releases/download/v0.6.0/wanderers-core-0.6.0.json"
 }
